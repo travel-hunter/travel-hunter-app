@@ -1,0 +1,27 @@
+:root {
+  --primary-600: #c2750a;
+  --primary-500: #f59f00;
+  --primary-100: #fff3cd;
+  --primary-50: #fffbef;
+  --secondary-600: #c2410c;
+  --secondary-500: #ea580c;
+  --secondary-100: #ffedd5;
+  --accent-600: #0f766e;
+  --accent-500: #14b8a6;
+  --accent-100: #ccfbf1;
+  --ink: #171728;
+  --gray-800: #2c2c3a;
+  --gray-700: #4a4a5c;
+  --gray-500: #8c8ca1;
+  --gray-300: #d4d4dc;
+  --gray-200: #e6e6ec;
+  --gray-100: #f2f2f5;
+  --gray-50: #f8f8fa;
+  --white: #ffffff;
+  --warning: #f59f00;
+  --blue: #3b82f6;
+  --green: #21a67a;
+  --shadow-sm: 0 1px 4px rgba(23, 23, 40, 0.08);
+  --shadow-md: 0 10px 28px rgba(23, 23, 40, 0.13);
+  --app-width: 390px;
+}
