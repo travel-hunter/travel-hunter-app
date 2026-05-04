@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
 
 
 class SocialAccount(BaseModel):
@@ -45,16 +45,20 @@ class ProfileOptions(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: str
-    password: str
+    email: EmailStr
+    password: str = Field(min_length=1)
 
 
 class SignupRequest(BaseModel):
-    name: str
-    email: str
-    password: str
+    name: str = Field(min_length=1, max_length=50)
+    email: EmailStr
+    password: str = Field(min_length=8)
 
 
 class AuthResponse(BaseModel):
     accessToken: str
     user: User
+
+
+class LogoutResponse(BaseModel):
+    loggedOut: bool

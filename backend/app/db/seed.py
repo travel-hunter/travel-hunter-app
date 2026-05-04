@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.security import hash_password
 from app.data import seed
 from app.db.session import get_session_factory
 from app.models import (
@@ -64,7 +65,7 @@ def seed_users(db: Session) -> dict[str, User]:
         db,
         email=str(seed.USER["email"]),
         nickname=str(seed.USER["nickname"]),
-        password_hash="dev-password-hash",
+        password_hash=hash_password("password123"),
         birth_date=parse_date(str(seed.USER["birthDate"])),
         gender=seed.USER["gender"],
         region=seed.USER["region"],

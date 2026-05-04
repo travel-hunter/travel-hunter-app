@@ -1,32 +1,21 @@
 # Travel Hunter MVP API 계약 v0.3
 
-이 문서는 `files/ERD_v0.3_결정안건_상세분석.md`의 권장안을 모두 채택한 API 계약 기준이다.
+이 문서는 ERD v0.3 권장안을 채택한 MVP API 계약 기준이다. API prefix는 `/api`이고, DB 필드는 `snake_case`, API DTO는 `camelCase`를 사용한다.
 
-기본 실행에서 백엔드는 Mock API로 같은 응답 shape를 제공하고, 프론트는 `AppDataApi` 경계만 바라본다. PostgreSQL/Alembic 기반 v0.3 schema는 준비되어 있으며, `BACKEND_DATA_SOURCE=db`에서는 정책 목록/상세 endpoint부터 DB-backed service 경계를 사용할 수 있다.
+## 공통 규칙
 
-## 전역 규칙
-
-- API prefix는 `/api`를 사용한다.
-- DB 컬럼은 `snake_case`, API DTO는 `camelCase`를 사용한다.
-- 정책 상세는 `policies.slug` 기준으로 조회한다.
+- 정책 상세 조회는 `policies.slug` 기준이다.
 - 일정은 공개 slug를 만들지 않고 내부 id 기준으로 조회한다.
 - 현재 mock 단계의 `jeju-3-days` trip id는 화면 호환용이며, DB 전환 시 numeric id 또는 client mapping으로 대체한다.
 - `password_hash`, `provider_id`, `refresh_token_hash`는 응답에 포함하지 않는다.
-
-## v0.3 ERD 결정
-
-- `policies.slug` 추가
-- `trip_invites` 추가
-- `users` 통합 유지
-- `users.gender` 추가
-- 사용자 관심 지역은 `users.preferred_regions` 사용
-- `trip_days`, `trip_members`, `trip_policies`, `trip_places`, `trip_invites` 단수 prefix 사용
+- Mock mode는 deterministic 응답을 유지한다.
+- DB mode는 PostgreSQL-backed service를 사용하되, public response shape는 Mock mode와 동일하게 유지한다.
 
 ## 인증
 
 ### `POST /api/auth/signup`
 
-Request
+Request:
 
 ```json
 {
@@ -36,11 +25,11 @@ Request
 }
 ```
 
-Response `200`
+Response `200`:
 
 ```json
 {
-  "accessToken": "mock-token",
+  "accessToken": "jwt-access-token",
   "user": {
     "id": "1",
     "name": "지영",
@@ -52,19 +41,26 @@ Response `200`
     "homeRegion": "서울 마포",
     "residenceArea": "서울 마포",
     "preferredRegions": "제주,부산,강원",
-    "persona": "혜택을 꼼꼼히 챙기는 29세 직장인",
-    "savedAmount": 120000,
+    "persona": "Travel Hunter 사용자",
+    "savedAmount": 0,
     "onboardingCompleted": true,
     "socialAccounts": [],
-    "createdAt": "2026-05-04T00:00:00Z",
-    "updatedAt": "2026-05-04T00:00:00Z"
+    "createdAt": "2026-05-04T00:00:00",
+    "updatedAt": "2026-05-04T00:00:00"
   }
 }
 ```
 
+DB mode behavior:
+
+- email은 lowercase로 정규화한다.
+- `users.password_hash`에는 Argon2 hash만 저장한다.
+- refresh token은 HttpOnly cookie로만 전달하고, DB에는 SHA-256 hash를 저장한다.
+- duplicate email은 `409 {"detail": "Email already registered"}`를 반환한다.
+
 ### `POST /api/auth/login`
 
-Request
+Request:
 
 ```json
 {
@@ -73,17 +69,75 @@ Request
 }
 ```
 
-Response `200`: `POST /api/auth/signup`과 동일한 `AuthResponse`.
+Response `200`: `AuthResponse`.
+
+Error:
+
+- invalid email/password: `401 {"detail": "Invalid email or password"}`
+
+### `POST /api/auth/refresh`
+
+Request body 없음. DB mode에서는 `travel_hunter_refresh` HttpOnly cookie를 읽는다.
+
+Response `200`: `AuthResponse`.
+
+Behavior:
+
+- 기존 refresh token row를 revoke한다.
+- 새 access token과 새 refresh cookie를 발급한다.
+- invalid, expired, revoked refresh token은 `401 {"detail": "Invalid refresh token"}`를 반환한다.
+
+### `POST /api/auth/logout`
+
+Request body 없음. refresh cookie가 있으면 해당 token row를 revoke한다.
+
+Response `200`:
+
+```json
+{
+  "loggedOut": true
+}
+```
+
+Behavior:
+
+- refresh cookie를 clear한다.
+- refresh cookie가 없거나 이미 만료되어도 `200`을 반환한다.
 
 ## 사용자
 
 ### `GET /api/me`
 
-Response `200`: `UserMeDto`.
+Mock mode: 기존 mock user를 반환한다.
+
+DB mode: `Authorization: Bearer <accessToken>`이 필요하다.
+
+Response `200`: `User`.
+
+Error:
+
+- missing, invalid, expired access token: `401 {"detail": "Not authenticated"}`
+
+DB mapping:
+
+| API field | DB field / source |
+|----------|-------------------|
+| `id` | `users.id` as string |
+| `name`, `nickname` | `users.nickname` |
+| `email` | `users.email` |
+| `birthDate` | `users.birth_date` |
+| `gender` | `users.gender` |
+| `region` | `users.region` |
+| `homeRegion`, `residenceArea` | `users.residence_area` |
+| `preferredRegions` | `users.preferred_regions` |
+| `onboardingCompleted` | `users.onboarding_completed` |
+| `socialAccounts` | `social_accounts` rows without `provider_id` |
+| `persona` | calculated/default display value |
+| `savedAmount` | calculated/default display value |
 
 ### `PATCH /api/me/profile`
 
-Request의 모든 필드는 optional이다.
+Request fields are optional:
 
 ```json
 {
@@ -93,7 +147,7 @@ Request의 모든 필드는 optional이다.
 }
 ```
 
-Response `200`
+Response `200`:
 
 ```json
 {
@@ -102,10 +156,12 @@ Response `200`
   "budget": "1인 40만원 이하"
 }
 ```
+
+Note: profile style/budget persistence is not included in ERD v0.3, so this endpoint remains mock-backed in the auth DB-backed phase.
 
 ### `GET /api/profile-options`
 
-Response `200`
+Response `200`:
 
 ```json
 {
@@ -119,14 +175,7 @@ Response `200`
 
 ### `GET /api/policies`
 
-Query는 optional이다.
-
-- `region`
-- `type`
-- `page`
-- `size`
-
-Response `200`
+Response `200`:
 
 ```json
 [
@@ -149,27 +198,29 @@ Response `200`
 ]
 ```
 
-DB 매핑 핵심:
+DB mapping:
 
-| API 필드 | DB 컬럼 |
-|----------|---------|
-| `slug` | `policies.slug` |
+| API field | DB source |
+|----------|-----------|
+| `slug`, `id` | `policies.slug` |
 | `org` | `policies.organization` |
 | `deadline` | `policies.end_date` |
-| `amount` | `policies.benefit_amount` + `policies.benefit_detail` |
+| `amount` | `policies.benefit_detail` or `benefit_amount` display |
 | `summary` | `policies.policy_comment` |
 | `category` | `policies.policy_type` |
 | `documents` | `policy_documents.document_name[]` |
 
 ### `GET /api/policies/{slug}`
 
-정책 상세를 slug로 조회한다. 현재 mock에서는 `local-vacation`을 slug로 사용한다.
+Response `200`: `GET /api/policies` item shape.
 
-Response `200`: `GET /api/policies`의 항목과 같은 shape.
+Error:
+
+- unknown slug: `404 {"detail": "Policy not found"}`
 
 ### `POST /api/me/saved-policies/{slug}`
 
-Response `200`
+Response `200`:
 
 ```json
 {
@@ -182,54 +233,32 @@ Response `200`
 
 ### `GET /api/trips`
 
-Response `200`
+Response `200`: `Trip[]`.
 
-```json
-[
-  {
-    "id": "jeju-3-days",
-    "title": "제주 3일 여행",
-    "dates": "2026.06.15 - 06.17",
-    "people": ["지영", "민서", "현우"],
-    "expectedSaving": "12만원",
-    "days": {
-      "1": [
-        {
-          "time": "09:00",
-          "label": "성산 일출봉",
-          "meta": "자연 · 관광지"
-        }
-      ]
-    }
-  }
-]
-```
-
-DB 매핑 핵심:
-
-| API 필드 | DB 컬럼 |
-|----------|---------|
-| `id` | `trips.id` |
-| `title` | `trips.title` |
-| `dates` | `trips.start_date` + `trips.end_date` |
-| `people` | `trip_members` JOIN `users.nickname` |
-| `days` | `trip_days` JOIN `trip_places` |
-
-### `POST /api/trips`
-
-Request
+Trip shape:
 
 ```json
 {
+  "id": "jeju-3-days",
   "title": "제주 3일 여행",
-  "startDate": "2026-06-15",
-  "endDate": "2026-06-17",
-  "region": "제주",
-  "description": "휴식 중심 여행"
+  "dates": "2026.06.15 - 06.17",
+  "people": ["지영", "민서", "현우"],
+  "expectedSaving": "12만원",
+  "days": {
+    "1": [
+      {
+        "time": "09:00",
+        "label": "성산 일출봉",
+        "meta": "자연 · 관광지"
+      }
+    ]
+  }
 }
 ```
 
-Response `200`: 생성된 `Trip`.
+### `POST /api/trips`
+
+Response `200`: created `Trip`.
 
 ### `GET /api/trips/{tripId}`
 
@@ -237,7 +266,7 @@ Response `200`: `Trip`.
 
 ### `POST /api/trips/{tripId}/policies/{slug}`
 
-Response `200`
+Response `200`:
 
 ```json
 {
@@ -251,36 +280,15 @@ Response `200`
 
 ### `GET /api/trips/{tripId}/recommendations`
 
-Response `200`
-
-```json
-[
-  {
-    "label": "CA",
-    "title": "월정리 바다 카페",
-    "meta": "Day 2 오후에 적합 · 이동 18분",
-    "reason": "비 오는 날에도 머물기 좋고 사진 만족도가 높습니다."
-  }
-]
-```
-
-DB 매핑:
-
-- `recommendations.user_id`
-- `recommendations.trip_id`
-- `recommendations.query`
-- `recommendations.result`
-- `recommendations.created_at`
+Response `200`: `Recommendation[]`.
 
 ## 친구 초대
 
-v0.3 DB 기준은 `trip_invites`다. 실제 발송은 아직 구현하지 않고 Mock API가 초대 상태만 반환한다.
+v0.3 DB 기준은 `trip_invites`다. 실제 발송은 아직 구현하지 않고 API가 초대 상태만 반환한다.
 
 ### `GET /api/trips/{tripId}/invite`
 
-현재 프론트 호환 endpoint다.
-
-Response `200`
+Response `200`:
 
 ```json
 {
@@ -298,21 +306,21 @@ Response `200`
 
 ### `POST /api/trips/{tripId}/invite`
 
-현재 프론트 호환 endpoint다. 초대 완료 상태를 반환한다.
+Response `200`: invite state with `invited: true`.
 
 ### `POST /api/trips/{tripId}/invites`
 
-v0.3 신규 생성 endpoint다. 응답 shape는 `GET /api/trips/{tripId}/invite`와 같다.
+Response `200`: invite state.
 
 ### `POST /api/invites/{token}/accept`
 
-초대 수락 endpoint다. DB 전환 시 `trip_invites.accepted_at` 갱신 후 `trip_members`에 참여자를 추가한다.
+Response `200`: invite state with `acceptedAt`.
 
 ## Health
 
 ### `GET /api/health`
 
-Response `200`
+Response `200`:
 
 ```json
 {
@@ -323,12 +331,13 @@ Response `200`
 }
 ```
 
-`database`는 문자열이다. Mock mode에서는 `configured` 또는 `not_configured`, DB mode에서는 `connected`, `unavailable`, `not_configured` 중 하나를 반환할 수 있다.
+`database` is one of `configured`, `not_configured`, `connected`, or `unavailable`.
 
 ## 다음 단계 제외 범위
 
-- JWT refresh token 실제 발급/회전
+- 소셜 로그인 실제 연동
+- profile style/budget DB persistence
 - 정책 실시간 수집 API
-- 전체 endpoint DB-backed service 전환
+- 전체 trip endpoint DB-backed service 전환
 - 실제 AI 추천 엔진
 - 친구 초대 실제 발송

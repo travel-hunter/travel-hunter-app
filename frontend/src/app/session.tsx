@@ -1,10 +1,13 @@
-import { createContext, ReactNode, useContext, useMemo, useState } from "react";
-import { appDataApi } from "../api";
-
-type SessionUser = {
-  name: string;
-  email: string;
-};
+import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
+import {
+  appDataApi,
+  AuthResponse,
+  getDataSource,
+  LoginRequest,
+  setApiAccessToken,
+  SignupRequest,
+  User,
+} from "../api";
 
 type Profile = {
   region: string;
@@ -13,13 +16,14 @@ type Profile = {
 };
 
 type SessionContextValue = {
-  currentUser: SessionUser | null;
+  currentUser: User | null;
   profile: Profile;
   addedPolicy: boolean;
   likedPolicy: boolean;
   invited: boolean;
-  login: () => void;
-  logout: () => void;
+  login: (request?: LoginRequest) => Promise<void>;
+  signup: (request?: SignupRequest) => Promise<void>;
+  logout: () => Promise<void>;
   updateProfile: (key: keyof Profile, value: string) => void;
   addPolicy: () => void;
   togglePolicyLike: () => void;
@@ -30,17 +34,34 @@ const AUTH_STORAGE_KEY = "travel-hunter-production-auth";
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
-function readStoredUser(): SessionUser | null {
+function readStoredAuth(): AuthResponse | null {
   try {
     const saved = window.localStorage.getItem(AUTH_STORAGE_KEY);
-    return saved ? (JSON.parse(saved) as SessionUser) : null;
+    if (!saved) return null;
+    const parsed = JSON.parse(saved) as Partial<AuthResponse>;
+    if (!parsed.accessToken || !parsed.user) return null;
+    return { accessToken: parsed.accessToken, user: parsed.user };
   } catch {
     return null;
   }
 }
 
+function persistAuth(auth: AuthResponse) {
+  setApiAccessToken(auth.accessToken);
+  window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth));
+}
+
+function clearAuth() {
+  setApiAccessToken(null);
+  window.localStorage.removeItem(AUTH_STORAGE_KEY);
+}
+
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<SessionUser | null>(() => readStoredUser());
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const stored = readStoredAuth();
+    if (stored) setApiAccessToken(stored.accessToken);
+    return stored?.user ?? null;
+  });
   const [profile, setProfile] = useState<Profile>({
     region: "제주",
     style: "휴식",
@@ -50,6 +71,54 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [likedPolicy, setLikedPolicy] = useState(false);
   const [invited, setInvited] = useState(false);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function verifyStoredSession() {
+      const stored = readStoredAuth();
+      if (!stored) {
+        if (getDataSource() !== "backend") return;
+        try {
+          const refreshed = await appDataApi.refreshSession();
+          if (cancelled) return;
+          persistAuth(refreshed);
+          setCurrentUser(refreshed.user);
+        } catch {
+          clearAuth();
+        }
+        return;
+      }
+
+      try {
+        const user = await appDataApi.getCurrentUser();
+        if (cancelled) return;
+        const nextAuth = { accessToken: stored.accessToken, user };
+        persistAuth(nextAuth);
+        setCurrentUser(user);
+      } catch {
+        if (cancelled) return;
+        if (getDataSource() === "backend") {
+          try {
+            const refreshed = await appDataApi.refreshSession();
+            if (cancelled) return;
+            persistAuth(refreshed);
+            setCurrentUser(refreshed.user);
+            return;
+          } catch {
+            // Fall through to clearing the stale local session.
+          }
+        }
+        clearAuth();
+        setCurrentUser(null);
+      }
+    }
+
+    void verifyStoredSession();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const value = useMemo<SessionContextValue>(
     () => ({
       currentUser,
@@ -57,15 +126,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       addedPolicy,
       likedPolicy,
       invited,
-      login: () => {
-        const user = appDataApi.getPreviewUser();
-        const nextUser = { name: user.name, email: user.email };
-        window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextUser));
-        setCurrentUser(nextUser);
+      login: async (request) => {
+        const auth = await appDataApi.login(request);
+        persistAuth(auth);
+        setCurrentUser(auth.user);
       },
-      logout: () => {
-        window.localStorage.removeItem(AUTH_STORAGE_KEY);
-        setCurrentUser(null);
+      signup: async (request) => {
+        const auth = await appDataApi.signup(request);
+        persistAuth(auth);
+        setCurrentUser(auth.user);
+      },
+      logout: async () => {
+        try {
+          await appDataApi.logout();
+        } finally {
+          clearAuth();
+          setCurrentUser(null);
+        }
       },
       updateProfile: (key, value) => {
         setProfile((current) => ({ ...current, [key]: value }));

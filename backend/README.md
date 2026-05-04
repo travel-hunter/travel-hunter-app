@@ -1,72 +1,84 @@
 # Backend
 
-Travel Hunter FastAPI 백엔드입니다. 현재 기본 실행은 프론트 연동용 Mock API를 유지하고, PostgreSQL 전환을 위한 SQLAlchemy/Alembic 기반 DB 스키마와 개발 seed 주입 명령을 제공합니다.
+Travel Hunter FastAPI backend. The service keeps deterministic Mock API behavior by default and can switch selected endpoints to PostgreSQL-backed behavior with `BACKEND_DATA_SOURCE=db`.
 
-## 기술 스택
+## Stack
 
-- Python 3.12
+- Python 3.12+
 - FastAPI
 - SQLAlchemy 2.x
 - Alembic
 - psycopg 3
-- Pytest
+- pwdlib Argon2 password hashing
+- PyJWT
 - PostgreSQL 16
+- Pytest
 
-## 구조
+## Structure
 
-- `app/main.py`: FastAPI 앱 생성, CORS, router 등록
-- `app/core/config.py`: 환경변수 설정
-- `app/api/router.py`: `/api` router 조립
-- `app/api/routes`: health, auth, profile, policies, trips endpoint
-- `app/schemas`: 프론트 타입과 맞춘 Pydantic request/response schema
-- `app/services`: Mock business logic
-- `app/data/seed.py`: DB 없이 사용하는 seed data
-- `app/db`: SQLAlchemy session, Alembic metadata, 개발 seed 주입
-- `app/models`: ERD v0.3 기준 SQLAlchemy model
+- `app/main.py`: FastAPI app, CORS, router registration
+- `app/core`: environment config and auth/security helpers
+- `app/api/routes`: thin health, auth, profile, policies, trips, invites routes
+- `app/schemas`: Pydantic request/response models
+- `app/services`: business behavior and DTO mapping
+- `app/repositories`: DB query boundaries
+- `app/data`: deterministic mock/seed data
+- `app/db`: SQLAlchemy session, Alembic metadata, dev seed command
+- `app/models`: ERD v0.3 SQLAlchemy models
 - `alembic`: ERD v0.3 initial migration
 
-## 로컬 실행
+## Local Run
 
 ```bash
 python -m pip install -r requirements.txt
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-기본 데이터 소스는 Mock API다.
+Default mode is Mock API:
 
 ```bash
 $env:BACKEND_DATA_SOURCE="mock"
 ```
 
-PostgreSQL 연결을 확인할 때는 다음 환경변수를 사용한다.
+DB-backed mode:
 
 ```bash
 $env:BACKEND_DATA_SOURCE="db"
 $env:DATABASE_URL="postgresql+psycopg://travelhunter:travelhunter@127.0.0.1:55432/travelhunter"
+$env:AUTH_SECRET_KEY="dev-only-change-me-secret-key-32-bytes"
 ```
 
-헬스체크:
+Auth settings:
+
+```bash
+$env:ACCESS_TOKEN_EXPIRE_MINUTES="30"
+$env:REFRESH_TOKEN_EXPIRE_DAYS="14"
+$env:REFRESH_COOKIE_NAME="travel_hunter_refresh"
+$env:REFRESH_COOKIE_SECURE="false"
+```
+
+Health check:
 
 ```bash
 curl http://127.0.0.1:8000/api/health
 ```
 
-## 테스트
+## Tests
 
 ```bash
 python -m pytest
 ```
 
-## DB 스키마와 Seed
+## DB Schema And Seed
 
-ERD v0.3 기준 SQL은 앱 repo 내부의 `docs/db-schema-v0.3.sql`에 보존되어 있고, 실제 schema 생성은 Alembic migration으로 수행한다. `create_all()`은 사용하지 않는다.
+The v0.3 reference SQL is preserved in `docs/db-schema-v0.3.sql`. Runtime schema creation uses Alembic only; do not use SQLAlchemy `create_all()`.
 
 ```bash
 alembic upgrade head
 python -m app.db.seed
 ```
 
-Compose DB는 host `55432` 포트로 노출한다. host `5432`에 기존 PostgreSQL이 있어도 compose DB와 충돌하지 않게 하기 위한 설정이다. 로컬 host 연결 대신 compose 네트워크 내부에서 실행할 수도 있다.
+Compose exposes PostgreSQL on host `55432` to avoid conflicts with an existing local `5432` PostgreSQL.
 
 ```bash
 docker compose -f compose.yaml up -d db
@@ -74,24 +86,18 @@ docker compose -f compose.yaml run --rm backend alembic upgrade head
 docker compose -f compose.yaml run --rm backend python -m app.db.seed
 ```
 
-개발 seed는 idempotent 방식으로 동작한다. 같은 DB에서 여러 번 실행해도 `users.email`, `policies.slug`, `trip_invites.invite_token` 기준으로 중복 row를 만들지 않는다.
+The dev seed is idempotent for row creation by `users.email`, `policies.slug`, and `trip_invites.invite_token`.
 
-## 현재 범위
+## Current Scope
 
 - `/health`, `/api/health`
-- `/api/auth/login`, `/api/auth/signup`
+- `/api/auth/signup`, `/api/auth/login`, `/api/auth/refresh`, `/api/auth/logout`
 - `/api/me`, `/api/me/profile`, `/api/profile-options`
 - `/api/policies`, `/api/policies/{policySlug}`
-- `/api/me/saved-policies/{policySlug}`
-- `/api/trips`, `/api/trips/{tripId}`
-- `/api/trips/{tripId}/policies/{policySlug}`
-- `/api/trips/{tripId}/recommendations`
-- `/api/trips/{tripId}/invite`
-- `/api/trips/{tripId}/invites`
-- `/api/invites/{inviteToken}/accept`
-- ERD v0.3 SQLAlchemy model
-- Alembic `0001_create_v0_3_schema` migration
-- 개발용 seed script
-- 정책 목록/상세 DB-backed repository/service 경계
+- trip, recommendation, and invite Mock API endpoints
+- ERD v0.3 SQLAlchemy models and Alembic migration
+- development seed script
+- policy list/detail DB-backed repository/service boundary
+- DB-backed auth foundation for signup/login/me/refresh/logout
 
-실제 인증, 정책 실시간 조회, 정책 외 DB-backed service 전환, 실제 AI 추천은 다음 단계에서 진행합니다.
+Out of scope for the current backend foundation: social login, real policy collection, all trip persistence, real AI recommendations, and real invite delivery.

@@ -1,9 +1,32 @@
+from types import SimpleNamespace
+
+import pytest
 from fastapi.testclient import TestClient
 
+from app.api import dependencies as api_dependencies
+from app.api.routes import auth as auth_routes
+from app.api.routes import profile as profile_routes
+from app.db import session as db_session
 from app.main import app
+from app.services import policies as policy_service
 
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def force_mock_mode(monkeypatch) -> None:
+    settings = SimpleNamespace(
+        backend_data_source="mock",
+        database_url="",
+        refresh_cookie_name="travel_hunter_refresh",
+        refresh_cookie_secure=False,
+    )
+    monkeypatch.setattr(auth_routes, "settings", settings)
+    monkeypatch.setattr(profile_routes, "settings", settings)
+    monkeypatch.setattr(api_dependencies, "settings", settings)
+    monkeypatch.setattr(db_session, "settings", settings)
+    monkeypatch.setattr(policy_service, "settings", settings)
 
 
 def test_auth_and_profile_endpoints() -> None:

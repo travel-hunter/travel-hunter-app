@@ -405,6 +405,14 @@
   color: var(--ink);
 }
 
+.form-error {
+  margin: 0;
+  color: #b42318;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
 .auth-links,
 .socials {
   display: flex;

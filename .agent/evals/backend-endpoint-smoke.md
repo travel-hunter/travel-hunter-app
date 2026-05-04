@@ -13,6 +13,8 @@
 | `GET /api/health` | 200 | `status`, `service`, `environment`, `database` | P0 |
 | `POST /api/auth/login` | 200 | `accessToken`, `user.name`, `user.preferredRegions` | P0 |
 | `POST /api/auth/signup` | 200 | `AuthResponse` shape matches login | P1 |
+| `POST /api/auth/refresh` | 200 | DB mode rotates refresh token and returns `AuthResponse` | P1 |
+| `POST /api/auth/logout` | 200 | `{ "loggedOut": true }` and refresh cookie clear | P1 |
 | `GET /api/me` | 200 | `homeRegion`, `onboardingCompleted` | P0 |
 | `PATCH /api/me/profile` | 200 | patched profile fields returned | P1 |
 | `GET /api/profile-options` | 200 | `regions`, `travelStyles`, `budgets` | P1 |
@@ -33,6 +35,10 @@
 - Unknown policy slug returns the documented error.
 - Unknown trip id returns the documented error.
 - Invalid auth payload returns validation error.
+- DB mode duplicate signup email returns 409.
+- DB mode invalid login returns 401.
+- DB mode `/api/me` without valid bearer token returns 401.
+- DB mode invalid refresh token returns 401.
 - Invite accept with unknown token returns the documented error.
 
 ## DB Mode Smoke

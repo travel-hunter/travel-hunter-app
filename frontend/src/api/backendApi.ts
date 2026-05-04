@@ -7,7 +7,7 @@ import {
   user,
 } from "../data/seedData";
 import { apiClient } from "./client";
-import { AppDataApi, AuthResponse, LoginRequest, SavePolicyResponse, SignupRequest, TripPolicyResponse } from "./dataApi";
+import { AppDataApi, AuthResponse, LoginRequest, LogoutResponse, SavePolicyResponse, SignupRequest, TripPolicyResponse } from "./dataApi";
 import { InviteState, Policy, Profile, ProfileOptions, Recommendation, Trip, User } from "./types";
 
 const defaultLogin: LoginRequest = {
@@ -28,6 +28,8 @@ export const backendApi: AppDataApi = {
   getPreviewTrip: (): Trip => itinerary,
   login: (request = defaultLogin): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/login", request),
   signup: (request = defaultSignup): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/signup", request),
+  refreshSession: (): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/refresh"),
+  logout: (): Promise<LogoutResponse> => apiClient.post<LogoutResponse>("/api/auth/logout"),
   getCurrentUser: (): Promise<User> => apiClient.get<User>("/api/me"),
   updateProfile: (profile: Partial<Profile>): Promise<Profile> => apiClient.patch<Profile>("/api/me/profile", profile),
   listPolicies: (): Promise<Policy[]> => apiClient.get<Policy[]>("/api/policies"),

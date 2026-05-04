@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
@@ -27,6 +27,7 @@ async function login() {
   const submit = document.querySelector('button[type="submit"]');
   expect(submit).toBeTruthy();
   await user.click(submit as HTMLButtonElement);
+  await waitFor(() => expect(getLink("/policies")).toBeInTheDocument());
 }
 
 describe("Travel Hunter app", () => {
@@ -52,7 +53,6 @@ describe("Travel Hunter app", () => {
   it("logs in and reaches the authenticated home route", async () => {
     await login();
 
-    expect(getLink("/policies")).toBeInTheDocument();
     expect(getLink("/trips")).toBeInTheDocument();
   });
 

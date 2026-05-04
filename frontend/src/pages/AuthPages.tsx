@@ -1,4 +1,4 @@
-import { FormEvent } from "react";
+import { FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { appDataApi } from "../api";
 import { useSession } from "../app/session";
@@ -9,11 +9,32 @@ const previewUser = appDataApi.getPreviewUser();
 export function LoginPage() {
   const navigate = useNavigate();
   const { login } = useSession();
+  const [error, setError] = useState("");
 
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    login();
-    navigate("/home");
+    const formData = new FormData(event.currentTarget);
+    setError("");
+
+    try {
+      await login({
+        email: String(formData.get("email") || ""),
+        password: String(formData.get("password") || ""),
+      });
+      navigate("/home");
+    } catch {
+      setError("로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.");
+    }
+  };
+
+  const submitDefaultLogin = async () => {
+    setError("");
+    try {
+      await login();
+      navigate("/home");
+    } catch {
+      setError("로그인에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    }
   };
 
   return (
@@ -26,12 +47,17 @@ export function LoginPage() {
       <form className="form" onSubmit={submit}>
         <label className="field">
           <span>이메일</span>
-          <input type="email" defaultValue={previewUser.email} autoComplete="email" />
+          <input name="email" type="email" defaultValue={previewUser.email} autoComplete="email" />
         </label>
         <label className="field">
           <span>비밀번호</span>
-          <input type="password" defaultValue="password123" autoComplete="current-password" />
+          <input name="password" type="password" defaultValue="password123" autoComplete="current-password" />
         </label>
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
         <Button full type="submit">
           로그인
         </Button>
@@ -47,10 +73,10 @@ export function LoginPage() {
         <div className="divider">또는</div>
       </div>
       <div className="socials">
-        <button className="social kakao" onClick={() => submit(new Event("submit") as unknown as FormEvent)} type="button">
+        <button className="social kakao" onClick={submitDefaultLogin} type="button">
           카카오로 로그인
         </button>
-        <button className="social google" onClick={() => submit(new Event("submit") as unknown as FormEvent)} type="button">
+        <button className="social google" onClick={submitDefaultLogin} type="button">
           Google로 로그인
         </button>
       </div>
@@ -60,19 +86,31 @@ export function LoginPage() {
 
 export function SignupPage() {
   const navigate = useNavigate();
-  const { login } = useSession();
+  const { signup } = useSession();
+  const [error, setError] = useState("");
 
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    login();
-    navigate("/profile-setup");
+    const formData = new FormData(event.currentTarget);
+    setError("");
+
+    try {
+      await signup({
+        name: String(formData.get("name") || ""),
+        email: String(formData.get("email") || ""),
+        password: String(formData.get("password") || ""),
+      });
+      navigate("/profile-setup");
+    } catch {
+      setError("회원가입에 실패했습니다. 입력한 정보를 다시 확인해주세요.");
+    }
   };
 
   return (
     <section className="screen white">
       <div className="top-bar">
         <IconButton label="뒤로" to="/">
-          ‹
+          ←
         </IconButton>
         <h1>회원가입</h1>
         <span />
@@ -85,16 +123,21 @@ export function SignupPage() {
       <form className="form" onSubmit={submit}>
         <label className="field">
           <span>이름</span>
-          <input type="text" defaultValue={previewUser.name} autoComplete="name" />
+          <input name="name" type="text" defaultValue={previewUser.name} autoComplete="name" />
         </label>
         <label className="field">
           <span>이메일</span>
-          <input type="email" defaultValue={previewUser.email} autoComplete="email" />
+          <input name="email" type="email" defaultValue={previewUser.email} autoComplete="email" />
         </label>
         <label className="field">
           <span>비밀번호</span>
-          <input type="password" defaultValue="password123" autoComplete="new-password" />
+          <input name="password" type="password" defaultValue="password123" autoComplete="new-password" />
         </label>
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
         <Button full type="submit">
           가입하고 맞춤 설정하기
         </Button>

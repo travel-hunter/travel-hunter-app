@@ -11,12 +11,22 @@ export const apiConfig = {
   baseUrl: (import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL).replace(/\/$/, ""),
 };
 
+let accessToken: string | null = null;
+
+export function setApiAccessToken(token: string | null) {
+  accessToken = token;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers);
+  headers.set("Content-Type", "application/json");
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+
   const response = await fetch(`${apiConfig.baseUrl}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
+    credentials: "include",
+    headers,
     ...init,
   });
 

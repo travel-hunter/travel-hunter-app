@@ -12,8 +12,8 @@ export function MyPage() {
   const previewTrip = appDataApi.getPreviewTrip();
   const name = currentUser?.name ?? previewUser.name;
 
-  const signOut = () => {
-    logout();
+  const signOut = async () => {
+    await logout();
     navigate("/login");
   };
 

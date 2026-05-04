@@ -2,12 +2,12 @@
 
 ## Task
 
-Keep the Mock API contract stable while moving the backend from schema readiness toward DB-backed policy services.
+Keep the Mock API contract stable while moving the backend from DB-backed policy and auth foundations toward DB-backed trip services.
 
 ## Current Baseline
 
 - Frontend: React, TypeScript, Vite, React Router, `AppDataApi`, `VITE_DATA_SOURCE=mock|backend`.
-- Backend: FastAPI, Pydantic schemas, Mock API route/service/data layers, SQLAlchemy models, Alembic v0.3 migration, development seed command, and DB-backed policy repository/service boundary.
+- Backend: FastAPI, Pydantic schemas, Mock API route/service/data layers, SQLAlchemy models, Alembic v0.3 migration, development seed command, DB-backed policy repository/service boundary, and DB-backed auth foundation.
 - Contract: `docs/mvp-api-contract.md`.
 - Current work spec: `docs/current-work-spec.md`.
 - Next work plan: `docs/next-work-plan.md`.
@@ -29,6 +29,7 @@ Keep the Mock API contract stable while moving the backend from schema readiness
 - The worktree currently contains many existing modified, deleted, and untracked files. Do not revert or normalize unrelated files.
 - Mock trip id `jeju-3-days` is temporary and exists for frontend compatibility. DB-backed trip endpoints must use numeric ids or a deliberate client mapping.
 - `match`, `expectedSaving`, `copied`, and `invited` are calculated/API/UI-state values, not direct DB source fields.
+- Auth DB-backed mode requires a Bearer access token for `/api/me`; Mock mode must keep the old unauthenticated smoke behavior.
 - Docker daemon availability may vary locally. If compose build cannot run, record the blocker and at least run `docker compose -f compose.yaml config`.
 
 ## Verification

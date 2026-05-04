@@ -57,6 +57,65 @@
       }
     },
     {
+      "method": "POST",
+      "path": "/api/auth/signup",
+      "status": 200,
+      "request": {
+        "name": "지영",
+        "email": "new-user@travel.kr",
+        "password": "password123"
+      },
+      "requiredFields": {
+        "accessToken": "string",
+        "user": {
+          "id": "string",
+          "name": "string",
+          "nickname": "string",
+          "email": "string",
+          "onboardingCompleted": "boolean",
+          "socialAccounts": "array"
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/refresh",
+      "status": 200,
+      "requiredFields": {
+        "accessToken": "string",
+        "user": {
+          "id": "string",
+          "email": "string",
+          "socialAccounts": "array"
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "status": 200,
+      "requiredFields": {
+        "loggedOut": "boolean"
+      },
+      "example": {
+        "loggedOut": true
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/me",
+      "status": 200,
+      "requiredFields": {
+        "id": "string",
+        "name": "string",
+        "nickname": "string",
+        "email": "string",
+        "homeRegion": "string",
+        "onboardingCompleted": "boolean",
+        "socialAccounts": "array"
+      }
+    },
+    {
       "method": "GET",
       "path": "/api/policies",
       "status": 200,

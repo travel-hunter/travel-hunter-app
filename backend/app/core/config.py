@@ -21,6 +21,19 @@ def parse_backend_data_source(value: str) -> BackendDataSource:
 class Settings:
     app_env: str = os.getenv("APP_ENV", "local")
     database_url: str = os.getenv("DATABASE_URL", "")
+    auth_secret_key: str = os.getenv(
+        "AUTH_SECRET_KEY", "dev-only-change-me-secret-key-32-bytes"
+    )
+    access_token_expire_minutes: int = int(
+        os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
+    )
+    refresh_token_expire_days: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "14"))
+    refresh_cookie_name: str = os.getenv(
+        "REFRESH_COOKIE_NAME", "travel_hunter_refresh"
+    )
+    refresh_cookie_secure: bool = os.getenv(
+        "REFRESH_COOKIE_SECURE", "false"
+    ).strip().lower() in {"1", "true", "yes", "on"}
     backend_data_source: BackendDataSource = parse_backend_data_source(
         os.getenv("BACKEND_DATA_SOURCE", "mock")
     )

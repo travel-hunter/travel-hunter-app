@@ -18,6 +18,10 @@ export type AuthResponse = {
   user: User;
 };
 
+export type LogoutResponse = {
+  loggedOut: boolean;
+};
+
 export type SavePolicyResponse = {
   policyId: string;
   saved: boolean;
@@ -36,6 +40,8 @@ export type AppDataApi = {
   getPreviewTrip: () => Trip;
   login: (request?: LoginRequest) => Promise<AuthResponse>;
   signup: (request?: SignupRequest) => Promise<AuthResponse>;
+  refreshSession: () => Promise<AuthResponse>;
+  logout: () => Promise<LogoutResponse>;
   getCurrentUser: () => Promise<User>;
   updateProfile: (profile: Partial<Profile>) => Promise<Profile>;
   listPolicies: () => Promise<Policy[]>;
