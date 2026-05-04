@@ -164,7 +164,9 @@
       },
       "exampleTripId": "1",
       "legacyTripAlias": "jeju-3-days",
-      "dbModeTripIdPolicy": "DB mode returns numeric trip ids as strings; jeju-3-days is accepted only as a legacy seed alias."
+      "dbModeTripIdPolicy": "DB mode returns numeric trip ids as strings; jeju-3-days is accepted only as a legacy seed alias.",
+      "numericHandlePattern": "^[1-9][0-9]*$",
+      "invalidNumericLikeHandles": ["0", "001", "1.0"]
     },
     {
       "method": "GET",
@@ -215,8 +217,10 @@
         "createdAt": "string",
         "acceptedAt": "string|null",
         "invited": "boolean",
-        "copied": "boolean"
-      }
+            "copied": "boolean"
+      },
+      "serverCopiedValue": false,
+      "invitedMeaning": "true when a valid invite token exists or the current request created/confirmed one"
     }
   ]
 }

@@ -13,12 +13,14 @@ from app.models import (
     TripMember,
     TripPlace,
     TripPolicy,
+    User,
 )
 
 
 def _trip_options():
     return (
         selectinload(Trip.days).selectinload(TripDay.places),
+        selectinload(Trip.owner),
         selectinload(Trip.members).selectinload(TripMember.user),
         selectinload(Trip.policies).selectinload(TripPolicy.policy),
         selectinload(Trip.invites),
@@ -50,16 +52,30 @@ def get_accessible_trip_by_id(db: Session, trip_id: int, user_id: int) -> Trip |
     return db.scalar(statement)
 
 
-def get_seed_alias_trip(db: Session, user_id: int) -> Trip | None:
+def get_seed_alias_trip(
+    db: Session,
+    *,
+    user_id: int,
+    owner_email: str,
+    title: str,
+    start_date: date,
+    end_date: date,
+) -> Trip | None:
     statement = (
         select(Trip)
         .options(*_trip_options())
-        .where(Trip.start_date == date(2026, 6, 15))
-        .where(Trip.end_date == date(2026, 6, 17))
+        .join(Trip.owner)
+        .where(User.email == owner_email)
+        .where(Trip.title == title)
+        .where(Trip.start_date == start_date)
+        .where(Trip.end_date == end_date)
         .where(_accessible_trip_filter(user_id))
         .order_by(Trip.id)
     )
-    return db.scalar(statement)
+    matches = list(db.scalars(statement).all())
+    if len(matches) != 1:
+        return None
+    return matches[0]
 
 
 def create_trip(

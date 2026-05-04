@@ -97,6 +97,13 @@ DB-backed 구현 완료:
 - 응답에 `password_hash`, `refresh_token_hash`, `provider_id`를 포함하지 않음
 - DB mode `Trip.id`는 numeric `trips.id`를 문자열로 반환
 - `jeju-3-days`는 seed/prototype 호환용 legacy alias이며 DB 컬럼으로 저장하지 않음
+- canonical numeric trip handle은 `^[1-9][0-9]*$`만 허용
+- `jeju-3-days` alias는 seed owner email, seed title, date range가 정확히 한 건 매칭될 때만 해석
+- alias 조회도 Bearer 인증과 owner/member 접근 권한 검사를 우회하지 않음
+- alias 응답 후 프론트는 canonical numeric URL로 replace 정규화
+- `people`은 owner 먼저, 그다음 member nickname을 중복 제거해 표시
+- `expectedSaving`은 연결된 정책 `benefit_amount` 합계로 계산
+- `InviteState.copied`는 서버에서 항상 `false`, 프론트 local state로 관리
 
 ## 6. 실행 및 검증
 
@@ -134,13 +141,15 @@ python -m app.db.seed
 
 최근 통과 검증:
 
-- `python -m pytest`: 37 passed
-- `BACKEND_DATA_SOURCE=db python -m pytest`: 37 passed
+- `python -m pytest`: 39 passed
+- `BACKEND_DATA_SOURCE=db python -m pytest`: 39 passed
 - `alembic upgrade head --sql`: passed
 - `docker compose -f compose.yaml config`: passed
 - DB mode auth smoke: login/me/refresh/logout passed
 - DB mode policy smoke: list/detail/missing slug passed
-- DB mode trip smoke: list/create/numeric detail/legacy alias/missing trip/policy link/recommendations/invite passed
+- DB mode trip smoke: list/create/numeric detail/missing trip/policy link/recommendations/invite passed
+- Legacy alias numeric response is covered by route/service tests
+- DB mode strict resolver smoke: `0`, `001`, `1.0`, unknown handle, duplicate seed-like alias rows 404 passed
 - `npm run typecheck`: passed
 - `npm test`: 5 passed
 - `npm run test:e2e`: 6 passed

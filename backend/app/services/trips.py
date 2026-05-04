@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import secrets
+import re
 from datetime import date, datetime, timedelta, time
 from typing import Any
 
@@ -15,6 +16,15 @@ from app.repositories import trips as trip_repository
 
 LEGACY_TRIP_ALIAS = str(seed.TRIP["id"])
 INVITE_BASE_URL = "travelhunter.app/i"
+NUMERIC_TRIP_ID_PATTERN = re.compile(r"^[1-9][0-9]*$")
+LEGACY_TRIP_ALIASES = {
+    LEGACY_TRIP_ALIAS: {
+        "owner_email": str(seed.USER["email"]),
+        "title": str(seed.TRIP["title"]),
+        "start_date": date(2026, 6, 15),
+        "end_date": date(2026, 6, 17),
+    }
+}
 
 
 class TripServiceError(Exception):
@@ -55,11 +65,21 @@ def _policy_saving(trip: Trip) -> int:
 
 
 def trip_to_api(trip: Trip) -> dict[str, object]:
+    people: list[str] = []
+    seen_people: set[str] = set()
+    if trip.owner is not None:
+        people.append(trip.owner.nickname)
+        seen_people.add(trip.owner.nickname)
+
     members = sorted(
         trip.members,
         key=lambda membership: (membership.role != "owner", membership.id or 0),
     )
-    people = [membership.user.nickname for membership in members if membership.user is not None]
+    for membership in members:
+        if membership.user is None or membership.user.nickname in seen_people:
+            continue
+        people.append(membership.user.nickname)
+        seen_people.add(membership.user.nickname)
 
     days: dict[int, list[dict[str, str]]] = {}
     for trip_day in sorted(trip.days, key=lambda day: day.day_number):
@@ -87,10 +107,18 @@ def trip_to_api(trip: Trip) -> dict[str, object]:
 
 
 def _resolve_trip(db: Session, trip_handle: str, user: User) -> Trip | None:
-    if trip_handle.isdigit():
+    if NUMERIC_TRIP_ID_PATTERN.fullmatch(trip_handle):
         return trip_repository.get_accessible_trip_by_id(db, int(trip_handle), user.id)
-    if trip_handle == LEGACY_TRIP_ALIAS:
-        return trip_repository.get_seed_alias_trip(db, user.id)
+    alias = LEGACY_TRIP_ALIASES.get(trip_handle)
+    if alias is not None:
+        return trip_repository.get_seed_alias_trip(
+            db,
+            user_id=user.id,
+            owner_email=str(alias["owner_email"]),
+            title=str(alias["title"]),
+            start_date=alias["start_date"],
+            end_date=alias["end_date"],
+        )
     return None
 
 
@@ -120,7 +148,7 @@ def create_trip(
     payload = payload or {}
     start_date = date(2026, 6, 15)
     end_date = date(2026, 6, 17)
-    title = str(payload.get("title") or seed.TRIP["title"])
+    title = str(payload.get("title") or f"{seed.TRIP['title']} 새 일정")
 
     trip = trip_repository.create_trip(
         db,
@@ -252,7 +280,7 @@ def invite_to_api(invite: TripInvite, *, trip_id: int, invited: bool = False) ->
         "expiresAt": _iso(invite.expires_at) or "",
         "createdAt": _iso(invite.created_at) or "",
         "acceptedAt": _iso(invite.accepted_at),
-        "invited": invited or invite.accepted_at is not None,
+        "invited": invited or invite.expires_at > security.utc_now_naive(),
         "copied": False,
     }
 

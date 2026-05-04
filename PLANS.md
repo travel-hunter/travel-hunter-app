@@ -27,7 +27,8 @@ Keep the Mock API contract stable while moving the backend from DB-backed policy
 ## Known Risks
 
 - The worktree currently contains many existing modified, deleted, and untracked files. Do not revert or normalize unrelated files.
-- Mock trip id `jeju-3-days` is temporary and exists for frontend compatibility. DB-backed trip endpoints return numeric string ids and accept `jeju-3-days` only as a legacy seed alias.
+- Mock trip id `jeju-3-days` is temporary and exists for frontend compatibility. DB-backed trip endpoints return numeric string ids, accept `jeju-3-days` only as a legacy seed alias, and fail closed when the alias maps to zero or multiple accessible trips.
+- Canonical numeric trip handles must match `^[1-9][0-9]*$`; do not treat `0` or `001` as DB id values.
 - `match`, `expectedSaving`, `copied`, and `invited` are calculated/API/UI-state values, not direct DB source fields.
 - Auth DB-backed mode requires a Bearer access token for `/api/me`; Mock mode must keep the old unauthenticated smoke behavior.
 - Docker daemon availability may vary locally. If compose build cannot run, record the blocker and at least run `docker compose -f compose.yaml config`.

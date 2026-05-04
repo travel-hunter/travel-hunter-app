@@ -30,6 +30,7 @@ def make_trip() -> Trip:
         created_at=datetime(2026, 5, 4, 0, 0, 0),
         updated_at=datetime(2026, 5, 4, 0, 0, 0),
     )
+    trip.owner = owner
 
     owner_membership = TripMember(id=1, trip_id=7, user_id=1, role="owner")
     owner_membership.user = owner
@@ -70,6 +71,15 @@ def test_trip_to_api_returns_numeric_string_id_and_contract_shape() -> None:
     assert payload["days"] == {1: [{"time": "09:00", "label": "Sunrise peak", "meta": "Nature"}]}
 
 
+def test_trip_to_api_includes_owner_when_owner_is_not_a_member() -> None:
+    trip = make_trip()
+    trip.members = [member for member in trip.members if member.user_id != trip.owner_id]
+
+    payload = trip_service.trip_to_api(trip)
+
+    assert payload["people"] == ["Jiyoung", "Minseo"]
+
+
 def test_get_trip_resolves_numeric_id_and_legacy_alias(monkeypatch) -> None:
     fake_db = object()
     user = make_user()
@@ -83,7 +93,9 @@ def test_get_trip_resolves_numeric_id_and_legacy_alias(monkeypatch) -> None:
     monkeypatch.setattr(
         trip_service.trip_repository,
         "get_seed_alias_trip",
-        lambda db, user_id: trip if db is fake_db and user_id == 1 else None,
+        lambda db, **kwargs: trip
+        if db is fake_db and kwargs["user_id"] == 1 and kwargs["owner_email"] == "jiyoung@travel.kr"
+        else None,
     )
 
     numeric = trip_service.get_trip("7", fake_db, user)
@@ -95,6 +107,36 @@ def test_get_trip_resolves_numeric_id_and_legacy_alias(monkeypatch) -> None:
     assert legacy is not None
     assert legacy["id"] == "7"
     assert missing is None
+
+
+def test_get_trip_rejects_noncanonical_numeric_handles(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    calls: list[str] = []
+
+    def unexpected_numeric_lookup(*_args):
+        calls.append("numeric")
+        return None
+
+    def unexpected_alias_lookup(*_args, **_kwargs):
+        calls.append("alias")
+        return None
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        unexpected_numeric_lookup,
+    )
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_seed_alias_trip",
+        unexpected_alias_lookup,
+    )
+
+    assert trip_service.get_trip("001", fake_db, user) is None
+    assert trip_service.get_trip("0", fake_db, user) is None
+    assert trip_service.get_trip("1.0", fake_db, user) is None
+    assert calls == []
 
 
 def test_recommendation_mapper_ignores_invalid_items() -> None:
@@ -120,7 +162,7 @@ def test_invite_to_api_computes_display_flags() -> None:
         expires_at=datetime(2026, 5, 4, 0, 0, 0) + timedelta(days=30),
     )
 
-    payload = trip_service.invite_to_api(invite, trip_id=7, invited=True)
+    payload = trip_service.invite_to_api(invite, trip_id=7)
 
     assert payload["id"] == "9"
     assert payload["tripId"] == "7"

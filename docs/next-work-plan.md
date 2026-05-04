@@ -30,9 +30,16 @@
 - DB mode 기본 `Trip.id`는 `trips.id`를 문자열로 변환한 numeric string이다.
 - `/api/trips/jeju-3-days`는 seed/prototype 호환용 legacy alias로만 지원한다.
 - legacy alias 응답의 `id`도 numeric string이어야 한다.
+- canonical numeric trip handle은 `^[1-9][0-9]*$`만 허용한다.
+- `0`, `001`, `1.0`은 numeric id로 해석하지 않는다.
+- `jeju-3-days` alias는 seed owner email, seed title, start/end date가 정확히 한 건 매칭될 때만 해석한다.
 - DB mode trip endpoint는 Bearer access token이 필요하다.
 - 접근 권한은 owner 또는 `trip_members` 포함 여부로 판단한다.
 - 없는 trip, 지원하지 않는 alias, 접근 권한이 없는 trip은 모두 `404 {"detail": "Trip not found"}`를 반환한다.
+- alias 응답 후 프론트는 canonical numeric URL로 replace 정규화한다.
+- `people`은 owner 먼저, 그다음 member nickname을 중복 제거해 표시한다.
+- `expectedSaving`은 연결 정책의 `benefit_amount` 합계이며 null 금액은 제외한다.
+- `InviteState.copied`는 서버에서 항상 `false`이고 프론트 local state에서 관리한다.
 
 ## 4. 검증 명령
 

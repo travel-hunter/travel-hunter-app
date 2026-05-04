@@ -24,6 +24,8 @@
 | `GET /api/trips` | 200 | first item has `id`; DB mode id is numeric string | P0 |
 | `GET /api/trips/{tripId}` | 200 | numeric id detail returns `Trip` shape | P0 |
 | `GET /api/trips/jeju-3-days` | 200 | legacy alias works; DB mode response `id` is numeric string | P0 |
+| `GET /api/trips/001` | 404 | noncanonical numeric-like handle is not id `1` | P1 |
+| `GET /api/trips/0` | 404 | zero is not a canonical numeric handle | P1 |
 | `POST /api/trips/{tripId}/policies/local-vacation` | 200 | `added` is true | P1 |
 | `GET /api/trips/{tripId}/recommendations` | 200 | first recommendation `title` | P1 |
 | `GET /api/trips/{tripId}/invite` | 200 | `inviteUrl`, `inviteToken` | P1 |
@@ -56,5 +58,10 @@ When `BACKEND_DATA_SOURCE=db` is used, trip endpoints must preserve the existing
 - `GET /api/trips` returns only trips owned by or shared with the current bearer-token user.
 - `GET /api/trips/{numericId}` returns `id`, `title`, `dates`, `people`, `expectedSaving`, and `days`.
 - `GET /api/trips/jeju-3-days` remains a legacy seed alias and returns a numeric string `id`.
+- Canonical numeric handles must match `^[1-9][0-9]*$`; values like `0`, `001`, and `1.0` are unknown handles.
+- The legacy alias resolves only when the seed owner email, title, and date range match exactly one accessible trip.
 - Unknown, inaccessible, or unsupported trip handles return `404 {"detail": "Trip not found"}`.
 - Trip DB values stay `snake_case` internally and are mapped to the existing display DTO shape before response validation.
+- `people` includes owner first, then member nicknames with duplicates removed.
+- `expectedSaving` is the sum of linked policy `benefit_amount` values, excluding null amounts.
+- `InviteState.copied` is always false from the server and is tracked locally by the frontend UI.

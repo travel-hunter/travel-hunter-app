@@ -1,5 +1,5 @@
 import { Bot, Plus, Send, Share2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { appDataApi, type InviteState } from "../api";
 import { useAsyncResource } from "../api/useAsyncResource";
@@ -111,10 +111,17 @@ function ChoiceGroup({ label, values, selected, onSelect }: { label: string; val
 
 export function ItineraryDetailPage() {
   const { tripId } = useParams();
+  const navigate = useNavigate();
   const { addedPolicy } = useSession();
   const [activeDay, setActiveDay] = useState<1 | 2 | 3>(1);
   const { data: trip, error, isLoading } = useAsyncResource(() => appDataApi.getTrip(tripId), [tripId]);
   const dayPlaces = trip?.days[activeDay] ?? [];
+
+  useEffect(() => {
+    if (trip && tripId && trip.id !== tripId) {
+      navigate(`/trips/${trip.id}`, { replace: true });
+    }
+  }, [navigate, trip, tripId]);
 
   if (isLoading) {
     return (
@@ -160,7 +167,7 @@ export function ItineraryDetailPage() {
             </div>
             <span className="meta">{trip.people.length}명 참여 중</span>
           </div>
-          <Link className="btn sm secondary" to="/friend-invite">
+          <Link className="btn sm secondary" to={`/friend-invite?tripId=${encodeURIComponent(trip.id)}`}>
             초대
           </Link>
         </div>
