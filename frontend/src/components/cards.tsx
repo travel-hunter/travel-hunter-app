@@ -1,12 +1,12 @@
 import { ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
-import { itinerary, Policy } from "../data/prototypeData";
+import { Policy, Trip } from "../api/types";
 import { dday } from "../utils";
 import { Tag } from "./ui";
 
 export function PolicyMiniCard({ policy }: { policy: Policy }) {
   return (
-    <Link className="policy-mini card" to={`/policies/${policy.id}`}>
+    <Link className="policy-mini card" to={`/policies/${policy.slug}`}>
       <div className="visual-tile">{policy.label}</div>
       <Tag>{policy.tag}</Tag>
       <h4>{policy.title}</h4>
@@ -19,7 +19,7 @@ export function PolicyMiniCard({ policy }: { policy: Policy }) {
 
 export function PolicyListCard({ policy }: { policy: Policy }) {
   return (
-    <Link className="list-card card" to={`/policies/${policy.id}`}>
+    <Link className="list-card card" to={`/policies/${policy.slug}`}>
       <div className="thumb-row">
         <div className="square-thumb">{policy.label}</div>
         <div>
@@ -47,17 +47,17 @@ export function PlaceCard({ title, meta, className }: { title: string; meta: str
   );
 }
 
-export function ItineraryCard({ addedPolicy = false }: { addedPolicy?: boolean }) {
+export function ItineraryCard({ trip, addedPolicy = false }: { trip: Trip; addedPolicy?: boolean }) {
   return (
-    <Link className="itinerary-card card" to="/trips/jeju-3-days">
+    <Link className="itinerary-card card" to={`/trips/${trip.id}`}>
       <div className="map-thumb" />
       <div className="itinerary-body">
         <div className="between">
-          <h4>{itinerary.title}</h4>
-          <Tag tone="warning">예상 절감 {itinerary.expectedSaving}</Tag>
+          <h4>{trip.title}</h4>
+          <Tag tone="warning">예상 절감 {trip.expectedSaving}</Tag>
         </div>
         <div className="meta">
-          2박 3일 · {itinerary.people.length}명 · 정책 {addedPolicy ? "연결됨" : "2건 후보"}
+          2박 3일 · {trip.people.length}명 · 정책 {addedPolicy ? "연결됨" : "2건 후보"}
         </div>
       </div>
       <ChevronRight size={18} className="card-arrow" />

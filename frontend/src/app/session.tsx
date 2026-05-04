@@ -1,5 +1,5 @@
 import { createContext, ReactNode, useContext, useMemo, useState } from "react";
-import { user } from "../data/prototypeData";
+import { appDataApi } from "../api";
 
 type SessionUser = {
   name: string;
@@ -58,6 +58,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       likedPolicy,
       invited,
       login: () => {
+        const user = appDataApi.getPreviewUser();
         const nextUser = { name: user.name, email: user.email };
         window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextUser));
         setCurrentUser(nextUser);

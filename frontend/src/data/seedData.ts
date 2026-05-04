@@ -1,57 +1,41 @@
-export type Policy = {
-  id: string;
-  label: string;
-  tag: string;
-  title: string;
-  org: string;
-  region: string;
-  deadline: string;
-  amount: string;
-  summary: string;
-  match: number;
-  category: "추천" | "환급" | "숙박" | "캐시백";
-  requirements: string[];
-  documents: string[];
-};
+import { ItineraryPlace, Policy, Recommendation, Trip, User } from "../api/types";
 
-export type ItineraryPlace = {
-  time: string;
-  label: string;
-  meta: string;
-};
-
-export type Recommendation = {
-  label: string;
-  title: string;
-  meta: string;
-  reason: string;
-};
-
-export const user = {
+export const user: User = {
+  id: "1",
   name: "지영",
+  nickname: "지영",
   email: "jiyoung@travel.kr",
+  birthDate: "1997-04-12",
+  gender: null,
+  region: "제주",
   homeRegion: "서울 마포",
-  persona: "혜택을 놓치고 싶지 않은 29세 직장인",
+  residenceArea: "서울 마포",
+  preferredRegions: "제주,부산,강원",
+  persona: "혜택을 꼼꼼히 챙기는 29세 직장인",
   savedAmount: 120000,
+  onboardingCompleted: true,
+  socialAccounts: [],
+  createdAt: "2026-05-04T00:00:00Z",
+  updatedAt: "2026-05-04T00:00:00Z",
 };
 
 export const onboardingSlides = [
   {
     eyebrow: "여행 혜택 탐색",
-    title: "지역 정책을 먼저 찾고 여행을 시작하세요",
-    body: "지역, 기간, 예산에 맞는 국내 여행 지원 정책을 한 화면에서 비교합니다.",
+    title: "숨은 여행 혜택, 다 모았어요",
+    body: "지역, 기간, 예산에 맞는 국내 여행 지원 정책을 한 화면에서 비교하세요.",
     stat: "30만원 환급 가능",
   },
   {
     eyebrow: "AI 일정 추천",
-    title: "혜택과 동선을 함께 맞춘 일정을 만듭니다",
+    title: "AI가 일정도 맞춰드려요",
     body: "정책 조건, 이동 거리, 취향을 함께 고려해 여행 코스를 제안합니다.",
-    stat: "동선 24분 단축",
+    stat: "이동 시간 24분 단축",
   },
   {
     eyebrow: "친구와 함께",
-    title: "일정을 공유하고 필요한 준비를 함께 확인합니다",
-    body: "초대 링크로 친구를 부르고, 필요한 서류와 혜택 상태를 함께 확인합니다.",
+    title: "친구와 함께 준비해요",
+    body: "초대 링크로 일정을 공유하고 필요한 서류와 혜택 상태를 함께 확인하세요.",
     stat: "친구 3명 공유",
   },
 ];
@@ -59,6 +43,7 @@ export const onboardingSlides = [
 export const policies: Policy[] = [
   {
     id: "local-vacation",
+    slug: "local-vacation",
     label: "TH",
     tag: "최대 30만원",
     title: "지역사랑 휴가지원",
@@ -66,7 +51,7 @@ export const policies: Policy[] = [
     region: "전국",
     deadline: "2026-10-31",
     amount: "최대 30만원 환급",
-    summary: "국내 1박 이상 여행 경비의 50%를 환급해주는 국내 여행 지원 정책입니다.",
+    summary: "국내 1박 이상 여행 시 숙박, 교통, 체험비 일부를 환급해주는 지원 정책입니다.",
     match: 98,
     category: "환급",
     requirements: ["국내 거주자", "숙박 1박 이상", "영수증 제출"],
@@ -74,6 +59,7 @@ export const policies: Policy[] = [
   },
   {
     id: "sokcho-stay",
+    slug: "sokcho-stay",
     label: "SC",
     tag: "50% 할인",
     title: "속초 숙박 할인권",
@@ -81,7 +67,7 @@ export const policies: Policy[] = [
     region: "강원",
     deadline: "2026-08-15",
     amount: "숙박비 50% 할인",
-    summary: "강원권 평일 숙박을 예약하면 지역 숙소에서 할인권을 사용할 수 있습니다.",
+    summary: "강원권 평일 숙박 예약 시 지역 숙소에서 사용할 수 있는 할인권을 제공합니다.",
     match: 86,
     category: "숙박",
     requirements: ["평일 숙박", "지역 숙소", "사전 예약"],
@@ -89,6 +75,7 @@ export const policies: Policy[] = [
   },
   {
     id: "busan-cashback",
+    slug: "busan-cashback",
     label: "BS",
     tag: "5% 캐시백",
     title: "부산 여행 캐시백",
@@ -96,7 +83,7 @@ export const policies: Policy[] = [
     region: "부산",
     deadline: "2026-09-30",
     amount: "카드 결제 5% 캐시백",
-    summary: "부산 지역 제휴 매장에서 결제하면 여행 경비 일부를 돌려받습니다.",
+    summary: "부산 지역 제휴 매장에서 결제하면 여행 경비 일부를 캐시백으로 돌려받습니다.",
     match: 79,
     category: "캐시백",
     requirements: ["제휴 카드", "부산 결제", "월 한도 적용"],
@@ -104,7 +91,7 @@ export const policies: Policy[] = [
   },
 ];
 
-export const itinerary = {
+export const itinerary: Trip = {
   id: "jeju-3-days",
   title: "제주 3일 여행",
   dates: "2026.06.15 - 06.17",
@@ -154,6 +141,6 @@ export const regions = ["제주", "부산", "강원", "전국"] as const;
 export const travelStyles = ["휴식", "맛집", "자연", "사진"] as const;
 export const budgets = ["1인 30만원 이하", "1인 40만원 이하", "1인 60만원 이하", "상관없음"] as const;
 
-export function getPolicy(policyId = "local-vacation") {
-  return policies.find((policy) => policy.id === policyId) ?? policies[0];
+export function getPolicy(policySlug = "local-vacation") {
+  return policies.find((policy) => policy.slug === policySlug || policy.id === policySlug) ?? policies[0];
 }

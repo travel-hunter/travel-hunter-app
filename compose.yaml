@@ -38,6 +38,7 @@ services:
       context: ./frontend
       args:
         VITE_API_BASE_URL: http://127.0.0.1:8000
+        VITE_DATA_SOURCE: backend
     ports:
       - "4173:4173"
     depends_on:

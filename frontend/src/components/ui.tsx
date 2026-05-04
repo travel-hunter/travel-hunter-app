@@ -98,3 +98,29 @@ export function EmptyState({ title, body, action }: { title: string; body: strin
     </section>
   );
 }
+
+export function LoadingState({ label = "정보를 불러오는 중입니다" }: { label?: string }) {
+  return (
+    <div className="state-panel" role="status">
+      <span className="spinner" />
+      <strong>{label}</strong>
+    </div>
+  );
+}
+
+export function ErrorState({ message }: { message: string }) {
+  return (
+    <div className="state-panel error" role="alert">
+      <strong>잠깐 문제가 생겼어요</strong>
+      <p>{message}</p>
+    </div>
+  );
+}
+
+export function Toast({ children }: { children: ReactNode }) {
+  return (
+    <div className="toast" role="status">
+      {children}
+    </div>
+  );
+}

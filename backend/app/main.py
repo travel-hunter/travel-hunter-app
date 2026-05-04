@@ -1,12 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .config import settings
+from app.api.router import api_router
+from app.api.routes.health import router as health_router
+from app.core.config import settings
 
 app = FastAPI(
     title="Travel Hunter API",
     version="0.1.0",
-    description="Production app foundation generated from Travel Hunter prototype.",
+    description="Travel Hunter production app API foundation.",
 )
 
 app.add_middleware(
@@ -17,21 +19,5 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-def health_payload() -> dict[str, str]:
-    return {
-        "status": "ok",
-        "service": "travel-hunter-backend",
-        "environment": settings.app_env,
-        "database": "configured" if settings.database_url else "not_configured",
-    }
-
-
-@app.get("/health", tags=["system"])
-def health() -> dict[str, str]:
-    return health_payload()
-
-
-@app.get("/api/health", tags=["system"])
-def api_health() -> dict[str, str]:
-    return health_payload()
+app.include_router(health_router)
+app.include_router(api_router, prefix="/api")

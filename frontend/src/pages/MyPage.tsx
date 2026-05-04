@@ -1,14 +1,16 @@
 import { LogOut } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { appDataApi } from "../api";
 import { useSession } from "../app/session";
 import { Button, Tag } from "../components/ui";
-import { itinerary, user } from "../data/prototypeData";
 import { money } from "../utils";
 
 export function MyPage() {
   const navigate = useNavigate();
   const { currentUser, likedPolicy, logout } = useSession();
-  const name = currentUser?.name ?? user.name;
+  const previewUser = appDataApi.getPreviewUser();
+  const previewTrip = appDataApi.getPreviewTrip();
+  const name = currentUser?.name ?? previewUser.name;
 
   const signOut = () => {
     logout();
@@ -25,7 +27,7 @@ export function MyPage() {
                 <div className="avatar large">{name[0]}</div>
                 <div>
                   <h2 className="profile-name">{name}님</h2>
-                  <div className="meta">{user.persona}</div>
+                  <div className="meta">{previewUser.persona}</div>
                 </div>
               </div>
               <Button variant="ghost">편집</Button>
@@ -37,9 +39,9 @@ export function MyPage() {
             <div className="between">
               <div>
                 <div className="meta">누적 예상 절감</div>
-                <div className="price">{money(user.savedAmount)}원</div>
+                <div className="price">{money(previewUser.savedAmount)}원</div>
               </div>
-              <Tag tone="warning">Sprint 4</Tag>
+              <Tag tone="warning">예상 혜택</Tag>
             </div>
           </div>
         </div>
@@ -55,7 +57,7 @@ export function MyPage() {
             <Link className="setting-row" to="/trips">
               <div>
                 <strong>내 일정</strong>
-                <div className="meta">{itinerary.title}</div>
+                <div className="meta">{previewTrip.title}</div>
               </div>
               <span>›</span>
             </Link>

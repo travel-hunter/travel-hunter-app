@@ -1,21 +1,24 @@
 import { Heart, Share2, SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { appDataApi } from "../api";
+import { useAsyncResource } from "../api/useAsyncResource";
 import { useSession } from "../app/session";
 import { PolicyListCard } from "../components/cards";
-import { Button, IconButton, LinkButton, Tag, TopBar } from "../components/ui";
-import { getPolicy, policies } from "../data/prototypeData";
+import { Button, EmptyState, ErrorState, IconButton, LoadingState, Tag, Toast, TopBar } from "../components/ui";
 import { dday } from "../utils";
 
 const filters = ["추천", "환급", "숙박", "캐시백", "마감임박"] as const;
 
 export function PolicyListPage() {
   const [activeFilter, setActiveFilter] = useState<(typeof filters)[number]>("추천");
+  const { data: policies, error, isLoading } = useAsyncResource(() => appDataApi.listPolicies(), []);
   const visiblePolicies = useMemo(() => {
+    if (!policies) return [];
     if (activeFilter === "추천") return policies;
     if (activeFilter === "마감임박") return policies.filter((policy) => dday(policy.deadline) !== "마감");
     return policies.filter((policy) => policy.category === activeFilter);
-  }, [activeFilter]);
+  }, [activeFilter, policies]);
 
   return (
     <section className="screen with-tabs">
@@ -39,11 +42,18 @@ export function PolicyListPage() {
           </button>
         ))}
       </div>
-      <div className="list">
-        {visiblePolicies.map((policy) => (
-          <PolicyListCard key={policy.id} policy={policy} />
-        ))}
-      </div>
+      {isLoading && <LoadingState label="정책을 불러오는 중입니다" />}
+      {error && <ErrorState message={error} />}
+      {!isLoading && !error && visiblePolicies.length === 0 && (
+        <EmptyState title="조건에 맞는 정책이 아직 없어요" body="다른 필터를 선택해 받을 수 있는 혜택을 확인해보세요." action={<Button onClick={() => setActiveFilter("추천")}>추천 정책 보기</Button>} />
+      )}
+      {!isLoading && !error && visiblePolicies.length > 0 && (
+        <div className="list">
+          {visiblePolicies.map((policy) => (
+            <PolicyListCard key={policy.id} policy={policy} />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -51,7 +61,37 @@ export function PolicyListPage() {
 export function PolicyDetailPage() {
   const { policyId } = useParams();
   const { addedPolicy, addPolicy, likedPolicy, togglePolicyLike } = useSession();
-  const policy = getPolicy(policyId);
+  const { data: policy, error, isLoading } = useAsyncResource(() => appDataApi.getPolicy(policyId), [policyId]);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const addToTrip = () => {
+    addPolicy();
+    setNotice("일정에 혜택을 담았어요. 제주 3일 여행에서 바로 확인할 수 있습니다.");
+  };
+
+  const showApplicationNotice = () => {
+    setNotice("공식 신청 연결은 준비 중입니다. 필요한 서류와 신청 기간을 먼저 확인해주세요.");
+  };
+
+  if (isLoading) {
+    return (
+      <section className="screen detail">
+        <div className="detail-body">
+          <LoadingState label="정책 상세를 불러오는 중입니다" />
+        </div>
+      </section>
+    );
+  }
+
+  if (error || !policy) {
+    return (
+      <section className="screen detail">
+        <div className="detail-body">
+          <ErrorState message={error ?? "정책 정보를 찾지 못했어요."} />
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="screen detail">
@@ -118,16 +158,17 @@ export function PolicyDetailPage() {
         </section>
         <section className="section-block">
           <h3>관련 정보</h3>
-          <Button full variant="ghost">
-            공식 사이트 FAQ 보기
+          <Button full variant="ghost" onClick={showApplicationNotice}>
+            공식 안내 확인하기
           </Button>
         </section>
+        {notice && <Toast>{notice}</Toast>}
       </div>
       <div className="sticky-cta">
-        <Button variant="secondary" onClick={addPolicy}>
-          {addedPolicy ? "추가됨" : "내 일정에 담기"}
+        <Button variant="secondary" onClick={addToTrip}>
+          {addedPolicy ? "일정에 담김" : "내 일정에 담기"}
         </Button>
-        <LinkButton to="/trips/jeju-3-days">혜택 받으러 가기</LinkButton>
+        <Button onClick={showApplicationNotice}>혜택 받으러 가기</Button>
       </div>
     </section>
   );

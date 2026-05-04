@@ -209,6 +209,8 @@ yarn-error.log*
 pnpm-debug.log*
 frontend/dist/
 frontend/.vite/
+frontend/playwright-report/
+frontend/test-results/
 
 # Marimo
 marimo/_static/
