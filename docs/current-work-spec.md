@@ -116,6 +116,7 @@ npm run dev
 npm run typecheck
 npm test
 npm run test:e2e
+npm run test:e2e:backend
 npm run build
 ```
 
@@ -153,6 +154,7 @@ python -m app.db.seed
 - `npm run typecheck`: passed
 - `npm test`: 5 passed
 - `npm run test:e2e`: 6 passed
+- `npm run test:e2e:backend`: 3 passed
 - `npm run build`: passed
 
 ## 7. 미구현 범위
@@ -165,9 +167,16 @@ python -m app.db.seed
 - 실제 AI 추천 엔진
 - 친구 초대 실제 발송
 - 초대 수락의 membership DB 처리
-- backend+frontend backend-mode 통합 CI smoke
+- backend-mode smoke CI 고정
 - AWS/EKS/Argo CD 배포
 
 ## 8. 다음 작업
 
-다음 작업은 `docs/next-work-plan.md` 기준이다. 현재 추천 1순위는 frontend backend-mode 통합 smoke 강화다.
+다음 작업은 `docs/next-work-plan.md` 기준이다.
+
+## 9. 최신 변경
+
+- frontend backend-mode 통합 smoke가 추가됐다.
+- 새 명령은 `cd frontend && npm run test:e2e:backend`이다.
+- 이 명령은 compose PostgreSQL `127.0.0.1:55432`, FastAPI `127.0.0.1:8001`, Vite backend-mode `127.0.0.1:5174`, Playwright smoke를 함께 실행한다.
+- 현재 다음 1순위는 정책 담기와 일정 생성 UX를 DB 저장 기준으로 보강하는 작업이다.

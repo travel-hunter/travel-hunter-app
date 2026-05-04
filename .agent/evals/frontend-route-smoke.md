@@ -4,6 +4,7 @@
 
 - App routes are documented in `docs/current-work-spec.md`.
 - Current e2e smoke test is `frontend/e2e/app-smoke.spec.ts`.
+- Backend-mode e2e smoke test is `frontend/e2e-backend/backend-mode.spec.ts`.
 
 ## Public Routes
 
@@ -69,3 +70,25 @@ Core screens:
 - `/home`
 - `/policies/local-vacation`
 - `/trips/jeju-3-days`
+
+## Backend Mode Integration Smoke
+
+Run with:
+
+```bash
+cd frontend
+npm run test:e2e:backend
+```
+
+Expected:
+
+- Compose PostgreSQL is started on host `127.0.0.1:55432`.
+- Alembic migration and development seed run before the browser test.
+- FastAPI runs on `127.0.0.1:8001`.
+- Vite runs with `VITE_DATA_SOURCE=backend` on `127.0.0.1:5174`.
+- Anonymous `/home` redirects to `/login`.
+- Seed login reaches `/home`.
+- Policy detail `/policies/local-vacation` renders through the real backend.
+- Trip list returns a canonical numeric trip id.
+- Trip detail, AI recommendations, friend invite, and logout run through backend APIs.
+- Legacy `jeju-3-days` either canonicalizes to numeric id when there is one exact seed match, or fails closed with 404 in a dirty shared dev DB.

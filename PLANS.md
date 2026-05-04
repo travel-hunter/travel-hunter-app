@@ -2,7 +2,7 @@
 
 ## Task
 
-Keep the Mock API contract stable while moving the backend from DB-backed policy/auth/trip foundations toward integrated backend-mode frontend smoke coverage.
+Keep the Mock API contract stable while moving from DB-backed policy/auth/trip foundations into frontend actions that persist through the backend.
 
 ## Current Baseline
 
@@ -23,6 +23,7 @@ Keep the Mock API contract stable while moving the backend from DB-backed policy
 5. Update README/env docs whenever setup, commands, environment variables, or API usage changes.
 6. Run release readiness validation before handoff.
 7. Keep `docs/next-work-plan.md` aligned with the next concrete implementation priority.
+8. Keep mock-mode and backend-mode frontend e2e smoke commands separate so failures identify the broken layer quickly.
 
 ## Known Risks
 
@@ -42,6 +43,7 @@ cd frontend
 npm run typecheck
 npm test
 npm run test:e2e
+npm run test:e2e:backend
 npm run build
 
 cd ../backend
