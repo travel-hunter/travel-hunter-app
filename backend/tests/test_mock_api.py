@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from app.api import dependencies as api_dependencies
 from app.api.routes import auth as auth_routes
 from app.api.routes import profile as profile_routes
+from app.api.routes import trips as trip_routes
 from app.db import session as db_session
 from app.main import app
 from app.services import policies as policy_service
@@ -24,6 +25,7 @@ def force_mock_mode(monkeypatch) -> None:
     )
     monkeypatch.setattr(auth_routes, "settings", settings)
     monkeypatch.setattr(profile_routes, "settings", settings)
+    monkeypatch.setattr(trip_routes, "settings", settings)
     monkeypatch.setattr(api_dependencies, "settings", settings)
     monkeypatch.setattr(db_session, "settings", settings)
     monkeypatch.setattr(policy_service, "settings", settings)

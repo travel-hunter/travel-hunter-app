@@ -1,0 +1,283 @@
+from __future__ import annotations
+
+import secrets
+from datetime import date, datetime, timedelta, time
+from typing import Any
+
+from sqlalchemy.orm import Session
+
+from app.core import security
+from app.data import seed
+from app.models import Trip, TripInvite, User
+from app.repositories import policies as policy_repository
+from app.repositories import trips as trip_repository
+
+
+LEGACY_TRIP_ALIAS = str(seed.TRIP["id"])
+INVITE_BASE_URL = "travelhunter.app/i"
+
+
+class TripServiceError(Exception):
+    def __init__(self, status_code: int, detail: str) -> None:
+        self.status_code = status_code
+        self.detail = detail
+        super().__init__(detail)
+
+
+def _parse_time(value: str) -> time:
+    return datetime.strptime(value, "%H:%M").time()
+
+
+def _iso(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+    return f"{value.isoformat()}Z"
+
+
+def _format_dates(start_date: date, end_date: date) -> str:
+    return f"{start_date.year}.{start_date.month:02d}.{start_date.day:02d} - {end_date.month:02d}.{end_date.day:02d}"
+
+
+def _format_saving(value: int) -> str:
+    if value <= 0:
+        return "0원"
+    if value % 10000 == 0:
+        return f"{value // 10000}만원"
+    return f"{value:,}원"
+
+
+def _policy_saving(trip: Trip) -> int:
+    total = 0
+    for link in trip.policies:
+        if link.policy is not None and link.policy.benefit_amount:
+            total += int(link.policy.benefit_amount)
+    return total
+
+
+def trip_to_api(trip: Trip) -> dict[str, object]:
+    members = sorted(
+        trip.members,
+        key=lambda membership: (membership.role != "owner", membership.id or 0),
+    )
+    people = [membership.user.nickname for membership in members if membership.user is not None]
+
+    days: dict[int, list[dict[str, str]]] = {}
+    for trip_day in sorted(trip.days, key=lambda day: day.day_number):
+        places = sorted(
+            trip_day.places,
+            key=lambda place: (place.order_num is None, place.order_num or 0, place.id or 0),
+        )
+        days[trip_day.day_number] = [
+            {
+                "time": place.visit_time.strftime("%H:%M") if place.visit_time else "",
+                "label": place.place_name,
+                "meta": place.memo or place.address or "",
+            }
+            for place in places
+        ]
+
+    return {
+        "id": str(trip.id),
+        "title": trip.title,
+        "dates": _format_dates(trip.start_date, trip.end_date),
+        "people": people,
+        "expectedSaving": _format_saving(_policy_saving(trip)),
+        "days": days,
+    }
+
+
+def _resolve_trip(db: Session, trip_handle: str, user: User) -> Trip | None:
+    if trip_handle.isdigit():
+        return trip_repository.get_accessible_trip_by_id(db, int(trip_handle), user.id)
+    if trip_handle == LEGACY_TRIP_ALIAS:
+        return trip_repository.get_seed_alias_trip(db, user.id)
+    return None
+
+
+def _resolve_required_trip(db: Session, trip_handle: str, user: User) -> Trip:
+    trip = _resolve_trip(db, trip_handle, user)
+    if trip is None:
+        raise TripServiceError(404, "Trip not found")
+    return trip
+
+
+def list_trips(db: Session, user: User) -> list[dict[str, object]]:
+    return [trip_to_api(trip) for trip in trip_repository.list_accessible_trips(db, user.id)]
+
+
+def get_trip(trip_handle: str, db: Session, user: User) -> dict[str, object] | None:
+    trip = _resolve_trip(db, trip_handle, user)
+    if trip is None:
+        return None
+    return trip_to_api(trip)
+
+
+def create_trip(
+    db: Session,
+    user: User,
+    payload: dict[str, Any] | None = None,
+) -> dict[str, object]:
+    payload = payload or {}
+    start_date = date(2026, 6, 15)
+    end_date = date(2026, 6, 17)
+    title = str(payload.get("title") or seed.TRIP["title"])
+
+    trip = trip_repository.create_trip(
+        db,
+        owner_id=user.id,
+        title=title,
+        start_date=start_date,
+        end_date=end_date,
+        region=str(payload.get("region") or seed.PROFILE["region"]),
+        description=str(payload.get("description") or seed.PROFILE["style"]),
+    )
+    trip_repository.add_trip_member(db, trip_id=trip.id, user_id=user.id, role="owner")
+
+    for day_number, places in seed.TRIP["days"].items():
+        trip_day = trip_repository.add_trip_day(
+            db,
+            trip_id=trip.id,
+            day_number=int(day_number),
+            date_value=start_date + timedelta(days=int(day_number) - 1),
+        )
+        for order_num, place in enumerate(places, start=1):
+            trip_repository.add_trip_place(
+                db,
+                trip_day_id=trip_day.id,
+                place_name=str(place["label"]),
+                visit_time=_parse_time(str(place["time"])),
+                order_num=order_num,
+                memo=str(place["meta"]),
+            )
+
+    trip_repository.add_recommendation(
+        db,
+        user_id=user.id,
+        trip_id=trip.id,
+        query=f"{title} recommendations",
+        result=seed.RECOMMENDATIONS,
+    )
+    _ensure_invite(db, trip, user)
+    db.commit()
+
+    created = trip_repository.get_accessible_trip_by_id(db, trip.id, user.id)
+    if created is None:
+        raise TripServiceError(404, "Trip not found")
+    return trip_to_api(created)
+
+
+def add_policy_to_trip(
+    db: Session,
+    user: User,
+    trip_handle: str,
+    policy_slug: str,
+) -> dict[str, object]:
+    trip = _resolve_required_trip(db, trip_handle, user)
+    policy = policy_repository.get_policy_by_slug(db, policy_slug)
+    if policy is None:
+        raise TripServiceError(404, "Policy not found")
+
+    existing = trip_repository.get_trip_policy(db, trip_id=trip.id, policy_id=policy.id)
+    if existing is None:
+        trip_repository.add_trip_policy(db, trip_id=trip.id, policy_id=policy.id)
+        db.commit()
+
+    return {"tripId": str(trip.id), "policyId": policy_slug, "added": True}
+
+
+def _recommendation_items(value: Any) -> list[dict[str, str]]:
+    if isinstance(value, list):
+        raw_items = value
+    elif isinstance(value, dict):
+        maybe_items = value.get("items")
+        raw_items = maybe_items if isinstance(maybe_items, list) else [value]
+    else:
+        raw_items = []
+
+    items: list[dict[str, str]] = []
+    for item in raw_items:
+        if not isinstance(item, dict):
+            continue
+        items.append(
+            {
+                "label": str(item.get("label") or ""),
+                "title": str(item.get("title") or ""),
+                "meta": str(item.get("meta") or ""),
+                "reason": str(item.get("reason") or ""),
+            }
+        )
+    return items
+
+
+def list_recommendations(
+    db: Session,
+    user: User,
+    trip_handle: str,
+) -> list[dict[str, str]] | None:
+    trip = _resolve_trip(db, trip_handle, user)
+    if trip is None:
+        return None
+
+    items: list[dict[str, str]] = []
+    for recommendation in trip_repository.list_recommendations(db, trip_id=trip.id, user_id=user.id):
+        items.extend(_recommendation_items(recommendation.result))
+    return items
+
+
+def _new_invite_token() -> str:
+    return secrets.token_urlsafe(12)
+
+
+def _ensure_invite(db: Session, trip: Trip, user: User) -> TripInvite:
+    now = security.utc_now_naive()
+    invite = trip_repository.get_latest_active_invite(db, trip_id=trip.id, now=now)
+    if invite is not None:
+        return invite
+
+    return trip_repository.create_invite(
+        db,
+        trip_id=trip.id,
+        invite_token=_new_invite_token(),
+        created_by=user.id,
+        expires_at=now + timedelta(days=60),
+    )
+
+
+def invite_to_api(invite: TripInvite, *, trip_id: int, invited: bool = False) -> dict[str, object]:
+    return {
+        "id": str(invite.id),
+        "tripId": str(trip_id),
+        "inviteToken": invite.invite_token,
+        "inviteUrl": f"{INVITE_BASE_URL}/{invite.invite_token}",
+        "expiresAt": _iso(invite.expires_at) or "",
+        "createdAt": _iso(invite.created_at) or "",
+        "acceptedAt": _iso(invite.accepted_at),
+        "invited": invited or invite.accepted_at is not None,
+        "copied": False,
+    }
+
+
+def get_invite_state(
+    db: Session,
+    user: User,
+    trip_handle: str,
+) -> dict[str, object] | None:
+    trip = _resolve_trip(db, trip_handle, user)
+    if trip is None:
+        return None
+    invite = _ensure_invite(db, trip, user)
+    db.commit()
+    return invite_to_api(invite, trip_id=trip.id)
+
+
+def confirm_invite_sent(
+    db: Session,
+    user: User,
+    trip_handle: str,
+) -> dict[str, object] | None:
+    trip = _resolve_trip(db, trip_handle, user)
+    if trip is None:
+        return None
+    invite = _ensure_invite(db, trip, user)
+    db.commit()
+    return invite_to_api(invite, trip_id=trip.id, invited=True)

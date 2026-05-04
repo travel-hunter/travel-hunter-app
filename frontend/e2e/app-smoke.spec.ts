@@ -54,7 +54,7 @@ test("login reaches the authenticated home route", async ({ page }) => {
 test("authenticated app routes render without blank root", async ({ page }) => {
   await login(page);
 
-  const routes = ["/profile-setup", "/home", "/policies", "/policies/local-vacation", "/trips", "/trips/new", "/trips/jeju-3-days", "/ai-results", "/friend-invite", "/mypage"];
+  const routes = ["/profile-setup", "/home", "/policies", "/policies/local-vacation", "/trips", "/trips/new", "/trips/jeju-3-days", "/trips/1", "/ai-results?tripId=jeju-3-days", "/friend-invite?tripId=jeju-3-days", "/mypage"];
 
   for (const route of routes) {
     await page.goto(route);
@@ -69,9 +69,13 @@ test("core service actions show stable feedback", async ({ page }) => {
   await page.locator(".sticky-cta button").first().click();
   await expect(page.locator(".toast")).toBeVisible();
 
+  await page.goto("/trips/new");
+  await page.locator(".content .btn.full").click();
+  await expect(page).toHaveURL(/\/trips\/jeju-3-days$/);
+
   await page.goto("/trips/jeju-3-days");
-  await page.locator('a[href="/ai-results"]').click();
-  await expect(page).toHaveURL(/\/ai-results$/);
+  await page.locator('a[href^="/ai-results?tripId="]').click();
+  await expect(page).toHaveURL(/\/ai-results\?tripId=/);
   await page.locator(".result-card button").first().click();
   await expect(page).toHaveURL(/\/trips\/jeju-3-days$/);
 

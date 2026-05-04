@@ -74,8 +74,9 @@ describe("Travel Hunter app", () => {
       "/trips",
       "/trips/new",
       "/trips/jeju-3-days",
-      "/ai-results",
-      "/friend-invite",
+      "/trips/1",
+      "/ai-results?tripId=jeju-3-days",
+      "/friend-invite?tripId=jeju-3-days",
       "/mypage",
     ];
 

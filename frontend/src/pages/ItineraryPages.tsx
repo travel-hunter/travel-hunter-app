@@ -1,13 +1,19 @@
 import { Bot, Plus, Send, Share2 } from "lucide-react";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { appDataApi } from "../api";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { appDataApi, type InviteState } from "../api";
 import { useAsyncResource } from "../api/useAsyncResource";
 import { useSession } from "../app/session";
 import { ItineraryCard } from "../components/cards";
 import { Button, EmptyState, ErrorState, IconButton, LinkButton, LoadingState, PageHead, Tag, Toast, TopBar } from "../components/ui";
 
 const profileOptions = appDataApi.getProfileOptions();
+
+async function resolveTripId(tripId: string | null | undefined): Promise<string | undefined> {
+  if (tripId) return tripId;
+  const trips = await appDataApi.listTrips();
+  return trips[0]?.id;
+}
 
 export function ItineraryListPage() {
   const { addedPolicy } = useSession();
@@ -50,6 +56,17 @@ export function ItineraryListPage() {
 export function ItineraryCreatePage() {
   const navigate = useNavigate();
   const { profile, updateProfile } = useSession();
+  const [isCreating, setIsCreating] = useState(false);
+
+  const createTrip = async () => {
+    setIsCreating(true);
+    try {
+      const trip = await appDataApi.createTrip();
+      navigate(`/trips/${trip.id}`);
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   return (
     <section className="screen">
@@ -69,8 +86,8 @@ export function ItineraryCreatePage() {
             <ChoiceGroup label="여행 테마" values={profileOptions.travelStyles} selected={profile.style} onSelect={(value) => updateProfile("style", value)} />
           </div>
         </div>
-        <Button full onClick={() => navigate("/trips/jeju-3-days")}>
-          제주 3일 일정 만들기
+        <Button full onClick={createTrip}>
+          {isCreating ? "일정을 만드는 중입니다" : "제주 3일 일정 만들기"}
         </Button>
       </div>
     </section>
@@ -93,9 +110,10 @@ function ChoiceGroup({ label, values, selected, onSelect }: { label: string; val
 }
 
 export function ItineraryDetailPage() {
+  const { tripId } = useParams();
   const { addedPolicy } = useSession();
   const [activeDay, setActiveDay] = useState<1 | 2 | 3>(1);
-  const { data: trip, error, isLoading } = useAsyncResource(() => appDataApi.getTrip(), []);
+  const { data: trip, error, isLoading } = useAsyncResource(() => appDataApi.getTrip(tripId), [tripId]);
   const dayPlaces = trip?.days[activeDay] ?? [];
 
   if (isLoading) {
@@ -124,7 +142,7 @@ export function ItineraryDetailPage() {
           </IconButton>
         }
         right={
-          <IconButton label="친구 초대" to="/friend-invite">
+          <IconButton label="친구 초대" to={`/friend-invite?tripId=${encodeURIComponent(trip.id)}`}>
             <Share2 size={18} />
           </IconButton>
         }
@@ -181,7 +199,7 @@ export function ItineraryDetailPage() {
         <button className="dashed" type="button">
           + 장소 추가
         </button>
-        <Link className="btn secondary full" to="/ai-results">
+        <Link className="btn secondary full" to={`/ai-results?tripId=${encodeURIComponent(trip.id)}`}>
           AI 추천 일정 보기
         </Link>
       </div>
@@ -191,15 +209,24 @@ export function ItineraryDetailPage() {
 
 export function AiResultsPage() {
   const navigate = useNavigate();
-  const { data: recommendations, error, isLoading } = useAsyncResource(() => appDataApi.listRecommendations(), []);
+  const [searchParams] = useSearchParams();
+  const requestedTripId = searchParams.get("tripId");
+  const [activeTripId, setActiveTripId] = useState(requestedTripId ?? "");
   const [notice, setNotice] = useState<string | null>(null);
+  const detailPath = activeTripId ? `/trips/${activeTripId}` : "/trips";
+  const { data: recommendations, error, isLoading } = useAsyncResource(async () => {
+    const resolvedTripId = await resolveTripId(requestedTripId);
+    setActiveTripId(resolvedTripId ?? "");
+    if (!resolvedTripId) return [];
+    return appDataApi.listRecommendations(resolvedTripId);
+  }, [requestedTripId]);
 
   return (
     <section className="screen">
       <TopBar
         title="AI 추천 결과"
         left={
-          <IconButton label="일정 상세" to="/trips/jeju-3-days">
+          <IconButton label="일정 상세" to={detailPath}>
             ‹
           </IconButton>
         }
@@ -235,7 +262,7 @@ export function AiResultsPage() {
                 variant="secondary"
                 onClick={() => {
                   setNotice(`${item.title}을 일정 후보에 추가했어요.`);
-                  window.setTimeout(() => navigate("/trips/jeju-3-days"), 250);
+                  window.setTimeout(() => navigate(detailPath), 250);
                 }}
               >
                 일정에 추가
@@ -251,13 +278,28 @@ export function AiResultsPage() {
 
 export function FriendInvitePage() {
   const { invited, sendInvite } = useSession();
-  const { data: trip, error: tripError, isLoading: tripLoading } = useAsyncResource(() => appDataApi.getTrip(), []);
-  const { data: inviteState, error: inviteError, isLoading: inviteLoading } = useAsyncResource(() => appDataApi.getInviteState(), []);
+  const [searchParams] = useSearchParams();
+  const requestedTripId = searchParams.get("tripId");
+  const [activeTripId, setActiveTripId] = useState(requestedTripId ?? "");
+  const { data: trip, error: tripError, isLoading: tripLoading } = useAsyncResource(async () => {
+    const resolvedTripId = await resolveTripId(requestedTripId);
+    setActiveTripId(resolvedTripId ?? "");
+    if (!resolvedTripId) throw new Error("Trip not found");
+    return appDataApi.getTrip(resolvedTripId);
+  }, [requestedTripId]);
+  const { data: inviteState, error: inviteError, isLoading: inviteLoading } = useAsyncResource(async () => {
+    const resolvedTripId = await resolveTripId(requestedTripId);
+    if (!resolvedTripId) throw new Error("Trip not found");
+    return appDataApi.getInviteState(resolvedTripId);
+  }, [requestedTripId]);
+  const [sentInviteState, setSentInviteState] = useState<InviteState | null>(null);
   const [copied, setCopied] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const effectiveInviteState = sentInviteState ?? inviteState;
+  const detailPath = activeTripId ? `/trips/${activeTripId}` : "/trips";
 
   const copyInviteLink = async () => {
-    const inviteUrl = inviteState?.inviteUrl ?? "";
+    const inviteUrl = effectiveInviteState?.inviteUrl ?? "";
     try {
       if (navigator.clipboard && inviteUrl) await navigator.clipboard.writeText(inviteUrl);
     } catch {
@@ -267,20 +309,25 @@ export function FriendInvitePage() {
     setNotice("초대 링크를 복사했어요.");
   };
 
-  const sendFriendInvite = () => {
+  const sendFriendInvite = async () => {
+    const tripId = activeTripId || effectiveInviteState?.tripId;
+    if (tripId) {
+      const nextInviteState = await appDataApi.confirmInviteSent(tripId);
+      setSentInviteState(nextInviteState);
+    }
     sendInvite();
     setNotice("친구에게 초대장을 보냈어요.");
   };
 
   const title = trip?.title ?? "제주 3일 여행";
-  const inviteUrl = inviteState?.inviteUrl ?? "travelhunter.app/i/jeju-3d";
+  const inviteUrl = effectiveInviteState?.inviteUrl ?? "travelhunter.app/i/jeju-3d";
 
   return (
     <section className="screen">
       <TopBar
         title="친구 초대"
         left={
-          <IconButton label="일정 상세" to="/trips/jeju-3-days">
+          <IconButton label="일정 상세" to={detailPath}>
             ‹
           </IconButton>
         }
@@ -309,7 +356,7 @@ export function FriendInvitePage() {
         {notice && <Toast>{notice}</Toast>}
         <Button full onClick={sendFriendInvite}>
           <Send size={18} />
-          {invited ? "초대 완료" : "친구에게 초대 보내기"}
+          {invited || effectiveInviteState?.invited ? "초대 완료" : "친구에게 초대 보내기"}
         </Button>
       </div>
     </section>

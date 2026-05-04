@@ -162,11 +162,49 @@
         "expectedSaving": "string",
         "days": "object"
       },
-      "exampleTripId": "jeju-3-days"
+      "exampleTripId": "1",
+      "legacyTripAlias": "jeju-3-days",
+      "dbModeTripIdPolicy": "DB mode returns numeric trip ids as strings; jeju-3-days is accepted only as a legacy seed alias."
     },
     {
       "method": "GET",
-      "path": "/api/trips/jeju-3-days/invite",
+      "path": "/api/trips/1",
+      "status": 200,
+      "requiredFields": {
+        "id": "string",
+        "title": "string",
+        "dates": "string",
+        "people": "array",
+        "expectedSaving": "string",
+        "days": "object"
+      },
+      "legacyAliasPath": "/api/trips/jeju-3-days",
+      "legacyAliasResponseId": "numeric string"
+    },
+    {
+      "method": "POST",
+      "path": "/api/trips/1/policies/local-vacation",
+      "status": 200,
+      "requiredFields": {
+        "tripId": "string",
+        "policyId": "string",
+        "added": "boolean"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/trips/1/recommendations",
+      "status": 200,
+      "requiredArrayItemFields": {
+        "label": "string",
+        "title": "string",
+        "meta": "string",
+        "reason": "string"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/trips/1/invite",
       "status": 200,
       "requiredFields": {
         "id": "string",

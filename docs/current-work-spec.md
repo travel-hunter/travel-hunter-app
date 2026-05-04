@@ -2,16 +2,18 @@
 
 ## 1. 프로젝트 현재 상태
 
-Travel Hunter production 앱은 React/Vite 프론트엔드와 FastAPI 백엔드로 구성되어 있다. 프론트는 실제 서비스형 반응형 웹 UI와 `AppDataApi` 데이터 경계를 사용하고, 백엔드는 Mock API를 기본값으로 유지하면서 `BACKEND_DATA_SOURCE=db`에서 일부 endpoint를 PostgreSQL-backed로 전환했다.
+Travel Hunter production 앱은 React/Vite 프론트엔드와 FastAPI 백엔드로 구성되어 있다. 프론트엔드는 실제 서비스형 반응형 UI와 `AppDataApi` 데이터 경계를 사용하고, 백엔드는 Mock API를 기본값으로 유지하면서 `BACKEND_DATA_SOURCE=db`에서 PostgreSQL-backed service를 선택할 수 있다.
 
-현재 완료된 DB-backed 범위:
+현재 DB-backed 완료 범위:
 
 - ERD v0.3 SQLAlchemy model
 - Alembic `0001_create_v0_3_schema` migration
 - idempotent development seed script
-- 정책 목록/상세 repository/service boundary
+- 정책 목록/상세 repository/service
 - 정책 not-found/error path 테스트
-- 인증 signup/login/me/refresh/logout foundation
+- 인증 `signup/login/me/refresh/logout`
+- 일정/trip 목록/상세/생성/정책 연결/추천/초대 repository/service
+- trip numeric id와 legacy alias `jeju-3-days` 호환
 
 ## 2. 주요 위치
 
@@ -37,6 +39,8 @@ Travel Hunter production 앱은 React/Vite 프론트엔드와 FastAPI 백엔드�
 - backend mode에서 `Authorization: Bearer <accessToken>` 전송
 - refresh cookie 지원을 위한 `credentials: "include"`
 - login/signup/logout form flow
+- 일정 상세는 route의 `tripId`를 API에 전달
+- AI 결과/친구 초대는 `?tripId=<id>` query를 우선 사용하고, 없으면 첫 번째 일정으로 fallback
 
 주요 route:
 
@@ -70,16 +74,14 @@ DB-backed 구현 완료:
 - `POST /api/auth/refresh`
 - `POST /api/auth/logout`
 - `GET /api/me` in DB mode with Bearer token
-
-인증 구현 기준:
-
-- access token: JWT, JSON `accessToken`
-- refresh token: opaque random token, HttpOnly cookie
-- refresh token DB 저장: SHA-256 hash
-- password hash: Argon2 via `pwdlib`
-- JWT library: `PyJWT`
-- DB mode `/api/me`: Bearer access token 필요
-- Mock mode `/api/me`: 기존 unauthenticated smoke behavior 유지
+- `GET /api/trips`
+- `POST /api/trips`
+- `GET /api/trips/{tripId}`
+- `POST /api/trips/{tripId}/policies/{policySlug}`
+- `GET /api/trips/{tripId}/recommendations`
+- `GET /api/trips/{tripId}/invite`
+- `POST /api/trips/{tripId}/invite`
+- `POST /api/trips/{tripId}/invites`
 
 ## 5. ERD/API v0.3 기준
 
@@ -93,6 +95,8 @@ DB-backed 구현 완료:
 - DB schema 생성은 Alembic만 사용하고 `create_all()`은 사용하지 않음
 - API DTO는 `camelCase`, DB 필드는 `snake_case`
 - 응답에 `password_hash`, `refresh_token_hash`, `provider_id`를 포함하지 않음
+- DB mode `Trip.id`는 numeric `trips.id`를 문자열로 반환
+- `jeju-3-days`는 seed/prototype 호환용 legacy alias이며 DB 컬럼으로 저장하지 않음
 
 ## 6. 실행 및 검증
 
@@ -128,20 +132,15 @@ alembic upgrade head
 python -m app.db.seed
 ```
 
-Compose:
-
-```bash
-docker compose -f compose.yaml config
-```
-
 최근 통과 검증:
 
-- `python -m pytest`: 26 passed
-- `BACKEND_DATA_SOURCE=db python -m pytest`: 26 passed
+- `python -m pytest`: 37 passed
+- `BACKEND_DATA_SOURCE=db python -m pytest`: 37 passed
 - `alembic upgrade head --sql`: passed
 - `docker compose -f compose.yaml config`: passed
 - DB mode auth smoke: login/me/refresh/logout passed
 - DB mode policy smoke: list/detail/missing slug passed
+- DB mode trip smoke: list/create/numeric detail/legacy alias/missing trip/policy link/recommendations/invite passed
 - `npm run typecheck`: passed
 - `npm test`: 5 passed
 - `npm run test:e2e`: 6 passed
@@ -153,13 +152,13 @@ docker compose -f compose.yaml config
 - profile style/budget DB persistence
 - 정책 실시간 수집 API
 - 정책 저장 DB persistence
-- 일정/trip 계열 DB-backed 전환
 - 지도/장소 검색/이동 시간 계산
 - 실제 AI 추천 엔진
 - 친구 초대 실제 발송
-- backend+frontend 통합 CI smoke
+- 초대 수락의 membership DB 처리
+- backend+frontend backend-mode 통합 CI smoke
 - AWS/EKS/Argo CD 배포
 
 ## 8. 다음 작업
 
-다음 작업은 `docs/next-work-plan.md` 기준이다. 현재 추천 1순위는 일정/trip 계열 DB-backed 전환 계획 확정이다.
+다음 작업은 `docs/next-work-plan.md` 기준이다. 현재 추천 1순위는 frontend backend-mode 통합 smoke 강화다.

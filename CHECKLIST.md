@@ -18,6 +18,7 @@
 - [x] Keep frontend route smoke coverage aligned with real routes.
 - [x] Update README and env examples whenever setup or runtime behavior changes.
 - [x] Keep `docs/next-work-plan.md` aligned with the current next implementation priority.
+- [x] Keep trip id compatibility documented: DB numeric string id plus legacy `jeju-3-days` alias.
 
 ## Required Validation
 
@@ -32,12 +33,13 @@
 - [x] `cd backend && alembic upgrade head --sql`
 - [x] DB mode policy endpoint smoke through backend container
 - [x] DB mode auth signup/login/me/refresh/logout smoke
+- [x] DB mode trip list/detail/legacy alias/recommendations/invite smoke
 - [x] Docker backend image build and auth dependency import smoke
 
 ## Last Validation Result
 
 - Status: passed.
 - Date: 2026-05-04.
-- Results: frontend typecheck passed, Vitest passed 5 tests, Playwright passed 6 tests, frontend build passed, backend pytest passed 26 tests, `BACKEND_DATA_SOURCE=db` backend pytest passed 26 tests, policy missing slug 404 paths passed in mock/db mode, actual DB mode policy missing slug smoke returned 404, auth DB mode login/me/refresh/logout smoke passed, Docker Compose config passed, Docker backend image build passed, backend container auth dependency import smoke passed, Alembic offline SQL rendering passed, compose PostgreSQL was healthy, Alembic migration ran, seed ran twice without duplicate user/policy/trip/invite rows, host `127.0.0.1:55432` migration/seed passed, and DB mode policy list/detail smoke returned the expected contract shape.
+- Results: frontend typecheck passed, Vitest passed 5 tests, Playwright passed 6 tests, frontend build passed, backend pytest passed 37 tests, `BACKEND_DATA_SOURCE=db` backend pytest passed 37 tests, policy missing slug 404 paths passed in mock/db mode, actual DB mode policy missing slug smoke returned 404, auth DB mode login/me/refresh/logout smoke passed, DB mode trip list/create/numeric detail/legacy alias/missing trip/policy link/recommendations/invite smoke passed, Docker Compose config passed, Docker backend image build passed, backend container auth dependency import smoke passed, Alembic offline SQL rendering passed, compose PostgreSQL was healthy, Alembic migration ran, seed ran twice without duplicate user/policy/trip/invite rows, host `127.0.0.1:55432` migration/seed passed, and DB mode policy/trip smoke returned the expected contract shape.
 - Notes: Host `127.0.0.1:5432` reaches an existing local PostgreSQL instance with different credentials, so compose exposes Travel Hunter PostgreSQL on host `127.0.0.1:55432`. Compose network commands using backend -> db and host `127.0.0.1:55432` direct DB commands are verified.
 - Container pytest note: the runtime backend image does not copy `backend/tests`, so `docker compose run backend python -m pytest` is not a valid test command for this image. Use local backend pytest or add a dedicated test image if containerized pytest becomes required.

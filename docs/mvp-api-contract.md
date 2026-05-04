@@ -6,7 +6,7 @@
 
 - 정책 상세 조회는 `policies.slug` 기준이다.
 - 일정은 공개 slug를 만들지 않고 내부 id 기준으로 조회한다.
-- 현재 mock 단계의 `jeju-3-days` trip id는 화면 호환용이며, DB 전환 시 numeric id 또는 client mapping으로 대체한다.
+- Mock mode는 `jeju-3-days` trip id를 유지하고, DB mode는 numeric `trips.id`를 string으로 반환한다. `/api/trips/jeju-3-days`는 legacy seed alias로만 지원한다.
 - `password_hash`, `provider_id`, `refresh_token_hash`는 응답에 포함하지 않는다.
 - Mock mode는 deterministic 응답을 유지한다.
 - DB mode는 PostgreSQL-backed service를 사용하되, public response shape는 Mock mode와 동일하게 유지한다.
@@ -231,6 +231,15 @@ Response `200`:
 
 ## 일정
 
+### Trip id compatibility
+
+- `tripId`는 API/프론트에서 계속 string handle로 다룬다.
+- Mock mode는 기존 `jeju-3-days` id를 그대로 반환한다.
+- DB mode는 `trips.id`를 문자열로 변환해 반환한다. 예: `"1"`.
+- DB mode에서 `/api/trips/jeju-3-days`는 legacy seed alias로만 지원한다. 응답의 `id`는 numeric string이다.
+- `trips.slug`는 만들지 않는다. alias는 URL 입력 호환용이며 DB에 저장하지 않는다.
+- DB mode trip endpoint는 Bearer access token이 필요하고, owner 또는 `trip_members`에 포함된 사용자만 조회할 수 있다.
+
 ### `GET /api/trips`
 
 Response `200`: `Trip[]`.
@@ -239,7 +248,7 @@ Trip shape:
 
 ```json
 {
-  "id": "jeju-3-days",
+  "id": "1",
   "title": "제주 3일 여행",
   "dates": "2026.06.15 - 06.17",
   "people": ["지영", "민서", "현우"],
@@ -264,17 +273,27 @@ Response `200`: created `Trip`.
 
 Response `200`: `Trip`.
 
+Error:
+
+- unknown trip id/alias or inaccessible trip: `404 {"detail": "Trip not found"}`
+- missing/invalid DB mode access token: `401 {"detail": "Not authenticated"}`
+
 ### `POST /api/trips/{tripId}/policies/{slug}`
 
 Response `200`:
 
 ```json
 {
-  "tripId": "jeju-3-days",
+  "tripId": "1",
   "policyId": "local-vacation",
   "added": true
 }
 ```
+
+Error:
+
+- unknown trip id/alias or inaccessible trip: `404 {"detail": "Trip not found"}`
+- unknown policy slug: `404 {"detail": "Policy not found"}`
 
 ## AI 추천
 
@@ -293,7 +312,7 @@ Response `200`:
 ```json
 {
   "id": "1",
-  "tripId": "jeju-3-days",
+  "tripId": "1",
   "inviteToken": "jeju-3d",
   "inviteUrl": "travelhunter.app/i/jeju-3d",
   "expiresAt": "2026-06-30T23:59:59Z",
@@ -338,6 +357,6 @@ Response `200`:
 - 소셜 로그인 실제 연동
 - profile style/budget DB persistence
 - 정책 실시간 수집 API
-- 전체 trip endpoint DB-backed service 전환
+- trip endpoint backend-mode frontend 통합 smoke
 - 실제 AI 추천 엔진
 - 친구 초대 실제 발송
