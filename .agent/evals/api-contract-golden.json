@@ -1,0 +1,125 @@
+{
+  "version": "0.1.0",
+  "contractSource": "docs/mvp-api-contract.md",
+  "rules": {
+    "apiPrefix": "/api",
+    "apiDtoCase": "camelCase",
+    "dbFieldCase": "snake_case",
+    "policyDetailKey": "policySlug",
+    "tripDetailKey": "tripId"
+  },
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/api/health",
+      "status": 200,
+      "requiredFields": {
+        "status": "string",
+        "service": "string",
+        "environment": "string",
+        "database": "string"
+      },
+      "example": {
+        "status": "ok",
+        "service": "travel-hunter-backend",
+        "environment": "local",
+        "database": "not_configured"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 200,
+      "request": {
+        "email": "jiyoung@travel.kr",
+        "password": "password123"
+      },
+      "requiredFields": {
+        "accessToken": "string",
+        "user": {
+          "id": "string",
+          "name": "string",
+          "nickname": "string",
+          "email": "string",
+          "birthDate": "string|null",
+          "gender": "string|null",
+          "region": "string|null",
+          "homeRegion": "string",
+          "residenceArea": "string|null",
+          "preferredRegions": "string|null",
+          "persona": "string",
+          "savedAmount": "number",
+          "onboardingCompleted": "boolean",
+          "socialAccounts": "array",
+          "createdAt": "string",
+          "updatedAt": "string"
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/policies",
+      "status": 200,
+      "requiredArrayItemFields": {
+        "id": "string",
+        "slug": "string",
+        "label": "string",
+        "tag": "string",
+        "title": "string",
+        "org": "string",
+        "region": "string",
+        "deadline": "string",
+        "amount": "string",
+        "summary": "string",
+        "match": "number",
+        "category": "string",
+        "requirements": "array",
+        "documents": "array"
+      },
+      "exampleSlug": "local-vacation"
+    },
+    {
+      "method": "GET",
+      "path": "/api/policies/local-vacation",
+      "status": 200,
+      "requiredFields": {
+        "id": "string",
+        "slug": "string",
+        "title": "string",
+        "org": "string",
+        "deadline": "string",
+        "amount": "string"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/trips",
+      "status": 200,
+      "requiredArrayItemFields": {
+        "id": "string",
+        "title": "string",
+        "dates": "string",
+        "people": "array",
+        "expectedSaving": "string",
+        "days": "object"
+      },
+      "exampleTripId": "jeju-3-days"
+    },
+    {
+      "method": "GET",
+      "path": "/api/trips/jeju-3-days/invite",
+      "status": 200,
+      "requiredFields": {
+        "id": "string",
+        "tripId": "string",
+        "inviteToken": "string",
+        "inviteUrl": "string",
+        "expiresAt": "string",
+        "createdAt": "string",
+        "acceptedAt": "string|null",
+        "invited": "boolean",
+        "copied": "boolean"
+      }
+    }
+  ]
+}

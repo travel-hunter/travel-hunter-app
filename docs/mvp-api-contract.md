@@ -2,7 +2,7 @@
 
 이 문서는 `files/ERD_v0.3_결정안건_상세분석.md`의 권장안을 모두 채택한 API 계약 기준이다.
 
-DB 연결 전까지 백엔드는 Mock API로 같은 응답 shape를 제공하고, 프론트는 `AppDataApi` 경계만 바라본다. 실제 PostgreSQL/Alembic 구현은 이 계약이 안정된 뒤 진행한다.
+기본 실행에서 백엔드는 Mock API로 같은 응답 shape를 제공하고, 프론트는 `AppDataApi` 경계만 바라본다. PostgreSQL/Alembic 기반 v0.3 schema는 준비되어 있으며, `BACKEND_DATA_SOURCE=db`에서는 정책 목록/상세 endpoint부터 DB-backed service 경계를 사용할 수 있다.
 
 ## 전역 규칙
 
@@ -323,12 +323,12 @@ Response `200`
 }
 ```
 
+`database`는 문자열이다. Mock mode에서는 `configured` 또는 `not_configured`, DB mode에서는 `connected`, `unavailable`, `not_configured` 중 하나를 반환할 수 있다.
+
 ## 다음 단계 제외 범위
 
-- 실제 PostgreSQL 연결
-- SQLAlchemy 모델
-- Alembic migration
 - JWT refresh token 실제 발급/회전
 - 정책 실시간 수집 API
+- 전체 endpoint DB-backed service 전환
 - 실제 AI 추천 엔진
 - 친구 초대 실제 발송

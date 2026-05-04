@@ -1,0 +1,81 @@
+# Travel Hunter Agent Harness
+
+## Project Goal
+
+Travel Hunter is an MVP that helps users find domestic travel support policies and connect those benefits to real trip planning. The current app is a React/Vite frontend plus FastAPI backend that share one API contract before the real PostgreSQL implementation is introduced.
+
+## Current Phase
+
+- The backend currently provides Mock API responses without a real database.
+- The frontend must depend on the `AppDataApi` boundary and must not couple pages directly to seed data or backend client details.
+- The active product and API source of truth is `docs/current-work-spec.md` and `docs/mvp-api-contract.md`.
+- ERD source material lives outside this repo at `../files`, especially `travel_hunter_schema_v0.3.sql` and `ERD_v0.3_결정안건_상세분석.md`.
+
+## Source Priority
+
+When instructions conflict, use this order:
+
+1. The user's latest explicit request.
+2. This `AGENTS.md`.
+3. The nearest nested `AGENTS.md` for the files being changed.
+4. `PLANS.md`.
+5. `docs/current-work-spec.md`.
+6. `docs/mvp-api-contract.md`.
+7. ERD and requirement source files under `../files`.
+
+## Required Orientation Loop
+
+At the start of non-trivial work:
+
+1. Check `git status --short`.
+2. Read this file, then any nested `AGENTS.md` in the target area.
+3. Read `PLANS.md` and the relevant `.agent/skills/*/SKILL.md`.
+4. Check the relevant contract, schema, route, type, and test files before editing.
+5. Record validation results and remaining risks in `CHECKLIST.md` when the work affects project state.
+
+## Non-Negotiable Rules
+
+- Do not revert or overwrite existing worktree changes unless the user explicitly asks.
+- Keep API DTO fields in `camelCase`; keep database and SQL fields in `snake_case`.
+- Policy detail routes use `policySlug` / `policies.slug`.
+- Trip routes use an internal trip id. Do not introduce public trip slugs unless a later plan explicitly changes the contract.
+- Frontend pages and components must access app data through `frontend/src/api/AppDataApi` and related API boundary files.
+- Backend routes must stay thin. Put request/response shapes in `app/schemas`, business behavior in `app/services`, and seed/mock data in `app/data`.
+- Never commit secrets. Keep `.env.example` documented and safe.
+- Any API shape change must update the API contract, frontend types, backend schemas/routes/services, tests, and `.agent/evals` together.
+- Documentation changes must preserve UTF-8 Korean text.
+
+## Standard Commands
+
+Frontend:
+
+```bash
+cd frontend
+npm run typecheck
+npm test
+npm run test:e2e
+npm run build
+```
+
+Backend:
+
+```bash
+cd backend
+python -m pytest
+```
+
+Compose:
+
+```bash
+docker compose -f compose.yaml config
+```
+
+## Done Criteria
+
+A task is done only when:
+
+- The implementation matches `docs/mvp-api-contract.md` or that contract was intentionally updated.
+- Relevant frontend/backend tests and evals have been updated.
+- The required validation commands were run, or a clear blocker is recorded.
+- README, env examples, `PLANS.md`, or `CHECKLIST.md` were updated when the task changes usage, setup, API, or workflow.
+- Remaining risks are explicit.

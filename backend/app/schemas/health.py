@@ -1,10 +1,8 @@
-from typing import Literal
-
 from pydantic import BaseModel
 
 
 class HealthResponse(BaseModel):
-    status: Literal["ok"]
+    status: str
     service: str
     environment: str
-    database: Literal["configured", "not_configured"]
+    database: str
