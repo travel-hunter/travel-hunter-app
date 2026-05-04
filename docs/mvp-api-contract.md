@@ -1,15 +1,16 @@
 # Travel Hunter MVP API 계약 v0.3
 
-이 문서는 ERD v0.3 권장안을 채택한 MVP API 계약 기준이다. API prefix는 `/api`이고, DB 필드는 `snake_case`, API DTO는 `camelCase`를 사용한다.
+API prefix는 `/api`다. API DTO는 `camelCase`, DB/SQL 필드는 `snake_case`를 사용한다.
 
 ## 공통 규칙
 
-- 정책 상세 조회는 `policies.slug` 기준이다.
-- 일정은 공개 slug를 만들지 않고 내부 id 기준으로 조회한다.
-- Mock mode는 `jeju-3-days` trip id를 유지하고, DB mode는 numeric `trips.id`를 string으로 반환한다. `/api/trips/jeju-3-days`는 legacy seed alias로만 지원한다.
-- `password_hash`, `provider_id`, `refresh_token_hash`는 응답에 포함하지 않는다.
-- Mock mode는 deterministic 응답을 유지한다.
-- DB mode는 PostgreSQL-backed service를 사용하되, public response shape는 Mock mode와 동일하게 유지한다.
+- 정책 상세는 `policies.slug` 기준이다.
+- 일정은 public slug를 만들지 않고 string `tripId` handle로 조회한다.
+- Mock mode의 seed trip id는 `jeju-3-days`다.
+- DB mode의 `Trip.id`는 numeric `trips.id`를 문자열로 반환한다.
+- DB mode에서 `/api/trips/jeju-3-days`는 seed 호환 alias이며, 응답 `id`는 numeric string이다.
+- DB mode 보호 endpoint는 Bearer access token이 필요하다.
+- 보안/internal 필드는 응답하지 않는다: `password_hash`, `provider_id`, `refresh_token_hash`.
 
 ## 인증
 
@@ -51,12 +52,9 @@ Response `200`:
 }
 ```
 
-DB mode behavior:
+Errors:
 
-- email은 lowercase로 정규화한다.
-- `users.password_hash`에는 Argon2 hash만 저장한다.
-- refresh token은 HttpOnly cookie로만 전달하고, DB에는 SHA-256 hash를 저장한다.
-- duplicate email은 `409 {"detail": "Email already registered"}`를 반환한다.
+- duplicate email: `409 {"detail": "Email already registered"}`
 
 ### `POST /api/auth/login`
 
@@ -71,9 +69,9 @@ Request:
 
 Response `200`: `AuthResponse`.
 
-Error:
+Errors:
 
-- invalid email/password: `401 {"detail": "Invalid email or password"}`
+- invalid credentials: `401 {"detail": "Invalid email or password"}`
 
 ### `POST /api/auth/refresh`
 
@@ -81,15 +79,11 @@ Request body 없음. DB mode에서는 `travel_hunter_refresh` HttpOnly cookie를
 
 Response `200`: `AuthResponse`.
 
-Behavior:
+Errors:
 
-- 기존 refresh token row를 revoke한다.
-- 새 access token과 새 refresh cookie를 발급한다.
-- invalid, expired, revoked refresh token은 `401 {"detail": "Invalid refresh token"}`를 반환한다.
+- invalid, expired, revoked refresh token: `401 {"detail": "Invalid refresh token"}`
 
 ### `POST /api/auth/logout`
-
-Request body 없음. refresh cookie가 있으면 해당 token row를 revoke한다.
 
 Response `200`:
 
@@ -99,41 +93,17 @@ Response `200`:
 }
 ```
 
-Behavior:
-
-- refresh cookie를 clear한다.
-- refresh cookie가 없거나 이미 만료되어도 `200`을 반환한다.
-
 ## 사용자
 
 ### `GET /api/me`
 
-Mock mode: 기존 mock user를 반환한다.
-
-DB mode: `Authorization: Bearer <accessToken>`이 필요하다.
+DB mode에서는 `Authorization: Bearer <accessToken>`이 필요하다.
 
 Response `200`: `User`.
 
-Error:
+Errors:
 
 - missing, invalid, expired access token: `401 {"detail": "Not authenticated"}`
-
-DB mapping:
-
-| API field | DB field / source |
-|----------|-------------------|
-| `id` | `users.id` as string |
-| `name`, `nickname` | `users.nickname` |
-| `email` | `users.email` |
-| `birthDate` | `users.birth_date` |
-| `gender` | `users.gender` |
-| `region` | `users.region` |
-| `homeRegion`, `residenceArea` | `users.residence_area` |
-| `preferredRegions` | `users.preferred_regions` |
-| `onboardingCompleted` | `users.onboarding_completed` |
-| `socialAccounts` | `social_accounts` rows without `provider_id` |
-| `persona` | calculated/default display value |
-| `savedAmount` | calculated/default display value |
 
 ### `PATCH /api/me/profile`
 
@@ -157,7 +127,7 @@ Response `200`:
 }
 ```
 
-Note: profile style/budget persistence is not included in ERD v0.3, so this endpoint remains mock-backed in the auth DB-backed phase.
+현재 DB mode persistence 대상은 아니다.
 
 ### `GET /api/profile-options`
 
@@ -202,7 +172,7 @@ DB mapping:
 
 | API field | DB source |
 |----------|-----------|
-| `slug`, `id` | `policies.slug` |
+| `id`, `slug` | `policies.slug` |
 | `org` | `policies.organization` |
 | `deadline` | `policies.end_date` |
 | `amount` | `policies.benefit_detail` or `benefit_amount` display |
@@ -210,15 +180,15 @@ DB mapping:
 | `category` | `policies.policy_type` |
 | `documents` | `policy_documents.document_name[]` |
 
-### `GET /api/policies/{slug}`
+### `GET /api/policies/{policySlug}`
 
-Response `200`: `GET /api/policies` item shape.
+Response `200`: `Policy`.
 
-Error:
+Errors:
 
 - unknown slug: `404 {"detail": "Policy not found"}`
 
-### `POST /api/me/saved-policies/{slug}`
+### `POST /api/me/saved-policies/{policySlug}`
 
 Response `200`:
 
@@ -231,37 +201,14 @@ Response `200`:
 
 ## 일정
 
-### Trip id compatibility
+### Trip handle rules
 
-- `tripId`는 API/프론트에서 계속 string handle로 다룬다.
-- Mock mode는 기존 `jeju-3-days` id를 그대로 반환한다.
-- DB mode는 `trips.id`를 문자열로 변환해 반환한다. 예: `"1"`.
-- DB mode에서 `/api/trips/jeju-3-days`는 legacy seed alias로만 지원한다. 응답의 `id`는 numeric string이다.
-- `trips.slug`는 만들지 않는다. alias는 URL 입력 호환용이며 DB에 저장하지 않는다.
-- DB mode trip endpoint는 Bearer access token이 필요하고, owner 또는 `trip_members`에 포함된 사용자만 조회할 수 있다.
-
-Resolver rules:
-
+- `tripId`는 opaque string handle이다.
 - Canonical numeric handle은 `^[1-9][0-9]*$`만 허용한다.
-- `0`, `001`, `1.0`은 numeric id로 해석하지 않고 unknown handle로 처리한다.
-- Legacy alias `jeju-3-days`는 seed 전용 alias mapping으로만 해석한다.
-- `jeju-3-days` mapping 기준은 owner email `jiyoung@travel.kr`, seed trip title, `2026-06-15`~`2026-06-17`이다.
-- alias 후보가 0개이거나 2개 이상이면 fail closed로 `404 {"detail": "Trip not found"}`를 반환한다.
-- alias 조회도 numeric id 조회와 동일하게 인증/접근 권한 검사를 통과해야 한다.
-- alias로 조회하더라도 응답 `Trip.id`는 canonical numeric string이다.
-- frontend는 alias route 응답의 `Trip.id`가 route param과 다르면 `/trips/{Trip.id}`로 replace 정규화한다.
-
-DTO calculation:
-
-- `people`은 owner nickname을 먼저 넣고, 그 뒤 `trip_members.user.nickname`을 중복 제거해 추가한다.
-- `expectedSaving`은 연결된 `trip_policies.policy.benefit_amount` 합계다.
-- `benefit_amount`가 null인 정책은 합계에서 제외한다.
-- 합계가 0이면 `"0원"`, 10,000원 단위로 나누어 떨어지면 `"{n}만원"`, 그 외에는 `"{amount}원"` 표시 포맷을 사용한다.
-- `days`는 `trip_days.day_number` 오름차순, `trip_places.order_num` 오름차순으로 정렬한다.
-
-### `GET /api/trips`
-
-Response `200`: `Trip[]`.
+- `0`, `001`, `1.0`은 numeric id로 해석하지 않는다.
+- Legacy alias `jeju-3-days`는 owner email `jiyoung@travel.kr`, seed title, `2026-06-15`~`2026-06-17`이 정확히 한 건 매칭될 때만 해석한다.
+- unknown, inaccessible, unsupported trip handle은 `404 {"detail": "Trip not found"}`다.
+- alias 조회도 인증/접근 권한 검사를 통과해야 한다.
 
 Trip shape:
 
@@ -284,20 +231,55 @@ Trip shape:
 }
 ```
 
+DTO calculation:
+
+- `people`은 owner nickname을 먼저 넣고 member nickname을 중복 제거해 추가한다.
+- `expectedSaving`은 연결된 `trip_policies.policy.benefit_amount` 합계다.
+- `benefit_amount`가 null이면 제외한다.
+- 합계가 0이면 `"0원"`, 10,000원 단위로 나누어 떨어지면 `"{n}만원"`, 그 외에는 `"{amount}원"`으로 표시한다.
+- `days`는 `trip_days.day_number`, `trip_places.order_num` 오름차순이다.
+
+### `GET /api/trips`
+
+Response `200`: `Trip[]`.
+
 ### `POST /api/trips`
 
+Request body is optional:
+
+```json
+{
+  "title": "제주 3일 여행",
+  "region": "제주",
+  "style": "휴식",
+  "description": "휴식",
+  "policySlug": "local-vacation"
+}
+```
+
 Response `200`: created `Trip`.
+
+Rules:
+
+- `region`은 `trips.region`에 저장한다.
+- `description`은 `trips.description`에 저장한다.
+- `description`이 없고 `style`이 있으면 `style`을 `trips.description`에 저장한다.
+- `policySlug`가 있으면 생성된 일정에 `trip_policies`로 정책을 연결한다.
+
+Errors:
+
+- unknown `policySlug`: `404 {"detail": "Policy not found"}`
 
 ### `GET /api/trips/{tripId}`
 
 Response `200`: `Trip`.
 
-Error:
+Errors:
 
-- unknown trip id/alias or inaccessible trip: `404 {"detail": "Trip not found"}`
+- unknown or inaccessible trip: `404 {"detail": "Trip not found"}`
 - missing/invalid DB mode access token: `401 {"detail": "Not authenticated"}`
 
-### `POST /api/trips/{tripId}/policies/{slug}`
+### `POST /api/trips/{tripId}/policies/{policySlug}`
 
 Response `200`:
 
@@ -309,9 +291,9 @@ Response `200`:
 }
 ```
 
-Error:
+Errors:
 
-- unknown trip id/alias or inaccessible trip: `404 {"detail": "Trip not found"}`
+- unknown or inaccessible trip: `404 {"detail": "Trip not found"}`
 - unknown policy slug: `404 {"detail": "Policy not found"}`
 
 ## AI 추천
@@ -321,8 +303,6 @@ Error:
 Response `200`: `Recommendation[]`.
 
 ## 친구 초대
-
-v0.3 DB 기준은 `trip_invites`다. 실제 발송은 아직 구현하지 않고 API가 초대 상태만 반환한다.
 
 ### `GET /api/trips/{tripId}/invite`
 
@@ -342,23 +322,24 @@ Response `200`:
 }
 ```
 
-Invite state rules:
+Rules:
 
-- `copied`는 서버 저장 상태가 아니므로 항상 `false`로 반환하고 프론트 local state에서 관리한다.
-- `invited`는 유효한 invite token이 존재하거나 이번 요청에서 생성/확인된 상태를 의미한다.
-- `acceptedAt`은 초대 수락 시각이며, `invited`와 별개의 의미다.
+- `copied`는 서버 저장 상태가 아니므로 항상 `false`를 반환한다.
+- `invited`는 유효한 invite token이 존재하거나 이번 요청에서 생성/확인된 상태다.
 
 ### `POST /api/trips/{tripId}/invite`
 
-Response `200`: invite state with `invited: true`.
+Response `200`: `InviteState` with `invited: true`.
 
 ### `POST /api/trips/{tripId}/invites`
 
-Response `200`: invite state.
+Response `200`: `InviteState`.
 
-### `POST /api/invites/{token}/accept`
+### `POST /api/invites/{inviteToken}/accept`
 
-Response `200`: invite state with `acceptedAt`.
+Response `200`: `InviteState` with `acceptedAt`.
+
+현재 DB-backed membership 처리는 하지 않는다.
 
 ## Health
 
@@ -371,17 +352,8 @@ Response `200`:
   "status": "ok",
   "service": "travel-hunter-backend",
   "environment": "local",
-  "database": "not_configured"
+  "database": "connected"
 }
 ```
 
-`database` is one of `configured`, `not_configured`, `connected`, or `unavailable`.
-
-## 다음 단계 제외 범위
-
-- 소셜 로그인 실제 연동
-- profile style/budget DB persistence
-- 정책 실시간 수집 API
-- trip endpoint backend-mode frontend 통합 smoke
-- 실제 AI 추천 엔진
-- 친구 초대 실제 발송
+`database`는 `configured`, `not_configured`, `connected`, `unavailable` 중 하나다.

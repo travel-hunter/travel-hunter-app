@@ -2,6 +2,7 @@ from datetime import date, datetime, time, timedelta
 
 from app.models import Policy, Recommendation, Trip, TripDay, TripMember, TripPlace, TripPolicy
 from app.models import User as UserModel
+from app.schemas.trip import CreateTripRequest
 from app.services import trips as trip_service
 
 
@@ -169,3 +170,101 @@ def test_invite_to_api_computes_display_flags() -> None:
     assert payload["inviteUrl"] == "travelhunter.app/i/abc"
     assert payload["invited"] is True
     assert payload["copied"] is False
+
+
+class FakeDb:
+    def __init__(self) -> None:
+        self.commits = 0
+
+    def commit(self) -> None:
+        self.commits += 1
+
+
+def install_create_trip_stubs(monkeypatch, *, policy: Policy | None = None):
+    captured: dict[str, object] = {}
+    created_trip = make_trip()
+    created_trip.id = 11
+
+    def create_trip_stub(db, **kwargs):
+        captured["create_trip"] = kwargs
+        return created_trip
+
+    def add_trip_day_stub(_db, *, trip_id, day_number, date_value):
+        return TripDay(id=day_number, trip_id=trip_id, day_number=day_number, date=date_value)
+
+    monkeypatch.setattr(trip_service.trip_repository, "create_trip", create_trip_stub)
+    monkeypatch.setattr(trip_service.trip_repository, "add_trip_member", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(trip_service.trip_repository, "add_trip_day", add_trip_day_stub)
+    monkeypatch.setattr(trip_service.trip_repository, "add_trip_place", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(trip_service.trip_repository, "add_recommendation", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(trip_service, "_ensure_invite", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda *_args, **_kwargs: created_trip,
+    )
+    monkeypatch.setattr(trip_service.policy_repository, "get_policy_by_slug", lambda *_args, **_kwargs: policy)
+
+    def add_trip_policy_stub(_db, **kwargs):
+        captured["add_trip_policy"] = kwargs
+
+    monkeypatch.setattr(trip_service.trip_repository, "add_trip_policy", add_trip_policy_stub)
+    return captured
+
+
+def test_create_trip_uses_region_and_style_payload(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    captured = install_create_trip_stubs(monkeypatch)
+
+    result = trip_service.create_trip(
+        fake_db,
+        user,
+        CreateTripRequest(region="Busan", style="Food"),
+    )
+
+    assert result["id"] == "11"
+    assert captured["create_trip"]["region"] == "Busan"
+    assert captured["create_trip"]["description"] == "Food"
+    assert fake_db.commits == 1
+
+
+def test_create_trip_prefers_description_over_style(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    captured = install_create_trip_stubs(monkeypatch)
+
+    trip_service.create_trip(
+        fake_db,
+        user,
+        CreateTripRequest(region="Jeju", style="Food", description="Custom memo"),
+    )
+
+    assert captured["create_trip"]["description"] == "Custom memo"
+
+
+def test_create_trip_links_policy_when_policy_slug_is_present(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    policy = Policy(id=3, slug="local-vacation", title="Vacation policy", benefit_amount=300000)
+    captured = install_create_trip_stubs(monkeypatch, policy=policy)
+
+    trip_service.create_trip(fake_db, user, CreateTripRequest(policySlug="local-vacation"))
+
+    assert captured["add_trip_policy"] == {"trip_id": 11, "policy_id": 3}
+
+
+def test_create_trip_rejects_unknown_policy_slug(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    install_create_trip_stubs(monkeypatch, policy=None)
+
+    try:
+        trip_service.create_trip(fake_db, user, CreateTripRequest(policySlug="missing-policy"))
+    except trip_service.TripServiceError as error:
+        assert error.status_code == 404
+        assert error.detail == "Policy not found"
+    else:
+        raise AssertionError("expected TripServiceError")
+
+    assert fake_db.commits == 0

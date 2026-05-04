@@ -169,6 +169,27 @@
       "invalidNumericLikeHandles": ["0", "001", "1.0"]
     },
     {
+      "method": "POST",
+      "path": "/api/trips",
+      "status": 200,
+      "optionalRequestFields": {
+        "title": "string",
+        "region": "string",
+        "style": "string",
+        "description": "string",
+        "policySlug": "string"
+      },
+      "requiredFields": {
+        "id": "string",
+        "title": "string",
+        "dates": "string",
+        "people": "array",
+        "expectedSaving": "string",
+        "days": "object"
+      },
+      "dbModePolicySlugBehavior": "When policySlug is present, create the trip and link trip_policies; unknown policySlug returns 404 Policy not found."
+    },
+    {
       "method": "GET",
       "path": "/api/trips/1",
       "status": 200,

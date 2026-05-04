@@ -1,12 +1,21 @@
 import { Heart, Share2, SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { appDataApi } from "../api";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { appDataApi, type Trip } from "../api";
 import { useAsyncResource } from "../api/useAsyncResource";
 import { useSession } from "../app/session";
 import { PolicyListCard } from "../components/cards";
 import { Button, EmptyState, ErrorState, IconButton, LoadingState, Tag, Toast, TopBar } from "../components/ui";
 import { dday } from "../utils";
+
+type TripSheetStatus = "closed" | "loading" | "empty" | "ready" | "submitting" | "error" | "success";
+
+function policyTripErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  if (message.includes("Policy not found")) return "정책 정보를 찾을 수 없어요. 다시 확인해 주세요.";
+  if (message.includes("Trip not found")) return "일정을 찾을 수 없어요. 다른 일정을 선택해 주세요.";
+  return "일정에 혜택을 담지 못했어요. 잠시 후 다시 시도해 주세요.";
+}
 
 const filters = ["추천", "환급", "숙박", "캐시백", "마감임박"] as const;
 
@@ -60,13 +69,55 @@ export function PolicyListPage() {
 
 export function PolicyDetailPage() {
   const { policyId } = useParams();
+  const navigate = useNavigate();
   const { addedPolicy, addPolicy, likedPolicy, togglePolicyLike } = useSession();
   const { data: policy, error, isLoading } = useAsyncResource(() => appDataApi.getPolicy(policyId), [policyId]);
   const [notice, setNotice] = useState<string | null>(null);
+  const [sheetStatus, setSheetStatus] = useState<TripSheetStatus>("closed");
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
+  const [sheetError, setSheetError] = useState("");
 
-  const addToTrip = () => {
-    addPolicy();
-    setNotice("일정에 혜택을 담았어요. 제주 3일 여행에서 바로 확인할 수 있습니다.");
+  const addToTrip = async () => {
+    if (!policy) return;
+    setNotice(null);
+    setSheetError("");
+    setSelectedTrip(null);
+    setSheetStatus("loading");
+    try {
+      const availableTrips = await appDataApi.listTrips();
+      setTrips(availableTrips);
+      setSheetStatus(availableTrips.length > 0 ? "ready" : "empty");
+    } catch {
+      setSheetError("일정 목록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
+      setSheetStatus("error");
+    }
+  };
+
+  const attachPolicyToTrip = async (trip: Trip) => {
+    if (!policy) return;
+    setSelectedTrip(trip);
+    setSheetError("");
+    setSheetStatus("submitting");
+    try {
+      await appDataApi.addPolicyToTrip(trip.id, policy.slug);
+      setSheetStatus("success");
+      setNotice("선택한 일정에 혜택을 담았어요.");
+      addPolicy();
+    } catch (attachError) {
+      setSheetError(policyTripErrorMessage(attachError));
+      setSheetStatus("error");
+    }
+  };
+
+  const closeTripSheet = () => {
+    if (sheetStatus === "submitting") return;
+    setSheetStatus("closed");
+  };
+
+  const viewSelectedTrip = () => {
+    if (!selectedTrip) return;
+    navigate(`/trips/${selectedTrip.id}`);
   };
 
   const showApplicationNotice = () => {
@@ -170,6 +221,116 @@ export function PolicyDetailPage() {
         </Button>
         <Button onClick={showApplicationNotice}>혜택 받으러 가기</Button>
       </div>
+      <TripSelectSheet
+        error={sheetError}
+        onClose={closeTripSheet}
+        onSelectTrip={attachPolicyToTrip}
+        onViewTrip={viewSelectedTrip}
+        policySlug={policy.slug}
+        selectedTrip={selectedTrip}
+        status={sheetStatus}
+        trips={trips}
+      />
     </section>
+  );
+}
+
+function TripSelectSheet({
+  error,
+  onClose,
+  onSelectTrip,
+  onViewTrip,
+  policySlug,
+  selectedTrip,
+  status,
+  trips,
+}: {
+  error: string;
+  onClose: () => void;
+  onSelectTrip: (trip: Trip) => void;
+  onViewTrip: () => void;
+  policySlug: string;
+  selectedTrip: Trip | null;
+  status: TripSheetStatus;
+  trips: Trip[];
+}) {
+  if (status === "closed") return null;
+  const isSubmitting = status === "submitting";
+
+  return (
+    <div className="sheet-backdrop" onClick={onClose}>
+      <section className="trip-select-sheet" role="dialog" aria-modal="true" aria-label="일정 선택" onClick={(event) => event.stopPropagation()}>
+        <div className="sheet-head">
+          <div>
+            <Tag tone="primary">일정 담기</Tag>
+            <h2>혜택을 담을 일정을 선택하세요</h2>
+            <p className="meta">선택한 일정에서 정책 혜택과 예상 절감액을 함께 확인할 수 있어요.</p>
+          </div>
+          <button className="icon-btn" disabled={isSubmitting} onClick={onClose} type="button" aria-label="닫기">
+            ×
+          </button>
+        </div>
+
+        {status === "loading" && <LoadingState label="일정 목록을 불러오는 중입니다" />}
+
+        {status === "empty" && (
+          <EmptyState
+            title="아직 담을 일정이 없어요"
+            body="먼저 여행 일정을 만들면 이 혜택을 바로 연결할 수 있어요."
+            action={<Link className="btn primary full" to={`/trips/new?policySlug=${encodeURIComponent(policySlug)}`}>새 일정 만들기</Link>}
+          />
+        )}
+
+        {(status === "ready" || status === "submitting") && (
+          <div className="trip-select-list">
+            {trips.map((trip) => (
+              <button className="trip-select-row" disabled={isSubmitting} key={trip.id} onClick={() => onSelectTrip(trip)} type="button">
+                <div>
+                  <strong>{trip.title}</strong>
+                  <div className="meta">
+                    {trip.dates} · {trip.people.length}명 · 예상 절감 {trip.expectedSaving}
+                  </div>
+                </div>
+                <span className="btn sm secondary">{selectedTrip?.id === trip.id && isSubmitting ? "담는 중" : "선택"}</span>
+              </button>
+            ))}
+            <Link className="btn line full" to={`/trips/new?policySlug=${encodeURIComponent(policySlug)}`}>
+              새 일정에 담기
+            </Link>
+          </div>
+        )}
+
+        {status === "error" && (
+          <div className="sheet-actions">
+            <ErrorState message={error} />
+            {trips.length > 0 && (
+              <div className="trip-select-list">
+                {trips.map((trip) => (
+                  <button className="trip-select-row" key={trip.id} onClick={() => onSelectTrip(trip)} type="button">
+                    <div>
+                      <strong>{trip.title}</strong>
+                      <div className="meta">{trip.dates}</div>
+                    </div>
+                    <span className="btn sm secondary">다시 선택</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {status === "success" && (
+          <div className="sheet-actions">
+            <div className="state-panel">
+              <strong>선택한 일정에 혜택을 담았어요</strong>
+              <p>{selectedTrip?.title ?? "선택한 일정"}에서 연결된 정책을 확인할 수 있어요.</p>
+            </div>
+            <Button full onClick={onViewTrip}>
+              일정에서 보기
+            </Button>
+          </div>
+        )}
+      </section>
+    </div>
   );
 }

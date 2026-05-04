@@ -5,7 +5,7 @@ from app.api.dependencies import get_current_user
 from app.core.config import settings
 from app.db.session import get_optional_db
 from app.models import User
-from app.schemas.trip import InviteState, Recommendation, Trip, TripPolicyResponse
+from app.schemas.trip import CreateTripRequest, InviteState, Recommendation, Trip, TripPolicyResponse
 from app.services import mock_store
 from app.services import trips as trip_service
 
@@ -43,7 +43,7 @@ def list_trips(
 
 @router.post("", response_model=Trip)
 def create_trip(
-    payload: dict[str, object] | None = Body(default=None),
+    payload: CreateTripRequest | None = Body(default=None),
     db: Session | None = Depends(get_optional_db),
     current_user: User | None = Depends(get_current_user),
 ) -> Trip:
@@ -57,7 +57,12 @@ def create_trip(
         except trip_service.TripServiceError as error:
             _raise_trip_error(error)
         return Trip(**trip)
-    return Trip(**mock_store.create_trip())
+    trip = mock_store.create_trip()
+    if payload and payload.policySlug:
+        if mock_store.get_policy(payload.policySlug) is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Policy not found")
+        mock_store.add_policy_to_trip(str(trip["id"]), payload.policySlug)
+    return Trip(**trip)
 
 
 @router.get("/{trip_id}", response_model=Trip)

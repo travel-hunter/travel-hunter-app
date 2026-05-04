@@ -49,7 +49,12 @@ export const mockApi: AppDataApi = {
   getPolicy: (policySlug?: string): Promise<Policy> => respond(getSeedPolicy(policySlug)),
   savePolicy: (policySlug: string) => respond({ policyId: policySlug, saved: true }),
   listTrips: (): Promise<Trip[]> => respond([itinerary]),
-  createTrip: () => respond(itinerary),
+  createTrip: (request) => {
+    if (request?.policySlug) {
+      mockApi.addPolicyToTrip(itinerary.id, request.policySlug);
+    }
+    return respond(itinerary);
+  },
   getTrip: (_tripId = itinerary.id): Promise<Trip> => respond(itinerary),
   addPolicyToTrip: (tripId: string, policySlug: string) => respond({ tripId, policyId: policySlug, added: true }),
   listRecommendations: (): Promise<Recommendation[]> => respond(recommendations),

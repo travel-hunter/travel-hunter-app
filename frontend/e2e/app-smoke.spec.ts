@@ -67,6 +67,8 @@ test("core service actions show stable feedback", async ({ page }) => {
 
   await page.goto("/policies/local-vacation");
   await page.locator(".sticky-cta button").first().click();
+  await expect(page.locator(".trip-select-sheet")).toBeVisible();
+  await page.locator(".trip-select-row").first().click();
   await expect(page.locator(".toast")).toBeVisible();
 
   await page.goto("/trips/new");

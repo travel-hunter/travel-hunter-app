@@ -31,7 +31,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+    let detail = "";
+    try {
+      const payload = (await response.clone().json()) as { detail?: unknown };
+      if (typeof payload.detail === "string") detail = payload.detail;
+    } catch {
+      // Keep the generic message when the backend does not return a JSON error payload.
+    }
+    throw new Error(detail || `API request failed: ${response.status} ${response.statusText}`);
   }
 
   return response.json() as Promise<T>;

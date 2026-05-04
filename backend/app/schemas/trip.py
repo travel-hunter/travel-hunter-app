@@ -7,6 +7,14 @@ class ItineraryPlace(BaseModel):
     meta: str
 
 
+class CreateTripRequest(BaseModel):
+    title: str | None = None
+    region: str | None = None
+    style: str | None = None
+    description: str | None = None
+    policySlug: str | None = None
+
+
 class Trip(BaseModel):
     id: str
     title: str

@@ -46,6 +46,7 @@ Backend mode uses:
 - `POST /api/auth/refresh`
 - `POST /api/auth/logout`
 - `GET /api/me`
+- policy, trip, recommendation, and invite endpoints from `docs/mvp-api-contract.md`
 - `Authorization: Bearer <accessToken>`
 - refresh cookie via `credentials: "include"`
 
@@ -63,5 +64,8 @@ npm run dev
 npm run typecheck
 npm test
 npm run test:e2e
+npm run test:e2e:backend
 npm run build
 ```
+
+`npm run test:e2e:backend` starts the backend-mode smoke path against FastAPI and compose PostgreSQL using the script under `frontend/scripts`.

@@ -55,14 +55,28 @@ export function ItineraryListPage() {
 
 export function ItineraryCreatePage() {
   const navigate = useNavigate();
-  const { profile, updateProfile } = useSession();
+  const [searchParams] = useSearchParams();
+  const { profile, updateProfile, addPolicy } = useSession();
   const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState("");
+  const policySlug = searchParams.get("policySlug") ?? undefined;
 
   const createTrip = async () => {
     setIsCreating(true);
+    setError("");
     try {
-      const trip = await appDataApi.createTrip();
+      const trip = await appDataApi.createTrip({
+        region: profile.region,
+        style: profile.style,
+        policySlug,
+      });
+      if (policySlug) {
+        await appDataApi.addPolicyToTrip(trip.id, policySlug);
+        addPolicy();
+      }
       navigate(`/trips/${trip.id}`);
+    } catch {
+      setError("일정을 만들지 못했어요. 선택한 조건을 확인하고 다시 시도해 주세요.");
     } finally {
       setIsCreating(false);
     }
@@ -81,12 +95,14 @@ export function ItineraryCreatePage() {
       <div className="content stack padded">
         <div className="card">
           <div className="card-body stack">
+            {policySlug && <Tag tone="warning">선택한 혜택도 함께 담을게요</Tag>}
             <PageHead eyebrow="AI 일정 빌더" title="지역과 여행 스타일에 맞춘 일정을 만듭니다" body="선택한 조건을 바탕으로 제주 3일 여행 일정을 만들어드려요." />
             <ChoiceGroup label="지역" values={profileOptions.regions} selected={profile.region} onSelect={(value) => updateProfile("region", value)} />
             <ChoiceGroup label="여행 테마" values={profileOptions.travelStyles} selected={profile.style} onSelect={(value) => updateProfile("style", value)} />
           </div>
         </div>
-        <Button full onClick={createTrip}>
+        {error && <ErrorState message={error} />}
+        <Button full disabled={isCreating} onClick={createTrip}>
           {isCreating ? "일정을 만드는 중입니다" : "제주 3일 일정 만들기"}
         </Button>
       </div>

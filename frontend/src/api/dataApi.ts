@@ -33,6 +33,14 @@ export type TripPolicyResponse = {
   added: boolean;
 };
 
+export type CreateTripRequest = {
+  title?: string;
+  region?: string;
+  style?: string;
+  description?: string;
+  policySlug?: string;
+};
+
 export type AppDataApi = {
   getPreviewUser: () => User;
   getOnboardingSlides: () => readonly OnboardingSlide[];
@@ -48,7 +56,7 @@ export type AppDataApi = {
   getPolicy: (policySlug?: string) => Promise<Policy>;
   savePolicy: (policySlug: string) => Promise<SavePolicyResponse>;
   listTrips: () => Promise<Trip[]>;
-  createTrip: (trip?: Partial<Trip>) => Promise<Trip>;
+  createTrip: (trip?: CreateTripRequest) => Promise<Trip>;
   getTrip: (tripId?: string) => Promise<Trip>;
   addPolicyToTrip: (tripId: string, policySlug: string) => Promise<TripPolicyResponse>;
   listRecommendations: (tripId?: string) => Promise<Recommendation[]>;

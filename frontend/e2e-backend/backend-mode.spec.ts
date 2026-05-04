@@ -42,6 +42,16 @@ test("backend data source drives policy, trip, recommendation, invite, and logou
   await page.goto("/policies/local-vacation");
   await expect(page.locator("#root")).not.toBeEmpty();
   await expect(page.locator(".sticky-cta button").first()).toBeVisible();
+  await page.locator(".sticky-cta button").first().click();
+  const policyTripSheet = page.locator(".trip-select-sheet");
+  await expect(policyTripSheet).toBeVisible();
+  const policyTripRow = policyTripSheet.locator(".trip-select-row").first();
+  const policyTripLabel = await policyTripRow.textContent();
+  expect(policyTripLabel).toBeTruthy();
+  await policyTripRow.click();
+  await expect(page.locator(".toast")).toBeVisible();
+  await policyTripSheet.locator("button", { hasText: "일정에서 보기" }).click();
+  await expect(page).toHaveURL(/\/trips\/[1-9][0-9]*$/);
 
   await page.goto("/trips");
   const firstTrip = page.locator("a.itinerary-card").first();
@@ -72,6 +82,23 @@ test("backend data source drives policy, trip, recommendation, invite, and logou
   await page.goto("/mypage");
   await page.locator(".content > .btn.full").click();
   await expect(page).toHaveURL(/\/login$/);
+});
+
+test("backend data source creates a trip with selected profile values and policy slug", async ({ page }) => {
+  await login(page);
+
+  await page.goto("/trips/new?policySlug=local-vacation");
+  await expect(page.locator("#root")).not.toBeEmpty();
+  await page.locator(".content .btn.full").click();
+  await expect(page).toHaveURL(/\/trips\/[1-9][0-9]*$/);
+  const createdTripId = page.url().split("/").pop() ?? "";
+  expect(createdTripId).toMatch(numericTripId);
+
+  await page.goto(`/ai-results?tripId=${createdTripId}`);
+  await expect(page.locator(".result-card").first()).toBeVisible();
+
+  await page.goto(`/friend-invite?tripId=${createdTripId}`);
+  await expect(page.locator(".invite-link")).toBeVisible();
 });
 
 test("legacy trip alias canonicalizes when the shared DB has a unique seed match", async ({ page, request }) => {

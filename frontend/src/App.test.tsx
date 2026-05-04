@@ -86,4 +86,26 @@ describe("Travel Hunter app", () => {
       expect(document.body.textContent?.trim().length).toBeGreaterThan(0);
     }
   });
+
+  it("opens the policy trip picker and attaches a policy to a selected trip", async () => {
+    await login();
+    cleanup();
+    renderRoute("/policies/local-vacation");
+
+    const addButton = await waitFor(() => {
+      const button = document.querySelector(".sticky-cta button");
+      expect(button).toBeTruthy();
+      return button as HTMLButtonElement;
+    });
+    await userEvent.setup().click(addButton);
+
+    const row = await waitFor(() => {
+      const tripRow = document.querySelector(".trip-select-row");
+      expect(tripRow).toBeTruthy();
+      return tripRow as HTMLButtonElement;
+    });
+    await userEvent.setup().click(row);
+
+    await waitFor(() => expect(document.querySelector(".toast")).toBeTruthy());
+  });
 });

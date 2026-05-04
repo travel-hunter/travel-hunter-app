@@ -2,14 +2,15 @@
 
 ## Project Goal
 
-Travel Hunter is an MVP that helps users find domestic travel support policies and connect those benefits to real trip planning. The current app is a React/Vite frontend plus FastAPI backend that share one API contract before the real PostgreSQL implementation is introduced.
+Travel Hunter is an MVP that helps users find domestic travel support policies and connect those benefits to trip planning. The current app is a React/Vite frontend plus FastAPI backend with a shared API contract and PostgreSQL-backed foundations for policy, auth, and trip flows.
 
 ## Current Phase
 
-- The backend currently provides Mock API responses without a real database.
 - The frontend must depend on the `AppDataApi` boundary and must not couple pages directly to seed data or backend client details.
+- The backend keeps deterministic Mock API behavior by default and supports selected PostgreSQL-backed behavior with `BACKEND_DATA_SOURCE=db`.
+- DB-backed policy, auth, trip list/detail/create, trip policy attachment, recommendations, and invite state are implemented.
 - The active product and API source of truth is `docs/current-work-spec.md` and `docs/mvp-api-contract.md`.
-- ERD source material lives outside this repo at `../files`, especially `travel_hunter_schema_v0.3.sql` and `ERD_v0.3_결정안건_상세분석.md`.
+- ERD source material lives outside this repo at `../files`; the repo SQL baseline is `docs/db-schema-v0.3.sql`.
 
 ## Source Priority
 
@@ -40,10 +41,11 @@ At the start of non-trivial work:
 - Policy detail routes use `policySlug` / `policies.slug`.
 - Trip routes use an internal trip id. Do not introduce public trip slugs unless a later plan explicitly changes the contract.
 - Frontend pages and components must access app data through `frontend/src/api/AppDataApi` and related API boundary files.
-- Backend routes must stay thin. Put request/response shapes in `app/schemas`, business behavior in `app/services`, and seed/mock data in `app/data`.
+- Backend routes must stay thin. Put request/response shapes in `app/schemas`, business behavior in `app/services`, DB queries in `app/repositories`, and seed/mock data in `app/data`.
 - Never commit secrets. Keep `.env.example` documented and safe.
 - Any API shape change must update the API contract, frontend types, backend schemas/routes/services, tests, and `.agent/evals` together.
 - Documentation changes must preserve UTF-8 Korean text.
+- Schema creation must use Alembic. Do not use SQLAlchemy `create_all()` for app schema.
 
 ## Standard Commands
 
@@ -54,6 +56,7 @@ cd frontend
 npm run typecheck
 npm test
 npm run test:e2e
+npm run test:e2e:backend
 npm run build
 ```
 
@@ -62,6 +65,7 @@ Backend:
 ```bash
 cd backend
 python -m pytest
+alembic upgrade head --sql
 ```
 
 Compose:

@@ -1,6 +1,6 @@
 # Backend
 
-Travel Hunter FastAPI backend. The service keeps deterministic Mock API behavior by default and can switch selected endpoints to PostgreSQL-backed behavior with `BACKEND_DATA_SOURCE=db`.
+Travel Hunter FastAPI backend. The service keeps deterministic Mock API behavior by default and switches selected MVP flows to PostgreSQL-backed behavior with `BACKEND_DATA_SOURCE=db`.
 
 ## Stack
 
@@ -25,7 +25,7 @@ Travel Hunter FastAPI backend. The service keeps deterministic Mock API behavior
 - `app/data`: deterministic mock/seed data
 - `app/db`: SQLAlchemy session, Alembic metadata, dev seed command
 - `app/models`: ERD v0.3 SQLAlchemy models
-- `alembic`: ERD v0.3 initial migration
+- `alembic`: ERD v0.3 migration
 
 ## Local Run
 
@@ -34,15 +34,15 @@ python -m pip install -r requirements.txt
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Default mode is Mock API:
+Default mode:
 
-```bash
+```powershell
 $env:BACKEND_DATA_SOURCE="mock"
 ```
 
 DB-backed mode:
 
-```bash
+```powershell
 $env:BACKEND_DATA_SOURCE="db"
 $env:DATABASE_URL="postgresql+psycopg://travelhunter:travelhunter@127.0.0.1:55432/travelhunter"
 $env:AUTH_SECRET_KEY="dev-only-change-me-secret-key-32-bytes"
@@ -50,7 +50,7 @@ $env:AUTH_SECRET_KEY="dev-only-change-me-secret-key-32-bytes"
 
 Auth settings:
 
-```bash
+```powershell
 $env:ACCESS_TOKEN_EXPIRE_MINUTES="30"
 $env:REFRESH_TOKEN_EXPIRE_DAYS="14"
 $env:REFRESH_COOKIE_NAME="travel_hunter_refresh"
@@ -63,12 +63,6 @@ Health check:
 curl http://127.0.0.1:8000/api/health
 ```
 
-## Tests
-
-```bash
-python -m pytest
-```
-
 ## DB Schema And Seed
 
 The v0.3 reference SQL is preserved in `docs/db-schema-v0.3.sql`. Runtime schema creation uses Alembic only; do not use SQLAlchemy `create_all()`.
@@ -78,7 +72,7 @@ alembic upgrade head
 python -m app.db.seed
 ```
 
-Compose exposes PostgreSQL on host `55432` to avoid conflicts with an existing local `5432` PostgreSQL.
+Compose exposes PostgreSQL on host `55432`.
 
 ```bash
 docker compose -f compose.yaml up -d db
@@ -86,18 +80,27 @@ docker compose -f compose.yaml run --rm backend alembic upgrade head
 docker compose -f compose.yaml run --rm backend python -m app.db.seed
 ```
 
-The dev seed is idempotent for row creation by `users.email`, `policies.slug`, and `trip_invites.invite_token`.
+## Current DB-backed Scope
 
-## Current Scope
-
-- `/health`, `/api/health`
 - `/api/auth/signup`, `/api/auth/login`, `/api/auth/refresh`, `/api/auth/logout`
-- `/api/me`, `/api/me/profile`, `/api/profile-options`
+- `/api/me`
 - `/api/policies`, `/api/policies/{policySlug}`
-- trip, recommendation, and invite Mock API endpoints
-- ERD v0.3 SQLAlchemy models and Alembic migration
-- development seed script
-- policy list/detail DB-backed repository/service boundary
-- DB-backed auth foundation for signup/login/me/refresh/logout
+- `/api/trips`, `/api/trips/{tripId}`
+- `/api/trips/{tripId}/policies/{policySlug}`
+- `/api/trips/{tripId}/recommendations`
+- `/api/trips/{tripId}/invite`
+- `/api/trips/{tripId}/invites`
 
-Out of scope for the current backend foundation: social login, real policy collection, all trip persistence, real AI recommendations, and real invite delivery.
+Mock-only or partial scope:
+
+- `/api/me/profile` profile style/budget persistence
+- `/api/me/saved-policies/{policySlug}` DB persistence
+- `/api/invites/{inviteToken}/accept` DB membership handling
+- social login, real policy collection, real AI recommendations, real invite delivery
+
+## Validation
+
+```bash
+python -m pytest
+alembic upgrade head --sql
+```

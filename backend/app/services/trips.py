@@ -12,6 +12,7 @@ from app.data import seed
 from app.models import Trip, TripInvite, User
 from app.repositories import policies as policy_repository
 from app.repositories import trips as trip_repository
+from app.schemas.trip import CreateTripRequest
 
 
 LEGACY_TRIP_ALIAS = str(seed.TRIP["id"])
@@ -143,9 +144,11 @@ def get_trip(trip_handle: str, db: Session, user: User) -> dict[str, object] | N
 def create_trip(
     db: Session,
     user: User,
-    payload: dict[str, Any] | None = None,
+    payload: CreateTripRequest | None = None,
 ) -> dict[str, object]:
-    payload = payload or {}
+    payload = (payload or CreateTripRequest()).model_dump()
+    if payload.get("description") is None and payload.get("style") is not None:
+        payload["description"] = payload["style"]
     start_date = date(2026, 6, 15)
     end_date = date(2026, 6, 17)
     title = str(payload.get("title") or f"{seed.TRIP['title']} 새 일정")
@@ -186,6 +189,12 @@ def create_trip(
         result=seed.RECOMMENDATIONS,
     )
     _ensure_invite(db, trip, user)
+    if payload.get("policySlug"):
+        policy_slug = str(payload["policySlug"])
+        policy = policy_repository.get_policy_by_slug(db, policy_slug)
+        if policy is None:
+            raise TripServiceError(404, "Policy not found")
+        trip_repository.add_trip_policy(db, trip_id=trip.id, policy_id=policy.id)
     db.commit()
 
     created = trip_repository.get_accessible_trip_by_id(db, trip.id, user.id)
