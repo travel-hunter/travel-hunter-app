@@ -29,14 +29,29 @@ const steps = [
 
 export function ProfileSetupPage() {
   const navigate = useNavigate();
-  const { profile, updateProfile } = useSession();
+  const { profile, updateProfile, saveProfile } = useSession();
   const [stepIndex, setStepIndex] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState("");
   const step = steps[stepIndex];
   const selected = profile[step.key];
 
-  const next = () => {
-    if (stepIndex === steps.length - 1) navigate("/home");
-    else setStepIndex((current) => current + 1);
+  const next = async () => {
+    setError("");
+    if (stepIndex !== steps.length - 1) {
+      setStepIndex((current) => current + 1);
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await saveProfile(profile);
+      navigate("/home");
+    } catch {
+      setError("맞춤 추천 설정을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const back = () => {
@@ -74,10 +89,15 @@ export function ProfileSetupPage() {
             </div>
           </div>
         </div>
-        <Button full onClick={next}>
-          {stepIndex === steps.length - 1 ? "추천 홈 보기" : "다음"}
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
+        <Button full disabled={isSaving} onClick={next}>
+          {isSaving ? "저장 중입니다" : stepIndex === steps.length - 1 ? "추천 홈 보기" : "다음"}
         </Button>
-        <Button full variant="ghost" onClick={() => navigate("/home")}>
+        <Button full variant="ghost" disabled={isSaving} onClick={() => navigate("/home")}>
           나중에 설정
         </Button>
       </div>

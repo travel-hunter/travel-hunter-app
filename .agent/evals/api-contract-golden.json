@@ -117,6 +117,37 @@
     },
     {
       "method": "GET",
+      "path": "/api/me/profile",
+      "status": 200,
+      "requiredFields": {
+        "region": "string",
+        "style": "string",
+        "budget": "string"
+      },
+      "dbFields": {
+        "region": "users.region",
+        "style": "users.travel_style",
+        "budget": "users.travel_budget"
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/me/profile",
+      "status": 200,
+      "optionalRequestFields": {
+        "region": "string",
+        "style": "string",
+        "budget": "string"
+      },
+      "requiredFields": {
+        "region": "string",
+        "style": "string",
+        "budget": "string"
+      },
+      "dbModeBehavior": "Updates users.region, users.travel_style, users.travel_budget and marks onboarding_completed true."
+    },
+    {
+      "method": "GET",
       "path": "/api/policies",
       "status": 200,
       "requiredArrayItemFields": {

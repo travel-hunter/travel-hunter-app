@@ -31,6 +31,7 @@ export const backendApi: AppDataApi = {
   refreshSession: (): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/refresh"),
   logout: (): Promise<LogoutResponse> => apiClient.post<LogoutResponse>("/api/auth/logout"),
   getCurrentUser: (): Promise<User> => apiClient.get<User>("/api/me"),
+  getProfile: (): Promise<Profile> => apiClient.get<Profile>("/api/me/profile"),
   updateProfile: (profile: Partial<Profile>): Promise<Profile> => apiClient.patch<Profile>("/api/me/profile", profile),
   listPolicies: (): Promise<Policy[]> => apiClient.get<Policy[]>("/api/policies"),
   getPolicy: (policySlug = "local-vacation"): Promise<Policy> => apiClient.get<Policy>(`/api/policies/${policySlug}`),

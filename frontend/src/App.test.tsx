@@ -108,4 +108,20 @@ describe("Travel Hunter app", () => {
 
     await waitFor(() => expect(document.querySelector(".toast")).toBeTruthy());
   });
+
+  it("saves profile setup choices before showing the personalized home", async () => {
+    await login();
+    cleanup();
+    renderRoute("/profile-setup");
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "부산" }));
+    await user.click(screen.getByRole("button", { name: "다음" }));
+    await user.click(screen.getByRole("button", { name: "맛집" }));
+    await user.click(screen.getByRole("button", { name: "다음" }));
+    await user.click(screen.getByRole("button", { name: "1인 30만원 이하" }));
+    await user.click(screen.getByRole("button", { name: "추천 홈 보기" }));
+
+    await waitFor(() => expect(document.body).toHaveTextContent("부산 여행"));
+  });
 });

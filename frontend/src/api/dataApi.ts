@@ -51,6 +51,7 @@ export type AppDataApi = {
   refreshSession: () => Promise<AuthResponse>;
   logout: () => Promise<LogoutResponse>;
   getCurrentUser: () => Promise<User>;
+  getProfile: () => Promise<Profile>;
   updateProfile: (profile: Partial<Profile>) => Promise<Profile>;
   listPolicies: () => Promise<Policy[]>;
   getPolicy: (policySlug?: string) => Promise<Policy>;

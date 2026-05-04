@@ -28,6 +28,8 @@ def test_erd_v0_3_decision_columns_are_registered() -> None:
 
     assert "preferred_regions" in users.c
     assert "gender" in users.c
+    assert "travel_style" in users.c
+    assert "travel_budget" in users.c
     assert "slug" in policies.c
     assert "invite_token" in trip_invites.c
     assert "trips_days" not in Base.metadata.tables

@@ -105,6 +105,32 @@ Errors:
 
 - missing, invalid, expired access token: `401 {"detail": "Not authenticated"}`
 
+### `GET /api/me/profile`
+
+DB mode에서는 `Authorization: Bearer <accessToken>`이 필요하다.
+
+Response `200`:
+
+```json
+{
+  "region": "부산",
+  "style": "맛집",
+  "budget": "1인 30만원 이하"
+}
+```
+
+DB mapping:
+
+| API field | DB field / source |
+|----------|-------------------|
+| `region` | `users.region`, fallback `제주` |
+| `style` | `users.travel_style`, fallback `휴식` |
+| `budget` | `users.travel_budget`, fallback `1인 40만원 이하` |
+
+Errors:
+
+- missing, invalid, expired access token: `401 {"detail": "Not authenticated"}`
+
 ### `PATCH /api/me/profile`
 
 Request fields are optional:
@@ -127,7 +153,13 @@ Response `200`:
 }
 ```
 
-현재 DB mode persistence 대상은 아니다.
+DB mode behavior:
+
+- 전달된 필드만 업데이트한다.
+- `region`은 `users.region`에 저장한다.
+- `style`은 `users.travel_style`에 저장한다.
+- `budget`은 `users.travel_budget`에 저장한다.
+- 저장 시 `users.onboarding_completed`를 `true`로 바꾸고 `users.updated_at`을 갱신한다.
 
 ### `GET /api/profile-options`
 

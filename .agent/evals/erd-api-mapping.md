@@ -14,6 +14,7 @@
 - `users` remains the unified user/profile table for the current phase.
 - `users.gender` exists.
 - `users.preferred_regions` stores user interest regions.
+- `users.travel_style` and `users.travel_budget` are v0.3.1 profile persistence extension fields.
 - Trip child tables use the `trip_*` singular prefix, such as `trip_days`, `trip_members`, `trip_policies`, `trip_places`, and `trip_invites`.
 
 ## API Mapping Checks
@@ -33,6 +34,9 @@
 | `Trip.days` | `trip_days` + `trip_places` | Nested display shape |
 | `InviteState.inviteToken` | `trip_invites.invite_token` | Future DB-backed field |
 | `InviteState.acceptedAt` | `trip_invites.accepted_at` | Nullable until accepted |
+| `Profile.region` | `users.region` | Onboarding/profile preference |
+| `Profile.style` | `users.travel_style` | v0.3.1 extension |
+| `Profile.budget` | `users.travel_budget` | v0.3.1 extension |
 
 ## Non-DB API Values
 

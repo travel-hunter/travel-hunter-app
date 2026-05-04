@@ -71,6 +71,8 @@ def seed_users(db: Session) -> dict[str, User]:
         region=seed.USER["region"],
         preferred_regions=seed.USER["preferredRegions"],
         residence_area=seed.USER["residenceArea"],
+        travel_style=seed.PROFILE["style"],
+        travel_budget=seed.PROFILE["budget"],
         onboarding_completed=bool(seed.USER["onboardingCompleted"]),
         created_at=parse_datetime(str(seed.USER["createdAt"])),
         updated_at=parse_datetime(str(seed.USER["updatedAt"])),

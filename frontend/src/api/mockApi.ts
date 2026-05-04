@@ -28,7 +28,7 @@ function respond<T>(value: T): Promise<T> {
   });
 }
 
-const defaultProfile = {
+const mockProfile = {
   region: "제주",
   style: "휴식",
   budget: "1인 40만원 이하",
@@ -44,7 +44,11 @@ export const mockApi: AppDataApi = {
   refreshSession: () => respond({ accessToken: "mock-token", user }),
   logout: () => respond({ loggedOut: true }),
   getCurrentUser: () => respond(user),
-  updateProfile: (profile) => respond({ ...defaultProfile, ...profile }),
+  getProfile: () => respond(mockProfile),
+  updateProfile: (profile) => {
+    Object.assign(mockProfile, profile);
+    return respond(mockProfile);
+  },
   listPolicies: (): Promise<Policy[]> => respond(policies),
   getPolicy: (policySlug?: string): Promise<Policy> => respond(getSeedPolicy(policySlug)),
   savePolicy: (policySlug: string) => respond({ policyId: policySlug, saved: true }),

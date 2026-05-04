@@ -23,6 +23,7 @@
 - [x] Persist policy attachment from the frontend trip picker through DB-backed `trip_policies`.
 - [x] Send trip creation `region/style/policySlug` payload through frontend and backend contracts.
 - [x] Keep `InviteState.copied` as frontend local UI state.
+- [x] Persist profile `region/style/budget` through DB-backed `/api/me/profile`.
 - [x] Remove completed legacy planning documents after absorbing live information into current docs.
 - [x] Ensure deleted legacy document filenames are not referenced by active docs.
 
@@ -45,9 +46,9 @@
 
 - Status: passed.
 - Date: 2026-05-04.
-- Results: frontend typecheck passed, Vitest passed 6 tests, Playwright mock-mode passed 6 tests, Playwright backend-mode passed 4 tests, frontend build passed, backend pytest passed 44 tests, `BACKEND_DATA_SOURCE=db` backend pytest passed 44 tests, Alembic offline SQL rendering passed, Docker Compose config passed, compose PostgreSQL migration/seed passed, DB mode policy/auth/trip smoke paths returned the expected contract shape, deleted legacy document filename search returned no active references, API contract golden JSON parsed successfully, and `git diff --check` passed with LF-to-CRLF warnings only.
+- Results: frontend typecheck passed, Vitest passed 7 tests, Playwright mock-mode passed 6 tests, Playwright backend-mode passed 5 tests, frontend build passed, backend pytest passed 50 tests, `BACKEND_DATA_SOURCE=db` backend pytest passed 50 tests, Alembic offline SQL rendering passed, Docker Compose config passed, compose PostgreSQL migration/seed passed, DB mode policy/auth/trip/profile smoke paths returned the expected contract shape, deleted legacy document filename search returned no active references, API contract golden JSON parsed successfully, and `git diff --check` passed with LF-to-CRLF warnings only.
 - Notes: Compose exposes Travel Hunter PostgreSQL on host `127.0.0.1:55432` because host `127.0.0.1:5432` reaches another local PostgreSQL instance. The runtime backend image does not copy `backend/tests`; use local backend pytest unless a dedicated test image is added.
 
 ## Next Priority
 
-- [ ] Design profile DB persistence for `style` and `budget`.
+- [ ] Implement DB-backed invite acceptance and `trip_members` insertion.

@@ -73,6 +73,8 @@ DB-backed 완료 endpoint:
 - `POST /api/auth/refresh`
 - `POST /api/auth/logout`
 - `GET /api/me`
+- `GET /api/me/profile`
+- `PATCH /api/me/profile`
 - `GET /api/trips`
 - `POST /api/trips`
 - `GET /api/trips/{tripId}`
@@ -84,7 +86,6 @@ DB-backed 완료 endpoint:
 
 Mock-only 또는 부분 구현 endpoint:
 
-- `PATCH /api/me/profile`: v0.3 DB에 `style`, `budget` 저장 컬럼이 없어 mock/profile state 중심이다.
 - `POST /api/me/saved-policies/{policySlug}`: 정책 단독 저장 상태이며 현재 정책 담기 저장 기준은 `trip_policies`다.
 - `POST /api/invites/{inviteToken}/accept`: 현재 mock invite accept이며 DB membership 처리는 다음 작업이다.
 
@@ -99,6 +100,7 @@ Mock-only 또는 부분 구현 endpoint:
 - API DTO는 `camelCase`, DB/SQL 필드는 `snake_case`다.
 - 응답에 `password_hash`, `refresh_token_hash`, `provider_id`를 포함하지 않는다.
 - `Policy.match`, `Trip.expectedSaving`, `InviteState.copied`, `InviteState.invited`는 DB 원본 필드가 아니라 계산/상태 값이다.
+- `users.travel_style`, `users.travel_budget`은 profile persistence용 v0.3.1 extension migration으로 추가한다.
 
 ## 6. 실행 및 검증
 
@@ -137,8 +139,8 @@ python -m app.db.seed
 
 최근 통과 검증:
 
-- `python -m pytest`: 44 passed
-- `BACKEND_DATA_SOURCE=db python -m pytest`: 44 passed
+- `python -m pytest`: 50 passed
+- `BACKEND_DATA_SOURCE=db python -m pytest`: 50 passed
 - `alembic upgrade head --sql`: passed
 - `docker compose -f compose.yaml config`: passed
 - `npm run typecheck`: passed
@@ -150,7 +152,6 @@ python -m app.db.seed
 ## 7. 미구현 범위
 
 - 소셜 로그인 실제 연동
-- profile style/budget DB persistence
 - 정책 실시간 수집 API
 - 정책 단독 저장 DB persistence
 - 공식 정책 신청 deep link/API
@@ -163,4 +164,4 @@ python -m app.db.seed
 
 ## 8. 다음 작업
 
-다음 작업 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 profile DB persistence 설계다.
+다음 작업 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 친구 초대 수락 DB-backed 구현이다.

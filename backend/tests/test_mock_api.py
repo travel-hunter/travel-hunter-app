@@ -49,6 +49,10 @@ def test_auth_and_profile_endpoints() -> None:
     assert profile_response.status_code == 200
     assert profile_response.json()["region"] == "부산"
 
+    get_profile_response = client.get("/api/me/profile")
+    assert get_profile_response.status_code == 200
+    assert get_profile_response.json()["region"] == "부산"
+
     options_response = client.get("/api/profile-options")
     assert options_response.status_code == 200
     assert "제주" in options_response.json()["regions"]

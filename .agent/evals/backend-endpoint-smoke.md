@@ -16,7 +16,8 @@
 | `POST /api/auth/refresh` | 200 | DB mode rotates refresh token and returns `AuthResponse` | P1 |
 | `POST /api/auth/logout` | 200 | `{ "loggedOut": true }` and refresh cookie clear | P1 |
 | `GET /api/me` | 200 | `homeRegion`, `onboardingCompleted` | P0 |
-| `PATCH /api/me/profile` | 200 | patched profile fields returned | P1 |
+| `GET /api/me/profile` | 200 | `region`, `style`, `budget` | P1 |
+| `PATCH /api/me/profile` | 200 | patched profile fields returned and DB mode marks onboarding complete | P1 |
 | `GET /api/profile-options` | 200 | `regions`, `travelStyles`, `budgets` | P1 |
 | `GET /api/policies` | 200 | first item has `id` and `slug` | P0 |
 | `GET /api/policies/local-vacation` | 200 | `amount`, policy detail shape | P0 |
@@ -42,10 +43,17 @@
 - DB mode invalid login returns 401.
 - DB mode `/api/me` without valid bearer token returns 401.
 - DB mode invalid refresh token returns 401.
+- DB mode `/api/me/profile` without valid bearer token returns 401.
 - Invite accept with unknown token returns the documented error.
 - Inaccessible DB mode trip returns 404 without leaking ownership.
 
 ## DB Mode Smoke
+
+When `BACKEND_DATA_SOURCE=db` is used, profile endpoints must persist the selected onboarding preferences:
+
+- `GET /api/me/profile` returns `region`, `style`, and `budget`.
+- `PATCH /api/me/profile` stores `region` in `users.region`, `style` in `users.travel_style`, and `budget` in `users.travel_budget`.
+- PATCH marks `users.onboarding_completed` true and updates `users.updated_at`.
 
 When `BACKEND_DATA_SOURCE=db` is used, policy endpoints must preserve the same public response shape:
 

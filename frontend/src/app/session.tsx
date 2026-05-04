@@ -6,14 +6,9 @@ import {
   LoginRequest,
   setApiAccessToken,
   SignupRequest,
+  Profile,
   User,
 } from "../api";
-
-type Profile = {
-  region: string;
-  style: string;
-  budget: string;
-};
 
 type SessionContextValue = {
   currentUser: User | null;
@@ -25,6 +20,7 @@ type SessionContextValue = {
   signup: (request?: SignupRequest) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (key: keyof Profile, value: string) => void;
+  saveProfile: (profile?: Partial<Profile>) => Promise<Profile>;
   addPolicy: () => void;
   togglePolicyLike: () => void;
   sendInvite: () => void;
@@ -56,6 +52,10 @@ function clearAuth() {
   window.localStorage.removeItem(AUTH_STORAGE_KEY);
 }
 
+async function readRemoteProfile(): Promise<Profile> {
+  return appDataApi.getProfile();
+}
+
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const stored = readStoredAuth();
@@ -83,6 +83,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           if (cancelled) return;
           persistAuth(refreshed);
           setCurrentUser(refreshed.user);
+          setProfile(await readRemoteProfile());
         } catch {
           clearAuth();
         }
@@ -95,6 +96,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const nextAuth = { accessToken: stored.accessToken, user };
         persistAuth(nextAuth);
         setCurrentUser(user);
+        setProfile(await readRemoteProfile());
       } catch {
         if (cancelled) return;
         if (getDataSource() === "backend") {
@@ -103,6 +105,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             if (cancelled) return;
             persistAuth(refreshed);
             setCurrentUser(refreshed.user);
+            setProfile(await readRemoteProfile());
             return;
           } catch {
             // Fall through to clearing the stale local session.
@@ -130,11 +133,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const auth = await appDataApi.login(request);
         persistAuth(auth);
         setCurrentUser(auth.user);
+        setProfile(await readRemoteProfile());
       },
       signup: async (request) => {
         const auth = await appDataApi.signup(request);
         persistAuth(auth);
         setCurrentUser(auth.user);
+        setProfile(await readRemoteProfile());
       },
       logout: async () => {
         try {
@@ -146,6 +151,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       },
       updateProfile: (key, value) => {
         setProfile((current) => ({ ...current, [key]: value }));
+      },
+      saveProfile: async (profilePatch) => {
+        const savedProfile = await appDataApi.updateProfile({ ...profile, ...profilePatch });
+        setProfile(savedProfile);
+        try {
+          const user = await appDataApi.getCurrentUser();
+          const stored = readStoredAuth();
+          if (stored) persistAuth({ accessToken: stored.accessToken, user });
+          setCurrentUser(user);
+        } catch {
+          // Profile persistence already succeeded; stale user metadata can refresh on the next session check.
+        }
+        return savedProfile;
       },
       addPolicy: () => setAddedPolicy(true),
       togglePolicyLike: () => setLikedPolicy((current) => !current),

@@ -36,6 +36,24 @@ test("backend data source requires login for protected routes", async ({ page })
   await expect(page.locator('input[type="email"]')).toBeVisible();
 });
 
+test("backend data source persists profile setup choices", async ({ page }) => {
+  await login(page);
+
+  await page.goto("/profile-setup");
+  await page.getByRole("button", { name: "부산" }).click();
+  await page.getByRole("button", { name: "다음" }).click();
+  await page.getByRole("button", { name: "맛집" }).click();
+  await page.getByRole("button", { name: "다음" }).click();
+  await page.getByRole("button", { name: "1인 30만원 이하" }).click();
+  await page.getByRole("button", { name: "추천 홈 보기" }).click();
+
+  await expect(page).toHaveURL(/\/home$/);
+  await expect(page.locator("body")).toContainText("부산 여행");
+
+  await page.reload();
+  await expect(page.locator("body")).toContainText("부산 여행");
+});
+
 test("backend data source drives policy, trip, recommendation, invite, and logout flow", async ({ page }) => {
   await login(page);
 

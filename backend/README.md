@@ -25,7 +25,7 @@ Travel Hunter FastAPI backend. The service keeps deterministic Mock API behavior
 - `app/data`: deterministic mock/seed data
 - `app/db`: SQLAlchemy session, Alembic metadata, dev seed command
 - `app/models`: ERD v0.3 SQLAlchemy models
-- `alembic`: ERD v0.3 migration
+- `alembic`: ERD v0.3 migration and profile preference extension migration
 
 ## Local Run
 
@@ -83,7 +83,7 @@ docker compose -f compose.yaml run --rm backend python -m app.db.seed
 ## Current DB-backed Scope
 
 - `/api/auth/signup`, `/api/auth/login`, `/api/auth/refresh`, `/api/auth/logout`
-- `/api/me`
+- `/api/me`, `/api/me/profile`
 - `/api/policies`, `/api/policies/{policySlug}`
 - `/api/trips`, `/api/trips/{tripId}`
 - `/api/trips/{tripId}/policies/{policySlug}`
@@ -93,7 +93,6 @@ docker compose -f compose.yaml run --rm backend python -m app.db.seed
 
 Mock-only or partial scope:
 
-- `/api/me/profile` profile style/budget persistence
 - `/api/me/saved-policies/{policySlug}` DB persistence
 - `/api/invites/{inviteToken}/accept` DB membership handling
 - social login, real policy collection, real AI recommendations, real invite delivery

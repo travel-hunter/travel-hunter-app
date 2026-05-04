@@ -88,6 +88,7 @@ Expected:
 - Vite runs with `VITE_DATA_SOURCE=backend` on `127.0.0.1:5174`.
 - Anonymous `/home` redirects to `/login`.
 - Seed login reaches `/home`.
+- Profile setup persists region/style/budget through `/api/me/profile` and restored profile copy remains visible after reload.
 - Policy detail `/policies/local-vacation` renders through the real backend.
 - Policy detail `내 일정에 담기` opens the trip picker and persists through `POST /api/trips/{tripId}/policies/{policySlug}`.
 - Trip list returns a canonical numeric trip id.

@@ -36,6 +36,8 @@ class User(Base):
     region: Mapped[str | None] = mapped_column(String(50))
     preferred_regions: Mapped[str | None] = mapped_column(String(255))
     residence_area: Mapped[str | None] = mapped_column(String(50))
+    travel_style: Mapped[str | None] = mapped_column(String(50))
+    travel_budget: Mapped[str | None] = mapped_column(String(50))
     onboarding_completed: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default="false"
     )

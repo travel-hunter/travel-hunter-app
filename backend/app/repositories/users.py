@@ -1,6 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core import security
 from app.models import User
 
 
@@ -35,6 +36,27 @@ def create_user(
         password_hash=password_hash,
         onboarding_completed=False,
     )
+    db.add(user)
+    db.flush()
+    return user
+
+
+def update_user_profile(
+    db: Session,
+    user: User,
+    *,
+    region: str | None = None,
+    style: str | None = None,
+    budget: str | None = None,
+) -> User:
+    if region is not None:
+        user.region = region
+    if style is not None:
+        user.travel_style = style
+    if budget is not None:
+        user.travel_budget = budget
+    user.onboarding_completed = True
+    user.updated_at = security.utc_now_naive()
     db.add(user)
     db.flush()
     return user

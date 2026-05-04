@@ -46,6 +46,8 @@ Backend mode uses:
 - `POST /api/auth/refresh`
 - `POST /api/auth/logout`
 - `GET /api/me`
+- `GET /api/me/profile`
+- `PATCH /api/me/profile`
 - policy, trip, recommendation, and invite endpoints from `docs/mvp-api-contract.md`
 - `Authorization: Bearer <accessToken>`
 - refresh cookie via `credentials: "include"`
