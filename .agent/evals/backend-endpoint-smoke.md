@@ -20,7 +20,7 @@
 | `PATCH /api/me/profile` | 200 | patched profile fields returned and DB mode marks onboarding complete | P1 |
 | `GET /api/profile-options` | 200 | `regions`, `travelStyles`, `budgets` | P1 |
 | `GET /api/policies` | 200 | first item has `id` and `slug` | P0 |
-| `GET /api/policies/local-vacation` | 200 | `amount`, policy detail shape | P0 |
+| `GET /api/policies/local-vacation` | 200 | `amount`, `officialUrl`, policy detail shape | P0 |
 | `POST /api/me/saved-policies/local-vacation` | 200 | `{ "policyId": "local-vacation", "saved": true }`, DB mode persists `user_saved_policies` idempotently | P1 |
 | `GET /api/trips` | 200 | first item has `id`; DB mode id is numeric string | P0 |
 | `GET /api/trips/{tripId}` | 200 | numeric id detail returns `Trip` shape | P0 |
@@ -56,7 +56,7 @@ When `BACKEND_DATA_SOURCE=db` is used, profile endpoints must persist the select
 
 When `BACKEND_DATA_SOURCE=db` is used, policy endpoints must preserve the same public response shape:
 
-- `GET /api/policies` returns `id`, `slug`, `title`, `org`, `deadline`, `amount`, `match`, `requirements`, and `documents`.
+- `GET /api/policies` returns `id`, `slug`, `title`, `org`, `deadline`, `amount`, `match`, `requirements`, `documents`, and `officialUrl`.
 - `GET /api/policies/local-vacation` returns the seeded policy with slug `local-vacation`.
 - `POST /api/me/saved-policies/local-vacation` requires bearer auth and stores one `user_saved_policies` row per user/policy pair.
 - Repeated saved policy requests return the same response without duplicate rows.

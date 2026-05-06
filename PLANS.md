@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-Keep the API contract stable while moving from DB-backed policy/auth/trip/profile/invite/saved policy foundations into policy application deep links.
+Keep the API contract stable while moving from DB-backed policy/auth/trip/profile/invite/saved policy and policy deep-link foundations into full validation and release scoring.
 
 ## Baseline
 
@@ -15,7 +15,8 @@ Keep the API contract stable while moving from DB-backed policy/auth/trip/profil
 
 ## Next Milestones
 
-1. Connect policy application deep links.
+1. Rerun full validation and update the release scorecard.
+2. Refine policy application URLs when exact official campaign pages are confirmed.
 
 ## Guardrails
 

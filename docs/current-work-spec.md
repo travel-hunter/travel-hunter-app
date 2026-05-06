@@ -146,7 +146,7 @@ python -m app.db.seed
 - `alembic upgrade head --sql`: passed
 - `docker compose -f compose.yaml config`: passed
 - `npm run typecheck`: passed
-- `npm test`: 8 passed
+- `npm test`: 9 passed
 - `npm run test:e2e`: 6 passed
 - `npm run test:e2e:backend`: 5 passed
 - `npm run build`: passed
@@ -159,7 +159,6 @@ Current blocker:
 
 - 소셜 로그인 실제 연동
 - 정책 실시간 수집 API
-- 공식 정책 신청 deep link/API
 - 지도/장소 검색/이동 시간 계산
 - 실제 AI 추천 엔진
 - 친구 초대 실제 발송
@@ -167,4 +166,4 @@ Current blocker:
 
 ## 8. 다음 작업
 
-다음 작업 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 정책 신청 deep link 처리다.
+다음 작업 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 전체 검증과 release scorecard 재평가다.

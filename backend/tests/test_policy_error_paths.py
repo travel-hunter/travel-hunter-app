@@ -29,6 +29,7 @@ def make_seed_like_policy() -> PolicyModel:
         target_condition="Domestic resident\nAt least one night\nReceipt required",
         region="National",
         end_date=date(2026, 10, 31),
+        official_url="https://korean.visitkorea.or.kr/",
         policy_comment="Support for domestic travel expenses.",
     )
     policy.documents = [
@@ -110,6 +111,7 @@ def test_db_mode_known_policy_slug_preserves_response_contract(monkeypatch) -> N
     assert payload["slug"] == "local-vacation"
     assert payload["amount"] == "Up to 300000 cashback"
     assert payload["documents"] == ["ID card", "Accommodation receipt"]
+    assert payload["officialUrl"] == "https://korean.visitkorea.or.kr/"
 
 
 def test_db_policy_service_returns_none_when_repository_misses(monkeypatch) -> None:

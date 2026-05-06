@@ -59,6 +59,10 @@ test("backend data source drives policy, trip, recommendation, invite, and logou
 
   await page.goto("/policies/local-vacation");
   await expect(page.locator("#root")).not.toBeEmpty();
+  await expect(page.getByRole("link", { name: "혜택 받으러 가기" })).toHaveAttribute(
+    "href",
+    "https://korean.visitkorea.or.kr/",
+  );
   await page.getByRole("button", { name: "저장" }).click();
   await expect(page.locator(".toast")).toContainText("관심 정책");
   await expect(page.locator(".sticky-cta button").first()).toBeVisible();

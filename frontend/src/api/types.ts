@@ -53,6 +53,7 @@ export type Policy = {
   category: PolicyCategory;
   requirements: string[];
   documents: string[];
+  officialUrl: string | null;
 };
 
 export type ItineraryPlace = {

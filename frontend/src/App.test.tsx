@@ -120,6 +120,23 @@ describe("Travel Hunter app", () => {
     await waitFor(() => expect(document.body).toHaveTextContent("관심 정책으로 저장했어요."));
   });
 
+  it("uses an official policy link when available and keeps the fallback notice otherwise", async () => {
+    await login();
+    cleanup();
+    renderRoute("/policies/local-vacation");
+
+    const applicationLink = await screen.findByRole("link", { name: "혜택 받으러 가기" });
+    expect(applicationLink).toHaveAttribute("href", "https://korean.visitkorea.or.kr/");
+    expect(applicationLink).toHaveAttribute("target", "_blank");
+
+    cleanup();
+    renderRoute("/policies/busan-cashback");
+    const fallbackButton = await screen.findByRole("button", { name: "혜택 받으러 가기" });
+    await userEvent.setup().click(fallbackButton);
+
+    await waitFor(() => expect(document.body).toHaveTextContent("공식 신청 연결은 준비 중입니다."));
+  });
+
   it("saves profile setup choices before showing the personalized home", async () => {
     await login();
     cleanup();

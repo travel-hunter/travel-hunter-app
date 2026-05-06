@@ -103,7 +103,7 @@ def seed_policies(db: Session) -> dict[str, Policy]:
         policy.target_condition = "\n".join(str(value) for value in item["requirements"])
         policy.region = str(item["region"])
         policy.end_date = parse_date(str(item["deadline"]))
-        policy.official_url = None
+        policy.official_url = item.get("officialUrl")
         policy.policy_comment = str(item["summary"])
         policy.policy_period = f"~ {item['deadline']}"
         db.flush()

@@ -195,7 +195,8 @@ Response `200`:
     "match": 98,
     "category": "환급",
     "requirements": ["국내 거주자", "숙박 1박 이상", "영수증 제출"],
-    "documents": ["신분증 사본", "숙박 영수증", "교통비 증빙"]
+    "documents": ["신분증 사본", "숙박 영수증", "교통비 증빙"],
+    "officialUrl": "https://korean.visitkorea.or.kr/"
   }
 ]
 ```
@@ -211,6 +212,7 @@ DB mapping:
 | `summary` | `policies.policy_comment` |
 | `category` | `policies.policy_type` |
 | `documents` | `policy_documents.document_name[]` |
+| `officialUrl` | `policies.official_url` |
 
 ### `GET /api/policies/{policySlug}`
 

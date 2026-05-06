@@ -28,6 +28,7 @@
 - [x] Keep mock-mode and backend-mode Playwright e2e as separate CI jobs with failure artifacts.
 - [x] Persist standalone policy saves through DB-backed `/api/me/saved-policies/{policySlug}` and `user_saved_policies`.
 - [x] Document staging env, production build, container validation, and release scorecard criteria.
+- [x] Expose `policies.official_url` as `Policy.officialUrl` and connect policy detail CTAs to official links when available.
 - [x] Remove completed legacy planning documents after absorbing live information into current docs.
 - [x] Ensure deleted legacy document filenames are not referenced by active docs.
 
@@ -50,9 +51,9 @@
 
 - Status: passed.
 - Date: 2026-05-04.
-- Results: frontend typecheck passed, Vitest passed 8 tests, Playwright mock-mode passed 6 tests, Playwright backend-mode passed 5 tests, frontend build passed, backend pytest passed 62 tests, targeted `BACKEND_DATA_SOURCE=db` policy/invite/trip tests passed 29 tests, Alembic offline SQL rendering passed, Docker Compose config passed, DB mode policy/auth/trip/profile/invite acceptance/saved policy smoke paths returned the expected contract shape, deleted legacy document filename search returned no active references, API contract golden JSON parsed successfully, and `git diff --check` passed with LF-to-CRLF warnings only.
+- Results: frontend typecheck passed, Vitest passed 9 tests, Playwright mock-mode passed 6 tests, Playwright backend-mode passed 5 tests, frontend build passed, backend pytest passed 62 tests, targeted `BACKEND_DATA_SOURCE=db` policy/invite/trip tests passed 29 tests, Alembic offline SQL rendering passed, Docker Compose config passed, DB mode policy/auth/trip/profile/invite acceptance/saved policy/policy official link smoke paths returned the expected contract shape, deleted legacy document filename search returned no active references, API contract golden JSON parsed successfully, and `git diff --check` passed with LF-to-CRLF warnings only.
 - Notes: Compose exposes Travel Hunter PostgreSQL on host `127.0.0.1:55432` because host `127.0.0.1:5432` reaches another local PostgreSQL instance. Docker Desktop daemon is unavailable in the current local session, so compose DB runtime validation and the full `BACKEND_DATA_SOURCE=db python -m pytest` suite must be rerun when Docker is available. The runtime backend image does not copy `backend/tests`; use local backend pytest unless a dedicated test image is added.
 
 ## Next Priority
 
-- [ ] Connect policy application deep links.
+- [ ] Rerun full validation and update the release scorecard.

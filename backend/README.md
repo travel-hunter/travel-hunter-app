@@ -97,6 +97,8 @@ Mock-only or partial scope:
 
 - social login, real policy collection, real AI recommendations, real invite delivery
 
+Policy detail responses expose `policies.official_url` as `officialUrl` so the frontend can link application CTAs when a verified URL exists.
+
 ## Validation
 
 ```bash

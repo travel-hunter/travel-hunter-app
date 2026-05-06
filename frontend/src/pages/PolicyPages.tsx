@@ -224,9 +224,15 @@ export function PolicyDetailPage() {
         </section>
         <section className="section-block">
           <h3>관련 정보</h3>
-          <Button full variant="ghost" onClick={showApplicationNotice}>
-            공식 안내 확인하기
-          </Button>
+          {policy.officialUrl ? (
+            <a className="btn ghost full" href={policy.officialUrl} rel="noreferrer" target="_blank">
+              공식 안내 확인하기
+            </a>
+          ) : (
+            <Button full variant="ghost" onClick={showApplicationNotice}>
+              공식 안내 확인하기
+            </Button>
+          )}
         </section>
         {notice && <Toast>{notice}</Toast>}
       </div>
@@ -234,7 +240,13 @@ export function PolicyDetailPage() {
         <Button variant="secondary" onClick={addToTrip}>
           {addedPolicy ? "일정에 담김" : "내 일정에 담기"}
         </Button>
-        <Button onClick={showApplicationNotice}>혜택 받으러 가기</Button>
+        {policy.officialUrl ? (
+          <a className="btn primary" href={policy.officialUrl} rel="noreferrer" target="_blank">
+            혜택 받으러 가기
+          </a>
+        ) : (
+          <Button onClick={showApplicationNotice}>혜택 받으러 가기</Button>
+        )}
       </div>
       <TripSelectSheet
         error={sheetError}

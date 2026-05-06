@@ -3,7 +3,7 @@
 ## 기준
 
 - 기준 브랜치: `feat/prototype-to-react`
-- 현재 기준은 profile DB persistence, 정책 담기 sheet, 일정 생성 `region/style/policySlug` payload, 친구 초대 수락 DB-backed 처리, backend-mode e2e CI 분리 실행, saved-policies DB persistence, 배포 readiness 문서 정리까지 포함한다.
+- 현재 기준은 profile DB persistence, 정책 담기 sheet, 일정 생성 `region/style/policySlug` payload, 친구 초대 수락 DB-backed 처리, backend-mode e2e CI 분리 실행, saved-policies DB persistence, 배포 readiness 문서 정리, 정책 신청 deep link까지 포함한다.
 - API shape는 `docs/mvp-api-contract.md`를 따른다.
 - 현재 정책 담기 저장 기준은 `trip_policies`이며, `saved-policies` DB persistence는 별도 작업이다.
 
@@ -11,7 +11,8 @@
 
 | 우선순위 | 작업 | 성공 기준 |
 |----------|------|-----------|
-| 1 | 정책 신청 deep link 처리 | 정책 상세의 공식 신청 연결을 실제 URL/deep link 기준으로 정리한다. |
+| 1 | 전체 검증과 release scorecard 재평가 | 전체 validation 명령을 재실행하고 Docker daemon unavailable 같은 남은 blocker를 scorecard 기준으로 정리한다. |
+| 2 | 정책 신청 URL 정밀화 | 실제 정책별 신청 공고 URL이 확정되면 `policies.official_url` seed 값을 세부 공고 URL로 갱신한다. |
 
 ## 검증 명령
 

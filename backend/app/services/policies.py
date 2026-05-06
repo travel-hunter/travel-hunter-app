@@ -54,6 +54,7 @@ def policy_to_api(policy: PolicyModel) -> dict[str, object]:
         "category": category,
         "requirements": _split_lines(policy.target_condition),
         "documents": [document.document_name for document in policy.documents],
+        "officialUrl": policy.official_url,
     }
 
 

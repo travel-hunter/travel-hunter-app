@@ -21,6 +21,7 @@ class Policy(BaseModel):
     category: PolicyCategory
     requirements: list[str]
     documents: list[str]
+    officialUrl: str | None = None
 
 
 class SavePolicyResponse(BaseModel):
