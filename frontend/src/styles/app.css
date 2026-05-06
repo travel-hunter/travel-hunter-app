@@ -1234,6 +1234,41 @@
   border-bottom: 0;
 }
 
+.notification-toggle {
+  min-width: 74px;
+  min-height: 36px;
+  border: 1px solid var(--gray-200);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 4px 10px 4px 5px;
+  background: var(--gray-100);
+  color: var(--gray-600);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.notification-toggle.active {
+  border-color: var(--primary-500);
+  background: var(--primary-50);
+  color: var(--primary-600);
+}
+
+.notification-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.toggle-knob {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--white);
+  box-shadow: var(--shadow-sm);
+}
+
 .profile-name {
   margin: 0;
   font-size: 21px;

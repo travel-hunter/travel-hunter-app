@@ -11,6 +11,7 @@ from app.models.tables import (
     TripPlace,
     TripPolicy,
     User,
+    UserNotificationSetting,
     UserSavedPolicy,
 )
 
@@ -27,5 +28,6 @@ __all__ = [
     "TripPlace",
     "TripPolicy",
     "User",
+    "UserNotificationSetting",
     "UserSavedPolicy",
 ]

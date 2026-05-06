@@ -25,13 +25,17 @@
    - `/friend-invite?tripId=...`에서 `viewer/editor` 권한을 선택할 수 있다.
    - 선택 권한은 `trip_invites.role`에 저장된다.
    - 초대 수락 시 신규 `trip_members.role`에 invite role이 반영된다.
+5. 마감 알림 설정 저장
+   - `/mypage`에서 정책 마감 알림 전체 켜기/끄기를 토글할 수 있다.
+   - 설정은 `user_notification_settings.deadline_enabled`에 사용자별로 저장된다.
+   - 실제 push/email 발송은 후속 작업으로 둔다.
 
 ## 다음 우선순위
 
 | 우선순위 | 작업 | 성공 기준 |
 |---:|---|---|
-| 1 | 마감 알림 설정 저장 | 마이페이지 알림 설정을 DB에 저장한다. 실제 push/email 발송은 후속 작업으로 둔다. |
-| 2 | 초대 권한 enforcement | `viewer`는 조회 중심, `editor`는 일정 편집 가능하도록 장소 수정/삭제 권한을 분리한다. |
+| 1 | 초대 권한 enforcement | `viewer`는 조회 중심, `editor`는 일정 편집 가능하도록 장소 수정/삭제 권한을 분리한다. |
+| 2 | 알림 발송 기반 설계 | 저장된 마감 알림 설정을 실제 push/email 발송 스케줄러와 연결하는 방식을 확정한다. |
 | 3 | 소셜 로그인 OAuth | staging URL과 provider secret이 확정되면 Kakao 또는 Google부터 연결한다. |
 | 4 | Cloudflare Tunnel staging 배포 재개 | 기능 패스가 멈추거나 release staging으로 복귀할 때 실제 외부 URL smoke를 진행한다. |
 

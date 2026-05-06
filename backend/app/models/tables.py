@@ -61,6 +61,9 @@ class User(Base):
     saved_policies: Mapped[list[UserSavedPolicy]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+    notification_settings: Mapped[UserNotificationSetting | None] = relationship(
+        back_populates="user", cascade="all, delete-orphan", uselist=False
+    )
 
 
 class AuthRefreshToken(Base):
@@ -267,6 +270,27 @@ class UserSavedPolicy(Base):
 
     user: Mapped[User] = relationship(back_populates="saved_policies")
     policy: Mapped[Policy] = relationship(back_populates="user_saves")
+
+
+class UserNotificationSetting(Base):
+    __tablename__ = "user_notification_settings"
+    __table_args__ = (UniqueConstraint("user_id"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    deadline_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="true"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+
+    user: Mapped[User] = relationship(back_populates="notification_settings")
 
 
 class TripInvite(Base):

@@ -136,6 +136,44 @@ Behavior:
 - `budget` -> `users.travel_budget`
 - save marks `users.onboarding_completed=true`
 
+### `GET /api/me/notification-settings`
+
+Bearer token 필요.
+
+Response `200`:
+
+```json
+{
+  "deadlineEnabled": true,
+  "deadlineLeadDays": [7, 1]
+}
+```
+
+Behavior:
+
+- 설정 row가 없으면 `deadlineEnabled=true`를 기본값으로 반환한다.
+- `deadlineLeadDays`는 정책 마감 알림 기준인 D-7, D-1을 나타내는 서버 상수이며 DB에 저장하지 않는다.
+
+### `PATCH /api/me/notification-settings`
+
+Bearer token 필요.
+
+Request:
+
+```json
+{
+  "deadlineEnabled": false
+}
+```
+
+Response `200`: `NotificationSettings`
+
+Behavior:
+
+- `deadlineEnabled` -> `user_notification_settings.deadline_enabled`
+- 사용자당 하나의 설정 row만 유지한다.
+- 실제 push/email/카카오 알림 발송은 이 endpoint가 수행하지 않는다.
+
 ### `GET /api/profile-options`
 
 Static option response:

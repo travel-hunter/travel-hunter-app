@@ -16,6 +16,7 @@
 - `users.preferred_regions` stores user interest regions.
 - `users.travel_style` and `users.travel_budget` are v0.3.1 profile persistence extension fields.
 - `user_saved_policies` is the v0.3.2 standalone saved policy persistence extension table.
+- `user_notification_settings` is the standalone per-user notification preference table.
 - Trip child tables use the `trip_*` singular prefix, such as `trip_days`, `trip_members`, `trip_policies`, `trip_places`, and `trip_invites`.
 
 ## API Mapping Checks
@@ -43,6 +44,8 @@
 | `Profile.region` | `users.region` | Onboarding/profile preference |
 | `Profile.style` | `users.travel_style` | v0.3.1 extension |
 | `Profile.budget` | `users.travel_budget` | v0.3.1 extension |
+| `NotificationSettings.deadlineEnabled` | `user_notification_settings.deadline_enabled` | Defaults to true when no row exists |
+| `NotificationSettings.deadlineLeadDays` | server constant `[7, 1]` | Not persisted in DB |
 
 ## Non-DB API Values
 

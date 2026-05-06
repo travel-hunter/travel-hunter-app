@@ -29,6 +29,11 @@ export type Profile = {
   budget: string;
 };
 
+export type NotificationSettings = {
+  deadlineEnabled: boolean;
+  deadlineLeadDays: number[];
+};
+
 export type OnboardingSlide = {
   eyebrow: string;
   title: string;

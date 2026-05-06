@@ -4,7 +4,7 @@
 
 Travel Hunter는 국내 여행 정책 탐색과 여행 일정 관리를 위한 DB-backed MVP다. Runtime mock mode는 제거됐고, 프론트엔드는 항상 FastAPI 백엔드를 호출하며 주요 데이터는 PostgreSQL 기준으로 저장된다.
 
-현재 기준 커밋은 `8b3b416 feat: add AI recommendations to trip timeline`이다. 이 커밋 이후 작업트리에는 초대 링크 권한 설정 저장 변경분이 포함되어 있으며, 아직 별도 커밋 전이다.
+현재 기준 커밋은 `07e4d3a feat: persist invite role settings`다. 이 커밋 이후 작업트리에는 마감 알림 설정 저장 변경분이 포함되어 있으며, 아직 별도 커밋 전이다.
 
 ## 주요 위치
 
@@ -27,6 +27,7 @@ Travel Hunter는 국내 여행 정책 탐색과 여행 일정 관리를 위한 D
 - 일정: 목록, 생성, 상세, 삭제, 정책 담기, 장소 추가/수정/삭제.
 - AI 추천: 추천 결과 조회, 추천 항목을 실제 일정 타임라인 장소로 추가.
 - 초대: 초대 링크 생성, 초대 수락, 일정 참여자 추가, 초대 링크별 `viewer/editor` 권한 저장.
+- 알림 설정: 마이페이지에서 정책 마감 알림 전체 켜기/끄기 저장.
 - 테스트 계정: `test.user@example.com / password123`, 표시명 `테스트 사용자`.
 
 ## 프론트엔드 기준
@@ -39,6 +40,7 @@ Travel Hunter는 국내 여행 정책 탐색과 여행 일정 관리를 위한 D
 - `/ai-results`는 추천 항목을 기존 장소 추가 API로 저장하고 성공 시 `/trips/{tripId}`로 이동한다.
 - `/friend-invite?tripId=...`는 `viewer/editor` 권한 선택 UI를 제공하고 선택 권한을 invite에 저장한다.
 - `/invites/:inviteToken/accept`는 로그인 복귀 후 초대 수락 API를 호출한다.
+- `/mypage`는 `GET/PATCH /api/me/notification-settings`로 마감 알림 설정을 조회하고 저장한다.
 
 ## 백엔드 기준
 
@@ -56,6 +58,8 @@ Travel Hunter는 국내 여행 정책 탐색과 여행 일정 관리를 위한 D
 - `Trip.id`는 DB `trips.id`를 string으로 반환한다.
 - `jeju-3-days`는 legacy seed alias이며 public slug가 아니다.
 - `trip_invites.role`은 `viewer` 또는 `editor`이며, 초대 수락 시 신규 `trip_members.role`에 반영된다.
+- `user_notification_settings.deadline_enabled`는 사용자별 정책 마감 알림 전체 켜기/끄기 값이다.
+- `NotificationSettings.deadlineLeadDays`는 `[7, 1]` 서버 상수이며 DB에 저장하지 않는다.
 - `Policy.match`, `Trip.expectedSaving`, `InviteState.copied`, `InviteState.invited`는 service mapper 계산/상태값이다.
 
 ## 디자인/Figma 상태
@@ -83,10 +87,10 @@ Tunnel mode에서는 host `80/443` 포트를 열지 않는다. Cloudflare가 외
 
 ## 최신 검증
 
-- `cd backend && python -m pytest`: 80 passed.
+- `cd backend && python -m pytest`: 87 passed.
 - `cd backend && alembic upgrade head --sql`: passed.
 - `cd frontend && npm run typecheck`: passed.
-- `cd frontend && npm test`: DB-backed Vitest 25 passed.
+- `cd frontend && npm test`: DB-backed Vitest 27 passed.
 - `cd frontend && npm run build`: passed.
 - `git diff --check`: passed.
 - 이전 release gate 기준:
@@ -108,4 +112,4 @@ Tunnel mode에서는 host `80/443` 포트를 열지 않는다. Cloudflare가 외
 
 ## 다음 작업
 
-다음 우선순위는 `docs/next-work-plan.md`를 따른다. 기능 구현 관점에서는 마감 알림 설정 저장이 1순위다. 배포 관점의 Cloudflare Tunnel staging 실행과 Jenkinsfile은 기능 패스가 멈추거나 release staging으로 복귀할 때 재개한다.
+다음 우선순위는 `docs/next-work-plan.md`를 따른다. 기능 구현 관점에서는 초대 권한 enforcement가 1순위다. 배포 관점의 Cloudflare Tunnel staging 실행과 Jenkinsfile은 기능 패스가 멈추거나 release staging으로 복귀할 때 재개한다.

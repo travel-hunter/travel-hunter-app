@@ -148,6 +148,32 @@
     },
     {
       "method": "GET",
+      "path": "/api/me/notification-settings",
+      "status": 200,
+      "requiredFields": {
+        "deadlineEnabled": "boolean",
+        "deadlineLeadDays": "array"
+      },
+      "dbFields": {
+        "deadlineEnabled": "user_notification_settings.deadline_enabled"
+      },
+      "dbModeBehavior": "Requires bearer auth and returns true with [7, 1] lead days when no row exists."
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/me/notification-settings",
+      "status": 200,
+      "request": {
+        "deadlineEnabled": false
+      },
+      "requiredFields": {
+        "deadlineEnabled": "boolean",
+        "deadlineLeadDays": "array"
+      },
+      "dbModeBehavior": "Requires bearer auth and upserts one user_notification_settings row per user."
+    },
+    {
+      "method": "GET",
       "path": "/api/policies",
       "status": 200,
       "requiredArrayItemFields": {

@@ -2,7 +2,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
-import { appDataApi, type InviteState, type Policy, type Trip } from "./api";
+import { appDataApi, type InviteState, type NotificationSettings, type Policy, type Trip } from "./api";
 import { App } from "./app/App";
 import { AppProviders, AppRoot } from "./app/AppRoot";
 
@@ -483,6 +483,63 @@ describe("Travel Hunter app", () => {
       expect(document.body).toHaveTextContent(nextProfile.budget);
     } finally {
       updateProfileSpy.mockRestore();
+    }
+  });
+
+  it("toggles deadline notifications from my page", async () => {
+    const enabledSettings: NotificationSettings = {
+      deadlineEnabled: true,
+      deadlineLeadDays: [7, 1],
+    };
+    const disabledSettings: NotificationSettings = {
+      deadlineEnabled: false,
+      deadlineLeadDays: [7, 1],
+    };
+    const getSettingsSpy = vi.spyOn(appDataApi, "getNotificationSettings").mockResolvedValue(enabledSettings);
+    const updateSettingsSpy = vi.spyOn(appDataApi, "updateNotificationSettings").mockResolvedValue(disabledSettings);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/mypage");
+      const user = userEvent.setup();
+
+      await waitFor(() => expect(document.body).toHaveTextContent("정책 D-7, D-1 알림"));
+      await user.click(await screen.findByRole("switch"));
+
+      await waitFor(() => expect(updateSettingsSpy).toHaveBeenCalledWith({ deadlineEnabled: false }));
+      await waitFor(() => expect(document.body).toHaveTextContent("마감 알림을 받지 않음"));
+    } finally {
+      getSettingsSpy.mockRestore();
+      updateSettingsSpy.mockRestore();
+    }
+  });
+
+  it("restores deadline notification state when saving fails", async () => {
+    const enabledSettings: NotificationSettings = {
+      deadlineEnabled: true,
+      deadlineLeadDays: [7, 1],
+    };
+    const getSettingsSpy = vi.spyOn(appDataApi, "getNotificationSettings").mockResolvedValue(enabledSettings);
+    const updateSettingsSpy = vi
+      .spyOn(appDataApi, "updateNotificationSettings")
+      .mockRejectedValue(new Error("save failed"));
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/mypage");
+      const user = userEvent.setup();
+
+      await waitFor(() => expect(document.body).toHaveTextContent("정책 D-7, D-1 알림"));
+      await user.click(await screen.findByRole("switch"));
+
+      await waitFor(() => expect(updateSettingsSpy).toHaveBeenCalledWith({ deadlineEnabled: false }));
+      await waitFor(() => expect(document.body).toHaveTextContent("알림 설정을 저장하지 못했어요."));
+      expect(document.body).toHaveTextContent("정책 D-7, D-1 알림");
+    } finally {
+      getSettingsSpy.mockRestore();
+      updateSettingsSpy.mockRestore();
     }
   });
 

@@ -1,4 +1,4 @@
-import { InviteRole, InviteState, OnboardingSlide, Policy, Profile, ProfileOptions, Recommendation, Trip, User } from "./types";
+import { InviteRole, InviteState, NotificationSettings, OnboardingSlide, Policy, Profile, ProfileOptions, Recommendation, Trip, User } from "./types";
 
 export type LoginRequest = {
   email: string;
@@ -65,6 +65,8 @@ export type AppDataApi = {
   getCurrentUser: () => Promise<User>;
   getProfile: () => Promise<Profile>;
   updateProfile: (profile: Partial<Profile>) => Promise<Profile>;
+  getNotificationSettings: () => Promise<NotificationSettings>;
+  updateNotificationSettings: (settings: Pick<NotificationSettings, "deadlineEnabled">) => Promise<NotificationSettings>;
   listPolicies: () => Promise<Policy[]>;
   getPolicy: (policySlug?: string) => Promise<Policy>;
   savePolicy: (policySlug: string) => Promise<SavePolicyResponse>;

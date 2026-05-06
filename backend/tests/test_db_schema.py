@@ -16,6 +16,7 @@ def test_erd_v0_3_tables_are_registered() -> None:
         "trip_policies",
         "trip_invites",
         "user_saved_policies",
+        "user_notification_settings",
         "recommendations",
     }
 
@@ -26,6 +27,7 @@ def test_erd_v0_3_decision_columns_are_registered() -> None:
     users = Base.metadata.tables["users"]
     policies = Base.metadata.tables["policies"]
     trip_invites = Base.metadata.tables["trip_invites"]
+    user_notification_settings = Base.metadata.tables["user_notification_settings"]
 
     assert "preferred_regions" in users.c
     assert "gender" in users.c
@@ -37,6 +39,7 @@ def test_erd_v0_3_decision_columns_are_registered() -> None:
     assert "apply_url" in policies.c
     assert "invite_token" in trip_invites.c
     assert "role" in trip_invites.c
+    assert "deadline_enabled" in user_notification_settings.c
     assert "trips_days" not in Base.metadata.tables
     assert "trips_members" not in Base.metadata.tables
     assert "trips_policies" not in Base.metadata.tables

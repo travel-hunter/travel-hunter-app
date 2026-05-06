@@ -5,8 +5,16 @@ from app.api.dependencies import get_current_user
 from app.db.session import get_optional_db
 from app.data import seed
 from app.models import User as UserModel
-from app.schemas.user import Profile, ProfileOptions, ProfileUpdate, User
+from app.schemas.user import (
+    NotificationSettings,
+    NotificationSettingsUpdate,
+    Profile,
+    ProfileOptions,
+    ProfileUpdate,
+    User,
+)
 from app.services import auth as auth_service
+from app.services import notifications as notification_service
 from app.services import profile as profile_service
 
 router = APIRouter(tags=["profile"])
@@ -45,6 +53,36 @@ def update_profile(
             _require_db(db),
             _require_user(current_user),
             profile,
+        )
+    )
+
+
+@router.get("/me/notification-settings", response_model=NotificationSettings)
+def get_notification_settings(
+    db: Session | None = Depends(get_optional_db),
+    current_user: UserModel | None = Depends(get_current_user),
+) -> NotificationSettings:
+    user = _require_user(current_user)
+    return NotificationSettings(
+        **notification_service.get_notification_settings(
+            _require_db(db),
+            user,
+        )
+    )
+
+
+@router.patch("/me/notification-settings", response_model=NotificationSettings)
+def update_notification_settings(
+    settings: NotificationSettingsUpdate,
+    db: Session | None = Depends(get_optional_db),
+    current_user: UserModel | None = Depends(get_current_user),
+) -> NotificationSettings:
+    user = _require_user(current_user)
+    return NotificationSettings(
+        **notification_service.update_notification_settings(
+            _require_db(db),
+            user,
+            settings,
         )
     )
 

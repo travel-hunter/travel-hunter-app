@@ -1,7 +1,7 @@
 import { LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { appDataApi, type Policy, type Profile } from "../api";
+import { appDataApi, type NotificationSettings, type Policy, type Profile } from "../api";
 import { useSession } from "../app/session";
 import { Button, Tag } from "../components/ui";
 import { money } from "../utils";
@@ -22,6 +22,10 @@ export function MyPage() {
   const [profileDraft, setProfileDraft] = useState<Profile>(() => profile);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileEditError, setProfileEditError] = useState("");
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings | null>(null);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(true);
+  const [isSavingNotifications, setIsSavingNotifications] = useState(false);
+  const [notificationError, setNotificationError] = useState("");
 
   useEffect(() => {
     let isCurrent = true;
@@ -40,6 +44,30 @@ export function MyPage() {
       })
       .finally(() => {
         if (isCurrent) setIsLoadingSavedPolicies(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isCurrent = true;
+    setIsLoadingNotifications(true);
+    setNotificationError("");
+
+    appDataApi
+      .getNotificationSettings()
+      .then((settings) => {
+        if (!isCurrent) return;
+        setNotificationSettings(settings);
+      })
+      .catch(() => {
+        if (!isCurrent) return;
+        setNotificationError("알림 설정을 불러오지 못했어요.");
+      })
+      .finally(() => {
+        if (isCurrent) setIsLoadingNotifications(false);
       });
 
     return () => {
@@ -85,6 +113,29 @@ export function MyPage() {
     }
   };
 
+  const toggleDeadlineNotifications = async () => {
+    if (isSavingNotifications) return;
+    const previousSettings = notificationSettings ?? { deadlineEnabled: true, deadlineLeadDays: [7, 1] };
+    const nextSettings = {
+      ...previousSettings,
+      deadlineEnabled: !previousSettings.deadlineEnabled,
+    };
+    setNotificationSettings(nextSettings);
+    setIsSavingNotifications(true);
+    setNotificationError("");
+    try {
+      const savedSettings = await appDataApi.updateNotificationSettings({
+        deadlineEnabled: nextSettings.deadlineEnabled,
+      });
+      setNotificationSettings(savedSettings);
+    } catch {
+      setNotificationSettings(previousSettings);
+      setNotificationError("알림 설정을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setIsSavingNotifications(false);
+    }
+  };
+
   const savedPolicyCountLabel = isLoadingSavedPolicies
     ? "불러오는 중"
     : savedPolicies.length > 0
@@ -92,6 +143,11 @@ export function MyPage() {
       : likedPolicy
         ? "1건 저장됨"
         : "아직 저장한 정책이 없습니다";
+  const deadlineEnabled = notificationSettings?.deadlineEnabled ?? true;
+  const deadlineLeadDays = notificationSettings?.deadlineLeadDays ?? [7, 1];
+  const deadlineLabel = deadlineEnabled
+    ? `정책 ${deadlineLeadDays.map((day) => `D-${day}`).join(", ")} 알림`
+    : "마감 알림을 받지 않음";
 
   return (
     <section className="screen with-tabs">
@@ -145,10 +201,21 @@ export function MyPage() {
             <div className="setting-row">
               <div>
                 <strong>마감 알림</strong>
-                <div className="meta">정책 D-7, D-1 알림</div>
+                <div className="meta">{isLoadingNotifications ? "알림 설정을 불러오는 중" : deadlineLabel}</div>
               </div>
-              <Tag>켜짐</Tag>
+              <button
+                aria-checked={deadlineEnabled}
+                className={`notification-toggle ${deadlineEnabled ? "active" : ""}`}
+                disabled={isLoadingNotifications || isSavingNotifications}
+                onClick={toggleDeadlineNotifications}
+                role="switch"
+                type="button"
+              >
+                <span className="toggle-knob" />
+                <span>{isSavingNotifications ? "저장 중" : deadlineEnabled ? "켜짐" : "꺼짐"}</span>
+              </button>
             </div>
+            {notificationError && <div className="warning-text">{notificationError}</div>}
           </div>
         </div>
         <div className="card">

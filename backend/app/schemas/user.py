@@ -44,6 +44,15 @@ class ProfileOptions(BaseModel):
     budgets: list[str]
 
 
+class NotificationSettings(BaseModel):
+    deadlineEnabled: bool
+    deadlineLeadDays: list[int]
+
+
+class NotificationSettingsUpdate(BaseModel):
+    deadlineEnabled: bool
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1)
