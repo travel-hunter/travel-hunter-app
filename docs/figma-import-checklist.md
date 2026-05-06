@@ -8,27 +8,37 @@
 
 ## 기준 파일
 
+- Figma project URL: `https://www.figma.com/files/team/1631977620101471167/project/594946224?fuid=1631977617264528913`
+- Figma plan: `travle-hunter`
+- Figma plan key: `team::1631977620101471167`
 - Local source: `C:\Users\HP\Downloads\Wanted Design System (Community).fig`
-- Current app baseline commit: `ba7122f docs: add figma and vps readiness checklists`
+- Current app baseline commit: `af1615b style: align buttons with wanted figma values`
 - Current mapping doc: `docs/design-system-map.md`
 - Browser QA doc: `docs/design-qa.md`
 - Component values doc: `docs/figma-component-values.md`
+- Team/project workflow doc: `docs/figma-team-project-workflow.md`
 
 ## Figma Import Steps
 
-1. Figma 앱 또는 웹에서 `Wanted Design System (Community).fig`를 import한다.
-2. Community 원본 파일을 직접 수정하지 않고, 팀/프로젝트 소유 파일로 복제한다.
-3. Travel Hunter 디자인 파일에 다음 페이지를 만든다.
+1. Figma 앱 또는 웹에서 Travel Hunter project URL을 연다.
+2. 해당 프로젝트 안에서 `Wanted Design System (Community).fig`를 import한다.
+3. import된 파일 이름을 `Wanted Design System - Imported Reference`로 정리한다.
+4. Community 원본 파일을 직접 수정하지 않고, 팀/프로젝트 소유 reference로만 사용한다.
+5. Travel Hunter 디자인 handoff 파일을 만든다.
+   - 추천 이름: `Travel Hunter Design System Handoff`
+6. Travel Hunter handoff 파일에 다음 페이지를 만든다.
    - `00 Wanted Reference`
    - `01 Token Map`
    - `02 Current App Screens`
    - `03 Redesigned Screens`
    - `04 Handoff`
-4. `00 Wanted Reference`에는 import한 Wanted 원본 frame/component를 배치한다.
-5. `01 Token Map`에는 `docs/design-system-map.md`의 token mapping을 Figma variable/style 이름과 나란히 정리한다.
-6. `02 Current App Screens`에는 현재 앱 캡처를 배치한다.
-7. `03 Redesigned Screens`에는 실제 보정 대상 화면을 만든다.
-8. `04 Handoff`에는 최종 token/component 결정과 code mapping을 기록한다.
+7. `00 Wanted Reference`에는 import한 Wanted 원본 frame/component 링크 또는 복제본을 배치한다.
+8. `01 Token Map`에는 `docs/design-system-map.md`의 token mapping을 Figma variable/style 이름과 나란히 정리한다.
+9. `02 Current App Screens`에는 현재 앱 캡처를 배치한다.
+10. `03 Redesigned Screens`에는 실제 보정 대상 화면을 만든다.
+11. `04 Handoff`에는 최종 token/component 결정과 code mapping을 기록한다.
+
+기존 `Travel Hunter Sprint 1 HTML Flow`는 유지할 수 있지만, 디자인 시스템 handoff는 새 파일로 분리하는 것을 기본값으로 한다.
 
 ## Component Variant 확인표
 

@@ -7,6 +7,7 @@
 - 실제 staging 방향은 Docker VPS 기반 내부 테스트용 배포로 결정했다.
 - Wanted Design System `.fig` 기반 1차 UI pass가 적용됐고 브라우저 기준 시각 QA가 완료됐다.
 - Figma import와 VPS staging 입력값 준비 절차는 각각 `docs/figma-import-checklist.md`, `docs/vps-staging-inputs.md`에 정리됐다.
+- Figma 팀/프로젝트 작업 가능 여부와 handoff 절차는 `docs/figma-team-project-workflow.md`에 정리됐다.
 - 다음 작업은 기능 추가가 아니라 Figma import/variant 확인을 끝낸 뒤 외부 staging URL에서 RC를 검증하는 것이다.
 - Docker VPS 배포 산출물 기준 커밋은 `91df9e9 chore: add docker vps staging artifacts`다.
 - VPS blocker는 VPS 접속 정보, staging domain/DNS, repo clone 권한, 실제 staging env 값 미제공이다.
@@ -15,7 +16,7 @@
 
 | 우선순위 | 작업 | 성공 기준 |
 |---:|---|---|
-| 1 | Figma import 및 component variant 확인 | Button/Input/Badge/Card/Navigation은 `docs/figma-component-values.md`에 원본 수치를 기록했고 Button 2차 보정도 적용했다. Figma 앱/웹 import 후 복제 파일 node URL을 보강하고 Sheet/Modal, Toast/Alert 수치를 추가한다. |
+| 1 | Figma import 및 component variant 확인 | `team::1631977620101471167` 프로젝트에서 `Wanted Design System - Imported Reference`와 `Travel Hunter Design System Handoff`를 만든 뒤, 복제 파일 node URL을 보강하고 Sheet/Modal, Toast/Alert 수치를 추가한다. |
 | 2 | Figma 비교 기반 잔여 보정 | Sheet/Modal, Toast/Alert, Tag/Chip 분리 여부처럼 아직 node 확인이 필요한 항목만 token/component 중심으로 보정한다. |
 | 3 | VPS 배포 입력값 확보 | `docs/vps-staging-inputs.md`의 Required Inputs가 모두 준비된다. |
 | 4 | Docker VPS staging 배포 및 내부 smoke | `docs/deployment-vps.md` 절차에 따라 외부 URL에서 로그인, 정책 탐색, 일정 생성/삭제, 정책 담기, 초대 수락, 로그아웃이 통과한다. |

@@ -5,7 +5,7 @@
 - Figma source: `Wanted Design System (Community)`
 - Source file key: `dob3r6VmG3WjsOZV0Cb8i4`
 - Local export source: `C:\Users\HP\Downloads\Wanted Design System (Community).fig`
-- App baseline commit: `ba7122f docs: add figma and vps readiness checklists`
+- App baseline commit: `af1615b style: align buttons with wanted figma values`
 - 추출 방식: Figma MCP로 원본 Community 파일의 component set metadata를 읽고, Figma 앱/웹 import 후 handoff에 재확인한다.
 
 > Figma node URL 형식: `https://www.figma.com/design/dob3r6VmG3WjsOZV0Cb8i4/Wanted-Design-System--Community-?node-id=<node-id-with-hyphen>`
