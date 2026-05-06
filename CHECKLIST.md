@@ -45,21 +45,21 @@
 
 ## Release Gate Validation
 
-- [ ] `cd frontend && npm run test:e2e`
+- [x] `cd frontend && npm run test:e2e`
 - [ ] `cd frontend && npm run test:e2e:backend`
-- [ ] `cd frontend && npm run build`
-- [ ] `docker compose -f compose.yaml config`
+- [x] `cd frontend && npm run build`
+- [x] `docker compose -f compose.yaml config`
 - [ ] `docker compose -f compose.yaml build`
 - [ ] `docker compose -f compose.yaml run --rm backend alembic upgrade head`
 - [ ] `docker compose -f compose.yaml run --rm backend python -m app.db.seed`
 
 ## Last Validation Result
 
-- Status: fast lane passed.
+- Status: release gate partially blocked.
 - Date: 2026-05-06.
-- Results: frontend typecheck passed, Vitest passed 16 tests, backend pytest passed 68 tests, and `git diff --check` passed.
-- Notes: e2e, backend-mode e2e, frontend build, compose build, and compose DB runtime validation are release-gate checks. Docker Desktop 미실행은 기능 구현 blocker가 아니다.
+- Results: frontend typecheck passed, Vitest passed 16 tests, backend pytest passed 68 tests, mock Playwright e2e passed 6 tests, frontend build passed, compose config passed, and `git diff --check` passed.
+- Blocked: backend-mode e2e, compose build, compose DB migration, and compose seed require Docker Desktop. Current Docker API connection fails at `npipe:////./pipe/dockerDesktopLinuxEngine`.
 
 ## Next Priority
 
-- [ ] Run release-gate validation before release candidate handoff.
+- [ ] Start Docker Desktop and re-run the blocked Docker-backed release gates.

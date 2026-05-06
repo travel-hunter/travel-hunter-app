@@ -39,7 +39,7 @@ test("public routes render in a real browser", async ({ page }) => {
 test("protected routes redirect anonymous users to login", async ({ page }) => {
   await page.goto("/home");
 
-  await expect(page).toHaveURL(/\/login$/);
+  await expect(page).toHaveURL(/\/login\?redirect=%2Fhome$/);
   await expect(page.locator('input[type="email"]')).toBeVisible();
   await expect(page.locator('input[type="password"]')).toBeVisible();
 });

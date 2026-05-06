@@ -15,7 +15,7 @@
 | 완료 | 친구 초대 수락 화면화 | `/invites/:inviteToken/accept` route에서 로그인 유도, 수락, 일정 이동이 동작한다. |
 | 완료 | 정책 탐색 UX 개선 | 정책 목록에서 검색, 지역, 카테고리 필터가 client-side로 동작한다. |
 | 완료 | 정책 신청 URL 정밀화 | 실제 정책별 공고 URL이 확정되면 `officialUrl`/`applyUrl` seed 값을 갱신한다. |
-| 1 | 릴리즈 게이트 재실행 | 릴리즈 후보 시점에 e2e, backend-mode e2e, build, compose build를 재실행한다. |
+| 1 | Docker-backed 릴리즈 게이트 재실행 | Docker Desktop 실행 후 backend-mode e2e, compose build, compose DB migration/seed를 재실행한다. |
 
 ## Fast Lane 검증
 

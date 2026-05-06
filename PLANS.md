@@ -14,7 +14,7 @@ Prioritize user-facing feature implementation over release-hardening work. Docke
 
 ## Next Milestones
 
-1. Re-run release-gate validation before release candidate handoff.
+1. Start Docker Desktop and re-run the blocked Docker-backed release gates.
 
 ## Guardrails
 
