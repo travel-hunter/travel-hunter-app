@@ -4,6 +4,12 @@
 
 Travel Hunter는 React/Vite 프론트엔드와 FastAPI/PostgreSQL 백엔드로 구성된 국내 여행 정책/일정 MVP다. 런타임 mock mode는 제거됐고, 사용자-facing 인증/데이터 흐름은 항상 FastAPI와 PostgreSQL 기준으로 동작한다.
 
+## 기준 커밋
+
+- 문서 정리 시작 기준 커밋: `6436672 docs: record vps deployment prerequisites`
+- Docker VPS staging 산출물 커밋: `91df9e9 chore: add docker vps staging artifacts`
+- 실제 VPS 배포 상태: VPS 입력값 대기 중
+
 ## 주요 위치
 
 | 구분 | 위치 |
@@ -35,7 +41,7 @@ Travel Hunter는 React/Vite 프론트엔드와 FastAPI/PostgreSQL 백엔드로 �
 - SQLAlchemy 2.x sync ORM + psycopg 3 + Alembic + PostgreSQL 16.
 - schema 생성은 Alembic만 사용하고 `create_all()`은 사용하지 않는다.
 - 개발 seed는 `python -m app.db.seed`로 주입하며 idempotent하다.
-- `/api/profile-options`는 DB mock mode가 아니라 앱 정적 옵션 응답이다.
+- `/api/profile-options`는 DB-backed 앱의 정적 옵션 응답이다.
 
 Implemented endpoints:
 
@@ -75,6 +81,7 @@ Implemented endpoints:
 - `cd frontend && npm run test:e2e`: DB-backed Playwright 5 passed.
 - `cd frontend && npm run build`: passed.
 - `docker compose -f compose.yaml build`: passed.
+- `docker compose --env-file deploy/.env.staging.example -f compose.vps.yaml config`: passed.
 
 Known local note:
 
@@ -88,7 +95,7 @@ Known local note:
 - 실제 AI 추천 엔진.
 - 친구 초대 이메일/SMS/카카오톡 실제 발송.
 - 운영 관리자 기능.
-- 실제 staging/cloud 배포.
+- 실제 VPS staging 배포 실행. 현재 blocker는 VPS SSH 접속 정보, staging domain/DNS, repo clone 권한, 실제 `deploy/.env.staging` 값 미제공이다.
 
 ## 다음 작업
 

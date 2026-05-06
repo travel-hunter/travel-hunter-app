@@ -4,7 +4,7 @@
 
 - 현재 MVP release candidate는 Docker Compose 기반 staging-ready 구성을 기준으로 한다.
 - 실행과 인수인계 기준은 `docs/release-candidate-handoff.md`를 따른다.
-- 실제 staging 환경 선택 전까지 Terraform, Kubernetes, Argo CD 설정 파일은 만들지 않는다.
+- Docker VPS staging smoke가 끝나기 전까지 Terraform, Kubernetes, Argo CD 설정 파일은 만들지 않는다.
 
 ## 후속 배포 방향 후보
 

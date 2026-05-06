@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-The MVP feature set is implemented and runtime mock mode has been removed. The staging target is Docker VPS for internal testing. The current priority is executing deployment from the Docker Compose release-candidate baseline and recording the smoke result.
+The MVP feature set is implemented and runtime mock mode has been removed. Docker VPS staging artifacts exist. The current priority is collecting the missing VPS inputs, then executing deployment and recording the smoke result.
 
 ## Source Of Truth
 
@@ -15,9 +15,10 @@ The MVP feature set is implemented and runtime mock mode has been removed. The s
 
 ## Next Milestones
 
-1. Execute Docker VPS staging deployment from the Docker Compose release-candidate baseline.
-2. Run the internal-test smoke checklist on the external staging URL.
-3. Record the staging URL, commit, validation result, and blockers in the RC handoff docs.
+1. Collect VPS SSH access, staging domain/DNS, repo clone access, and real staging env values.
+2. Execute Docker VPS staging deployment from the `91df9e9` artifact baseline.
+3. Run the internal-test smoke checklist on the external staging URL.
+4. Record the staging URL, commit, validation result, and blockers in the RC handoff docs.
 
 ## Guardrails
 

@@ -3,11 +3,11 @@
 ## 읽는 순서
 
 1. `release-candidate-handoff.md`
-   - MVP RC 범위, 실행 모드, URL, 환경 변수, 검증 결과.
+   - MVP RC 범위, 실행 모드, 검증 결과, VPS 배포 상태.
 2. `deployment-vps.md`
-   - Docker VPS staging 배포 절차, env, Caddy/reverse proxy 방향, smoke test.
+   - Docker VPS staging 실행 절차, env, Caddy routing, smoke test.
 3. `current-work-spec.md`
-   - 현재 구현 상태, 주요 위치, 완료/미완료 범위, 검증 명령.
+   - 현재 구현 상태, 기준 커밋, 완료/미완료 범위, 검증 결과.
 4. `mvp-api-contract.md`
    - API request/response/error 계약.
 5. `next-work-plan.md`
