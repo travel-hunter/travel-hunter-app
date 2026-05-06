@@ -15,7 +15,7 @@ export function ServiceLayout() {
   return (
     <div className="service-layout">
       <header className="service-header">
-        <Link className="brand" to="/home" aria-label="Travel Hunter home">
+        <Link className="brand" to="/home" aria-label="Travel Hunter 홈으로">
           <span className="brand-mark">TH</span>
           <span>Travel Hunter</span>
         </Link>

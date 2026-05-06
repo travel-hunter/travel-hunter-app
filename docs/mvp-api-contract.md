@@ -1,258 +1,400 @@
-# 트레블헌터 MVP API 계약 초안
+# Travel Hunter MVP API 계약 v0.3
 
-이 문서는 React MVP 목업 데이터와 맞출 FastAPI API 계약 초안입니다. 실제 PostgreSQL 연결 전까지는 이 스키마를 기준으로 프론트엔드와 백엔드가 같은 데이터 형태를 사용합니다.
+API prefix는 `/api`다. API DTO는 `camelCase`, DB/SQL 필드는 `snake_case`를 사용한다. 런타임 mock mode는 제거됐고 모든 사용자-facing 데이터 흐름은 FastAPI + PostgreSQL 기준으로 동작한다.
 
-## 인증
+## 공통 규칙
 
-### `POST /auth/signup`
+- 정책 상세는 `policies.slug` 기준이다.
+- 일정은 public slug를 만들지 않고 string `tripId` handle로 조회한다.
+- 정상 DB 응답의 `Trip.id`는 numeric `trips.id`를 string으로 반환한다.
+- `/api/trips/jeju-3-days`는 seed 호환 legacy alias다. DB 컬럼이나 public slug가 아니다.
+- legacy alias도 인증과 owner/member 접근 권한 검사를 우회하지 않는다.
+- 보호 endpoint는 Bearer access token이 필요하다.
+- 보안/internal 필드는 응답하지 않는다: `password_hash`, `provider_id`, `refresh_token_hash`.
 
-신규 사용자를 생성합니다.
+## Auth
 
-Request
+### `POST /api/auth/signup`
+
+Request:
 
 ```json
 {
-  "email": "travel@example.com",
-  "password": "hunter123",
-  "nickname": "트래블러",
-  "birthDate": "2000-01-01",
-  "interestRegion": "제주",
-  "termsAgreed": true
+  "email": "new.user@example.com",
+  "password": "password123",
+  "name": "테스트 신규 사용자"
 }
 ```
 
-Response `201`
+Response `200`: `AuthResponse`
 
 ```json
 {
-  "accessToken": "mock-token",
+  "accessToken": "jwt-access-token",
   "user": {
-    "id": "user_1",
-    "email": "travel@example.com",
-    "nickname": "트래블러",
-    "interestRegion": "제주"
+    "id": "1",
+    "name": "테스트 사용자",
+    "nickname": "테스트 사용자",
+    "email": "test.user@example.com",
+    "birthDate": "1997-04-12",
+    "gender": null,
+    "region": "제주",
+    "homeRegion": "서울 마포",
+    "residenceArea": "서울 마포",
+    "preferredRegions": "제주,부산,강원",
+    "persona": "Travel Hunter 사용자",
+    "savedAmount": 0,
+    "onboardingCompleted": true,
+    "socialAccounts": [],
+    "createdAt": "2026-05-04T00:00:00",
+    "updatedAt": "2026-05-04T00:00:00"
   }
 }
 ```
 
-### `POST /auth/login`
+Errors:
 
-기존 사용자를 인증합니다.
+- duplicate email: `409 {"detail": "Email already registered"}`
 
-Request
+### `POST /api/auth/login`
 
-```json
-{
-  "email": "travel@example.com",
-  "password": "hunter123"
-}
-```
-
-Response `200`
+Request:
 
 ```json
 {
-  "accessToken": "mock-token",
-  "user": {
-    "id": "user_1",
-    "email": "travel@example.com",
-    "nickname": "트래블러"
-  }
+  "email": "test.user@example.com",
+  "password": "password123"
 }
 ```
 
-## 정책
+Response `200`: `AuthResponse`
 
-### `GET /policies`
+Errors:
 
-정책 목록을 조회합니다. 필터 쿼리는 모두 선택값입니다.
+- invalid credentials: `401 {"detail": "Invalid email or password"}`
 
-Query
+### `POST /api/auth/refresh`
 
-- `region`: `전국`, `제주`, `부산`, `강원`
-- `type`: `할인`, `지원금`, `적립`
-- `ageGroup`: `20대`, `30대`, `40대`, `가족`
-- `cursor`: 무한 스크롤용 커서
+Request body 없음. `travel_hunter_refresh` HttpOnly cookie를 읽는다.
 
-Response `200`
+Response `200`: `AuthResponse`
+
+Errors:
+
+- invalid, expired, revoked refresh token: `401 {"detail": "Invalid refresh token"}`
+
+### `POST /api/auth/logout`
+
+Response `200`:
+
+```json
+{ "loggedOut": true }
+```
+
+## User/Profile
+
+### `GET /api/me`
+
+Bearer token 필요.
+
+Response `200`: `User`
+
+Errors:
+
+- missing, invalid, expired access token: `401 {"detail": "Not authenticated"}`
+
+### `GET /api/me/profile`
+
+Response `200`:
 
 ```json
 {
-  "items": [
-    {
-      "id": "local-vacation",
-      "title": "지역사랑 휴가지원",
-      "sponsor": "한국관광공사",
-      "region": "전국",
-      "type": "지원금",
-      "audience": "내국인, 농어촌 지역 1박 이상 숙박",
-      "benefit": "여행 경비의 50% 환급, 최대 30만원",
-      "period": "2026.05.01 ~ 2026.10.31",
-      "condition": "숙박 영수증과 교통비 증빙을 제출해야 합니다."
-    }
-  ],
-  "nextCursor": null
+  "region": "부산",
+  "style": "맛집",
+  "budget": "1인 30만원 이하"
 }
 ```
 
-### `GET /policies/{policyId}`
+### `PATCH /api/me/profile`
 
-정책 상세 정보를 조회합니다.
+Request fields are optional:
 
-Response `200`
+```json
+{
+  "region": "부산",
+  "style": "맛집",
+  "budget": "1인 30만원 이하"
+}
+```
+
+Response `200`: `Profile`
+
+Behavior:
+
+- `region` -> `users.region`
+- `style` -> `users.travel_style`
+- `budget` -> `users.travel_budget`
+- save marks `users.onboarding_completed=true`
+
+### `GET /api/profile-options`
+
+Static option response:
+
+```json
+{
+  "regions": ["제주", "부산", "강원", "전국"],
+  "travelStyles": ["휴식", "맛집", "자연", "사진"],
+  "budgets": ["1인 30만원 이하", "1인 40만원 이하", "1인 60만원 이하", "상관없음"]
+}
+```
+
+## Policies
+
+### `GET /api/policies`
+
+Response `200`: `Policy[]`
+
+Policy shape:
 
 ```json
 {
   "id": "local-vacation",
+  "slug": "local-vacation",
+  "label": "TH",
+  "tag": "최대 30만원",
   "title": "지역사랑 휴가지원",
-  "sponsor": "한국관광공사",
+  "org": "한국관광공사",
   "region": "전국",
-  "type": "지원금",
-  "audience": "내국인, 농어촌 지역 1박 이상 숙박",
-  "benefit": "여행 경비의 50% 환급, 최대 30만원",
-  "period": "2026.05.01 ~ 2026.10.31",
-  "condition": "숙박 영수증과 교통비 증빙을 제출해야 합니다.",
-  "documents": ["신분증", "숙박 영수증", "교통비 증빙"],
-  "officialUrl": "https://knto.or.kr"
+  "deadline": "2026-10-31",
+  "amount": "최대 30만원 환급",
+  "summary": "국내 1박 이상 여행 시 숙박, 교통, 체험비 일부를 환급해주는 지원 정책입니다.",
+  "match": 98,
+  "category": "환급",
+  "requirements": ["국내 거주자", "숙박 1박 이상", "영수증 제출"],
+  "documents": ["신분증 사본", "숙박 영수증", "교통비 증빙"],
+  "officialUrl": "https://www.mcst.go.kr/site/s_notice/press/pressView.jsp?pMenuCD=0302000000&pSeq=22267",
+  "applyUrl": null
 }
 ```
 
-## 일정
+Link semantics:
 
-### `GET /trips`
+- `officialUrl`: 공식 안내/상세 페이지.
+- `applyUrl`: 실제 신청/접수/deep link.
+- 정확한 신청 링크가 확인되지 않으면 `applyUrl=null`.
+- 프론트 CTA는 `applyUrl` -> `officialUrl` -> 준비 안내 순서로 처리한다.
 
-내 일정 목록을 조회합니다.
+### `GET /api/policies/{policySlug}`
 
-Query
+Response `200`: `Policy`
 
-- `status`: `upcoming`, `past`
+Errors:
 
-Response `200`
+- unknown slug: `404 {"detail": "Policy not found"}`
+
+### `GET /api/me/saved-policies`
+
+Bearer token 필요. Response `200`: `Policy[]`
+
+### `POST /api/me/saved-policies/{policySlug}`
+
+Bearer token 필요.
+
+Response `200`:
 
 ```json
 {
-  "items": [
-    {
-      "id": "jeju-3-days",
-      "title": "제주 3일 여행",
-      "region": "제주",
-      "startDate": "2026.05.17",
-      "endDate": "2026.05.19",
-      "participants": 2,
-      "policyIds": ["local-vacation", "jeju-youth"]
-    }
-  ]
+  "policyId": "local-vacation",
+  "saved": true
 }
 ```
 
-### `POST /trips`
+Errors:
 
-새 일정을 생성합니다.
+- unknown policy slug: `404 {"detail": "Policy not found"}`
 
-Request
+### `DELETE /api/me/saved-policies/{policySlug}`
+
+Bearer token 필요.
+
+Response `200`:
+
+```json
+{
+  "policyId": "local-vacation",
+  "saved": false
+}
+```
+
+## Trips
+
+### Trip handle rules
+
+- `tripId`는 opaque string handle이다.
+- Canonical numeric handle은 `^[1-9][0-9]*$`만 허용한다.
+- `0`, `001`, `1.0`은 numeric id로 해석하지 않는다.
+- `jeju-3-days`는 seed owner email `test.user@example.com`, seed title, `2026-06-15`~`2026-06-17`이 정확히 하나 매칭될 때만 해석한다.
+- unknown, inaccessible, unsupported handle은 `404 {"detail": "Trip not found"}`다.
+
+Trip shape:
+
+```json
+{
+  "id": "1",
+  "title": "제주 3일 여행",
+  "dates": "2026.06.15 - 06.17",
+  "people": ["테스트 사용자"],
+  "expectedSaving": "30만원",
+  "days": {
+    "1": [
+      { "time": "09:00", "label": "성산 일출봉", "meta": "자연 · 관광지" }
+    ]
+  }
+}
+```
+
+### `GET /api/trips`
+
+Bearer token 필요. Response `200`: `Trip[]`
+
+### `POST /api/trips`
+
+Request body optional:
 
 ```json
 {
   "title": "제주 3일 여행",
   "region": "제주",
-  "startDate": "2026-05-17",
-  "endDate": "2026-05-19",
-  "companions": ["friend@example.com"]
+  "style": "휴식",
+  "description": "휴식",
+  "policySlug": "local-vacation",
+  "durationDays": 3
 }
 ```
 
-Response `201`
+Response `200`: created `Trip`
+
+Rules:
+
+- `region` -> `trips.region`
+- `description` -> `trips.description`
+- if `description` is absent and `style` exists, `style` is stored in `trips.description`
+- if `policySlug` exists, generated trip is connected through `trip_policies`
+- `durationDays` is optional, defaults to `3`, and must be between `2` and `5`
+- `durationDays` controls `trips.end_date` and the number of generated `trip_days`
+
+Errors:
+
+- unknown `policySlug`: `404 {"detail": "Policy not found"}`
+- invalid `durationDays`: `422`
+
+### `GET /api/trips/{tripId}`
+
+Response `200`: `Trip`
+
+Errors:
+
+- unknown or inaccessible trip: `404 {"detail": "Trip not found"}`
+
+### `DELETE /api/trips/{tripId}`
+
+Bearer token 필요. 현재 사용자가 owner인 일정만 삭제할 수 있다.
+
+Response `200`:
 
 ```json
 {
-  "id": "jeju-3-days",
-  "title": "제주 3일 여행",
-  "region": "제주",
-  "startDate": "2026.05.17",
-  "endDate": "2026.05.19",
-  "participants": 2,
-  "policyIds": [],
-  "days": []
+  "tripId": "1",
+  "deleted": true
 }
 ```
 
-### `GET /trips/{tripId}`
+Rules:
 
-일정 상세와 날짜별 장소를 조회합니다.
+- `tripId`는 canonical numeric handle만 삭제 대상으로 허용한다.
+- 연결된 `recommendations.trip_id`는 삭제 전에 `null`로 분리한다.
+- `trip_days`, `trip_places`, `trip_members`, `trip_policies`, `trip_invites`는 DB cascade 기준으로 삭제된다.
 
-Response `200`
+Errors:
+
+- unauthenticated: `401 {"detail": "Not authenticated"}`
+- unknown, inaccessible, non-owner, or noncanonical trip handle: `404 {"detail": "Trip not found"}`
+
+### `POST /api/trips/{tripId}/policies/{policySlug}`
+
+Response `200`:
 
 ```json
 {
-  "id": "jeju-3-days",
-  "title": "제주 3일 여행",
-  "region": "제주",
-  "startDate": "2026.05.17",
-  "endDate": "2026.05.19",
-  "participants": 2,
-  "policyIds": ["local-vacation", "jeju-youth"],
-  "days": [
-    {
-      "day": 1,
-      "places": [
-        {
-          "id": "p1",
-          "time": "09:00",
-          "name": "성산 일출봉",
-          "category": "관광지"
-        }
-      ]
-    }
-  ]
+  "tripId": "1",
+  "policyId": "local-vacation",
+  "added": true
 }
 ```
 
-### `POST /trips/{tripId}/places`
+## Recommendations
 
-일정에 장소를 추가합니다.
+### `GET /api/trips/{tripId}/recommendations`
 
-Request
+Response `200`: `Recommendation[]`
+
+## Invites
+
+### `GET /api/trips/{tripId}/invite`
+
+Response `200`: `InviteState`
 
 ```json
 {
-  "day": 1,
-  "time": "12:00",
-  "name": "해녀의 집",
-  "category": "맛집"
+  "id": "1",
+  "tripId": "1",
+  "inviteToken": "jeju-3d",
+  "inviteUrl": "travelhunter.app/i/jeju-3d",
+  "expiresAt": "2026-06-30T23:59:59Z",
+  "createdAt": "2026-05-04T00:00:00Z",
+  "acceptedAt": null,
+  "invited": true,
+  "copied": false
 }
 ```
 
-Response `201`
+### `POST /api/trips/{tripId}/invite`
+
+Response `200`: `InviteState` with `invited=true`
+
+### `POST /api/trips/{tripId}/invites`
+
+Response `200`: `InviteState`
+
+### `POST /api/invites/{inviteToken}/accept`
+
+Bearer token 필요.
+
+Response `200`: `InviteState` with `acceptedAt`
+
+Behavior:
+
+- valid token sets `trip_invites.accepted_at` when empty.
+- current user is added to `trip_members` as `editor` when missing.
+- repeated accept is idempotent.
+
+Errors:
+
+- unknown or expired invite token: `404 {"detail": "Invite not found"}`
+
+## Health
+
+### `GET /api/health`
+
+Response `200`:
 
 ```json
 {
-  "id": "p2",
-  "day": 1,
-  "time": "12:00",
-  "name": "해녀의 집",
-  "category": "맛집"
+  "status": "ok",
+  "service": "travel-hunter-backend",
+  "environment": "local",
+  "database": "connected"
 }
 ```
 
-### `DELETE /trips/{tripId}/places/{placeId}`
-
-일정 장소를 삭제합니다.
-
-Response `204`
-
-본문 없음.
-
-## 향후 PostgreSQL 테이블 후보
-
-- `users`
-- `policies`
-- `policy_documents`
-- `trips`
-- `trip_members`
-- `trip_places`
-
-## MVP 제외 API
-
-- AI 추천 결과 생성
-- 친구 초대 링크와 QR 코드 생성
-- 마이페이지 통계와 회원 탈퇴
+`database` is one of `not_configured`, `connected`, `unavailable`.

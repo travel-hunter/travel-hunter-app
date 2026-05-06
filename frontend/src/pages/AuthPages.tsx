@@ -1,17 +1,54 @@
-import { FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { FormEvent, useState } from "react";
+import { ChevronLeft } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { appDataApi } from "../api";
 import { useSession } from "../app/session";
 import { Button, IconButton, LinkButton } from "../components/ui";
-import { user } from "../data/prototypeData";
+
+const previewUser = appDataApi.getPreviewUser();
+
+function getSafeRedirect(searchParams: URLSearchParams) {
+  const redirect = searchParams.get("redirect");
+  if (!redirect || !redirect.startsWith("/") || redirect.startsWith("//")) return null;
+  return redirect;
+}
+
+function withRedirect(path: string, redirect: string | null) {
+  if (!redirect) return path;
+  return `${path}?redirect=${encodeURIComponent(redirect)}`;
+}
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login } = useSession();
+  const [error, setError] = useState("");
+  const redirect = getSafeRedirect(searchParams);
 
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    login();
-    navigate("/home");
+    const formData = new FormData(event.currentTarget);
+    setError("");
+
+    try {
+      await login({
+        email: String(formData.get("email") || ""),
+        password: String(formData.get("password") || ""),
+      });
+      navigate(redirect ?? "/home");
+    } catch {
+      setError("로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.");
+    }
+  };
+
+  const submitDefaultLogin = async () => {
+    setError("");
+    try {
+      await login();
+      navigate(redirect ?? "/home");
+    } catch {
+      setError("로그인에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    }
   };
 
   return (
@@ -19,17 +56,22 @@ export function LoginPage() {
       <div className="auth-hero">
         <div className="logo-mark">TH</div>
         <h2>다시 만난 여행 혜택을 확인하세요</h2>
-        <p>{user.email} 계정으로 prototype의 핵심 플로우에 바로 진입합니다.</p>
+        <p>{previewUser.email} 계정으로 저장한 혜택과 일정을 이어서 확인할 수 있어요.</p>
       </div>
       <form className="form" onSubmit={submit}>
         <label className="field">
           <span>이메일</span>
-          <input type="email" defaultValue={user.email} autoComplete="email" />
+          <input name="email" type="email" placeholder="이메일을 입력하세요" autoComplete="email" />
         </label>
         <label className="field">
           <span>비밀번호</span>
-          <input type="password" defaultValue="password123" autoComplete="current-password" />
+          <input name="password" type="password" placeholder="비밀번호를 입력하세요" autoComplete="current-password" />
         </label>
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
         <Button full type="submit">
           로그인
         </Button>
@@ -37,7 +79,7 @@ export function LoginPage() {
       <div className="auth-links">
         <button type="button">비밀번호 찾기</button>
         <span>·</span>
-        <button type="button" onClick={() => navigate("/signup")}>
+        <button type="button" onClick={() => navigate(withRedirect("/signup", redirect))}>
           회원가입
         </button>
       </div>
@@ -45,10 +87,10 @@ export function LoginPage() {
         <div className="divider">또는</div>
       </div>
       <div className="socials">
-        <button className="social kakao" onClick={() => submit(new Event("submit") as unknown as FormEvent)} type="button">
+        <button className="social kakao" onClick={submitDefaultLogin} type="button">
           카카오로 로그인
         </button>
-        <button className="social google" onClick={() => submit(new Event("submit") as unknown as FormEvent)} type="button">
+        <button className="social google" onClick={submitDefaultLogin} type="button">
           Google로 로그인
         </button>
       </div>
@@ -58,19 +100,33 @@ export function LoginPage() {
 
 export function SignupPage() {
   const navigate = useNavigate();
-  const { login } = useSession();
+  const [searchParams] = useSearchParams();
+  const { signup } = useSession();
+  const [error, setError] = useState("");
+  const redirect = getSafeRedirect(searchParams);
 
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    login();
-    navigate("/profile-setup");
+    const formData = new FormData(event.currentTarget);
+    setError("");
+
+    try {
+      await signup({
+        name: String(formData.get("name") || ""),
+        email: String(formData.get("email") || ""),
+        password: String(formData.get("password") || ""),
+      });
+      navigate(redirect ?? "/profile-setup");
+    } catch {
+      setError("회원가입에 실패했습니다. 입력한 정보를 다시 확인해주세요.");
+    }
   };
 
   return (
     <section className="screen white">
       <div className="top-bar">
         <IconButton label="뒤로" to="/">
-          ‹
+          <ChevronLeft size={20} />
         </IconButton>
         <h1>회원가입</h1>
         <span />
@@ -78,28 +134,33 @@ export function SignupPage() {
       <div className="auth-hero compact">
         <div className="logo-mark">TH</div>
         <h2>지금 받을 수 있는 여행 혜택부터 찾기</h2>
-        <p>가입 후 첫 로그인 정보 입력에서 추천 지역과 여행 스타일을 설정합니다.</p>
+        <p>관심 지역과 여행 스타일을 설정하면 맞춤 혜택을 먼저 보여드려요.</p>
       </div>
       <form className="form" onSubmit={submit}>
         <label className="field">
           <span>이름</span>
-          <input type="text" defaultValue={user.name} autoComplete="name" />
+          <input name="name" type="text" placeholder="예: 홍길동" autoComplete="name" />
         </label>
         <label className="field">
           <span>이메일</span>
-          <input type="email" defaultValue={user.email} autoComplete="email" />
+          <input name="email" type="email" placeholder="user@example.com" autoComplete="email" />
         </label>
         <label className="field">
           <span>비밀번호</span>
-          <input type="password" defaultValue="password123" autoComplete="new-password" />
+          <input name="password" type="password" placeholder="8자 이상 입력" autoComplete="new-password" />
         </label>
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
         <Button full type="submit">
-          가입하고 정보 입력
+          가입하고 맞춤 설정하기
         </Button>
       </form>
       <div className="auth-links">
         <span>이미 계정이 있나요?</span>
-        <LinkButton to="/login" variant="ghost">
+        <LinkButton to={withRedirect("/login", redirect)} variant="ghost">
           로그인
         </LinkButton>
       </div>

@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: travelhunter
       POSTGRES_PASSWORD: travelhunter
     ports:
-      - "5432:5432"
+      - "55432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U travelhunter -d travelhunter"]
       interval: 10s
@@ -20,7 +20,12 @@ services:
       context: ./backend
     environment:
       APP_ENV: docker
-      DATABASE_URL: postgresql://travelhunter:travelhunter@db:5432/travelhunter
+      DATABASE_URL: postgresql+psycopg://travelhunter:travelhunter@db:5432/travelhunter
+      AUTH_SECRET_KEY: dev-only-change-me-secret-key-32-bytes
+      ACCESS_TOKEN_EXPIRE_MINUTES: "30"
+      REFRESH_TOKEN_EXPIRE_DAYS: "14"
+      REFRESH_COOKIE_NAME: travel_hunter_refresh
+      REFRESH_COOKIE_SECURE: "false"
       CORS_ORIGINS: http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:4173,http://localhost:4173
     ports:
       - "8000:8000"

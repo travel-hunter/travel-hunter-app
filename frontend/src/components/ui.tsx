@@ -9,15 +9,17 @@ export function Button({
   full = false,
   onClick,
   type = "button",
+  disabled = false,
 }: {
   children: ReactNode;
   variant?: ButtonVariant;
   full?: boolean;
   onClick?: () => void;
   type?: "button" | "submit";
+  disabled?: boolean;
 }) {
   return (
-    <button className={`btn ${variant} ${full ? "full" : ""}`} onClick={onClick} type={type}>
+    <button className={`btn ${variant} ${full ? "full" : ""}`} disabled={disabled} onClick={onClick} type={type}>
       {children}
     </button>
   );
@@ -89,12 +91,38 @@ export function IconButton({ children, to, label, onClick }: { children: ReactNo
   );
 }
 
-export function EmptyState({ title, body, action }: { title: string; body: string; action: ReactNode }) {
+export function EmptyState({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
   return (
     <section className="empty-state">
       <h1>{title}</h1>
       <p>{body}</p>
       {action}
     </section>
+  );
+}
+
+export function LoadingState({ label = "정보를 불러오는 중입니다" }: { label?: string }) {
+  return (
+    <div className="state-panel" role="status">
+      <span className="spinner" />
+      <strong>{label}</strong>
+    </div>
+  );
+}
+
+export function ErrorState({ message }: { message: string }) {
+  return (
+    <div className="state-panel error" role="alert">
+      <strong>잠깐 문제가 생겼어요</strong>
+      <p>{message}</p>
+    </div>
+  );
+}
+
+export function Toast({ children }: { children: ReactNode }) {
+  return (
+    <div className="toast" role="status">
+      {children}
+    </div>
   );
 }

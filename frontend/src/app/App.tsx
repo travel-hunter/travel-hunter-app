@@ -1,8 +1,9 @@
-import { Navigate, Outlet, Route, Routes } from "react-router-dom";
+import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { PublicLayout, ServiceLayout } from "../components/AppLayout";
 import { AiResultsPage, FriendInvitePage, ItineraryCreatePage, ItineraryDetailPage, ItineraryListPage } from "../pages/ItineraryPages";
 import { LoginPage, SignupPage } from "../pages/AuthPages";
 import { HomePage } from "../pages/HomePage";
+import { InviteAcceptPage } from "../pages/InviteAcceptPage";
 import { MyPage } from "../pages/MyPage";
 import { OnboardingPage } from "../pages/OnboardingPage";
 import { PolicyDetailPage, PolicyListPage } from "../pages/PolicyPages";
@@ -31,6 +32,7 @@ export function App() {
           <Route path="/trips/:tripId" element={<ItineraryDetailPage />} />
           <Route path="/ai-results" element={<AiResultsPage />} />
           <Route path="/friend-invite" element={<FriendInvitePage />} />
+          <Route path="/invites/:inviteToken/accept" element={<InviteAcceptPage />} />
           <Route path="/mypage" element={<MyPage />} />
         </Route>
       </Route>
@@ -41,6 +43,10 @@ export function App() {
 
 function ProtectedRoute() {
   const { currentUser } = useSession();
-  if (!currentUser) return <Navigate to="/login" replace />;
+  const location = useLocation();
+  if (!currentUser) {
+    const redirectTo = `${location.pathname}${location.search}${location.hash}`;
+    return <Navigate to={`/login?redirect=${encodeURIComponent(redirectTo)}`} replace />;
+  }
   return <Outlet />;
 }

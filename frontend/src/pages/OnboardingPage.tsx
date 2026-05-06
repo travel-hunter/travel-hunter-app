@@ -1,7 +1,9 @@
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
+import { appDataApi } from "../api";
 import { LinkButton, Tag } from "../components/ui";
-import { onboardingSlides } from "../data/prototypeData";
+
+const onboardingSlides = appDataApi.getOnboardingSlides();
 
 export function OnboardingPage() {
   const [index, setIndex] = useState(0);
@@ -18,7 +20,7 @@ export function OnboardingPage() {
         <div className="floating-ticket">
           <Tag tone="primary">추천 혜택</Tag>
           <strong>{slide.stat}</strong>
-          <div className="meta">Prototype 핵심 경험 미리보기</div>
+          <div className="meta">내 일정에 맞는 혜택을 먼저 확인하세요</div>
         </div>
       </div>
       <div className="onboarding-copy">
@@ -26,7 +28,7 @@ export function OnboardingPage() {
         <h2>{slide.title}</h2>
         <p>{slide.body}</p>
       </div>
-      <div className="dots" aria-label="onboarding progress">
+      <div className="dots" aria-label="온보딩 진행 상태">
         {onboardingSlides.map((item, dotIndex) => (
           <span className={dotIndex === index ? "dot active" : "dot"} key={item.title} />
         ))}

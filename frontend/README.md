@@ -1,38 +1,83 @@
 # Frontend
 
-트레블헌터 MVP React 웹 프론트엔드입니다. 모바일 우선 반응형 웹으로 S-01~S-09 핵심 화면 흐름을 구현합니다.
+Travel Hunter MVP frontend built with React, TypeScript, Vite, and React Router.
 
-## 기술 스택
+## Routes
 
-- React
-- TypeScript
-- Vite
-- React Router
-- Lucide React
+- `/`, `/onboarding`
+- `/signup`
+- `/login`
+- `/profile-setup`
+- `/home`
+- `/policies`
+- `/policies/:policySlug`
+- `/trips`
+- `/trips/new`
+- `/trips/:tripId`
+- `/ai-results`
+- `/friend-invite`
+- `/invites/:inviteToken/accept`
+- `/mypage`
 
-## 구현된 화면
+## Data Access
 
-- `/` 스플래시 / 온보딩
-- `/signup` 회원가입
-- `/login` 로그인
-- `/home` 홈
-- `/policies` 정책 목록
-- `/policies/:id` 정책 상세
-- `/trips` 일정 목록
-- `/trips/new` 일정 생성
-- `/trips/:id` 일정 상세
+Pages access data only through `src/api` and `AppDataApi`. Runtime mock mode has been removed, so the frontend always calls FastAPI.
 
-## 로컬 실행 방법
+- Backend URL: `VITE_API_BASE_URL=http://127.0.0.1:8000`
+- Auth: `Authorization: Bearer <accessToken>`
+- Refresh session: HttpOnly cookie via `credentials: "include"`
 
-```bash
-npm install
+## Local Run
+
+Start PostgreSQL and FastAPI first:
+
+```powershell
+docker compose -f ..\compose.yaml up -d db
+
+cd ..\backend
+$env:DATABASE_URL="postgresql+psycopg://travelhunter:travelhunter@127.0.0.1:55432/travelhunter"
+alembic upgrade head
+python -m app.db.seed
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+Then start Vite:
+
+```powershell
+cd ..\frontend
+$env:VITE_API_BASE_URL="http://127.0.0.1:8000"
 npm run dev
 ```
 
-기본 개발 서버는 `http://127.0.0.1:5173`에서 실행됩니다.
+Default dev server:
 
-## 빌드
+```text
+http://127.0.0.1:5173
+```
+
+## Docker Compose Preview
+
+```powershell
+docker compose -f ..\compose.yaml build
+docker compose -f ..\compose.yaml up -d db
+docker compose -f ..\compose.yaml run --rm backend alembic upgrade head
+docker compose -f ..\compose.yaml run --rm backend python -m app.db.seed
+docker compose -f ..\compose.yaml up -d backend frontend
+```
+
+Preview URL:
+
+```text
+http://127.0.0.1:4173
+```
+
+## Validation
+
+`npm test` and `npm run test:e2e` start compose PostgreSQL, run Alembic/seed, start FastAPI on `127.0.0.1:8001`, and run against the real backend.
 
 ```bash
+npm run typecheck
+npm test
+npm run test:e2e
 npm run build
 ```
