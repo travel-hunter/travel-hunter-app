@@ -26,6 +26,17 @@
 - Git 설치
 - staging domain 또는 subdomain 1개
 - domain A record가 VPS public IP를 가리킴
+- repo clone 권한
+
+배포 실행 전에 확정해야 하는 값:
+
+- VPS SSH 접속 정보
+- `STAGING_DOMAIN`
+- `VITE_API_BASE_URL=https://<staging-domain>`
+- `POSTGRES_PASSWORD`
+- `DATABASE_URL`
+- `AUTH_SECRET_KEY`
+- `CORS_ORIGINS=https://<staging-domain>`
 
 권장 최소 사양:
 

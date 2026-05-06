@@ -3,7 +3,7 @@
 ## 기준
 
 - 기준일: 2026-05-06
-- RC 기준 커밋: `8252602 feat: polish trip creation and deletion flows`
+- RC 기준 커밋: `91df9e9 chore: add docker vps staging artifacts`
 - 배포 방향: Docker VPS 기반 내부 테스트용 staging
 - 현재 상태: runtime mock mode 제거, DB-backed-only MVP
 - 인수인계 방식: 문서 중심
@@ -121,6 +121,13 @@ Docker VPS staging:
 - `cd frontend && npm run build`: passed
 - `docker compose -f compose.yaml build`: passed
 - `docker compose --env-file deploy/.env.staging.example -f compose.vps.yaml config`: passed
+
+## VPS 배포 상태
+
+- 상태: 실제 VPS 배포 대기.
+- 배포 기준 커밋: `91df9e9 chore: add docker vps staging artifacts`.
+- 현재 blocker: VPS 접속 정보, staging domain, DNS A record, repo clone 권한, 실제 `deploy/.env.staging` 값이 아직 제공되지 않았다.
+- 다음 조치: 위 값이 준비되면 `docs/deployment-vps.md` 순서로 배포하고, 외부 URL smoke 결과를 이 문서와 `CHECKLIST.md`에 기록한다.
 
 ## 내부 테스트 필수 플로우
 

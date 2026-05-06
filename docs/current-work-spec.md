@@ -92,4 +92,4 @@ Known local note:
 
 ## 다음 작업
 
-다음 우선순위는 `docs/next-work-plan.md`를 따른다. 현재는 DB-backed-only 기준을 커밋한 뒤 실제 staging 환경 선택과 배포 실행으로 넘어간다.
+다음 우선순위는 `docs/next-work-plan.md`를 따른다. 현재는 Docker VPS staging 산출물까지 커밋됐고, 실제 배포는 VPS SSH 접속 정보, staging domain/DNS, repo clone 권한, 실제 staging env 값이 준비되면 진행한다.

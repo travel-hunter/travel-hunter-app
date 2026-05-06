@@ -49,5 +49,6 @@
 ## Next Priority
 
 - [x] Choose Docker VPS as the real staging environment.
+- [ ] Provide VPS SSH access, staging domain/DNS, repo clone access, and real staging env values.
 - [ ] Execute Docker VPS staging deployment from the release-candidate baseline.
 - [ ] Run the internal-test smoke checklist on the external staging URL.
