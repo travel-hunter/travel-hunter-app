@@ -4,7 +4,7 @@
 
 Travel Hunter는 국내 여행 정책 탐색과 여행 일정 생성을 위한 MVP 앱이다. 현재 앱은 React/Vite 프론트엔드, FastAPI 백엔드, PostgreSQL DB를 기준으로 동작한다. runtime mock mode는 제거됐고, 사용자 인증과 주요 데이터 흐름은 FastAPI API와 PostgreSQL 저장소를 사용한다.
 
-현재 기준 커밋은 `42d1a6c chore: capture tunnel and docs baseline`다. 이 커밋 이후 작업트리에는 일정 상세 장소 추가/수정/삭제 기능 구현 변경분이 포함되어 있으며, 아직 별도 커밋 전이다.
+현재 기준 커밋은 `f3ebf90 feat: add mypage profile editing`다. 이 커밋 이후 작업트리에는 AI 추천 결과를 일정 타임라인에 실제 장소로 추가하는 변경분이 포함되어 있으며, 아직 별도 커밋 전이다.
 
 ## 주요 위치
 
@@ -25,7 +25,7 @@ Travel Hunter는 국내 여행 정책 탐색과 여행 일정 생성을 위한 M
 - 인증: 회원가입, 로그인, refresh, logout, `/api/me`.
 - 프로필: 지역, 여행 스타일, 예산 저장 및 `/mypage` 편집 화면.
 - 정책: 목록, 상세, 검색/필터, 저장/삭제, 공식/신청 URL CTA.
-- 일정: 목록, 생성, 상세, 장소 추가/수정/삭제, 일정 삭제, 정책 담기, 추천 결과 조회.
+- 일정: 목록, 생성, 상세, 장소 추가/수정/삭제, 일정 삭제, 정책 담기, 추천 결과 조회 및 추천 장소 일정 추가.
 - 초대: 초대 링크 생성, 초대 수락, 일정 참여자 추가.
 - 테스트 계정: `test.user@example.com / password123`, 표시명 `테스트 사용자`.
 
@@ -38,6 +38,7 @@ Travel Hunter는 국내 여행 정책 탐색과 여행 일정 생성을 위한 M
 - 정책 탐색은 현재 `GET /api/policies` 결과를 client-side 검색/지역/카테고리 필터로 처리한다.
 - `/trips/new`는 지역, 스타일, 기간, 선택 정책을 `POST /api/trips` payload로 전달한다.
 - `/trips/:id`는 `trip_places` 기반 장소 추가/수정/삭제를 지원하며 저장 후 새로고침해도 타임라인이 유지된다.
+- `/ai-results`는 추천 항목을 기존 장소 추가 API로 저장하고 성공 후 `/trips/{tripId}` 상세로 이동한다.
 - `/invites/:inviteToken/accept`는 로그인 복귀 후 초대 수락 API를 호출한다.
 
 ## 백엔드 기준
@@ -87,7 +88,7 @@ Tunnel mode에서는 host `80/443` 포트를 열지 않는다. Cloudflare가 외
 - `cd backend && alembic upgrade head --sql`: passed.
 - `docker compose -f compose.yaml config`: passed.
 - `cd frontend && npm run typecheck`: passed.
-- `cd frontend && npm test`: DB-backed Vitest 22 passed.
+- `cd frontend && npm test`: DB-backed Vitest 24 passed.
 - `cd frontend && npm run test:e2e`: DB-backed Playwright 5 passed.
 - `cd frontend && npm run build`: passed.
 - `docker compose -f compose.yaml build`: passed.
@@ -107,4 +108,4 @@ Tunnel mode에서는 host `80/443` 포트를 열지 않는다. Cloudflare가 외
 
 ## 다음 작업
 
-다음 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 기능 구현 관점에서는 AI 추천 결과를 일정 타임라인에 실제 장소로 추가하는 작업이 1순위다. 배포 관점의 Cloudflare Tunnel staging 실행과 Jenkinsfile은 기능 패스가 멈추거나 release staging으로 복귀할 때 재개한다.
+다음 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 기능 구현 관점에서는 초대 링크 권한 설정 저장이 1순위다. 배포 관점의 Cloudflare Tunnel staging 실행과 Jenkinsfile은 기능 패스가 멈추거나 release staging으로 복귀할 때 재개한다.

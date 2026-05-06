@@ -1,7 +1,7 @@
 import { Bot, ChevronLeft, Plus, Send, Share2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { appDataApi, type InviteState, type ItineraryPlace, type Trip, type TripPlaceRequest } from "../api";
+import { appDataApi, type InviteState, type ItineraryPlace, type Recommendation, type Trip, type TripPlaceRequest } from "../api";
 import { useAsyncResource } from "../api/useAsyncResource";
 import { useSession } from "../app/session";
 import { ItineraryCard } from "../components/cards";
@@ -32,6 +32,21 @@ function formatDayDateLabel(dates: string, dayNumber: number): string {
   if (!match) return `Day ${dayNumber}`;
   const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]) + dayNumber - 1);
   return `${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function recommendationDayNumber(meta: string): number {
+  const englishDay = /\bDay\s+([1-9][0-9]*)\b/i.exec(meta);
+  const koreanDay = /([1-9][0-9]*)\s*일차/.exec(meta);
+  const rawDay = englishDay?.[1] ?? koreanDay?.[1];
+  const dayNumber = rawDay ? Number(rawDay) : 1;
+  return Number.isFinite(dayNumber) && dayNumber > 0 ? dayNumber : 1;
+}
+
+function recommendationPlacePayload(item: Recommendation): TripPlaceRequest {
+  return {
+    label: item.title,
+    meta: [item.meta, item.reason].filter(Boolean).join(" · "),
+  };
 }
 
 export function ItineraryListPage() {
@@ -465,6 +480,8 @@ export function AiResultsPage() {
   const requestedTripId = searchParams.get("tripId");
   const [activeTripId, setActiveTripId] = useState(requestedTripId ?? "");
   const [notice, setNotice] = useState<string | null>(null);
+  const [addError, setAddError] = useState("");
+  const [addingRecommendation, setAddingRecommendation] = useState<string | null>(null);
   const detailPath = activeTripId ? `/trips/${activeTripId}` : "/trips";
   const { data: recommendations, error, isLoading } = useAsyncResource(async () => {
     const resolvedTripId = await resolveTripId(requestedTripId);
@@ -472,6 +489,22 @@ export function AiResultsPage() {
     if (!resolvedTripId) return [];
     return appDataApi.listRecommendations(resolvedTripId);
   }, [requestedTripId]);
+
+  const addRecommendationToTrip = async (item: Recommendation) => {
+    if (!activeTripId || addingRecommendation) return;
+    setAddError("");
+    setNotice(null);
+    setAddingRecommendation(item.title);
+    try {
+      await appDataApi.addTripPlace(activeTripId, recommendationDayNumber(item.meta), recommendationPlacePayload(item));
+      setNotice(`${item.title}을 일정에 추가했어요.`);
+      navigate(`/trips/${activeTripId}`);
+    } catch {
+      setAddError("추천 장소를 일정에 추가하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setAddingRecommendation(null);
+    }
+  };
 
   return (
     <section className="screen">
@@ -498,6 +531,7 @@ export function AiResultsPage() {
         </div>
         {isLoading && <LoadingState label="AI 추천 후보를 불러오는 중입니다" />}
         {error && <ErrorState message={error} />}
+        {addError && <p className="form-error">{addError}</p>}
         {!isLoading && !error && (recommendations?.length ?? 0) === 0 && (
           <EmptyState title="추천 후보가 아직 없어요" body="일정 조건을 다시 조정하면 더 알맞은 장소를 찾을 수 있어요." action={<Button onClick={() => navigate("/trips/new")}>일정 조건 바꾸기</Button>} />
         )}
@@ -512,12 +546,10 @@ export function AiResultsPage() {
               <p className="meta">{item.reason}</p>
               <Button
                 variant="secondary"
-                onClick={() => {
-                  setNotice(`${item.title}을 일정 후보에 추가했어요.`);
-                  window.setTimeout(() => navigate(detailPath), 250);
-                }}
+                disabled={addingRecommendation === item.title}
+                onClick={() => void addRecommendationToTrip(item)}
               >
-                일정에 추가
+                {addingRecommendation === item.title ? "추가 중" : "일정에 추가"}
               </Button>
             </div>
           </article>

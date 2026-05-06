@@ -231,6 +231,85 @@ describe("Travel Hunter app", () => {
     }
   });
 
+  it("adds an AI recommendation to the requested trip timeline", async () => {
+    const recommendation = {
+      label: "SEA",
+      title: "월정리 바다 카페",
+      meta: "Day 2 오후에 적합 · 이동 18분",
+      reason: "비가 와도 머물기 좋고 주변 이동이 짧아요.",
+    };
+    const updatedTrip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "55",
+      title: "AI recommendation trip",
+      days: { 1: [], 2: [{ id: "9", time: "", label: recommendation.title, meta: `${recommendation.meta} · ${recommendation.reason}` }] },
+    };
+    const listRecommendationsSpy = vi.spyOn(appDataApi, "listRecommendations").mockResolvedValue([recommendation]);
+    const addPlaceSpy = vi.spyOn(appDataApi, "addTripPlace").mockResolvedValue(updatedTrip);
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(updatedTrip);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/ai-results?tripId=55");
+
+      await waitFor(() => expect(listRecommendationsSpy).toHaveBeenCalledWith("55"));
+      const addButton = await waitFor(() => {
+        const button = document.querySelector(".result-card button");
+        expect(button).toBeTruthy();
+        return button as HTMLButtonElement;
+      });
+      await userEvent.setup().click(addButton);
+
+      await waitFor(() =>
+        expect(addPlaceSpy).toHaveBeenCalledWith("55", 2, {
+          label: recommendation.title,
+          meta: `${recommendation.meta} · ${recommendation.reason}`,
+        }),
+      );
+      await waitFor(() => expect(getTripSpy).toHaveBeenCalledWith("55"));
+      await userEvent.setup().click(screen.getByText("Day 2"));
+      expect(document.body).toHaveTextContent(recommendation.title);
+    } finally {
+      listRecommendationsSpy.mockRestore();
+      addPlaceSpy.mockRestore();
+      getTripSpy.mockRestore();
+    }
+  });
+
+  it("keeps users on AI results when adding a recommendation fails", async () => {
+    const recommendation = {
+      label: "FOOD",
+      title: "고기국수 로컬 맛집",
+      meta: "점심 대체 후보",
+      reason: "예산 안에서 식사 만족도가 높아요.",
+    };
+    const listRecommendationsSpy = vi.spyOn(appDataApi, "listRecommendations").mockResolvedValue([recommendation]);
+    const addPlaceSpy = vi.spyOn(appDataApi, "addTripPlace").mockRejectedValue(new Error("Trip not found"));
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip");
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/ai-results?tripId=55");
+
+      const addButton = await waitFor(() => {
+        const button = document.querySelector(".result-card button");
+        expect(button).toBeTruthy();
+        return button as HTMLButtonElement;
+      });
+      await userEvent.setup().click(addButton);
+
+      await waitFor(() => expect(addPlaceSpy).toHaveBeenCalledWith("55", 1, expect.objectContaining({ label: recommendation.title })));
+      await waitFor(() => expect(document.querySelector(".form-error")?.textContent).toContain("추천 장소"));
+      expect(getTripSpy).not.toHaveBeenCalled();
+    } finally {
+      listRecommendationsSpy.mockRestore();
+      addPlaceSpy.mockRestore();
+      getTripSpy.mockRestore();
+    }
+  });
+
   it("deletes trips from the trips list but not from the home card", async () => {
     const trip: Trip = {
       ...appDataApi.getPreviewTrip(),
