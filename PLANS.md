@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-Keep the API contract stable while moving from DB-backed policy/auth/trip/profile/invite/saved policy foundations into release readiness.
+Keep the API contract stable while moving from DB-backed policy/auth/trip/profile/invite/saved policy foundations into policy application deep links.
 
 ## Baseline
 
@@ -15,8 +15,7 @@ Keep the API contract stable while moving from DB-backed policy/auth/trip/profil
 
 ## Next Milestones
 
-1. Prepare deployment readiness docs and validation.
-2. Connect policy application deep links.
+1. Connect policy application deep links.
 
 ## Guardrails
 

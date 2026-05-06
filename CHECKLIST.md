@@ -27,6 +27,7 @@
 - [x] Persist invite acceptance through DB-backed `/api/invites/{inviteToken}/accept` and idempotent `trip_members` insertion.
 - [x] Keep mock-mode and backend-mode Playwright e2e as separate CI jobs with failure artifacts.
 - [x] Persist standalone policy saves through DB-backed `/api/me/saved-policies/{policySlug}` and `user_saved_policies`.
+- [x] Document staging env, production build, container validation, and release scorecard criteria.
 - [x] Remove completed legacy planning documents after absorbing live information into current docs.
 - [x] Ensure deleted legacy document filenames are not referenced by active docs.
 
@@ -54,4 +55,4 @@
 
 ## Next Priority
 
-- [ ] Prepare deployment readiness docs and validation.
+- [ ] Connect policy application deep links.

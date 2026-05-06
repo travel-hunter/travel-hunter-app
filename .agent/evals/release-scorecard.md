@@ -30,3 +30,20 @@ Total: 100
 - 85 or higher: ready for the current MVP phase if no P0/P1 blocker remains.
 - 70 to 84: close, but fix listed blockers before release.
 - Below 70: not ready.
+
+## Required Release Evidence
+
+- `cd backend && python -m pytest`
+- `cd backend && alembic upgrade head --sql`
+- `docker compose -f compose.yaml config`
+- `docker compose -f compose.yaml build`
+- `cd frontend && npm run typecheck`
+- `cd frontend && npm test`
+- `cd frontend && npm run test:e2e`
+- `cd frontend && npm run test:e2e:backend`
+- `cd frontend && npm run build`
+
+## Current Known Blocker Handling
+
+- If Docker Desktop is unavailable locally, record compose build and backend-mode e2e as blocked rather than passed.
+- If the full `BACKEND_DATA_SOURCE=db` pytest suite cannot reach PostgreSQL, run targeted DB-mode service/route tests and record the full DB suite as pending.

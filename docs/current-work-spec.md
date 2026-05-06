@@ -64,6 +64,7 @@ Travel Hunter는 React/Vite 프론트엔드와 FastAPI 백엔드로 구성된 �
 - `BACKEND_DATA_SOURCE=mock|db`로 deterministic mock service와 DB-backed service를 선택한다.
 - schema 생성은 Alembic만 사용한다. `create_all()`은 사용하지 않는다.
 - 개발 seed는 `python -m app.db.seed`로 주입하며 idempotent해야 한다.
+- staging readiness 기준은 root `README.md`, `frontend/README.md`, `backend/README.md`, `.agent/evals/release-scorecard.md`에 정리한다.
 
 DB-backed 완료 endpoint:
 
@@ -166,4 +167,4 @@ Current blocker:
 
 ## 8. 다음 작업
 
-다음 작업 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 배포 readiness 정리다.
+다음 작업 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 정책 신청 deep link 처리다.

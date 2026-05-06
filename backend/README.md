@@ -103,3 +103,12 @@ Mock-only or partial scope:
 python -m pytest
 alembic upgrade head --sql
 ```
+
+## Staging Readiness Notes
+
+- Use `APP_ENV=staging` and `BACKEND_DATA_SOURCE=db`.
+- Use a strong non-default `AUTH_SECRET_KEY`.
+- Use `REFRESH_COOKIE_SECURE=true` behind HTTPS.
+- Set `DATABASE_URL` to the staging PostgreSQL instance using the `postgresql+psycopg://` scheme.
+- Set `CORS_ORIGINS` to the deployed frontend origin.
+- Apply schema with Alembic only; do not use `create_all()`.

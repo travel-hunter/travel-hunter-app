@@ -71,3 +71,10 @@ npm run build
 ```
 
 `npm run test:e2e:backend` starts the backend-mode smoke path against FastAPI and compose PostgreSQL using the script under `frontend/scripts`.
+
+## Staging Build Notes
+
+- Set `VITE_DATA_SOURCE=backend`.
+- Set `VITE_API_BASE_URL` to the staging backend origin.
+- Run `npm run build` and serve the generated Vite assets from the container image or static host.
+- Keep `npm run test:e2e` for mock-mode UI regression and `npm run test:e2e:backend` for backend integration smoke.
