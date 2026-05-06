@@ -54,6 +54,7 @@ export type Policy = {
   requirements: string[];
   documents: string[];
   officialUrl: string | null;
+  applyUrl: string | null;
 };
 
 export type ItineraryPlace = {

@@ -165,7 +165,8 @@
         "category": "string",
         "requirements": "array",
         "documents": "array",
-        "officialUrl": "string|null"
+        "officialUrl": "string|null",
+        "applyUrl": "string|null"
       },
       "exampleSlug": "local-vacation"
     },
@@ -180,7 +181,8 @@
         "org": "string",
         "deadline": "string",
         "amount": "string",
-        "officialUrl": "string|null"
+        "officialUrl": "string|null",
+        "applyUrl": "string|null"
       }
     },
     {

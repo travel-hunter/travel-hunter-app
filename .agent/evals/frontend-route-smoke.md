@@ -91,7 +91,7 @@ Expected:
 - Profile setup persists region/style/budget through `/api/me/profile` and restored profile copy remains visible after reload.
 - Policy detail `/policies/local-vacation` renders through the real backend.
 - Policy detail save action persists through `POST /api/me/saved-policies/{policySlug}` and shows a saved-policy confirmation.
-- Policy detail `혜택 받으러 가기` uses `Policy.officialUrl` as an external link when present and keeps the fallback notice when null.
+- Policy detail `혜택 받으러 가기` uses `Policy.applyUrl` first, falls back to `Policy.officialUrl`, and keeps the fallback notice when both are null.
 - Policy detail `내 일정에 담기` opens the trip picker and persists through `POST /api/trips/{tripId}/policies/{policySlug}`.
 - Trip list returns a canonical numeric trip id.
 - Trip creation with `?policySlug=local-vacation` returns a canonical numeric trip id and keeps recommendation/invite routes working.

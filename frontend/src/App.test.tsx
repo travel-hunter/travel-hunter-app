@@ -126,7 +126,7 @@ describe("Travel Hunter app", () => {
     renderRoute("/policies/local-vacation");
 
     const applicationLink = await screen.findByRole("link", { name: "혜택 받으러 가기" });
-    expect(applicationLink).toHaveAttribute("href", "https://korean.visitkorea.or.kr/");
+    expect(applicationLink).toHaveAttribute("href", "https://korean.visitkorea.or.kr/kor/bbs/view/B_0000000083");
     expect(applicationLink).toHaveAttribute("target", "_blank");
 
     cleanup();

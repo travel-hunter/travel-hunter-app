@@ -22,6 +22,7 @@ class Policy(BaseModel):
     requirements: list[str]
     documents: list[str]
     officialUrl: str | None = None
+    applyUrl: str | None = None
 
 
 class SavePolicyResponse(BaseModel):

@@ -11,8 +11,8 @@
 
 | 우선순위 | 작업 | 성공 기준 |
 |----------|------|-----------|
-| 1 | 전체 검증과 release scorecard 재평가 | 전체 validation 명령을 재실행하고 Docker daemon unavailable 같은 남은 blocker를 scorecard 기준으로 정리한다. |
-| 2 | 정책 신청 URL 정밀화 | 실제 정책별 신청 공고 URL이 확정되면 `policies.official_url` seed 값을 세부 공고 URL로 갱신한다. |
+| 1 | Docker-backed validation 재실행과 release scorecard 갱신 | Docker Desktop을 실행한 뒤 `test:e2e:backend`, compose build, compose DB migration/seed를 재실행하고 scorecard 기준으로 release 가능 여부를 정리한다. |
+| 2 | 정책 신청 URL 정밀화 | 실제 정책별 신청 공고 URL이 확정되면 `policies.official_url`/`policies.apply_url` seed 값을 세부 공고 URL로 갱신한다. |
 
 ## 검증 명령
 

@@ -159,6 +159,8 @@ export function PolicyDetailPage() {
     );
   }
 
+  const applicationUrl = policy.applyUrl ?? policy.officialUrl;
+
   return (
     <section className="screen detail">
       <div className="hero">
@@ -240,8 +242,8 @@ export function PolicyDetailPage() {
         <Button variant="secondary" onClick={addToTrip}>
           {addedPolicy ? "일정에 담김" : "내 일정에 담기"}
         </Button>
-        {policy.officialUrl ? (
-          <a className="btn primary" href={policy.officialUrl} rel="noreferrer" target="_blank">
+        {applicationUrl ? (
+          <a className="btn primary" href={applicationUrl} rel="noreferrer" target="_blank">
             혜택 받으러 가기
           </a>
         ) : (

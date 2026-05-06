@@ -47,3 +47,29 @@ Total: 100
 
 - If Docker Desktop is unavailable locally, record compose build and backend-mode e2e as blocked rather than passed.
 - If the full `BACKEND_DATA_SOURCE=db` pytest suite cannot reach PostgreSQL, run targeted DB-mode service/route tests and record the full DB suite as pending.
+
+## Current Assessment
+
+Date: 2026-05-06
+
+Score: 88 / 100
+
+Judgment: not ready to declare staging-ready until Docker-backed validation reruns successfully.
+
+Passed evidence:
+
+- `cd backend && python -m pytest`: 62 passed
+- `cd backend && alembic upgrade head --sql`: passed
+- `docker compose -f compose.yaml config`: passed
+- `cd frontend && npm run typecheck`: passed
+- `cd frontend && npm test`: 9 passed
+- `cd frontend && npm run test:e2e`: 6 passed
+- `cd frontend && npm run build`: passed
+- `.agent/evals/api-contract-golden.json` JSON parse: passed
+- `git diff --check`: passed
+
+Blocked evidence:
+
+- `cd frontend && npm run test:e2e:backend`: blocked because Docker Desktop daemon is unavailable.
+- `docker compose -f compose.yaml build`: blocked because Docker Desktop daemon is unavailable.
+- Compose DB runtime migration/seed validation: blocked for the same Docker daemon reason.

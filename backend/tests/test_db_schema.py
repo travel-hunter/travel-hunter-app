@@ -34,6 +34,7 @@ def test_erd_v0_3_decision_columns_are_registered() -> None:
     user_saved_policies = Base.metadata.tables["user_saved_policies"]
     assert "saved_at" in user_saved_policies.c
     assert "slug" in policies.c
+    assert "apply_url" in policies.c
     assert "invite_token" in trip_invites.c
     assert "trips_days" not in Base.metadata.tables
     assert "trips_members" not in Base.metadata.tables

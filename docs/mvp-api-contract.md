@@ -196,7 +196,8 @@ Response `200`:
     "category": "환급",
     "requirements": ["국내 거주자", "숙박 1박 이상", "영수증 제출"],
     "documents": ["신분증 사본", "숙박 영수증", "교통비 증빙"],
-    "officialUrl": "https://korean.visitkorea.or.kr/"
+    "officialUrl": "https://korean.visitkorea.or.kr/",
+    "applyUrl": "https://korean.visitkorea.or.kr/kor/bbs/view/B_0000000083"
   }
 ]
 ```
@@ -213,6 +214,13 @@ DB mapping:
 | `category` | `policies.policy_type` |
 | `documents` | `policy_documents.document_name[]` |
 | `officialUrl` | `policies.official_url` |
+| `applyUrl` | `policies.apply_url` |
+
+Link semantics:
+
+- `officialUrl` is the official information/detail page URL.
+- `applyUrl` is the application/deep-link URL.
+- Frontend application CTAs use `applyUrl` first, then fall back to `officialUrl`, then show the preparation notice when both are null.
 
 ### `GET /api/policies/{policySlug}`
 

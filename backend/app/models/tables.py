@@ -114,6 +114,7 @@ class Policy(Base):
     start_date: Mapped[date | None] = mapped_column(Date)
     end_date: Mapped[date | None] = mapped_column(Date)
     official_url: Mapped[str | None] = mapped_column(String(500))
+    apply_url: Mapped[str | None] = mapped_column(String(500))
     policy_comment: Mapped[str | None] = mapped_column(String(300))
     policy_period: Mapped[str | None] = mapped_column(String(100))
     created_at: Mapped[datetime] = mapped_column(

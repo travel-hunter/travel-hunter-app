@@ -104,6 +104,7 @@ def seed_policies(db: Session) -> dict[str, Policy]:
         policy.region = str(item["region"])
         policy.end_date = parse_date(str(item["deadline"]))
         policy.official_url = item.get("officialUrl")
+        policy.apply_url = item.get("applyUrl")
         policy.policy_comment = str(item["summary"])
         policy.policy_period = f"~ {item['deadline']}"
         db.flush()

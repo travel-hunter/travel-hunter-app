@@ -28,7 +28,7 @@
 - [x] Keep mock-mode and backend-mode Playwright e2e as separate CI jobs with failure artifacts.
 - [x] Persist standalone policy saves through DB-backed `/api/me/saved-policies/{policySlug}` and `user_saved_policies`.
 - [x] Document staging env, production build, container validation, and release scorecard criteria.
-- [x] Expose `policies.official_url` as `Policy.officialUrl` and connect policy detail CTAs to official links when available.
+- [x] Expose `policies.official_url`/`policies.apply_url` as `Policy.officialUrl`/`Policy.applyUrl` and connect policy detail CTAs to external links when available.
 - [x] Remove completed legacy planning documents after absorbing live information into current docs.
 - [x] Ensure deleted legacy document filenames are not referenced by active docs.
 
@@ -37,23 +37,25 @@
 - [x] `cd frontend && npm run typecheck`
 - [x] `cd frontend && npm test`
 - [x] `cd frontend && npm run test:e2e`
-- [x] `cd frontend && npm run test:e2e:backend`
+- [ ] `cd frontend && npm run test:e2e:backend` (blocked: Docker Desktop daemon unavailable)
 - [x] `cd frontend && npm run build`
 - [x] `cd backend && python -m pytest`
 - [x] `cd backend && alembic upgrade head --sql`
 - [x] `docker compose -f compose.yaml config`
+- [ ] `docker compose -f compose.yaml build` (blocked: Docker Desktop daemon unavailable)
 - [x] `git diff --check`
 - [x] `.agent/evals/api-contract-golden.json` JSON parse
-- [x] `docker compose -f compose.yaml run --rm backend alembic upgrade head`
-- [x] `docker compose -f compose.yaml run --rm backend python -m app.db.seed`
+- [ ] `docker compose -f compose.yaml run --rm backend alembic upgrade head` (blocked: Docker Desktop daemon unavailable)
+- [ ] `docker compose -f compose.yaml run --rm backend python -m app.db.seed` (blocked: Docker Desktop daemon unavailable)
 
 ## Last Validation Result
 
-- Status: passed.
-- Date: 2026-05-04.
-- Results: frontend typecheck passed, Vitest passed 9 tests, Playwright mock-mode passed 6 tests, Playwright backend-mode passed 5 tests, frontend build passed, backend pytest passed 62 tests, targeted `BACKEND_DATA_SOURCE=db` policy/invite/trip tests passed 29 tests, Alembic offline SQL rendering passed, Docker Compose config passed, DB mode policy/auth/trip/profile/invite acceptance/saved policy/policy official link smoke paths returned the expected contract shape, deleted legacy document filename search returned no active references, API contract golden JSON parsed successfully, and `git diff --check` passed with LF-to-CRLF warnings only.
-- Notes: Compose exposes Travel Hunter PostgreSQL on host `127.0.0.1:55432` because host `127.0.0.1:5432` reaches another local PostgreSQL instance. Docker Desktop daemon is unavailable in the current local session, so compose DB runtime validation and the full `BACKEND_DATA_SOURCE=db python -m pytest` suite must be rerun when Docker is available. The runtime backend image does not copy `backend/tests`; use local backend pytest unless a dedicated test image is added.
+- Status: partial pass with environment blocker.
+- Date: 2026-05-06.
+- Results: frontend typecheck passed, Vitest passed 9 tests, Playwright mock-mode passed 6 tests, frontend build passed, backend pytest passed 62 tests, Alembic offline SQL rendering passed, Docker Compose config passed, API contract golden JSON parsed successfully, and `git diff --check` passed.
+- Blocked: `npm run test:e2e:backend`, `docker compose -f compose.yaml build`, and compose DB runtime migration/seed validation are blocked because Docker Desktop daemon is unavailable in the current local session. The commands fail before app code runs with Docker API connection errors.
+- Notes: Compose exposes Travel Hunter PostgreSQL on host `127.0.0.1:55432` because host `127.0.0.1:5432` reaches another local PostgreSQL instance. The runtime backend image does not copy `backend/tests`; use local backend pytest unless a dedicated test image is added.
 
 ## Next Priority
 
-- [ ] Rerun full validation and update the release scorecard.
+- [ ] Start Docker Desktop, rerun backend-mode e2e/container validation, and update the release scorecard.

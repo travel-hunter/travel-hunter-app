@@ -22,6 +22,7 @@ def make_policy() -> PolicyModel:
         region="전국",
         end_date=date(2026, 10, 31),
         official_url="https://korean.visitkorea.or.kr/",
+        apply_url="https://korean.visitkorea.or.kr/kor/bbs/view/B_0000000083",
         policy_comment="국내 1박 이상 여행 시 여행비 일부를 환급합니다.",
     )
     policy.documents = [
@@ -44,6 +45,7 @@ def test_policy_to_api_preserves_contract_shape() -> None:
     assert payload["requirements"] == ["국내 거주자", "숙박 1박 이상", "영수증 제출"]
     assert payload["documents"] == ["신분증 사본", "숙박 영수증"]
     assert payload["officialUrl"] == "https://korean.visitkorea.or.kr/"
+    assert payload["applyUrl"] == "https://korean.visitkorea.or.kr/kor/bbs/view/B_0000000083"
 
 
 def test_db_policy_service_uses_repository_boundary(monkeypatch) -> None:

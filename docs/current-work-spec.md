@@ -103,6 +103,7 @@ Mock-only 또는 부분 구현 endpoint: 현재 없음. 실제 외부 연동 기
 - `Policy.match`, `Trip.expectedSaving`, `InviteState.copied`, `InviteState.invited`는 DB 원본 필드가 아니라 계산/상태 값이다.
 - `users.travel_style`, `users.travel_budget`은 profile persistence용 v0.3.1 extension migration으로 추가한다.
 - `user_saved_policies`는 정책 단독 저장 persistence용 v0.3.2 extension migration으로 추가한다.
+- `policies.apply_url`은 정책 신청 deep link용 v0.3.3 extension migration으로 추가한다.
 
 ## 6. 실행 및 검증
 
@@ -148,12 +149,19 @@ python -m app.db.seed
 - `npm run typecheck`: passed
 - `npm test`: 9 passed
 - `npm run test:e2e`: 6 passed
-- `npm run test:e2e:backend`: 5 passed
 - `npm run build`: passed
+- `git diff --check`: passed
+- `.agent/evals/api-contract-golden.json` JSON parse: passed
+
+Current blocked validation:
+
+- `npm run test:e2e:backend`: blocked because Docker Desktop daemon is unavailable.
+- `docker compose -f compose.yaml build`: blocked because Docker Desktop daemon is unavailable.
+- Compose DB runtime migration/seed validation is not rerun in this pass for the same reason.
 
 Current blocker:
 
-- Docker Desktop daemon is unavailable in the current local session, so compose DB runtime validation and the full `BACKEND_DATA_SOURCE=db python -m pytest` suite are not rerun in this pass.
+- Docker Desktop daemon is unavailable in the current local session. Commands that need the Docker API fail before app code runs with `failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine`.
 
 ## 7. 미구현 범위
 
@@ -166,4 +174,4 @@ Current blocker:
 
 ## 8. 다음 작업
 
-다음 작업 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 전체 검증과 release scorecard 재평가다.
+다음 작업 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 Docker daemon blocker 해소 후 backend-mode e2e/container validation 재실행이다.

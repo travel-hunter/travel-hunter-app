@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-Keep the API contract stable while moving from DB-backed policy/auth/trip/profile/invite/saved policy and policy deep-link foundations into full validation and release scoring.
+Keep the API contract stable while moving from DB-backed policy/auth/trip/profile/invite/saved policy and policy deep-link foundations into Docker-backed validation and release scoring.
 
 ## Baseline
 
@@ -15,8 +15,8 @@ Keep the API contract stable while moving from DB-backed policy/auth/trip/profil
 
 ## Next Milestones
 
-1. Rerun full validation and update the release scorecard.
-2. Refine policy application URLs when exact official campaign pages are confirmed.
+1. Start Docker Desktop, rerun backend-mode e2e/container validation, and update the release scorecard.
+2. Refine `officialUrl`/`applyUrl` seed values when exact official campaign pages are confirmed.
 
 ## Guardrails
 

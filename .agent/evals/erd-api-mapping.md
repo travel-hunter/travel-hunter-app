@@ -30,6 +30,7 @@
 | `Policy.category` | `policies.policy_type` | Frontend category label |
 | `Policy.documents` | `policy_documents.document_name[]` | Joined list |
 | `Policy.officialUrl` | `policies.official_url` | External application/detail link, nullable |
+| `Policy.applyUrl` | `policies.apply_url` | External application deep link, nullable |
 | `SavePolicyResponse.policyId` | `policies.slug` through `user_saved_policies.policy_id` | Standalone saved policy |
 | `SavePolicyResponse.saved` | `user_saved_policies` row existence | Idempotent save response |
 | `Trip.id` | `trips.id` | Mock id may be temporary |
