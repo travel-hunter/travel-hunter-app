@@ -152,3 +152,42 @@ def test_db_save_policy_returns_none_for_unknown_policy(monkeypatch) -> None:
 
     assert policy_service.save_policy("missing-policy", fake_db, user) is None
     assert fake_db.commits == 0
+
+
+def test_db_list_saved_policies_maps_saved_rows(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    policy = make_policy()
+
+    monkeypatch.setattr(policy_service, "settings", SimpleNamespace(backend_data_source="db"))
+    monkeypatch.setattr(
+        policy_service.policy_repository,
+        "list_saved_policies",
+        lambda db, user_id: [policy] if db is fake_db and user_id == user.id else [],
+    )
+
+    payload = policy_service.list_saved_policies(fake_db, user)
+
+    assert [policy_payload["slug"] for policy_payload in payload] == ["local-vacation"]
+
+
+def test_db_remove_saved_policy_is_idempotent_for_existing_policy(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    policy = make_policy()
+    removed_rows: list[dict[str, int]] = []
+
+    monkeypatch.setattr(policy_service, "settings", SimpleNamespace(backend_data_source="db"))
+    monkeypatch.setattr(policy_service.policy_repository, "get_policy_by_slug", lambda *_args: policy)
+
+    def remove_saved_policy_stub(_db, **kwargs):
+        removed_rows.append(kwargs)
+        return True
+
+    monkeypatch.setattr(policy_service.policy_repository, "remove_saved_policy", remove_saved_policy_stub)
+
+    payload = policy_service.remove_saved_policy("local-vacation", fake_db, user)
+
+    assert payload == {"policyId": "local-vacation", "saved": False}
+    assert removed_rows == [{"user_id": 7, "policy_id": 1}]
+    assert fake_db.commits == 1

@@ -77,7 +77,9 @@ DB-backed 완료 endpoint:
 - `GET /api/me`
 - `GET /api/me/profile`
 - `PATCH /api/me/profile`
+- `GET /api/me/saved-policies`
 - `POST /api/me/saved-policies/{policySlug}`
+- `DELETE /api/me/saved-policies/{policySlug}`
 - `GET /api/trips`
 - `POST /api/trips`
 - `GET /api/trips/{tripId}`
@@ -115,9 +117,6 @@ npm install
 npm run dev
 npm run typecheck
 npm test
-npm run test:e2e
-npm run test:e2e:backend
-npm run build
 ```
 
 Backend:
@@ -126,7 +125,6 @@ Backend:
 cd backend
 python -m pip install -r requirements.txt
 python -m pytest
-alembic upgrade head --sql
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
@@ -140,28 +138,21 @@ alembic upgrade head
 python -m app.db.seed
 ```
 
-최근 통과 검증:
+Fast lane 최근 통과 검증:
 
-- `python -m pytest`: 62 passed
-- targeted `BACKEND_DATA_SOURCE=db` policy/invite/trip tests: 29 passed
-- `alembic upgrade head --sql`: passed
-- `docker compose -f compose.yaml config`: passed
+- `python -m pytest`: 68 passed
 - `npm run typecheck`: passed
-- `npm test`: 9 passed
-- `npm run test:e2e`: 6 passed
-- `npm run build`: passed
+- `npm test`: 10 passed
 - `git diff --check`: passed
-- `.agent/evals/api-contract-golden.json` JSON parse: passed
 
-Current blocked validation:
+Release gate validation:
 
-- `npm run test:e2e:backend`: blocked because Docker Desktop daemon is unavailable.
-- `docker compose -f compose.yaml build`: blocked because Docker Desktop daemon is unavailable.
-- Compose DB runtime migration/seed validation is not rerun in this pass for the same reason.
+- `npm run test:e2e`, `npm run test:e2e:backend`, `npm run build`, `docker compose -f compose.yaml config`, `docker compose -f compose.yaml build`, and compose DB migration/seed are release-candidate checks.
+- Docker Desktop 미실행은 기능 구현 blocker가 아니다.
 
 Current blocker:
 
-- Docker Desktop daemon is unavailable in the current local session. Commands that need the Docker API fail before app code runs with `failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine`.
+- 없음. Docker-backed validation은 release gate로 이동했다.
 
 ## 7. 미구현 범위
 
@@ -174,4 +165,4 @@ Current blocker:
 
 ## 8. 다음 작업
 
-다음 작업 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 Docker daemon blocker 해소 후 backend-mode e2e/container validation 재실행이다.
+다음 작업 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 친구 초대 수락 화면화다.

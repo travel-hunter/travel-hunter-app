@@ -34,6 +34,8 @@ const mockProfile = {
   budget: "1인 40만원 이하",
 };
 
+const savedPolicyIds = new Set<string>();
+
 export const mockApi: AppDataApi = {
   getPreviewUser: (): User => user,
   getOnboardingSlides: () => onboardingSlides,
@@ -51,7 +53,16 @@ export const mockApi: AppDataApi = {
   },
   listPolicies: (): Promise<Policy[]> => respond(policies),
   getPolicy: (policySlug?: string): Promise<Policy> => respond(getSeedPolicy(policySlug)),
-  savePolicy: (policySlug: string) => respond({ policyId: policySlug, saved: true }),
+  savePolicy: (policySlug: string) => {
+    savedPolicyIds.add(policySlug);
+    return respond({ policyId: policySlug, saved: true });
+  },
+  listSavedPolicies: (): Promise<Policy[]> =>
+    respond(policies.filter((policy) => savedPolicyIds.has(policy.slug) || savedPolicyIds.has(policy.id))),
+  removeSavedPolicy: (policySlug: string) => {
+    savedPolicyIds.delete(policySlug);
+    return respond({ policyId: policySlug, saved: false });
+  },
   listTrips: (): Promise<Trip[]> => respond([itinerary]),
   createTrip: (request) => {
     if (request?.policySlug) {

@@ -56,5 +56,9 @@ export const apiClient = {
       method: "PATCH",
       body: body === undefined ? undefined : JSON.stringify(body),
     }),
+  delete: <T>(path: string) =>
+    request<T>(path, {
+      method: "DELETE",
+    }),
   getHealth: () => request<ApiHealth>("/api/health"),
 };

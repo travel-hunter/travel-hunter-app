@@ -186,6 +186,17 @@
       }
     },
     {
+      "method": "GET",
+      "path": "/api/me/saved-policies",
+      "status": 200,
+      "requiredArrayItemFields": {
+        "id": "string",
+        "slug": "string",
+        "title": "string"
+      },
+      "dbModeBehavior": "Requires bearer auth and returns current user's saved policies."
+    },
+    {
       "method": "POST",
       "path": "/api/me/saved-policies/local-vacation",
       "status": 200,
@@ -194,6 +205,16 @@
         "saved": "boolean"
       },
       "dbModeBehavior": "Requires bearer auth and stores user_saved_policies idempotently."
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/me/saved-policies/local-vacation",
+      "status": 200,
+      "requiredFields": {
+        "policyId": "string",
+        "saved": "boolean"
+      },
+      "dbModeBehavior": "Requires bearer auth and removes user_saved_policies idempotently."
     },
     {
       "method": "GET",

@@ -120,6 +120,28 @@ describe("Travel Hunter app", () => {
     await waitFor(() => expect(document.body).toHaveTextContent("관심 정책으로 저장했어요."));
   });
 
+  it("shows saved policies on my page and removes them", async () => {
+    await login();
+    cleanup();
+    renderRoute("/policies/local-vacation");
+
+    const saveButton = await waitFor(() => {
+      const button = document.querySelector(".overlay-nav button.icon-btn");
+      expect(button).toBeTruthy();
+      return button as HTMLButtonElement;
+    });
+    await userEvent.setup().click(saveButton);
+    await waitFor(() => expect(document.querySelector(".toast")).toBeTruthy());
+
+    cleanup();
+    renderRoute("/mypage");
+    await waitFor(() => expect(getLink("/policies/local-vacation")).toBeInTheDocument());
+
+    await userEvent.setup().click(await screen.findByRole("button", { name: "저장 해제" }));
+
+    await waitFor(() => expect(document.querySelector('a[href="/policies/local-vacation"]')).toBeFalsy());
+  });
+
   it("uses an official policy link when available and keeps the fallback notice otherwise", async () => {
     await login();
     cleanup();

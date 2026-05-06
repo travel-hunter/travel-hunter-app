@@ -32,6 +32,21 @@ def get_policy(
     return Policy(**policy)
 
 
+@router.get("/me/saved-policies", response_model=list[Policy])
+def list_saved_policies(
+    db: Session | None = Depends(get_optional_db),
+    current_user: User | None = Depends(get_current_user),
+) -> list[Policy]:
+    if settings.backend_data_source == "db":
+        saved_policies = policy_service.list_saved_policies(
+            db,
+            _require_user(current_user),
+        )
+        return [Policy(**policy) for policy in saved_policies]
+
+    return [Policy(**policy) for policy in policy_service.list_saved_policies()]
+
+
 @router.post("/me/saved-policies/{policy_slug}", response_model=SavePolicyResponse)
 def save_policy(
     policy_slug: str,
@@ -49,3 +64,25 @@ def save_policy(
         return SavePolicyResponse(**saved_policy)
 
     return SavePolicyResponse(**policy_service.save_policy(policy_slug))
+
+
+@router.delete("/me/saved-policies/{policy_slug}", response_model=SavePolicyResponse)
+def remove_saved_policy(
+    policy_slug: str,
+    db: Session | None = Depends(get_optional_db),
+    current_user: User | None = Depends(get_current_user),
+) -> SavePolicyResponse:
+    if settings.backend_data_source == "db":
+        removed_policy = policy_service.remove_saved_policy(
+            policy_slug,
+            db,
+            _require_user(current_user),
+        )
+        if removed_policy is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Policy not found")
+        return SavePolicyResponse(**removed_policy)
+
+    removed_policy = policy_service.remove_saved_policy(policy_slug)
+    if removed_policy is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Policy not found")
+    return SavePolicyResponse(**removed_policy)

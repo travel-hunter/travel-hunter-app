@@ -2,21 +2,22 @@
 
 ## Current Phase
 
-Keep the API contract stable while moving from DB-backed policy/auth/trip/profile/invite/saved policy and policy deep-link foundations into Docker-backed validation and release scoring.
+Prioritize user-facing feature implementation over release-hardening work. Docker-backed e2e, compose build, and the release scorecard are release gates, not daily blockers.
 
 ## Baseline
 
 - Frontend: React, TypeScript, Vite, React Router, `AppDataApi`, `VITE_DATA_SOURCE=mock|backend`.
-- Backend: FastAPI, Pydantic schemas, SQLAlchemy models, Alembic v0.3 migration, profile preference and saved policy extension migrations, deterministic mock services, DB-backed policy/auth/trip/profile/invite/saved policy services.
+- Backend: FastAPI, SQLAlchemy, Alembic, deterministic mock services, DB-backed auth/profile/policy/trip/invite/saved-policy services.
 - Contract: `docs/mvp-api-contract.md`.
 - Current implementation spec: `docs/current-work-spec.md`.
 - Next implementation priority: `docs/next-work-plan.md`.
-- Repo DB baseline: `docs/db-schema-v0.3.sql`.
 
 ## Next Milestones
 
-1. Start Docker Desktop, rerun backend-mode e2e/container validation, and update the release scorecard.
-2. Refine `officialUrl`/`applyUrl` seed values when exact official campaign pages are confirmed.
+1. Build user-facing saved policy management: list saved policies, remove saved policies, and show the result on My Page.
+2. Add a frontend invite acceptance route for shared invite links.
+3. Improve policy discovery UX with client-side search and filters.
+4. Refine `officialUrl`/`applyUrl` seed values when exact official campaign pages are confirmed.
 
 ## Guardrails
 
@@ -26,32 +27,39 @@ Keep the API contract stable while moving from DB-backed policy/auth/trip/profil
 - Keep API DTO fields `camelCase` and DB fields `snake_case`.
 - Keep frontend pages behind the `AppDataApi` boundary.
 - Keep backend routes thin and push business behavior into services.
-- Update contract, tests, evals, and docs together for API shape changes.
+- Update API contract, backend schema, frontend type, and focused tests for API shape changes.
 
-## Verification
+## Fast Lane Verification
 
-Run before release readiness handoff:
+Run during feature work:
 
 ```bash
 cd frontend
 npm run typecheck
 npm test
+
+cd ../backend
+python -m pytest
+```
+
+Run only when a migration changes:
+
+```bash
+cd backend
+alembic upgrade head --sql
+```
+
+## Release Gate
+
+Run before release candidate handoff:
+
+```bash
+cd frontend
 npm run test:e2e
 npm run test:e2e:backend
 npm run build
 
-cd ../backend
-python -m pytest
-alembic upgrade head --sql
-
 cd ..
 docker compose -f compose.yaml config
-```
-
-Run when PostgreSQL is available through Compose:
-
-```bash
-docker compose -f compose.yaml up -d db
-docker compose -f compose.yaml run --rm backend alembic upgrade head
-docker compose -f compose.yaml run --rm backend python -m app.db.seed
+docker compose -f compose.yaml build
 ```

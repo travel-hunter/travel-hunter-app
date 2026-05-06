@@ -230,6 +230,21 @@ Errors:
 
 - unknown slug: `404 {"detail": "Policy not found"}`
 
+### `GET /api/me/saved-policies`
+
+DB mode에서는 `Authorization: Bearer <accessToken>`이 필요하다.
+
+Response `200`: `Policy[]`.
+
+Behavior:
+
+- 현재 사용자의 `user_saved_policies`를 최신 저장순으로 반환한다.
+- 저장한 정책이 없으면 `[]`를 반환한다.
+
+Errors:
+
+- missing, invalid, expired access token: `401 {"detail": "Not authenticated"}`
+
 ### `POST /api/me/saved-policies/{policySlug}`
 
 DB mode에서는 `Authorization: Bearer <accessToken>`이 필요하다.
@@ -248,6 +263,30 @@ DB mode behavior:
 - `policySlug`는 `policies.slug`로 조회한다.
 - 저장 상태는 `user_saved_policies`에 저장한다.
 - 이미 저장된 정책이면 중복 row를 만들지 않고 같은 응답을 반환한다.
+
+Errors:
+
+- missing, invalid, expired access token: `401 {"detail": "Not authenticated"}`
+- unknown policy slug: `404 {"detail": "Policy not found"}`
+
+### `DELETE /api/me/saved-policies/{policySlug}`
+
+DB mode에서는 `Authorization: Bearer <accessToken>`이 필요하다.
+
+Response `200`:
+
+```json
+{
+  "policyId": "local-vacation",
+  "saved": false
+}
+```
+
+Behavior:
+
+- `policySlug`는 `policies.slug`로 조회한다.
+- 저장된 row가 있으면 삭제한다.
+- 저장된 row가 없어도 idempotent하게 같은 응답을 반환한다.
 
 Errors:
 
