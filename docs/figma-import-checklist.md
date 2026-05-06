@@ -9,9 +9,10 @@
 ## 기준 파일
 
 - Local source: `C:\Users\HP\Downloads\Wanted Design System (Community).fig`
-- Current app baseline commit: `16e15f4 docs: record wanted design qa`
+- Current app baseline commit: `ba7122f docs: add figma and vps readiness checklists`
 - Current mapping doc: `docs/design-system-map.md`
 - Browser QA doc: `docs/design-qa.md`
+- Component values doc: `docs/figma-component-values.md`
 
 ## Figma Import Steps
 
@@ -33,13 +34,15 @@
 
 | Component | Figma node/link | 확인할 값 | 현재 앱 기준 | 상태 |
 | --- | --- | --- | --- | --- |
-| Button | Pending | variant name, height, padding, radius, primary/disabled/focus color | `Button`, `.btn` | Pending |
-| Text Field/Input | Pending | height, border, focus ring, placeholder color, error state | `.field input`, `.search-field` | Pending |
-| Badge/Tag | Pending | radius, padding, border, tone colors | `Tag`, `.tag` | Pending |
-| Card/List Item | Pending | surface, border, radius, shadow, title/meta spacing | `Policy*Card`, `ItineraryCard` | Pending |
-| Navigation/Tab | Pending | active state, item height, icon/text gap, desktop/mobile behavior | `ServiceLayout`, `BottomTabs` | Pending |
-| Sheet/Modal | Pending | overlay, radius, max height, panel padding, row spacing | policy trip select sheet | Pending |
-| Toast/Alert | Pending | surface, border, text color, icon usage | `Toast`, `ErrorState` | Pending |
+| Button | `16215:37602` / `Button/Button` | variant name, height, padding, radius, primary/disabled/focus color | `Button`, `.btn` | Captured from source Figma |
+| Text Field/Input | `16215:31385` / `Textinput/Textfield` | height, border, focus ring, placeholder color, error state | `.field input`, `.search-field` | Captured from source Figma |
+| Badge/Tag | `16215:25365` / `Content Badge`, `16215:42078` / `Chip` | radius, padding, border, tone colors | `Tag`, `.tag` | Captured from source Figma |
+| Card/List Item | `16215:29264` / `Card`, `16215:29433` / `List Card`, `16215:26404` / `List Cell` | surface, border, radius, shadow, title/meta spacing | `Policy*Card`, `ItineraryCard` | Captured from source Figma |
+| Navigation/Tab | `16215:21806` / `Tab`, `16215:22000` / `Tab Item` | active state, item height, icon/text gap, desktop/mobile behavior | `ServiceLayout`, `BottomTabs` | Captured from source Figma |
+| Sheet/Modal | Manual node required | overlay, radius, max height, panel padding, row spacing | policy trip select sheet | Pending manual Figma selection |
+| Toast/Alert | Manual node required | surface, border, text color, icon usage | `Toast`, `ErrorState` | Pending manual Figma selection |
+
+Captured 수치의 상세 내용은 `docs/figma-component-values.md`를 기준으로 한다. Figma 앱/웹 import 이후 node ID가 복제 파일 기준으로 바뀌면, 원본 node ID와 복제 파일 node link를 나란히 기록한다.
 
 ## Current App Screens to Compare
 
@@ -73,13 +76,14 @@ Recommended viewport:
 
 - Figma에서 구체 node를 선택하거나 node URL을 제공해야 structured design context를 추출할 수 있다.
 - root/page node만 제공되면 component variant 수치가 불충분할 수 있다.
-- 추출 가능한 node 우선순위:
+- 현재 원본 Figma URL 기준으로 일부 component set은 추출 완료했다. import된 복제 파일에서는 node ID가 달라질 수 있으므로, 다음 순서로 복제 파일 node URL을 보강한다.
   1. Button component set
   2. Input/Text Field component set
   3. Badge/Tag component set
   4. Card/List Item component
   5. Navigation/Tab component
   6. Sheet/Modal component
+  7. Toast/Alert component
 
 ## 완료 기준
 

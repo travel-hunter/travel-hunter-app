@@ -21,6 +21,7 @@ Travel Hunter는 React/Vite 프론트엔드와 FastAPI/PostgreSQL 백엔드로 �
 | Design system map | `docs/design-system-map.md` |
 | Design QA | `docs/design-qa.md` |
 | Figma import checklist | `docs/figma-import-checklist.md` |
+| Figma component values | `docs/figma-component-values.md` |
 | VPS staging inputs | `docs/vps-staging-inputs.md` |
 | DB schema reference | `docs/db-schema-v0.3.sql` |
 | Release handoff | `docs/release-candidate-handoff.md` |
@@ -31,6 +32,7 @@ Travel Hunter는 React/Vite 프론트엔드와 FastAPI/PostgreSQL 백엔드로 �
 - Vite + React + TypeScript + React Router 기반 반응형 웹.
 - Wanted Design System `.fig`를 기준으로 blue/neutral 토큰, compact radius, thin border 중심의 1차 UI pass가 적용됐다.
 - 390/1024/1440px 기준 주요 화면 브라우저 QA가 완료됐으며 결과는 `docs/design-qa.md`에 기록했다.
+- Figma 원본 Community 파일에서 Button, Textinput, Badge/Chip, Card/List Cell, Tab component set 수치를 추출해 `docs/figma-component-values.md`에 기록했다. Sheet/Modal, Toast/Alert는 Figma 앱/웹 import 후 manual node 확인이 필요하다.
 - `AppRoot`, `AppProviders`, `SessionProvider`, `ProtectedRoute` 구조.
 - 모든 화면 데이터 접근은 `frontend/src/api/AppDataApi` 경계를 통해 수행.
 - `appDataApi`는 항상 `backendApi`를 사용한다.

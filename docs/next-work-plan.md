@@ -15,7 +15,7 @@
 
 | 우선순위 | 작업 | 성공 기준 |
 |---:|---|---|
-| 1 | Figma import 및 component variant 확인 | `docs/figma-import-checklist.md`에 따라 `.fig`를 Figma에 import하고 Button/Input/Badge/Card/Navigation/Sheet variant 수치를 `docs/design-system-map.md`와 대조한다. |
+| 1 | Figma import 및 component variant 확인 | Button/Input/Badge/Card/Navigation은 `docs/figma-component-values.md`에 원본 수치를 기록했다. Figma 앱/웹 import 후 복제 파일 node URL을 보강하고 Sheet/Modal, Toast/Alert 수치를 추가한다. |
 | 2 | Figma 비교 기반 2차 보정 | Figma 수치와 현재 앱이 충돌하는 부분만 token/component 중심으로 보정한다. |
 | 3 | VPS 배포 입력값 확보 | `docs/vps-staging-inputs.md`의 Required Inputs가 모두 준비된다. |
 | 4 | Docker VPS staging 배포 및 내부 smoke | `docs/deployment-vps.md` 절차에 따라 외부 URL에서 로그인, 정책 탐색, 일정 생성/삭제, 정책 담기, 초대 수락, 로그아웃이 통과한다. |

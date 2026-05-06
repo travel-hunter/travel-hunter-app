@@ -18,15 +18,17 @@
    - Wanted 1차 적용 이후 브라우저 시각 QA 결과와 Figma handoff 대기 항목.
 8. `figma-import-checklist.md`
    - Wanted `.fig` import, Figma page 구성, component variant 확인표.
-9. `vps-staging-inputs.md`
+9. `figma-component-values.md`
+   - Figma 원본 component set node ID, variant property, 주요 수치, 현재 앱 매핑 차이.
+10. `vps-staging-inputs.md`
    - Docker VPS staging 배포 전 필요한 입력값과 secret 처리 기준.
-10. `mvp-api-contract.md`
+11. `mvp-api-contract.md`
    - API request/response/error 계약.
-11. `next-work-plan.md`
+12. `next-work-plan.md`
    - 다음 작업 우선순위.
-12. `db-schema-v0.3.sql`
+13. `db-schema-v0.3.sql`
    - ERD v0.3 SQL 기준본.
-13. `future-deployment.md`
+14. `future-deployment.md`
    - Docker VPS 이후 AWS/Terraform/EKS/Argo CD 확장 방향.
 
 ## 현재 기준

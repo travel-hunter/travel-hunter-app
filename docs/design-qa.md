@@ -44,6 +44,8 @@
   - `04 Handoff`
 - Figma에서 Button, Input, Badge/Tag, Card/List, Navigation, Sheet/Toast의 실제 variant 이름과 수치를 확인한다.
 - 확인된 Figma 수치가 현재 `docs/design-system-map.md`와 다르면 토큰/컴포넌트 단위로 2차 보정한다.
+- Button, Textinput, Badge/Chip, Card/List Cell, Tab의 원본 Community node 수치는 `docs/figma-component-values.md`에 1차 기록했다.
+- Sheet/Modal, Toast/Alert는 Figma 앱/웹 import 후 해당 node를 직접 선택해 보강한다.
 
 ## 남은 Design Debt
 
