@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ChevronLeft } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { appDataApi, InviteState } from "../api";
 import { ErrorState, IconButton, LinkButton, LoadingState, PageHead, TopBar } from "../components/ui";
@@ -39,7 +40,7 @@ export function InviteAcceptPage() {
         title="초대 수락"
         left={
           <IconButton label="홈으로" to="/home">
-            ←
+            <ChevronLeft size={20} />
           </IconButton>
         }
       />

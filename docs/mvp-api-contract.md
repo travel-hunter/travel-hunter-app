@@ -267,7 +267,8 @@ Request body optional:
   "region": "제주",
   "style": "휴식",
   "description": "휴식",
-  "policySlug": "local-vacation"
+  "policySlug": "local-vacation",
+  "durationDays": 3
 }
 ```
 
@@ -279,10 +280,13 @@ Rules:
 - `description` -> `trips.description`
 - if `description` is absent and `style` exists, `style` is stored in `trips.description`
 - if `policySlug` exists, generated trip is connected through `trip_policies`
+- `durationDays` is optional, defaults to `3`, and must be between `2` and `5`
+- `durationDays` controls `trips.end_date` and the number of generated `trip_days`
 
 Errors:
 
 - unknown `policySlug`: `404 {"detail": "Policy not found"}`
+- invalid `durationDays`: `422`
 
 ### `GET /api/trips/{tripId}`
 
@@ -291,6 +295,30 @@ Response `200`: `Trip`
 Errors:
 
 - unknown or inaccessible trip: `404 {"detail": "Trip not found"}`
+
+### `DELETE /api/trips/{tripId}`
+
+Bearer token 필요. 현재 사용자가 owner인 일정만 삭제할 수 있다.
+
+Response `200`:
+
+```json
+{
+  "tripId": "1",
+  "deleted": true
+}
+```
+
+Rules:
+
+- `tripId`는 canonical numeric handle만 삭제 대상으로 허용한다.
+- 연결된 `recommendations.trip_id`는 삭제 전에 `null`로 분리한다.
+- `trip_days`, `trip_places`, `trip_members`, `trip_policies`, `trip_invites`는 DB cascade 기준으로 삭제된다.
+
+Errors:
+
+- unauthenticated: `401 {"detail": "Not authenticated"}`
+- unknown, inaccessible, non-owner, or noncanonical trip handle: `404 {"detail": "Trip not found"}`
 
 ### `POST /api/trips/{tripId}/policies/{policySlug}`
 

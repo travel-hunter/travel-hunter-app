@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ItineraryPlace(BaseModel):
@@ -13,6 +13,7 @@ class CreateTripRequest(BaseModel):
     style: str | None = None
     description: str | None = None
     policySlug: str | None = None
+    durationDays: int | None = Field(default=None, ge=2, le=5)
 
 
 class Trip(BaseModel):
@@ -47,3 +48,8 @@ class TripPolicyResponse(BaseModel):
     tripId: str
     policyId: str
     added: bool
+
+
+class DeleteTripResponse(BaseModel):
+    tripId: str
+    deleted: bool

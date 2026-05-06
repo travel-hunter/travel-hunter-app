@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.models import (
@@ -49,6 +49,11 @@ def get_accessible_trip_by_id(db: Session, trip_id: int, user_id: int) -> Trip |
         .where(Trip.id == trip_id)
         .where(_accessible_trip_filter(user_id))
     )
+    return db.scalar(statement)
+
+
+def get_owned_trip_by_id(db: Session, trip_id: int, user_id: int) -> Trip | None:
+    statement = select(Trip).where(Trip.id == trip_id, Trip.owner_id == user_id)
     return db.scalar(statement)
 
 
@@ -177,6 +182,18 @@ def add_recommendation(
     recommendation = Recommendation(user_id=user_id, trip_id=trip_id, query=query, result=result)
     db.add(recommendation)
     return recommendation
+
+
+def detach_recommendations_from_trip(db: Session, *, trip_id: int) -> None:
+    db.execute(
+        update(Recommendation)
+        .where(Recommendation.trip_id == trip_id)
+        .values(trip_id=None)
+    )
+
+
+def delete_trip(db: Session, trip: Trip) -> None:
+    db.delete(trip)
 
 
 def get_latest_active_invite(db: Session, *, trip_id: int, now) -> TripInvite | None:

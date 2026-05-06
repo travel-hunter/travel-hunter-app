@@ -29,7 +29,7 @@ export function HomePage() {
       </div>
       <div className="greeting">
         <h2>어디로 떠나볼까요, {name}님</h2>
-        <p>{profile.region} 여행에서 받을 수 있는 혜택을 먼저 확인해보세요.</p>
+        <p>여행에서 받을 수 있는 혜택을 먼저 확인해보세요.</p>
       </div>
       {policiesLoading && <LoadingState label="추천 혜택을 불러오는 중입니다" />}
       {policiesError && <ErrorState message={policiesError} />}

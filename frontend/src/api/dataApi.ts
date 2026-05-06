@@ -31,12 +31,18 @@ export type TripPolicyResponse = {
   added: boolean;
 };
 
+export type DeleteTripResponse = {
+  tripId: string;
+  deleted: boolean;
+};
+
 export type CreateTripRequest = {
   title?: string;
   region?: string;
   style?: string;
   description?: string;
   policySlug?: string;
+  durationDays?: number;
 };
 
 export type AppDataApi = {
@@ -58,6 +64,7 @@ export type AppDataApi = {
   removeSavedPolicy: (policySlug: string) => Promise<SavePolicyResponse>;
   listTrips: () => Promise<Trip[]>;
   createTrip: (trip?: CreateTripRequest) => Promise<Trip>;
+  deleteTrip: (tripId: string) => Promise<DeleteTripResponse>;
   getTrip: (tripId?: string) => Promise<Trip>;
   addPolicyToTrip: (tripId: string, policySlug: string) => Promise<TripPolicyResponse>;
   listRecommendations: (tripId?: string) => Promise<Recommendation[]>;

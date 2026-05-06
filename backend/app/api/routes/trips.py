@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import get_current_user
 from app.db.session import get_optional_db
 from app.models import User
-from app.schemas.trip import CreateTripRequest, InviteState, Recommendation, Trip, TripPolicyResponse
+from app.schemas.trip import CreateTripRequest, DeleteTripResponse, InviteState, Recommendation, Trip, TripPolicyResponse
 from app.services import trips as trip_service
 
 router = APIRouter(prefix="/trips", tags=["trips"])
@@ -64,6 +64,18 @@ def get_trip(
     if trip is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trip not found")
     return Trip(**trip)
+
+
+@router.delete("/{trip_id}", response_model=DeleteTripResponse)
+def delete_trip(
+    trip_id: str,
+    db: Session | None = Depends(get_optional_db),
+    current_user: User | None = Depends(get_current_user),
+) -> DeleteTripResponse:
+    result = trip_service.delete_trip(trip_id, _require_db(db), _require_user(current_user))
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trip not found")
+    return DeleteTripResponse(**result)
 
 
 @router.post("/{trip_id}/policies/{policy_slug}", response_model=TripPolicyResponse)

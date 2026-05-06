@@ -91,7 +91,7 @@ export function IconButton({ children, to, label, onClick }: { children: ReactNo
   );
 }
 
-export function EmptyState({ title, body, action }: { title: string; body: string; action: ReactNode }) {
+export function EmptyState({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
   return (
     <section className="empty-state">
       <h1>{title}</h1>

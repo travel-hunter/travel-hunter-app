@@ -1,4 +1,5 @@
 import { FormEvent, useState } from "react";
+import { ChevronLeft } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { appDataApi } from "../api";
 import { useSession } from "../app/session";
@@ -60,11 +61,11 @@ export function LoginPage() {
       <form className="form" onSubmit={submit}>
         <label className="field">
           <span>이메일</span>
-          <input name="email" type="email" defaultValue={previewUser.email} autoComplete="email" />
+          <input name="email" type="email" placeholder="이메일을 입력하세요" autoComplete="email" />
         </label>
         <label className="field">
           <span>비밀번호</span>
-          <input name="password" type="password" defaultValue="password123" autoComplete="current-password" />
+          <input name="password" type="password" placeholder="비밀번호를 입력하세요" autoComplete="current-password" />
         </label>
         {error && (
           <p className="form-error" role="alert">
@@ -125,7 +126,7 @@ export function SignupPage() {
     <section className="screen white">
       <div className="top-bar">
         <IconButton label="뒤로" to="/">
-          ←
+          <ChevronLeft size={20} />
         </IconButton>
         <h1>회원가입</h1>
         <span />
@@ -138,11 +139,11 @@ export function SignupPage() {
       <form className="form" onSubmit={submit}>
         <label className="field">
           <span>이름</span>
-          <input name="name" type="text" placeholder="테스트 신규 사용자" autoComplete="name" />
+          <input name="name" type="text" placeholder="예: 홍길동" autoComplete="name" />
         </label>
         <label className="field">
           <span>이메일</span>
-          <input name="email" type="email" placeholder="new.user@example.com" autoComplete="email" />
+          <input name="email" type="email" placeholder="user@example.com" autoComplete="email" />
         </label>
         <label className="field">
           <span>비밀번호</span>

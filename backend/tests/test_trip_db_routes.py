@@ -108,17 +108,30 @@ def test_db_trip_create_route_returns_created_numeric_id(monkeypatch) -> None:
         trip_routes.trip_service,
         "create_trip",
         lambda db, current_user, payload: trip_payload("8")
-        if db is fake_db and current_user is user and payload and payload.title == "New trip"
+        if db is fake_db and current_user is user and payload and payload.title == "New trip" and payload.durationDays == 4
         else trip_payload("7"),
     )
 
     try:
-        response = client.post("/api/trips", json={"title": "New trip"})
+        response = client.post("/api/trips", json={"title": "New trip", "durationDays": 4})
     finally:
         clear_overrides()
 
     assert response.status_code == 200
     assert response.json()["id"] == "8"
+
+
+def test_db_trip_create_route_rejects_out_of_range_duration() -> None:
+    fake_db = object()
+    user = make_user()
+    install_db_route_dependencies(None, fake_db, user)
+
+    try:
+        response = client.post("/api/trips", json={"durationDays": 6})
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 422
 
 
 def test_db_trip_create_route_maps_policy_error(monkeypatch) -> None:
@@ -167,6 +180,55 @@ def test_db_trip_detail_missing_returns_404(monkeypatch) -> None:
 
     try:
         response = client.get("/api/trips/999")
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Trip not found"}
+
+
+def test_db_trip_delete_route_requires_bearer_user(monkeypatch) -> None:
+    fake_db = object()
+    install_db_route_dependencies(monkeypatch, fake_db)
+
+    try:
+        response = client.delete("/api/trips/7")
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Not authenticated"}
+
+
+def test_db_trip_delete_route_returns_deleted(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    install_db_route_dependencies(monkeypatch, fake_db, user)
+    monkeypatch.setattr(
+        trip_routes.trip_service,
+        "delete_trip",
+        lambda trip_id, db, current_user: {"tripId": trip_id, "deleted": True}
+        if trip_id == "7" and db is fake_db and current_user is user
+        else None,
+    )
+
+    try:
+        response = client.delete("/api/trips/7")
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    assert response.json() == {"tripId": "7", "deleted": True}
+
+
+def test_db_trip_delete_route_missing_returns_404(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    install_db_route_dependencies(monkeypatch, fake_db, user)
+    monkeypatch.setattr(trip_routes.trip_service, "delete_trip", lambda *_args: None)
+
+    try:
+        response = client.delete("/api/trips/999")
     finally:
         clear_overrides()
 

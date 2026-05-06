@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ChevronLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { appDataApi } from "../api";
 import { useSession } from "../app/session";
@@ -63,7 +64,7 @@ export function ProfileSetupPage() {
     <section className="screen">
       <div className="top-bar">
         <IconButton label="뒤로" onClick={back}>
-          ‹
+          <ChevronLeft size={20} />
         </IconButton>
         <h1>정보 입력</h1>
         <span className="meta top-count">{stepIndex + 1}/3</span>

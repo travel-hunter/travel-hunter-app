@@ -243,7 +243,8 @@
         "region": "string",
         "style": "string",
         "description": "string",
-        "policySlug": "string"
+        "policySlug": "string",
+        "durationDays": "number"
       },
       "requiredFields": {
         "id": "string",
@@ -253,7 +254,8 @@
         "expectedSaving": "string",
         "days": "object"
       },
-      "dbModePolicySlugBehavior": "When policySlug is present, create the trip and link trip_policies; unknown policySlug returns 404 Policy not found."
+      "dbModePolicySlugBehavior": "When policySlug is present, create the trip and link trip_policies; unknown policySlug returns 404 Policy not found.",
+      "durationDaysBehavior": "Optional durationDays defaults to 3, accepts 2 through 5, controls trips.end_date and generated trip_days."
     },
     {
       "method": "GET",
@@ -269,6 +271,21 @@
       },
       "legacyAliasPath": "/api/trips/jeju-3-days",
       "legacyAliasResponseId": "numeric string"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/trips/1",
+      "status": 200,
+      "requiredFields": {
+        "tripId": "string",
+        "deleted": "boolean"
+      },
+      "authRequired": true,
+      "ownerOnly": true,
+      "errorContract": {
+        "unauthenticated": "401 Not authenticated",
+        "unknownOrInaccessibleOrNonOwner": "404 Trip not found"
+      }
     },
     {
       "method": "POST",

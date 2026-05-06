@@ -1,4 +1,4 @@
-import { Heart, Search, Share2, SlidersHorizontal } from "lucide-react";
+import { ChevronLeft, Heart, Search, Share2, SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { appDataApi, type Trip } from "../api";
@@ -61,7 +61,7 @@ export function PolicyListPage() {
         title="정책 목록"
         left={
           <IconButton label="홈으로" to="/home">
-            ‹
+            <ChevronLeft size={20} />
           </IconButton>
         }
         right={
@@ -223,7 +223,7 @@ export function PolicyDetailPage() {
       <div className="hero">
         <div className="overlay-nav">
           <IconButton label="홈으로" to="/home">
-            ‹
+            <ChevronLeft size={20} />
           </IconButton>
           <div className="row">
             <button className="icon-btn" disabled={isSavingPolicy} onClick={saveStandalonePolicy} type="button" aria-label="저장">

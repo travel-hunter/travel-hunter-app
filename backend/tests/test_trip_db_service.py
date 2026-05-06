@@ -140,6 +140,64 @@ def test_get_trip_rejects_noncanonical_numeric_handles(monkeypatch) -> None:
     assert calls == []
 
 
+class FakeDb:
+    def __init__(self) -> None:
+        self.commits = 0
+
+    def commit(self) -> None:
+        self.commits += 1
+
+
+def test_delete_trip_deletes_owned_numeric_trip_and_detaches_recommendations(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    detached: list[int] = []
+    deleted: list[Trip] = []
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_owned_trip_by_id",
+        lambda db, trip_id, user_id: trip
+        if db is fake_db and trip_id == 7 and user_id == 1
+        else None,
+    )
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "detach_recommendations_from_trip",
+        lambda _db, *, trip_id: detached.append(trip_id),
+    )
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "delete_trip",
+        lambda _db, target_trip: deleted.append(target_trip),
+    )
+
+    payload = trip_service.delete_trip("7", fake_db, user)
+
+    assert payload == {"tripId": "7", "deleted": True}
+    assert detached == [7]
+    assert deleted == [trip]
+    assert fake_db.commits == 1
+
+
+def test_delete_trip_returns_none_for_missing_or_unowned_trip(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    lookup_calls: list[int] = []
+
+    def missing_lookup(_db, trip_id, _user_id):
+        lookup_calls.append(trip_id)
+        return None
+
+    monkeypatch.setattr(trip_service.trip_repository, "get_owned_trip_by_id", missing_lookup)
+
+    assert trip_service.delete_trip("001", fake_db, user) is None
+    assert trip_service.delete_trip("7", fake_db, user) is None
+    assert lookup_calls == [7]
+    assert fake_db.commits == 0
+
+
 def test_recommendation_mapper_ignores_invalid_items() -> None:
     items = trip_service._recommendation_items(
         [
@@ -172,16 +230,8 @@ def test_invite_to_api_computes_display_flags() -> None:
     assert payload["copied"] is False
 
 
-class FakeDb:
-    def __init__(self) -> None:
-        self.commits = 0
-
-    def commit(self) -> None:
-        self.commits += 1
-
-
 def install_create_trip_stubs(monkeypatch, *, policy: Policy | None = None):
-    captured: dict[str, object] = {}
+    captured: dict[str, object] = {"trip_days": []}
     created_trip = make_trip()
     created_trip.id = 11
 
@@ -190,6 +240,13 @@ def install_create_trip_stubs(monkeypatch, *, policy: Policy | None = None):
         return created_trip
 
     def add_trip_day_stub(_db, *, trip_id, day_number, date_value):
+        captured["trip_days"].append(
+            {
+                "trip_id": trip_id,
+                "day_number": day_number,
+                "date_value": date_value,
+            }
+        )
         return TripDay(id=day_number, trip_id=trip_id, day_number=day_number, date=date_value)
 
     monkeypatch.setattr(trip_service.trip_repository, "create_trip", create_trip_stub)
@@ -224,9 +281,24 @@ def test_create_trip_uses_region_and_style_payload(monkeypatch) -> None:
     )
 
     assert result["id"] == "11"
+    assert captured["create_trip"]["title"] == "Busan 3일 여행"
     assert captured["create_trip"]["region"] == "Busan"
     assert captured["create_trip"]["description"] == "Food"
     assert fake_db.commits == 1
+
+
+def test_create_trip_prefers_request_title_over_generated_title(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    captured = install_create_trip_stubs(monkeypatch)
+
+    trip_service.create_trip(
+        fake_db,
+        user,
+        CreateTripRequest(title="Custom Trip", region="Busan", durationDays=4),
+    )
+
+    assert captured["create_trip"]["title"] == "Custom Trip"
 
 
 def test_create_trip_prefers_description_over_style(monkeypatch) -> None:
@@ -241,6 +313,27 @@ def test_create_trip_prefers_description_over_style(monkeypatch) -> None:
     )
 
     assert captured["create_trip"]["description"] == "Custom memo"
+
+
+def test_create_trip_uses_duration_days_for_date_range_and_days(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    captured = install_create_trip_stubs(monkeypatch)
+
+    trip_service.create_trip(
+        fake_db,
+        user,
+        CreateTripRequest(region="Jeju", style="Rest", durationDays=4),
+    )
+
+    assert captured["create_trip"]["start_date"] == date(2026, 6, 15)
+    assert captured["create_trip"]["end_date"] == date(2026, 6, 18)
+    assert captured["trip_days"] == [
+        {"trip_id": 11, "day_number": 1, "date_value": date(2026, 6, 15)},
+        {"trip_id": 11, "day_number": 2, "date_value": date(2026, 6, 16)},
+        {"trip_id": 11, "day_number": 3, "date_value": date(2026, 6, 17)},
+        {"trip_id": 11, "day_number": 4, "date_value": date(2026, 6, 18)},
+    ]
 
 
 def test_create_trip_links_policy_when_policy_slug_is_present(monkeypatch) -> None:

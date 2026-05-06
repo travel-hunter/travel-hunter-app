@@ -47,20 +47,35 @@ export function PlaceCard({ title, meta, className }: { title: string; meta: str
   );
 }
 
-export function ItineraryCard({ trip, addedPolicy = false }: { trip: Trip; addedPolicy?: boolean }) {
+export function ItineraryCard({ trip, addedPolicy = false, isDeleting = false, onDelete }: { trip: Trip; addedPolicy?: boolean; isDeleting?: boolean; onDelete?: (trip: Trip) => void }) {
+  const detailPath = `/trips/${trip.id}`;
+
   return (
-    <Link className="itinerary-card card" to={`/trips/${trip.id}`}>
-      <div className="map-thumb" />
+    <article className="itinerary-card card">
+      <Link className="map-thumb" to={detailPath} aria-label={`${trip.title} 상세 보기`} />
       <div className="itinerary-body">
-        <div className="between">
-          <h4>{trip.title}</h4>
-          <Tag tone="warning">예상 절감 {trip.expectedSaving}</Tag>
+        <div className="itinerary-head">
+          <Link className="itinerary-title-link" to={detailPath}>
+            <h4>{trip.title}</h4>
+          </Link>
+          <div className="itinerary-actions">
+            <Tag tone="warning">예상 절감 {trip.expectedSaving}</Tag>
+            {onDelete && (
+              <button className="trip-delete-btn" disabled={isDeleting} onClick={() => onDelete(trip)} type="button">
+                {isDeleting ? "삭제 중" : "삭제"}
+              </button>
+            )}
+          </div>
         </div>
-        <div className="meta">
-          2박 3일 · {trip.people.length}명 · 정책 {addedPolicy ? "연결됨" : "2건 후보"}
-        </div>
+        <Link to={detailPath}>
+          <div className="meta">
+            2박 3일 · {trip.people.length}명 · 정책 {addedPolicy ? "연결됨" : "2건 후보"}
+          </div>
+        </Link>
       </div>
-      <ChevronRight size={18} className="card-arrow" />
-    </Link>
+      <Link className="card-arrow" to={detailPath} aria-label={`${trip.title} 상세 보기`}>
+        <ChevronRight size={18} />
+      </Link>
+    </article>
   );
 }

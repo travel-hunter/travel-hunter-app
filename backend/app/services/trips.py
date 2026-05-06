@@ -141,6 +141,21 @@ def get_trip(trip_handle: str, db: Session, user: User) -> dict[str, object] | N
     return trip_to_api(trip)
 
 
+def delete_trip(trip_handle: str, db: Session, user: User) -> dict[str, object] | None:
+    if not NUMERIC_TRIP_ID_PATTERN.fullmatch(trip_handle):
+        return None
+
+    trip = trip_repository.get_owned_trip_by_id(db, int(trip_handle), user.id)
+    if trip is None:
+        return None
+
+    trip_id = int(trip.id)
+    trip_repository.detach_recommendations_from_trip(db, trip_id=trip_id)
+    trip_repository.delete_trip(db, trip)
+    db.commit()
+    return {"tripId": str(trip_id), "deleted": True}
+
+
 def create_trip(
     db: Session,
     user: User,
@@ -149,9 +164,11 @@ def create_trip(
     payload = (payload or CreateTripRequest()).model_dump()
     if payload.get("description") is None and payload.get("style") is not None:
         payload["description"] = payload["style"]
+    duration_days = int(payload.get("durationDays") or 3)
+    region = str(payload.get("region") or seed.PROFILE["region"])
     start_date = date(2026, 6, 15)
-    end_date = date(2026, 6, 17)
-    title = str(payload.get("title") or f"{seed.TRIP['title']} 새 일정")
+    end_date = start_date + timedelta(days=duration_days - 1)
+    title = str(payload.get("title") or f"{region} {duration_days}일 여행")
 
     trip = trip_repository.create_trip(
         db,
@@ -159,17 +176,18 @@ def create_trip(
         title=title,
         start_date=start_date,
         end_date=end_date,
-        region=str(payload.get("region") or seed.PROFILE["region"]),
+        region=region,
         description=str(payload.get("description") or seed.PROFILE["style"]),
     )
     trip_repository.add_trip_member(db, trip_id=trip.id, user_id=user.id, role="owner")
 
-    for day_number, places in seed.TRIP["days"].items():
+    for day_number in range(1, duration_days + 1):
+        places = seed.TRIP["days"].get(day_number, [])
         trip_day = trip_repository.add_trip_day(
             db,
             trip_id=trip.id,
-            day_number=int(day_number),
-            date_value=start_date + timedelta(days=int(day_number) - 1),
+            day_number=day_number,
+            date_value=start_date + timedelta(days=day_number - 1),
         )
         for order_num, place in enumerate(places, start=1):
             trip_repository.add_trip_place(

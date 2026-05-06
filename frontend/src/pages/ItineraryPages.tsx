@@ -1,13 +1,14 @@
-import { Bot, Plus, Send, Share2 } from "lucide-react";
+import { Bot, ChevronLeft, Plus, Send, Share2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { appDataApi, type InviteState } from "../api";
+import { appDataApi, type InviteState, type Trip } from "../api";
 import { useAsyncResource } from "../api/useAsyncResource";
 import { useSession } from "../app/session";
 import { ItineraryCard } from "../components/cards";
 import { Button, EmptyState, ErrorState, IconButton, LinkButton, LoadingState, PageHead, Tag, Toast, TopBar } from "../components/ui";
 
 const profileOptions = appDataApi.getProfileOptions();
+const durationOptions = [2, 3, 4, 5] as const;
 
 async function resolveTripId(tripId: string | null | undefined): Promise<string | undefined> {
   if (tripId) return tripId;
@@ -15,9 +16,49 @@ async function resolveTripId(tripId: string | null | undefined): Promise<string 
   return trips[0]?.id;
 }
 
+function tripDayNumbers(days: Record<number, unknown[]>): number[] {
+  return Object.keys(days)
+    .map(Number)
+    .filter((day) => Number.isFinite(day))
+    .sort((a, b) => a - b);
+}
+
+function formatStayLabel(dayCount: number): string {
+  return `${Math.max(dayCount - 1, 0)}박 ${dayCount}일`;
+}
+
+function formatDayDateLabel(dates: string, dayNumber: number): string {
+  const match = /^(\d{4})\.(\d{2})\.(\d{2})/.exec(dates);
+  if (!match) return `Day ${dayNumber}`;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]) + dayNumber - 1);
+  return `${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
+}
+
 export function ItineraryListPage() {
   const { addedPolicy } = useSession();
-  const { data: trips, error, isLoading } = useAsyncResource(() => appDataApi.listTrips(), []);
+  const { data: loadedTrips, error, isLoading } = useAsyncResource(() => appDataApi.listTrips(), []);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [deletingTripId, setDeletingTripId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState("");
+
+  useEffect(() => {
+    if (loadedTrips) setTrips(loadedTrips);
+  }, [loadedTrips]);
+
+  const deleteTrip = async (trip: Trip) => {
+    if (deletingTripId) return;
+    if (!window.confirm("이 일정을 삭제할까요?")) return;
+    setDeletingTripId(trip.id);
+    setDeleteError("");
+    try {
+      await appDataApi.deleteTrip(trip.id);
+      setTrips((current) => current.filter((item) => item.id !== trip.id));
+    } catch {
+      setDeleteError("일정을 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setDeletingTripId(null);
+    }
+  };
 
   return (
     <section className="screen with-tabs">
@@ -32,11 +73,12 @@ export function ItineraryListPage() {
       <div className="content stack padded">
         {isLoading && <LoadingState label="일정을 불러오는 중입니다" />}
         {error && <ErrorState message={error} />}
-        {!isLoading && !error && (trips?.length ?? 0) === 0 && (
+        {deleteError && <ErrorState message={deleteError} />}
+        {!isLoading && !error && trips.length === 0 && (
           <EmptyState title="아직 등록된 일정이 없어요" body="첫 여행을 만들고 받을 수 있는 혜택을 함께 확인해보세요." action={<LinkButton to="/trips/new">일정 만들기</LinkButton>} />
         )}
-        {(trips ?? []).map((trip) => (
-          <ItineraryCard key={trip.id} trip={trip} addedPolicy={addedPolicy} />
+        {trips.map((trip) => (
+          <ItineraryCard key={trip.id} trip={trip} addedPolicy={addedPolicy} isDeleting={deletingTripId === trip.id} onDelete={deleteTrip} />
         ))}
         <Link className="list-card card" to="/trips/new">
           <div className="between">
@@ -59,16 +101,21 @@ export function ItineraryCreatePage() {
   const { profile, updateProfile, addPolicy } = useSession();
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState("");
+  const [durationDays, setDurationDays] = useState<(typeof durationOptions)[number]>(3);
   const policySlug = searchParams.get("policySlug") ?? undefined;
+  const selectedRegion = profile.region.trim() || "선택한 지역";
+  const tripTitle = `${selectedRegion} ${durationDays}일 여행`;
 
   const createTrip = async () => {
     setIsCreating(true);
     setError("");
     try {
       const trip = await appDataApi.createTrip({
+        title: tripTitle,
         region: profile.region,
         style: profile.style,
         policySlug,
+        durationDays,
       });
       if (policySlug) {
         await appDataApi.addPolicyToTrip(trip.id, policySlug);
@@ -88,7 +135,7 @@ export function ItineraryCreatePage() {
         title="일정 생성"
         left={
           <IconButton label="일정 목록" to="/trips">
-            ‹
+            <ChevronLeft size={20} />
           </IconButton>
         }
       />
@@ -96,14 +143,15 @@ export function ItineraryCreatePage() {
         <div className="card">
           <div className="card-body stack">
             {policySlug && <Tag tone="warning">선택한 혜택도 함께 담을게요</Tag>}
-            <PageHead eyebrow="AI 일정 빌더" title="지역과 여행 스타일에 맞춘 일정을 만듭니다" body="선택한 조건을 바탕으로 제주 3일 여행 일정을 만들어드려요." />
+            <PageHead eyebrow="AI 일정 빌더" title="지역과 여행 스타일에 맞춘 일정을 만듭니다" body="선택한 조건을 바탕으로 여행 일정을 만들어드려요." />
             <ChoiceGroup label="지역" values={profileOptions.regions} selected={profile.region} onSelect={(value) => updateProfile("region", value)} />
             <ChoiceGroup label="여행 테마" values={profileOptions.travelStyles} selected={profile.style} onSelect={(value) => updateProfile("style", value)} />
+            <DurationChoiceGroup selected={durationDays} onSelect={setDurationDays} />
           </div>
         </div>
         {error && <ErrorState message={error} />}
         <Button full disabled={isCreating} onClick={createTrip}>
-          {isCreating ? "일정을 만드는 중입니다" : "제주 3일 일정 만들기"}
+          {isCreating ? "일정을 만드는 중입니다" : `${selectedRegion} ${durationDays}일 일정 만들기`}
         </Button>
       </div>
     </section>
@@ -125,13 +173,35 @@ function ChoiceGroup({ label, values, selected, onSelect }: { label: string; val
   );
 }
 
+function DurationChoiceGroup({ selected, onSelect }: { selected: (typeof durationOptions)[number]; onSelect: (value: (typeof durationOptions)[number]) => void }) {
+  return (
+    <div>
+      <div className="choice-label">기간</div>
+      <div className="choice-grid">
+        {durationOptions.map((value) => (
+          <button className={selected === value ? "choice active" : "choice"} key={value} onClick={() => onSelect(value)} type="button">
+            {value}일
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function ItineraryDetailPage() {
   const { tripId } = useParams();
   const navigate = useNavigate();
   const { addedPolicy } = useSession();
-  const [activeDay, setActiveDay] = useState<1 | 2 | 3>(1);
+  const [activeDay, setActiveDay] = useState(1);
   const { data: trip, error, isLoading } = useAsyncResource(() => appDataApi.getTrip(tripId), [tripId]);
-  const dayPlaces = trip?.days[activeDay] ?? [];
+  const dayNumbers = trip ? tripDayNumbers(trip.days) : [];
+  const visibleDay = dayNumbers.includes(activeDay) ? activeDay : (dayNumbers[0] ?? 1);
+  const dayPlaces = trip?.days[visibleDay] ?? [];
+  const stayLabel = formatStayLabel(dayNumbers.length || 3);
+
+  useEffect(() => {
+    if (dayNumbers.length > 0) setActiveDay(dayNumbers[0]);
+  }, [trip?.id]);
 
   useEffect(() => {
     if (trip && tripId && trip.id !== tripId) {
@@ -161,7 +231,7 @@ export function ItineraryDetailPage() {
         title={trip.title}
         left={
           <IconButton label="홈으로" to="/home">
-            ‹
+            <ChevronLeft size={20} />
           </IconButton>
         }
         right={
@@ -171,7 +241,7 @@ export function ItineraryDetailPage() {
         }
       />
       <div className="trip-summary">
-        <div className="row meta">{trip.dates} · 2박 3일</div>
+        <div className="row meta">{trip.dates} · {stayLabel}</div>
         <div className="between">
           <div className="row">
             <div className="avatar-stack">
@@ -199,14 +269,15 @@ export function ItineraryDetailPage() {
         <div className="marker three" />
       </div>
       <div className="day-tabs">
-        {[1, 2, 3].map((day) => (
-          <button className={activeDay === day ? "day-tab active" : "day-tab"} key={day} onClick={() => setActiveDay(day as 1 | 2 | 3)} type="button">
+        {dayNumbers.map((day) => (
+          <button className={visibleDay === day ? "day-tab active" : "day-tab"} key={day} onClick={() => setActiveDay(day)} type="button">
             <strong>Day {day}</strong>
-            <span>06.{14 + day}</span>
+            <span>{formatDayDateLabel(trip.dates, day)}</span>
           </button>
         ))}
       </div>
       <div className="timeline">
+        {dayPlaces.length === 0 && <EmptyState title="아직 추가된 장소가 없어요" body="장소 추가 기능은 다음 단계에서 연결할 예정입니다." />}
         {dayPlaces.map((place) => (
           <div className="timeline-item" key={`${place.time}-${place.label}`}>
             <div className="time">{place.time}</div>
@@ -250,7 +321,7 @@ export function AiResultsPage() {
         title="AI 추천 결과"
         left={
           <IconButton label="일정 상세" to={detailPath}>
-            ‹
+            <ChevronLeft size={20} />
           </IconButton>
         }
         right={
@@ -351,7 +422,7 @@ export function FriendInvitePage() {
         title="친구 초대"
         left={
           <IconButton label="일정 상세" to={detailPath}>
-            ‹
+            <ChevronLeft size={20} />
           </IconButton>
         }
       />

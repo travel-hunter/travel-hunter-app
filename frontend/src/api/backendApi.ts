@@ -7,7 +7,7 @@ import {
   user,
 } from "../data/seedData";
 import { apiClient } from "./client";
-import { AppDataApi, AuthResponse, CreateTripRequest, LoginRequest, LogoutResponse, SavePolicyResponse, SignupRequest, TripPolicyResponse } from "./dataApi";
+import { AppDataApi, AuthResponse, CreateTripRequest, DeleteTripResponse, LoginRequest, LogoutResponse, SavePolicyResponse, SignupRequest, TripPolicyResponse } from "./dataApi";
 import { InviteState, Policy, Profile, ProfileOptions, Recommendation, Trip, User } from "./types";
 
 const defaultLogin: LoginRequest = {
@@ -40,6 +40,7 @@ export const backendApi: AppDataApi = {
   removeSavedPolicy: (policySlug: string): Promise<SavePolicyResponse> => apiClient.delete<SavePolicyResponse>(`/api/me/saved-policies/${policySlug}`),
   listTrips: (): Promise<Trip[]> => apiClient.get<Trip[]>("/api/trips"),
   createTrip: (trip?: CreateTripRequest): Promise<Trip> => apiClient.post<Trip>("/api/trips", trip),
+  deleteTrip: (tripId: string): Promise<DeleteTripResponse> => apiClient.delete<DeleteTripResponse>(`/api/trips/${tripId}`),
   getTrip: (tripId = itinerary.id): Promise<Trip> => apiClient.get<Trip>(`/api/trips/${tripId}`),
   addPolicyToTrip: (tripId: string, policySlug: string): Promise<TripPolicyResponse> => apiClient.post<TripPolicyResponse>(`/api/trips/${tripId}/policies/${policySlug}`),
   listRecommendations: (tripId = itinerary.id): Promise<Recommendation[]> => apiClient.get<Recommendation[]>(`/api/trips/${tripId}/recommendations`),
