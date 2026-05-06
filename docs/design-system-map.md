@@ -4,6 +4,7 @@
 
 - 원본 파일: `C:\Users\HP\Downloads\Wanted Design System (Community).fig`
 - 파일 상태: Figma export ZIP 구조이며 `canvas.fig`, `thumbnail.png`, `meta.json`, `images/*`를 포함한다.
+- Figma import 기준 파일: `Wanted Design System - Imported Reference` (`6X5t38FCiVoIdRdi3C2olj`)
 - 적용 방식: `.fig`를 repo에 커밋하지 않고 Figma에 import한 뒤, 앱에는 토큰/컴포넌트 스타일만 반영한다.
 - 현재 앱 적용 범위: Wanted Design System의 white surface, blue primary, neutral text, compact radius, thin border 중심 스타일을 Travel Hunter UI 토큰으로 매핑했다.
 - 실제 component set 추출값: `docs/figma-component-values.md`
@@ -31,8 +32,8 @@
 | Text Field `Textinput/Textfield` | `.field input`, `.search-field` | Figma field height `48px`, background radius `12px`, helper gap `8px`, negative `#ff4242` 기준. 현재 앱과 대부분 호환 |
 | Card/List Item `Card`, `List Card`, `List Cell` | `PolicyListCard`, `PolicyMiniCard`, `ItineraryCard` | List Card mobile `335x64`, List Cell `40/48/56px` height 기준. Travel Hunter는 정보량 때문에 height 고정보다 surface/border/radius만 채택 |
 | Navigation/Tab `Tab`, `Tab/Resource/Tab` | `ServiceLayout`, `BottomTabs` | Figma Tab은 `40/48/56px` 체계. 현재 app nav와 구조가 달라 active/inactive color와 height 기준만 참고 |
-| Modal/Sheet | policy add sheet, trip select sheet | Figma MCP에서 Presentation/Feedback 하위 영역 접근이 timeout되어 manual node 확인 전까지 현행 유지 |
-| Toast/Alert | `Toast`, `ErrorState`, `LoadingState` | Figma MCP에서 Feedback 하위 영역 접근이 timeout되어 manual node 확인 전까지 현행 유지 |
+| Modal/Sheet | policy add sheet, trip select sheet | import 기준 `Alert/Resource/Dialog`를 확인했다. dedicated Sheet/Bottom Sheet는 찾지 못했으므로 현재 bottom sheet 구조는 유지하고, radius `16px`와 white surface를 Dialog large modal 기준으로 본다 |
+| Toast/Alert | `Toast`, `ErrorState`, `LoadingState` | import 기준 Toast/Snackbar/Alert를 확인했다. 앱 Toast는 Wanted Toast child 기준 `54px`, radius `12px`, padding `11px 16px`로 보정하고, Error/Loading state는 inline state panel로 유지한다 |
 
 ## 화면 적용 기준
 
@@ -54,7 +55,8 @@
 
 ## 남은 Design Debt
 
-- Sheet/Modal, Toast/Alert의 정확한 variant명과 수치 토큰은 Figma import 후 선택 node 기준으로 재확인해야 한다.
+- Sheet/Modal은 별도 Sheet/Bottom Sheet component set을 찾지 못해 `Alert/Resource/Dialog`를 참고 기준으로 사용한다.
+- Toast/Alert는 import reference 기준 node와 수치를 확보했고, Toast의 크기/radius/padding을 앱 CSS에 반영했다.
 - Button primary color, default height, radius는 Wanted 원본 기준으로 2차 보정을 적용했다.
 - `Tag`와 interactive chip을 Figma 기준에 맞춰 서로 다른 sizing 체계로 분리할지 결정해야 한다.
 - 현재 1차 적용은 코드 토큰 중심의 Wanted 스타일 pass이며, Figma에 Travel Hunter redesigned screen을 실제로 생성하는 작업은 별도 단계다.

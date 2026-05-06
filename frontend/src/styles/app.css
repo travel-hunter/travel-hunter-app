@@ -1288,9 +1288,12 @@
 }
 
 .toast {
-  padding: 12px 14px;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  padding: 11px 16px;
   border: 1px solid var(--accent-100);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-lg);
   background: #f0fdfa;
   color: var(--accent-600);
   font-size: 14px;

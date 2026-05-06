@@ -12,6 +12,8 @@
 - Figma plan: `travle-hunter`
 - Figma plan key: `team::1631977620101471167`
 - Local source: `C:\Users\HP\Downloads\Wanted Design System (Community).fig`
+- Imported reference file: `https://www.figma.com/design/6X5t38FCiVoIdRdi3C2olj/Wanted-Design-System---Imported-Reference`
+- Imported reference file key: `6X5t38FCiVoIdRdi3C2olj`
 - Travel Hunter handoff file: `https://www.figma.com/design/6qxML42kKtZWIwLUU1YDpX`
 - Travel Hunter handoff file key: `6qxML42kKtZWIwLUU1YDpX`
 - Current app baseline commit: `af1615b style: align buttons with wanted figma values`
@@ -52,8 +54,8 @@
 | Badge/Tag | `16215:25365` / `Content Badge`, `16215:42078` / `Chip` | radius, padding, border, tone colors | `Tag`, `.tag` | Captured from source Figma |
 | Card/List Item | `16215:29264` / `Card`, `16215:29433` / `List Card`, `16215:26404` / `List Cell` | surface, border, radius, shadow, title/meta spacing | `Policy*Card`, `ItineraryCard` | Captured from source Figma |
 | Navigation/Tab | `16215:21806` / `Tab`, `16215:22000` / `Tab Item` | active state, item height, icon/text gap, desktop/mobile behavior | `ServiceLayout`, `BottomTabs` | Captured from source Figma |
-| Sheet/Modal | Manual node required | overlay, radius, max height, panel padding, row spacing | policy trip select sheet | Pending manual Figma selection |
-| Toast/Alert | Manual node required | surface, border, text color, icon usage | `Toast`, `ErrorState` | Pending manual Figma selection |
+| Sheet/Modal | imported `16215:20118` / `Alert/Resource/Dialog`, modal frames `16215:20121`, `16215:20132` | overlay, radius, max height, panel padding, row spacing | policy trip select sheet | Captured from imported reference. No dedicated Sheet/Bottom Sheet component set found. |
+| Toast/Alert | imported `16215:19485` / `Toast/Toast`, `16215:19587` / `Snackbar/Snackbar`, `16215:20106` / `Alert/Alert` | surface, border, text color, icon usage | `Toast`, `ErrorState` | Captured from imported reference |
 
 Captured 수치의 상세 내용은 `docs/figma-component-values.md`를 기준으로 한다. Figma 앱/웹 import 이후 node ID가 복제 파일 기준으로 바뀌면, 원본 node ID와 복제 파일 node link를 나란히 기록한다.
 
@@ -89,7 +91,7 @@ Recommended viewport:
 
 - Figma에서 구체 node를 선택하거나 node URL을 제공해야 structured design context를 추출할 수 있다.
 - root/page node만 제공되면 component variant 수치가 불충분할 수 있다.
-- 현재 원본 Figma URL 기준으로 일부 component set은 추출 완료했다. import된 복제 파일에서는 node ID가 달라질 수 있으므로, 다음 순서로 복제 파일 node URL을 보강한다.
+- import된 reference 파일의 node ID는 원본 Community 파일과 동일하게 유지됐다. 다음 순서로 handoff 파일에 reference node URL을 배치한다.
   1. Button component set
   2. Input/Text Field component set
   3. Badge/Tag component set
@@ -100,7 +102,7 @@ Recommended viewport:
 
 ## 완료 기준
 
-- Figma 파일이 import됐고 Travel Hunter 페이지 구조가 만들어졌다. 현재 handoff page 구조는 생성 완료, Wanted `.fig` import는 수동 대기 중이다.
+- Figma 파일이 import됐고 Travel Hunter 페이지 구조가 만들어졌다.
 - Component Variant 확인표의 `Figma node/link`와 상태가 갱신됐다.
 - `docs/design-system-map.md`가 실제 Figma variant/token 이름 기준으로 보강됐다.
 - 필요한 경우 2차 token/component 보정이 적용됐고 Fast Lane 검증이 통과했다.
