@@ -2,19 +2,22 @@
 
 ## Current Phase
 
-The MVP feature set is implemented and runtime mock mode has been removed. The current priority is validating the DB-backed-only baseline, then choosing the real staging environment and executing deployment from the Docker Compose release-candidate baseline.
+The MVP feature set is implemented and runtime mock mode has been removed. The staging target is Docker VPS for internal testing. The current priority is executing deployment from the Docker Compose release-candidate baseline and recording the smoke result.
 
 ## Source Of Truth
 
 - Current implementation spec: `docs/current-work-spec.md`
 - Release candidate handoff: `docs/release-candidate-handoff.md`
+- Docker VPS staging plan: `docs/deployment-vps.md`
 - API contract: `docs/mvp-api-contract.md`
 - Next priority: `docs/next-work-plan.md`
 - Future deployment notes: `docs/future-deployment.md`
 
 ## Next Milestones
 
-1. Choose the real staging environment and execute deployment from the Docker Compose release-candidate baseline.
+1. Execute Docker VPS staging deployment from the Docker Compose release-candidate baseline.
+2. Run the internal-test smoke checklist on the external staging URL.
+3. Record the staging URL, commit, validation result, and blockers in the RC handoff docs.
 
 ## Guardrails
 

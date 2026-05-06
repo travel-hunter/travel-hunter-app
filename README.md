@@ -7,11 +7,12 @@ Travel Hunter is a React/Vite frontend plus FastAPI/PostgreSQL backend for the d
 Recommended reading order for a new developer:
 
 1. `docs/release-candidate-handoff.md`: release candidate scope, run modes, URLs, env, and validation evidence
-2. `docs/current-work-spec.md`: current implementation status
-3. `docs/mvp-api-contract.md`: API request/response/error contract
-4. `docs/next-work-plan.md`: next priority after handoff
-5. `docs/db-schema-v0.3.sql`: ERD v0.3 SQL reference
-6. `docs/future-deployment.md`: later AWS/Terraform/EKS/Argo CD expansion notes
+2. `docs/deployment-vps.md`: Docker VPS staging deployment plan
+3. `docs/current-work-spec.md`: current implementation status
+4. `docs/mvp-api-contract.md`: API request/response/error contract
+5. `docs/next-work-plan.md`: next priority after handoff
+6. `docs/db-schema-v0.3.sql`: ERD v0.3 SQL reference
+7. `docs/future-deployment.md`: later AWS/Terraform/EKS/Argo CD expansion notes
 
 ## Local Development
 
@@ -43,7 +44,7 @@ $env:VITE_API_BASE_URL="http://127.0.0.1:8000"
 npm run dev
 ```
 
-## Docker Compose Staging Mode
+## Docker Compose Local Staging Mode
 
 ```powershell
 docker compose -f compose.yaml build
@@ -65,6 +66,10 @@ Seeded test account:
 - Email: `test.user@example.com`
 - Password: `password123`
 - Display name: `테스트 사용자`
+
+## Docker VPS Staging Direction
+
+The MVP release candidate targets an internal-test Docker VPS staging deployment. Use `docs/deployment-vps.md` for the server setup, staging env values, Caddy/reverse-proxy direction, and smoke checklist.
 
 ## Release Readiness Validation
 

@@ -14,6 +14,7 @@ Travel Hunter는 React/Vite 프론트엔드와 FastAPI/PostgreSQL 백엔드로 �
 | API contract | `docs/mvp-api-contract.md` |
 | DB schema reference | `docs/db-schema-v0.3.sql` |
 | Release handoff | `docs/release-candidate-handoff.md` |
+| Docker VPS deployment | `docs/deployment-vps.md` |
 
 ## Frontend 구현 범위
 
@@ -42,7 +43,7 @@ Implemented endpoints:
 - `GET /api/me`, `GET /api/me/profile`, `PATCH /api/me/profile`, `GET /api/profile-options`
 - `GET /api/policies`, `GET /api/policies/{policySlug}`
 - `GET /api/me/saved-policies`, `POST /api/me/saved-policies/{policySlug}`, `DELETE /api/me/saved-policies/{policySlug}`
-- `GET /api/trips`, `POST /api/trips`, `GET /api/trips/{tripId}`
+- `GET /api/trips`, `POST /api/trips`, `GET /api/trips/{tripId}`, `DELETE /api/trips/{tripId}`
 - `POST /api/trips/{tripId}/policies/{policySlug}`
 - `GET /api/trips/{tripId}/recommendations`
 - `GET /api/trips/{tripId}/invite`, `POST /api/trips/{tripId}/invite`, `POST /api/trips/{tripId}/invites`

@@ -8,6 +8,7 @@
 - [x] `.agent/evals` acceptance artifacts exist.
 - [x] `docs/current-work-spec.md` is the current implementation summary.
 - [x] `docs/release-candidate-handoff.md` is the MVP release-candidate handoff guide.
+- [x] `docs/deployment-vps.md` is the Docker VPS staging deployment plan.
 - [x] `docs/mvp-api-contract.md` is the API contract.
 - [x] `docs/next-work-plan.md` is the next-priority plan.
 - [x] `docs/db-schema-v0.3.sql` is the ERD v0.3 SQL baseline.
@@ -40,9 +41,11 @@
 
 - Status: release gate passed.
 - Date: 2026-05-06.
-- Results: frontend typecheck passed, DB-backed Vitest passed 16 tests, backend pytest passed 64 tests, DB-backed Playwright e2e passed 5 tests, frontend build passed, Alembic offline SQL passed, compose config passed, and compose build passed.
+- Results: frontend typecheck passed, DB-backed Vitest passed 20 tests, backend pytest passed 72 tests, DB-backed Playwright e2e passed 5 tests, frontend build passed, Alembic offline SQL passed, compose config passed, and compose build passed.
 - Note: runtime mock mode has been removed. `npm test` and `npm run test:e2e` start compose PostgreSQL, run Alembic/seed, and execute against FastAPI.
 
 ## Next Priority
 
-- [ ] Choose the real staging environment and execute deployment from the Docker Compose release-candidate baseline.
+- [x] Choose Docker VPS as the real staging environment.
+- [ ] Execute Docker VPS staging deployment from the release-candidate baseline.
+- [ ] Run the internal-test smoke checklist on the external staging URL.
