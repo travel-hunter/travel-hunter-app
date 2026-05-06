@@ -23,7 +23,7 @@ Travel Hunter는 국내 여행 정책 탐색과 여행 일정 생성을 위한 M
 ## 구현된 기능
 
 - 인증: 회원가입, 로그인, refresh, logout, `/api/me`.
-- 프로필: 지역, 여행 스타일, 예산 저장.
+- 프로필: 지역, 여행 스타일, 예산 저장 및 `/mypage` 편집 화면.
 - 정책: 목록, 상세, 검색/필터, 저장/삭제, 공식/신청 URL CTA.
 - 일정: 목록, 생성, 상세, 장소 추가/수정/삭제, 일정 삭제, 정책 담기, 추천 결과 조회.
 - 초대: 초대 링크 생성, 초대 수락, 일정 참여자 추가.
@@ -87,7 +87,7 @@ Tunnel mode에서는 host `80/443` 포트를 열지 않는다. Cloudflare가 외
 - `cd backend && alembic upgrade head --sql`: passed.
 - `docker compose -f compose.yaml config`: passed.
 - `cd frontend && npm run typecheck`: passed.
-- `cd frontend && npm test`: DB-backed Vitest 21 passed.
+- `cd frontend && npm test`: DB-backed Vitest 22 passed.
 - `cd frontend && npm run test:e2e`: DB-backed Playwright 5 passed.
 - `cd frontend && npm run build`: passed.
 - `docker compose -f compose.yaml build`: passed.
@@ -107,4 +107,4 @@ Tunnel mode에서는 host `80/443` 포트를 열지 않는다. Cloudflare가 외
 
 ## 다음 작업
 
-다음 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 기능 구현 관점에서는 마이페이지 프로필 편집 화면화가 1순위다. 배포 관점의 Cloudflare Tunnel staging 실행과 Jenkinsfile은 기능 패스가 멈추거나 release staging으로 복귀할 때 재개한다.
+다음 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 기능 구현 관점에서는 AI 추천 결과를 일정 타임라인에 실제 장소로 추가하는 작업이 1순위다. 배포 관점의 Cloudflare Tunnel staging 실행과 Jenkinsfile은 기능 패스가 멈추거나 release staging으로 복귀할 때 재개한다.

@@ -1,14 +1,16 @@
 import { LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { appDataApi, type Policy } from "../api";
+import { appDataApi, type Policy, type Profile } from "../api";
 import { useSession } from "../app/session";
 import { Button, Tag } from "../components/ui";
 import { money } from "../utils";
 
+const profileOptions = appDataApi.getProfileOptions();
+
 export function MyPage() {
   const navigate = useNavigate();
-  const { currentUser, likedPolicy, logout } = useSession();
+  const { currentUser, likedPolicy, logout, profile, saveProfile } = useSession();
   const previewUser = appDataApi.getPreviewUser();
   const previewTrip = appDataApi.getPreviewTrip();
   const name = currentUser?.name ?? previewUser.name;
@@ -16,6 +18,10 @@ export function MyPage() {
   const [isLoadingSavedPolicies, setIsLoadingSavedPolicies] = useState(true);
   const [savedPolicyError, setSavedPolicyError] = useState("");
   const [removingPolicySlug, setRemovingPolicySlug] = useState<string | null>(null);
+  const [isProfileEditorOpen, setIsProfileEditorOpen] = useState(false);
+  const [profileDraft, setProfileDraft] = useState<Profile>(() => profile);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileEditError, setProfileEditError] = useState("");
 
   useEffect(() => {
     let isCurrent = true;
@@ -60,6 +66,25 @@ export function MyPage() {
     }
   };
 
+  const openProfileEditor = () => {
+    setProfileDraft(profile);
+    setProfileEditError("");
+    setIsProfileEditorOpen(true);
+  };
+
+  const saveProfileDraft = async () => {
+    setIsSavingProfile(true);
+    setProfileEditError("");
+    try {
+      await saveProfile(profileDraft);
+      setIsProfileEditorOpen(false);
+    } catch {
+      setProfileEditError("프로필을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
   const savedPolicyCountLabel = isLoadingSavedPolicies
     ? "불러오는 중"
     : savedPolicies.length > 0
@@ -81,7 +106,12 @@ export function MyPage() {
                   <div className="meta">{previewUser.persona}</div>
                 </div>
               </div>
-              <Button variant="ghost">편집</Button>
+              <Button variant="ghost" onClick={openProfileEditor}>편집</Button>
+            </div>
+            <div className="profile-summary-grid">
+              <ProfileSummaryItem label="관심 지역" value={profile.region} />
+              <ProfileSummaryItem label="여행 스타일" value={profile.style} />
+              <ProfileSummaryItem label="예산" value={profile.budget} />
             </div>
           </div>
         </div>
@@ -167,7 +197,99 @@ export function MyPage() {
           <LogOut size={18} />
           로그아웃
         </Button>
+        {isProfileEditorOpen && (
+          <ProfileEditSheet
+            draft={profileDraft}
+            error={profileEditError}
+            isSaving={isSavingProfile}
+            onCancel={() => !isSavingProfile && setIsProfileEditorOpen(false)}
+            onChange={setProfileDraft}
+            onSave={saveProfileDraft}
+          />
+        )}
       </div>
     </section>
+  );
+}
+
+function ProfileSummaryItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="profile-summary-item">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function ProfileEditSheet({
+  draft,
+  error,
+  isSaving,
+  onCancel,
+  onChange,
+  onSave,
+}: {
+  draft: Profile;
+  error: string;
+  isSaving: boolean;
+  onCancel: () => void;
+  onChange: (draft: Profile) => void;
+  onSave: () => void;
+}) {
+  return (
+    <div className="sheet-backdrop" role="presentation" onMouseDown={onCancel}>
+      <section className="trip-select-sheet" role="dialog" aria-modal="true" aria-labelledby="profile-editor-title" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="sheet-head">
+          <div>
+            <h2 id="profile-editor-title">프로필 편집</h2>
+            <p className="meta">관심 지역, 여행 스타일, 예산을 바꾸면 추천 기준도 함께 바뀝니다.</p>
+          </div>
+          <button className="btn sm ghost" type="button" onClick={onCancel} disabled={isSaving}>
+            취소
+          </button>
+        </div>
+        <div className="profile-edit-sections">
+          <ProfileEditChoices
+            label="관심 지역"
+            selected={draft.region}
+            values={profileOptions.regions}
+            onSelect={(region) => onChange({ ...draft, region })}
+          />
+          <ProfileEditChoices
+            label="여행 스타일"
+            selected={draft.style}
+            values={profileOptions.travelStyles}
+            onSelect={(style) => onChange({ ...draft, style })}
+          />
+          <ProfileEditChoices
+            label="예산"
+            selected={draft.budget}
+            values={profileOptions.budgets}
+            onSelect={(budget) => onChange({ ...draft, budget })}
+          />
+          {error && <p className="form-error">{error}</p>}
+        </div>
+        <div className="sheet-actions">
+          <Button full disabled={isSaving} onClick={onSave}>
+            {isSaving ? "저장 중입니다" : "저장하기"}
+          </Button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ProfileEditChoices({ label, values, selected, onSelect }: { label: string; values: readonly string[]; selected: string; onSelect: (value: string) => void }) {
+  return (
+    <div>
+      <div className="choice-label">{label}</div>
+      <div className="choice-grid">
+        {values.map((value) => (
+          <button className={selected === value ? "choice active" : "choice"} key={value} onClick={() => onSelect(value)} type="button">
+            {value}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

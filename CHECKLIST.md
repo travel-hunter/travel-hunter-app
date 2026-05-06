@@ -17,6 +17,7 @@
 - [x] Runtime mock mode removed.
 - [x] MVP user flows implemented against FastAPI/PostgreSQL.
 - [x] Itinerary detail place add/edit/delete is connected to `trip_places`.
+- [x] Mypage profile editing is connected to `PATCH /api/me/profile`.
 - [x] Wanted Design System import, component values, Button correction, and Toast correction documented.
 - [x] Figma editable Current/Redesign frames exist for first-pass MVP routes.
 - [x] Public VPS artifacts exist: `compose.vps.yaml`, `deploy/Caddyfile`, `deploy/.env.staging.example`.
@@ -26,18 +27,17 @@
 
 - Date: 2026-05-06.
 - Backend pytest: 78 passed.
-- Frontend DB-backed Vitest: 21 passed.
+- Frontend DB-backed Vitest: 22 passed.
 - DB-backed Playwright e2e: 5 passed.
 - Frontend build: passed.
 - Alembic offline SQL: passed.
 - Local compose config/build: passed.
 - VPS compose config: passed.
 - Tunnel compose config: passed.
-- `git diff --check`: passed for the latest itinerary place CRUD work.
+- `git diff --check`: passed for the latest mypage profile editing work.
 
 ## 다음 우선순위
 
-- [ ] Implement mypage profile editing UX with the existing `PATCH /api/me/profile` endpoint.
 - [ ] Add AI recommendation items to the trip timeline by reusing the place add API.
 - [ ] Persist invite role settings for `viewer/editor`.
 - [ ] Persist deadline notification settings.

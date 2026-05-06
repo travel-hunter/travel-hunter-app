@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-The MVP is DB-backed-only and runtime mock mode has been removed. Docker VPS direct staging artifacts and Cloudflare Tunnel staging artifacts exist, but the current working priority is user-facing feature completion. The latest feature target is itinerary detail place CRUD; the next functional priority is mypage profile editing. Deployment and Jenkins automation are deferred until the feature pass pauses or release staging resumes.
+The MVP is DB-backed-only and runtime mock mode has been removed. Docker VPS direct staging artifacts and Cloudflare Tunnel staging artifacts exist, but the current working priority is user-facing feature completion. Trip place editing and mypage profile editing are implemented; the next functional priority is adding AI recommendation items to a trip timeline by reusing the place add API. Deployment and Jenkins automation are deferred until the feature pass pauses or release staging resumes.
 
 ## Source Of Truth
 

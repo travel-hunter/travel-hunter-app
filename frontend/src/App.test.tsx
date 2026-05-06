@@ -375,6 +375,38 @@ describe("Travel Hunter app", () => {
     await waitFor(() => expect(document.querySelector('a[href="/policies/local-vacation"]')).toBeFalsy());
   });
 
+  it("edits profile preferences from my page", async () => {
+    const nextProfile = {
+      region: "강원",
+      style: "사진",
+      budget: "상관없음",
+    };
+    const updateProfileSpy = vi.spyOn(appDataApi, "updateProfile").mockResolvedValue(nextProfile);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/mypage");
+      const user = userEvent.setup();
+
+      await user.click(await screen.findByRole("button", { name: "편집" }));
+      expect(screen.getByRole("heading", { name: "프로필 편집" })).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: nextProfile.region }));
+      await user.click(screen.getByRole("button", { name: nextProfile.style }));
+      await user.click(screen.getByRole("button", { name: nextProfile.budget }));
+      await user.click(screen.getByRole("button", { name: "저장하기" }));
+
+      await waitFor(() => expect(updateProfileSpy).toHaveBeenCalledWith(nextProfile));
+      await waitFor(() => expect(screen.queryByRole("heading", { name: "프로필 편집" })).not.toBeInTheDocument());
+      expect(document.body).toHaveTextContent(nextProfile.region);
+      expect(document.body).toHaveTextContent(nextProfile.style);
+      expect(document.body).toHaveTextContent(nextProfile.budget);
+    } finally {
+      updateProfileSpy.mockRestore();
+    }
+  });
+
   it("uses an official policy link when available and keeps the fallback notice otherwise", async () => {
     await login();
     cleanup();

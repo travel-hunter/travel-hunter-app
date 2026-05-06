@@ -13,16 +13,19 @@
    - `trip_places`에 장소가 저장된다.
    - 장소 수정/삭제 후 최신 `Trip` 응답으로 타임라인을 갱신한다.
    - 새로고침 후에도 DB에 저장된 장소가 유지된다.
+2. 마이페이지 프로필 편집 화면화
+   - `/mypage`의 편집 버튼이 프로필 편집 sheet를 연다.
+   - 지역, 여행 스타일, 예산을 draft로 수정한 뒤 `PATCH /api/me/profile`로 저장한다.
+   - 저장 성공 후 마이페이지 프로필 요약이 갱신된다.
 
 ## 다음 우선순위
 
 | 우선순위 | 작업 | 성공 기준 |
 |---:|---|---|
-| 1 | 마이페이지 프로필 편집 화면화 | `/mypage`의 편집 진입에서 지역, 여행 스타일, 예산을 수정하고 `PATCH /api/me/profile`로 저장한다. |
-| 2 | AI 추천 결과를 일정에 실제 추가 | `/ai-results`의 추천 항목을 선택하면 방금 구현한 장소 추가 API를 재사용해 일정 타임라인에 저장한다. |
-| 3 | 초대 링크 권한 설정 저장 | 초대 권한 UI의 `viewer/editor` 설정을 저장하고 초대 수락 시 `trip_members.role`에 반영한다. |
-| 4 | 마감 알림 설정 저장 | 마이페이지 알림 설정을 DB에 저장한다. 실제 push/email 발송은 후속 작업으로 둔다. |
-| 5 | 소셜 로그인 OAuth | staging URL과 provider secret이 확정된 뒤 Kakao 또는 Google부터 연결한다. |
+| 1 | AI 추천 결과를 일정에 실제 추가 | `/ai-results`의 추천 항목을 선택하면 장소 추가 API를 재사용해 일정 타임라인에 저장한다. |
+| 2 | 초대 링크 권한 설정 저장 | 초대 권한 UI의 `viewer/editor` 설정을 저장하고 초대 수락 시 `trip_members.role`에 반영한다. |
+| 3 | 마감 알림 설정 저장 | 마이페이지 알림 설정을 DB에 저장한다. 실제 push/email 발송은 후속 작업으로 둔다. |
+| 4 | 소셜 로그인 OAuth | staging URL과 provider secret이 확정된 뒤 Kakao 또는 Google부터 연결한다. |
 
 ## Fast Lane
 
