@@ -103,6 +103,7 @@ export const itinerary: Trip = {
   dates: "2026.06.15 - 06.17",
   people: ["테스트 사용자", "민서", "현우"],
   expectedSaving: "12만원",
+  currentUserRole: "owner",
   days: {
     1: [
       { time: "09:00", label: "성산 일출봉", meta: "자연 · 관광지" },

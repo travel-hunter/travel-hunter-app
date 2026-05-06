@@ -30,6 +30,7 @@ def trip_payload(trip_id: str = "7") -> dict[str, object]:
         "people": ["Test User"],
         "expectedSaving": "30留뚯썝",
         "days": {1: [{"id": "1", "time": "09:00", "label": "Sunrise peak", "meta": "Nature"}]},
+        "currentUserRole": "owner",
     }
 
 
@@ -325,6 +326,25 @@ def test_db_trip_place_routes_map_service_errors(monkeypatch) -> None:
     assert update_response.status_code == 404
     assert delete_response.status_code == 404
     assert add_response.json() == {"detail": "Trip not found"}
+
+
+def test_db_trip_place_routes_map_viewer_permission_error(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    install_db_route_dependencies(monkeypatch, fake_db, user)
+
+    def reject(*_args):
+        raise trip_service.TripServiceError(403, "Trip edit permission required")
+
+    monkeypatch.setattr(trip_routes.trip_service, "add_place_to_trip_day", reject)
+
+    try:
+        response = client.post("/api/trips/7/days/1/places", json={"label": "Read only"})
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Trip edit permission required"}
 
 
 def test_db_recommendation_and_invite_routes(monkeypatch) -> None:

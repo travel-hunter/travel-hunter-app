@@ -70,6 +70,20 @@ def test_trip_to_api_returns_numeric_string_id_and_contract_shape() -> None:
     assert payload["people"] == ["Test User", "Minseo"]
     assert payload["expectedSaving"] == "30만원"
     assert payload["days"] == {1: [{"id": "1", "time": "09:00", "label": "Sunrise peak", "meta": "Nature"}]}
+    assert payload["currentUserRole"] == "owner"
+
+
+def test_trip_to_api_includes_current_user_role() -> None:
+    trip = make_trip()
+
+    owner_payload = trip_service.trip_to_api(trip, make_user(1))
+    editor_payload = trip_service.trip_to_api(trip, make_user(2))
+    trip.members[0].role = "viewer"
+    viewer_payload = trip_service.trip_to_api(trip, make_user(2))
+
+    assert owner_payload["currentUserRole"] == "owner"
+    assert editor_payload["currentUserRole"] == "editor"
+    assert viewer_payload["currentUserRole"] == "viewer"
 
 
 def test_trip_to_api_includes_owner_when_owner_is_not_a_member() -> None:
@@ -321,6 +335,44 @@ def test_trip_place_crud_returns_404_for_missing_day_or_place(monkeypatch) -> No
         except trip_service.TripServiceError as error:
             assert error.status_code == 404
             assert error.detail == "Trip not found"
+        else:
+            raise AssertionError("expected TripServiceError")
+
+    assert fake_db.commits == 0
+
+def test_viewer_member_cannot_edit_trip_places(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user(2)
+    trip = make_trip()
+    trip.members[0].role = "viewer"
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda *_args, **_kwargs: trip,
+    )
+
+    for action in (
+        lambda: trip_service.add_place_to_trip_day(
+            fake_db,
+            user,
+            "7",
+            1,
+            CreateTripPlaceRequest(time="12:00", label="Viewer add", meta=""),
+        ),
+        lambda: trip_service.update_trip_place(
+            fake_db,
+            user,
+            "7",
+            1,
+            UpdateTripPlaceRequest(label="Viewer edit"),
+        ),
+        lambda: trip_service.delete_trip_place(fake_db, user, "7", 1),
+    ):
+        try:
+            action()
+        except trip_service.TripServiceError as error:
+            assert error.status_code == 403
+            assert error.detail == "Trip edit permission required"
         else:
             raise AssertionError("expected TripServiceError")
 

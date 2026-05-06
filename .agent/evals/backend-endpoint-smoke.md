@@ -26,8 +26,8 @@
 | `GET /api/me/saved-policies` | 200 | `Policy[]`, DB mode returns current user's saved policies | P1 |
 | `POST /api/me/saved-policies/local-vacation` | 200 | `{ "policyId": "local-vacation", "saved": true }`, DB mode persists `user_saved_policies` idempotently | P1 |
 | `DELETE /api/me/saved-policies/local-vacation` | 200 | `{ "policyId": "local-vacation", "saved": false }`, DB mode removes saved policy idempotently | P1 |
-| `GET /api/trips` | 200 | first item has `id`; DB mode id is numeric string | P0 |
-| `GET /api/trips/{tripId}` | 200 | numeric id detail returns `Trip` shape | P0 |
+| `GET /api/trips` | 200 | first item has `id`; DB mode id is numeric string and includes `currentUserRole` | P0 |
+| `GET /api/trips/{tripId}` | 200 | numeric id detail returns `Trip` shape including `currentUserRole` | P0 |
 | `GET /api/trips/jeju-3-days` | 200 | legacy alias works; DB mode response `id` is numeric string | P0 |
 | `GET /api/trips/001` | 404 | noncanonical numeric-like handle is not id `1` | P1 |
 | `GET /api/trips/0` | 404 | zero is not a canonical numeric handle | P1 |
@@ -74,7 +74,7 @@ Policy endpoints must preserve the same public response shape:
 Trip endpoints must preserve the existing public DTO shape:
 
 - `GET /api/trips` returns only trips owned by or shared with the current bearer-token user.
-- `GET /api/trips/{numericId}` returns `id`, `title`, `dates`, `people`, `expectedSaving`, and `days`.
+- `GET /api/trips/{numericId}` returns `id`, `title`, `dates`, `people`, `expectedSaving`, `days`, and `currentUserRole`.
 - `GET /api/trips/jeju-3-days` remains a legacy seed alias and returns a numeric string `id`.
 - Canonical numeric handles must match `^[1-9][0-9]*$`; values like `0`, `001`, and `1.0` are unknown handles.
 - The legacy alias resolves only when the seed owner email, title, and date range match exactly one accessible trip.
@@ -84,6 +84,8 @@ Trip endpoints must preserve the existing public DTO shape:
 - `expectedSaving` is the sum of linked policy `benefit_amount` values, excluding null amounts.
 - `InviteState.copied` is always false from the server and is tracked locally by the frontend UI.
 - `InviteState.role` is `viewer` or `editor`; missing request role defaults to `editor`.
+- `Trip.currentUserRole` is `owner`, `editor`, or `viewer`; place add/update/delete requires `owner` or `editor`.
+- Accessible `viewer` users receive `403 {"detail": "Trip edit permission required"}` for trip place mutations.
 
 Invite acceptance must persist membership:
 

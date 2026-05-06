@@ -76,6 +76,7 @@ export type Trip = {
   people: string[];
   expectedSaving: string;
   days: Record<number, ItineraryPlace[]>;
+  currentUserRole: "owner" | "editor" | "viewer";
 };
 
 export type Recommendation = {

@@ -29,15 +29,18 @@
    - `/mypage`에서 정책 마감 알림 전체 켜기/끄기를 토글할 수 있다.
    - 설정은 `user_notification_settings.deadline_enabled`에 사용자별로 저장된다.
    - 실제 push/email 발송은 후속 작업으로 둔다.
+6. 초대 권한 enforcement
+   - `Trip.currentUserRole`로 현재 사용자의 `owner/editor/viewer` 권한을 반환한다.
+   - `viewer`는 일정 조회만 가능하고 장소 추가/수정/삭제 UI가 숨겨진다.
+   - 접근 가능한 `viewer`의 장소 편집 API 요청은 `403 Trip edit permission required`를 반환한다.
 
 ## 다음 우선순위
 
 | 우선순위 | 작업 | 성공 기준 |
 |---:|---|---|
-| 1 | 초대 권한 enforcement | `viewer`는 조회 중심, `editor`는 일정 편집 가능하도록 장소 수정/삭제 권한을 분리한다. |
-| 2 | 알림 발송 기반 설계 | 저장된 마감 알림 설정을 실제 push/email 발송 스케줄러와 연결하는 방식을 확정한다. |
-| 3 | 소셜 로그인 OAuth | staging URL과 provider secret이 확정되면 Kakao 또는 Google부터 연결한다. |
-| 4 | Cloudflare Tunnel staging 배포 재개 | 기능 패스가 멈추거나 release staging으로 복귀할 때 실제 외부 URL smoke를 진행한다. |
+| 1 | 알림 발송 기반 설계 | 저장된 마감 알림 설정을 실제 push/email 발송 스케줄러와 연결하는 방식을 확정한다. |
+| 2 | 소셜 로그인 OAuth | staging URL과 provider secret이 확정되면 Kakao 또는 Google부터 연결한다. |
+| 3 | Cloudflare Tunnel staging 배포 재개 | 기능 패스가 멈추거나 release staging으로 복귀할 때 실제 외부 URL smoke를 진행한다. |
 
 ## Fast Lane
 

@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 
 
 InviteRole = Literal["viewer", "editor"]
+TripRole = Literal["owner", "editor", "viewer"]
 
 
 class ItineraryPlace(BaseModel):
@@ -29,6 +30,7 @@ class Trip(BaseModel):
     people: list[str]
     expectedSaving: str
     days: dict[int, list[ItineraryPlace]]
+    currentUserRole: TripRole
 
 
 class Recommendation(BaseModel):

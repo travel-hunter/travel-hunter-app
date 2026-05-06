@@ -283,6 +283,7 @@ Trip shape:
   "dates": "2026.06.15 - 06.17",
   "people": ["테스트 사용자"],
   "expectedSaving": "30만원",
+  "currentUserRole": "owner",
   "days": {
     "1": [
       { "time": "09:00", "label": "성산 일출봉", "meta": "자연 · 관광지" }
@@ -290,6 +291,8 @@ Trip shape:
   }
 }
 ```
+
+`currentUserRole` is the requesting user's role for that trip: `owner`, `editor`, or `viewer`.
 
 ### `GET /api/trips`
 
@@ -372,7 +375,7 @@ Response `200`:
 
 ### `POST /api/trips/{tripId}/days/{dayNumber}/places`
 
-Bearer token required. The requester must be able to access the trip as owner or member.
+Bearer token required. The requester must be able to access the trip as `owner` or `editor`.
 
 Request:
 
@@ -398,11 +401,12 @@ Errors:
 
 - unauthenticated: `401 {"detail": "Not authenticated"}`
 - unknown, inaccessible, or day-missing trip: `404 {"detail": "Trip not found"}`
+- accessible `viewer` member: `403 {"detail": "Trip edit permission required"}`
 - invalid body or invalid time: `422`
 
 ### `PATCH /api/trips/{tripId}/places/{placeId}`
 
-Bearer token required. The requester must be able to access the trip as owner or member.
+Bearer token required. The requester must be able to access the trip as `owner` or `editor`.
 
 Request body accepts partial fields:
 
@@ -420,11 +424,12 @@ Errors:
 
 - unauthenticated: `401 {"detail": "Not authenticated"}`
 - unknown, inaccessible, or cross-trip place: `404 {"detail": "Trip not found"}`
+- accessible `viewer` member: `403 {"detail": "Trip edit permission required"}`
 - invalid body or invalid time: `422`
 
 ### `DELETE /api/trips/{tripId}/places/{placeId}`
 
-Bearer token required. The requester must be able to access the trip as owner or member.
+Bearer token required. The requester must be able to access the trip as `owner` or `editor`.
 
 Response `200`: updated `Trip`.
 
@@ -432,6 +437,7 @@ Errors:
 
 - unauthenticated: `401 {"detail": "Not authenticated"}`
 - unknown, inaccessible, or cross-trip place: `404 {"detail": "Trip not found"}`
+- accessible `viewer` member: `403 {"detail": "Trip edit permission required"}`
 
 ## Recommendations
 

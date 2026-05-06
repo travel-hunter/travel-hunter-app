@@ -231,6 +231,30 @@ describe("Travel Hunter app", () => {
     }
   });
 
+  it("renders viewer trips as read-only in the itinerary detail", async () => {
+    const viewerTrip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "66",
+      title: "Viewer trip",
+      currentUserRole: "viewer",
+      days: { 1: [{ id: "1", time: "09:00", label: "Sunrise peak", meta: "Nature" }] },
+    };
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(viewerTrip);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/trips/66");
+
+      await waitFor(() => expect(document.body).toHaveTextContent("Sunrise peak"));
+      expect(document.body).toHaveTextContent("보기 권한으로 참여 중입니다");
+      expect(document.querySelector(".dashed")).toHaveAttribute("hidden");
+      expect(document.querySelector(".place-actions")).toHaveAttribute("hidden");
+    } finally {
+      getTripSpy.mockRestore();
+    }
+  });
+
   it("adds an AI recommendation to the requested trip timeline", async () => {
     const recommendation = {
       label: "SEA",

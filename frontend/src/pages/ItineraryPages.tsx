@@ -223,6 +223,7 @@ export function ItineraryDetailPage() {
   const visibleDay = dayNumbers.includes(activeDay) ? activeDay : (dayNumbers[0] ?? 1);
   const dayPlaces = trip?.days[visibleDay] ?? [];
   const stayLabel = formatStayLabel(dayNumbers.length || 3);
+  const canEditTrip = trip?.currentUserRole === "owner" || trip?.currentUserRole === "editor";
 
   useEffect(() => {
     if (loadedTrip) setTrip(loadedTrip);
@@ -239,12 +240,20 @@ export function ItineraryDetailPage() {
   }, [navigate, trip, tripId]);
 
   const openAddPlace = () => {
+    if (!canEditTrip) {
+      setPlaceError("이 일정은 보기 권한으로 참여 중이라 편집할 수 없어요.");
+      return;
+    }
     setPlaceEditor({ mode: "add", dayNumber: visibleDay });
     setPlaceForm({ time: "", label: "", meta: "" });
     setPlaceError("");
   };
 
   const openEditPlace = (place: ItineraryPlace) => {
+    if (!canEditTrip) {
+      setPlaceError("이 일정은 보기 권한으로 참여 중이라 편집할 수 없어요.");
+      return;
+    }
     setPlaceEditor({ mode: "edit", dayNumber: visibleDay, place });
     setPlaceForm({ time: place.time, label: place.label, meta: place.meta });
     setPlaceError("");
@@ -252,6 +261,10 @@ export function ItineraryDetailPage() {
 
   const submitPlaceEditor = async () => {
     if (!trip || !placeEditor) return;
+    if (!canEditTrip) {
+      setPlaceError("이 일정은 보기 권한으로 참여 중이라 편집할 수 없어요.");
+      return;
+    }
     const label = placeForm.label.trim();
     if (!label) {
       setPlaceError("장소명을 입력해 주세요.");
@@ -282,6 +295,10 @@ export function ItineraryDetailPage() {
 
   const deletePlace = async (place: ItineraryPlace) => {
     if (!trip || !place.id || isSavingPlace) return;
+    if (!canEditTrip) {
+      setPlaceError("이 일정은 보기 권한으로 참여 중이라 편집할 수 없어요.");
+      return;
+    }
     if (!window.confirm("이 장소를 일정에서 삭제할까요?")) return;
     setIsSavingPlace(true);
     setPlaceError("");
@@ -314,7 +331,7 @@ export function ItineraryDetailPage() {
   }
 
   return (
-    <section className="screen with-tabs">
+    <section className={canEditTrip ? "screen with-tabs" : "screen with-tabs readonly-trip"}>
       <TopBar
         title={trip.title}
         left={
@@ -364,6 +381,14 @@ export function ItineraryDetailPage() {
           </button>
         ))}
       </div>
+      {!canEditTrip && (
+        <div className="card">
+          <div className="card-body stack tight">
+            <strong>보기 권한으로 참여 중입니다</strong>
+            <p className="meta">일정과 정책은 확인할 수 있지만 장소 편집은 할 수 없어요.</p>
+          </div>
+        </div>
+      )}
       <div className="timeline">
         {dayPlaces.length === 0 && <EmptyState title="아직 추가된 장소가 없어요" body="장소 추가 버튼으로 방문지를 일정에 저장해 보세요." />}
         {dayPlaces.map((place) => (
@@ -374,7 +399,7 @@ export function ItineraryDetailPage() {
                 <h4>{place.label}</h4>
                 <div className="meta">{place.meta}</div>
               </div>
-              <div className="place-actions">
+              <div className="place-actions" hidden={!canEditTrip}>
                 <button className="btn sm ghost" type="button" onClick={() => openEditPlace(place)} disabled={!place.id || isSavingPlace}>
                   수정
                 </button>
@@ -385,7 +410,7 @@ export function ItineraryDetailPage() {
             </article>
           </div>
         ))}
-        <button className="dashed" type="button" onClick={openAddPlace}>
+        <button className="dashed" type="button" onClick={openAddPlace} hidden={!canEditTrip}>
           + 장소 추가
         </button>
         <Link className="btn secondary full" to={`/ai-results?tripId=${encodeURIComponent(trip.id)}`}>

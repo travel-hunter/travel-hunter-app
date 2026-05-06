@@ -26,6 +26,7 @@ LEGACY_TRIP_ALIASES = {
         "end_date": date(2026, 6, 17),
     }
 }
+TRIP_EDIT_ROLES = {"owner", "editor"}
 
 
 class TripServiceError(Exception):
@@ -74,7 +75,21 @@ def _policy_saving(trip: Trip) -> int:
     return total
 
 
-def trip_to_api(trip: Trip) -> dict[str, object]:
+def _trip_role_for_user(trip: Trip, user: User | None) -> str:
+    if user is None or trip.owner_id == user.id:
+        return "owner"
+    for membership in trip.members:
+        if membership.user_id == user.id:
+            return membership.role if membership.role in {"owner", "editor", "viewer"} else "viewer"
+    return "viewer"
+
+
+def _require_trip_editor(trip: Trip, user: User) -> None:
+    if _trip_role_for_user(trip, user) not in TRIP_EDIT_ROLES:
+        raise TripServiceError(403, "Trip edit permission required")
+
+
+def trip_to_api(trip: Trip, user: User | None = None) -> dict[str, object]:
     people: list[str] = []
     seen_people: set[str] = set()
     if trip.owner is not None:
@@ -114,6 +129,7 @@ def trip_to_api(trip: Trip) -> dict[str, object]:
         "people": people,
         "expectedSaving": _format_saving(_policy_saving(trip)),
         "days": days,
+        "currentUserRole": _trip_role_for_user(trip, user),
     }
 
 
@@ -146,7 +162,7 @@ def _refresh_trip_payload(db: Session, trip_id: int, user: User) -> dict[str, ob
     trip = trip_repository.get_accessible_trip_by_id(db, trip_id, user.id)
     if trip is None:
         raise TripServiceError(404, "Trip not found")
-    return trip_to_api(trip)
+    return trip_to_api(trip, user)
 
 
 def _find_trip_day(trip: Trip, day_number: int) -> TripDay:
@@ -165,14 +181,14 @@ def _find_trip_place(trip: Trip, place_id: int) -> TripPlace:
 
 
 def list_trips(db: Session, user: User) -> list[dict[str, object]]:
-    return [trip_to_api(trip) for trip in trip_repository.list_accessible_trips(db, user.id)]
+    return [trip_to_api(trip, user) for trip in trip_repository.list_accessible_trips(db, user.id)]
 
 
 def get_trip(trip_handle: str, db: Session, user: User) -> dict[str, object] | None:
     trip = _resolve_trip(db, trip_handle, user)
     if trip is None:
         return None
-    return trip_to_api(trip)
+    return trip_to_api(trip, user)
 
 
 def delete_trip(trip_handle: str, db: Session, user: User) -> dict[str, object] | None:
@@ -252,7 +268,7 @@ def create_trip(
     created = trip_repository.get_accessible_trip_by_id(db, trip.id, user.id)
     if created is None:
         raise TripServiceError(404, "Trip not found")
-    return trip_to_api(created)
+    return trip_to_api(created, user)
 
 
 def add_policy_to_trip(
@@ -282,6 +298,7 @@ def add_place_to_trip_day(
     payload: CreateTripPlaceRequest,
 ) -> dict[str, object]:
     trip = _resolve_required_trip(db, trip_handle, user)
+    _require_trip_editor(trip, user)
     trip_day = _find_trip_day(trip, day_number)
     label = payload.label.strip()
     if not label:
@@ -308,6 +325,7 @@ def update_trip_place(
     payload: UpdateTripPlaceRequest,
 ) -> dict[str, object]:
     trip = _resolve_required_trip(db, trip_handle, user)
+    _require_trip_editor(trip, user)
     place = _find_trip_place(trip, place_id)
     values = payload.model_dump(exclude_unset=True)
 
@@ -332,6 +350,7 @@ def delete_trip_place(
     place_id: int,
 ) -> dict[str, object]:
     trip = _resolve_required_trip(db, trip_handle, user)
+    _require_trip_editor(trip, user)
     place = _find_trip_place(trip, place_id)
     trip_repository.delete_trip_place(db, place)
     db.commit()

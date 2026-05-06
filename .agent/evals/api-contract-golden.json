@@ -252,7 +252,8 @@
         "dates": "string",
         "people": "array",
         "expectedSaving": "string",
-        "days": "object"
+        "days": "object",
+        "currentUserRole": "string enum(owner|editor|viewer)"
       },
       "exampleTripId": "1",
       "legacyTripAlias": "jeju-3-days",
@@ -278,7 +279,8 @@
         "dates": "string",
         "people": "array",
         "expectedSaving": "string",
-        "days": "object"
+        "days": "object",
+        "currentUserRole": "string enum(owner|editor|viewer)"
       },
       "dbModePolicySlugBehavior": "When policySlug is present, create the trip and link trip_policies; unknown policySlug returns 404 Policy not found.",
       "durationDaysBehavior": "Optional durationDays defaults to 3, accepts 2 through 5, controls trips.end_date and generated trip_days."
@@ -293,7 +295,8 @@
         "dates": "string",
         "people": "array",
         "expectedSaving": "string",
-        "days": "object"
+        "days": "object",
+        "currentUserRole": "string enum(owner|editor|viewer)"
       },
       "legacyAliasPath": "/api/trips/jeju-3-days",
       "legacyAliasResponseId": "numeric string"
