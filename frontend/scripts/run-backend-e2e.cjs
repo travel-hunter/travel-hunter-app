@@ -47,6 +47,22 @@ function run(command, args, options = {}) {
   }
 }
 
+function waitForCommand(command, args, timeoutMs = 60_000) {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt <= timeoutMs) {
+    const result = spawnSync(command, args, {
+      cwd: repoRoot,
+      env: process.env,
+      stdio: "ignore",
+    });
+    if (result.status === 0) return;
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 750);
+  }
+
+  throw new Error(`Timed out waiting for command: ${command} ${args.join(" ")}`);
+}
+
 function waitForHealth(url, timeoutMs = 60_000) {
   const startedAt = Date.now();
 
@@ -89,6 +105,20 @@ async function main() {
   if (!process.env.SKIP_E2E_DB_START) {
     console.log("[backend-e2e] Starting compose PostgreSQL on 127.0.0.1:55432...");
     run(dockerCommand, ["compose", "-f", path.join(repoRoot, "compose.yaml"), "up", "-d", "db"]);
+    console.log("[backend-e2e] Waiting for PostgreSQL readiness...");
+    waitForCommand(dockerCommand, [
+      "compose",
+      "-f",
+      path.join(repoRoot, "compose.yaml"),
+      "exec",
+      "-T",
+      "db",
+      "pg_isready",
+      "-U",
+      "travelhunter",
+      "-d",
+      "travelhunter",
+    ]);
   }
 
   console.log("[backend-e2e] Applying Alembic migrations...");

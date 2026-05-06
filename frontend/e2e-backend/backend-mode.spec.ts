@@ -32,7 +32,7 @@ test.describe.configure({ mode: "serial" });
 test("backend data source requires login for protected routes", async ({ page }) => {
   await page.goto("/home");
 
-  await expect(page).toHaveURL(/\/login$/);
+  await expect(page).toHaveURL(/\/login\?redirect=%2Fhome$/);
   await expect(page.locator('input[type="email"]')).toBeVisible();
 });
 
@@ -61,7 +61,7 @@ test("backend data source drives policy, trip, recommendation, invite, and logou
   await expect(page.locator("#root")).not.toBeEmpty();
   await expect(page.getByRole("link", { name: "혜택 받으러 가기" })).toHaveAttribute(
     "href",
-    "https://korean.visitkorea.or.kr/kor/bbs/view/B_0000000083",
+    "https://www.mcst.go.kr/site/s_notice/press/pressView.jsp?pMenuCD=0302000000&pSeq=22267",
   );
   await page.getByRole("button", { name: "저장" }).click();
   await expect(page.locator(".toast")).toContainText("관심 정책");

@@ -46,20 +46,20 @@
 ## Release Gate Validation
 
 - [x] `cd frontend && npm run test:e2e`
-- [ ] `cd frontend && npm run test:e2e:backend`
+- [x] `cd frontend && npm run test:e2e:backend`
 - [x] `cd frontend && npm run build`
 - [x] `docker compose -f compose.yaml config`
-- [ ] `docker compose -f compose.yaml build`
-- [ ] `docker compose -f compose.yaml run --rm backend alembic upgrade head`
-- [ ] `docker compose -f compose.yaml run --rm backend python -m app.db.seed`
+- [x] `docker compose -f compose.yaml build`
+- [x] `docker compose -f compose.yaml run --rm backend alembic upgrade head`
+- [x] `docker compose -f compose.yaml run --rm backend python -m app.db.seed`
 
 ## Last Validation Result
 
-- Status: release gate partially blocked.
+- Status: release gate passed.
 - Date: 2026-05-06.
-- Results: frontend typecheck passed, Vitest passed 16 tests, backend pytest passed 68 tests, mock Playwright e2e passed 6 tests, frontend build passed, compose config passed, and `git diff --check` passed.
-- Blocked: backend-mode e2e, compose build, compose DB migration, and compose seed require Docker Desktop. Current Docker API connection fails at `npipe:////./pipe/dockerDesktopLinuxEngine`.
+- Results: frontend typecheck passed, Vitest passed 16 tests, backend pytest passed 68 tests, mock Playwright e2e passed 6 tests, backend-mode Playwright e2e passed 5 tests, frontend build passed, compose config passed, compose build passed, compose DB migration passed, compose seed passed twice, and `git diff --check` passed.
+- Note: `frontend/scripts/run-backend-e2e.cjs` now waits for PostgreSQL readiness before running Alembic so the Docker-backed e2e path does not race the DB startup.
 
 ## Next Priority
 
-- [ ] Start Docker Desktop and re-run the blocked Docker-backed release gates.
+- [ ] Prepare release candidate handoff and choose the staging/deployment target.

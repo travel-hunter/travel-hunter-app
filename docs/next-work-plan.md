@@ -15,7 +15,8 @@
 | 완료 | 친구 초대 수락 화면화 | `/invites/:inviteToken/accept` route에서 로그인 유도, 수락, 일정 이동이 동작한다. |
 | 완료 | 정책 탐색 UX 개선 | 정책 목록에서 검색, 지역, 카테고리 필터가 client-side로 동작한다. |
 | 완료 | 정책 신청 URL 정밀화 | 실제 정책별 공고 URL이 확정되면 `officialUrl`/`applyUrl` seed 값을 갱신한다. |
-| 1 | Docker-backed 릴리즈 게이트 재실행 | Docker Desktop 실행 후 backend-mode e2e, compose build, compose DB migration/seed를 재실행한다. |
+| 완료 | Docker-backed 릴리즈 게이트 재실행 | Docker Desktop 실행 후 backend-mode e2e, compose build, compose DB migration/seed를 재실행했다. |
+| 1 | 릴리즈 후보 인수인계 | 통과한 release gate 결과, 실행 방법, 남은 미구현 범위, staging/deployment target 결정을 한 묶음으로 정리한다. |
 
 ## Fast Lane 검증
 
@@ -41,3 +42,4 @@ alembic upgrade head --sql
 - DB mode `Trip.id`는 계속 `str(trips.id)`를 반환한다.
 - `jeju-3-days`는 legacy seed alias이며 public slug가 아니다.
 - 기능 구현 중 Docker Desktop 미실행은 blocker로 보지 않는다.
+- Docker-backed release gate는 2026-05-06에 통과한 상태다.

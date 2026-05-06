@@ -152,13 +152,16 @@ Fast lane 최근 통과 검증:
 Release gate validation:
 
 - `npm run test:e2e`: passed, 6 tests.
+- `npm run test:e2e:backend`: passed, 5 tests.
 - `npm run build`: passed.
 - `docker compose -f compose.yaml config`: passed.
-- `npm run test:e2e:backend`, `docker compose -f compose.yaml build`, compose DB migration, and compose seed are blocked until Docker Desktop is running.
+- `docker compose -f compose.yaml build`: passed.
+- `docker compose -f compose.yaml run --rm backend alembic upgrade head`: passed.
+- `docker compose -f compose.yaml run --rm backend python -m app.db.seed`: passed twice.
 
 Current blocker:
 
-- Docker Desktop daemon is not running. Docker-backed release gates fail to connect to `npipe:////./pipe/dockerDesktopLinuxEngine`.
+- None for the current MVP release gate. Docker Desktop was started and the Docker-backed release gate completed successfully.
 
 ## 7. 미구현 범위
 
@@ -171,4 +174,4 @@ Current blocker:
 
 ## 8. 다음 작업
 
-다음 작업 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 Docker Desktop 실행 후 Docker-backed release gate 재실행이다.
+다음 작업 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 릴리즈 후보 인수인계와 staging/deployment target 결정이다.
