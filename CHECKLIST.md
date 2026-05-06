@@ -25,6 +25,7 @@
 - [x] Keep `InviteState.copied` as frontend local UI state.
 - [x] Persist profile `region/style/budget` through DB-backed `/api/me/profile`.
 - [x] Persist invite acceptance through DB-backed `/api/invites/{inviteToken}/accept` and idempotent `trip_members` insertion.
+- [x] Keep mock-mode and backend-mode Playwright e2e as separate CI jobs with failure artifacts.
 - [x] Remove completed legacy planning documents after absorbing live information into current docs.
 - [x] Ensure deleted legacy document filenames are not referenced by active docs.
 
@@ -52,4 +53,4 @@
 
 ## Next Priority
 
-- [ ] Fix backend-mode e2e into CI as a separate smoke path.
+- [ ] Implement saved-policies DB persistence.

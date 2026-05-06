@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-Keep the API contract stable while moving from DB-backed policy/auth/trip/profile/invite acceptance foundations into backend-mode CI and release readiness.
+Keep the API contract stable while moving from DB-backed policy/auth/trip/profile/invite acceptance foundations into saved policies and release readiness.
 
 ## Baseline
 
@@ -15,10 +15,9 @@ Keep the API contract stable while moving from DB-backed policy/auth/trip/profil
 
 ## Next Milestones
 
-1. Fix backend-mode e2e into CI as a separate smoke path.
-2. Implement saved-policies DB persistence.
-3. Prepare deployment readiness docs and validation.
-4. Connect policy application deep links.
+1. Implement saved-policies DB persistence.
+2. Prepare deployment readiness docs and validation.
+3. Connect policy application deep links.
 
 ## Guardrails
 

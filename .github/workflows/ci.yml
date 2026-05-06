@@ -9,7 +9,7 @@ on:
 
 jobs:
   frontend:
-    name: Frontend typecheck, test, e2e, build
+    name: Frontend mock e2e
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -30,6 +30,16 @@ jobs:
       - run: npm run test:e2e
       - run: npm run build
 
+      - name: Upload frontend Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-mock-e2e-artifacts
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          if-no-files-found: ignore
+
   backend:
     name: Backend tests
     runs-on: ubuntu-latest
@@ -48,12 +58,49 @@ jobs:
       - run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
       - run: python -m pytest
 
+  frontend-backend-e2e:
+    name: Frontend backend-mode e2e
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - run: npm ci
+      - run: python -m pip install --upgrade pip && python -m pip install -r ../backend/requirements.txt
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e:backend
+
+      - name: Upload backend-mode Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-backend-mode-e2e-artifacts
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          if-no-files-found: ignore
+
   compose:
     name: Docker compose smoke
     runs-on: ubuntu-latest
     needs:
       - frontend
       - backend
+      - frontend-backend-e2e
     steps:
       - uses: actions/checkout@v4
       - run: docker compose -f compose.yaml config

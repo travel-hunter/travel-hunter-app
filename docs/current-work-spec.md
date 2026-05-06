@@ -37,6 +37,7 @@ Travel Hunter는 React/Vite 프론트엔드와 FastAPI 백엔드로 구성된 �
 - backend mode에서는 access token을 `Authorization: Bearer <token>`으로 보내고 refresh cookie를 위해 `credentials: "include"`를 사용한다.
 - 정책 상세의 `내 일정에 담기`는 일정 선택 sheet를 열고, 선택한 일정에 정책을 연결한다.
 - 일정 생성은 `region`, `style`, 선택적 `policySlug`를 API payload로 전송한다.
+- CI에서는 mock-mode Playwright와 backend-mode Playwright를 별도 job으로 실행하도록 구성한다.
 
 ### Route mapping
 
@@ -162,9 +163,8 @@ Current blocker:
 - 지도/장소 검색/이동 시간 계산
 - 실제 AI 추천 엔진
 - 친구 초대 실제 발송
-- backend-mode e2e CI 고정
 - AWS/EKS/Argo CD 배포
 
 ## 8. 다음 작업
 
-다음 작업 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 backend-mode e2e CI 고정이다.
+다음 작업 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 saved-policies DB persistence다.
