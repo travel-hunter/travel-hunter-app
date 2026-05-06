@@ -64,13 +64,26 @@ docker compose -f compose.yaml up -d backend frontend
 
 VPS 배포 절차는 `docs/deployment-vps.md`를 따른다.
 
-권장 구성:
+구성은 VPS 전용 Docker Compose 방식으로 고정한다.
 
-- `frontend`: Docker Compose frontend service
-- `backend`: Docker Compose backend service
-- `db`: Docker Compose PostgreSQL service와 named volume
-- HTTPS/reverse proxy: Caddy 권장
+- `compose.vps.yaml`: `db`, `backend`, `frontend`, `caddy` 서비스
+- `deploy/Caddyfile`: `/api/*`, `/docs*`, `/openapi.json`은 backend로, 나머지는 frontend로 라우팅
+- `deploy/.env.staging.example`: staging env template
+- 외부 공개 포트: Caddy `80`, `443`만 사용
 - 공개 URL: `https://<staging-domain>`
+
+실제 VPS에서는 `deploy/.env.staging.example`을 `deploy/.env.staging`으로 복사하고 `STAGING_DOMAIN`, `AUTH_SECRET_KEY`, DB password, `CORS_ORIGINS`를 staging 값으로 교체한다.
+
+주요 명령:
+
+```bash
+docker compose --env-file deploy/.env.staging -f compose.vps.yaml config
+docker compose --env-file deploy/.env.staging -f compose.vps.yaml build
+docker compose --env-file deploy/.env.staging -f compose.vps.yaml up -d db
+docker compose --env-file deploy/.env.staging -f compose.vps.yaml run --rm backend alembic upgrade head
+docker compose --env-file deploy/.env.staging -f compose.vps.yaml run --rm backend python -m app.db.seed
+docker compose --env-file deploy/.env.staging -f compose.vps.yaml up -d
+```
 
 ## Seed Test Account
 
@@ -107,6 +120,7 @@ Docker VPS staging:
 - `cd frontend && npm run test:e2e`: DB-backed Playwright 5 passed
 - `cd frontend && npm run build`: passed
 - `docker compose -f compose.yaml build`: passed
+- `docker compose --env-file deploy/.env.staging.example -f compose.vps.yaml config`: passed
 
 ## 내부 테스트 필수 플로우
 

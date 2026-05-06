@@ -20,6 +20,7 @@
 - [x] API shape is documented in `docs/mvp-api-contract.md`.
 - [x] Release candidate run modes and evidence are documented in `docs/release-candidate-handoff.md`.
 - [x] Completed legacy planning and placeholder infrastructure notes are absorbed into current docs.
+- [x] VPS deployment artifacts exist: `compose.vps.yaml`, `deploy/Caddyfile`, and `deploy/.env.staging.example`.
 
 ## Required Validation
 
@@ -36,12 +37,13 @@
 - [x] `docker compose -f compose.yaml build`
 - [x] `docker compose -f compose.yaml run --rm backend alembic upgrade head`
 - [x] `docker compose -f compose.yaml run --rm backend python -m app.db.seed`
+- [x] `docker compose --env-file deploy/.env.staging.example -f compose.vps.yaml config`
 
 ## Last Validation Result
 
 - Status: release gate passed.
 - Date: 2026-05-06.
-- Results: frontend typecheck passed, DB-backed Vitest passed 20 tests, backend pytest passed 72 tests, DB-backed Playwright e2e passed 5 tests, frontend build passed, Alembic offline SQL passed, compose config passed, and compose build passed.
+- Results: frontend typecheck passed, DB-backed Vitest passed 20 tests, backend pytest passed 72 tests, DB-backed Playwright e2e passed 5 tests, frontend build passed, Alembic offline SQL passed, local compose config/build passed, and VPS compose config passed.
 - Note: runtime mock mode has been removed. `npm test` and `npm run test:e2e` start compose PostgreSQL, run Alembic/seed, and execute against FastAPI.
 
 ## Next Priority

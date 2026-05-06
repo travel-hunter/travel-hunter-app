@@ -69,7 +69,25 @@ Seeded test account:
 
 ## Docker VPS Staging Direction
 
-The MVP release candidate targets an internal-test Docker VPS staging deployment. Use `docs/deployment-vps.md` for the server setup, staging env values, Caddy/reverse-proxy direction, and smoke checklist.
+The MVP release candidate targets an internal-test Docker VPS staging deployment. The VPS-specific artifacts are:
+
+- `compose.vps.yaml`: staging Compose services for `db`, `backend`, `frontend`, and `caddy`
+- `deploy/Caddyfile`: HTTPS reverse proxy routing for frontend and backend
+- `deploy/.env.staging.example`: staging environment template
+
+Use `docs/deployment-vps.md` for the server setup, staging env values, Caddy routing, and smoke checklist. The local `compose.yaml` remains for local development and local release-gate validation.
+
+VPS command outline:
+
+```bash
+cp deploy/.env.staging.example deploy/.env.staging
+docker compose --env-file deploy/.env.staging -f compose.vps.yaml config
+docker compose --env-file deploy/.env.staging -f compose.vps.yaml build
+docker compose --env-file deploy/.env.staging -f compose.vps.yaml up -d db
+docker compose --env-file deploy/.env.staging -f compose.vps.yaml run --rm backend alembic upgrade head
+docker compose --env-file deploy/.env.staging -f compose.vps.yaml run --rm backend python -m app.db.seed
+docker compose --env-file deploy/.env.staging -f compose.vps.yaml up -d
+```
 
 ## Release Readiness Validation
 
