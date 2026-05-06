@@ -28,6 +28,12 @@ function respond<T>(value: T): Promise<T> {
   });
 }
 
+function rejectWith(message: string): Promise<never> {
+  return new Promise((_, reject) => {
+    window.setTimeout(() => reject(new Error(message)), MOCK_LATENCY_MS);
+  });
+}
+
 const mockProfile = {
   region: "제주",
   style: "휴식",
@@ -97,4 +103,18 @@ export const mockApi: AppDataApi = {
       invited: true,
       copied: false,
     }),
+  acceptInvite: (token: string): Promise<InviteState> => {
+    if (token !== inviteToken) return rejectWith("Invite not found");
+    return respond({
+      id: "1",
+      tripId: itinerary.id,
+      inviteToken,
+      inviteUrl,
+      expiresAt: inviteExpiresAt,
+      createdAt: inviteCreatedAt,
+      acceptedAt: "2026-05-04T00:15:00Z",
+      invited: true,
+      copied: false,
+    });
+  },
 };

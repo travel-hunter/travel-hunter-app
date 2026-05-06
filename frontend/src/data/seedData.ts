@@ -56,8 +56,8 @@ export const policies: Policy[] = [
     category: "환급",
     requirements: ["국내 거주자", "숙박 1박 이상", "영수증 제출"],
     documents: ["신분증 사본", "숙박 영수증", "교통비 증빙"],
-    officialUrl: "https://korean.visitkorea.or.kr/",
-    applyUrl: "https://korean.visitkorea.or.kr/kor/bbs/view/B_0000000083",
+    officialUrl: "https://www.mcst.go.kr/site/s_notice/press/pressView.jsp?pMenuCD=0302000000&pSeq=22267",
+    applyUrl: null,
   },
   {
     id: "sokcho-stay",
@@ -75,7 +75,7 @@ export const policies: Policy[] = [
     requirements: ["평일 숙박", "지역 숙소", "사전 예약"],
     documents: ["예약 내역", "결제 영수증"],
     officialUrl: "https://www.sokcho.go.kr/sc/portal",
-    applyUrl: "https://www.sokcho.go.kr/sc/portal/tourism/apply",
+    applyUrl: null,
   },
   {
     id: "busan-cashback",
@@ -92,7 +92,7 @@ export const policies: Policy[] = [
     category: "캐시백",
     requirements: ["제휴 카드", "부산 결제", "월 한도 적용"],
     documents: ["카드 결제 내역"],
-    officialUrl: null,
+    officialUrl: "https://www.busan.go.kr/nbnews/1713613",
     applyUrl: null,
   },
 ];

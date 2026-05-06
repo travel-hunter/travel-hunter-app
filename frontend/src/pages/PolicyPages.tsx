@@ -1,4 +1,4 @@
-import { Heart, Share2, SlidersHorizontal } from "lucide-react";
+import { Heart, Search, Share2, SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { appDataApi, type Trip } from "../api";
@@ -17,17 +17,43 @@ function policyTripErrorMessage(error: unknown): string {
   return "일정에 혜택을 담지 못했어요. 잠시 후 다시 시도해 주세요.";
 }
 
-const filters = ["추천", "환급", "숙박", "캐시백", "마감임박"] as const;
+const allFilter = "전체";
+const categoryFilters = [allFilter, "환급", "숙박", "캐시백"] as const;
+
+function normalizeSearch(value: string) {
+  return value.trim().toLocaleLowerCase("ko-KR");
+}
 
 export function PolicyListPage() {
-  const [activeFilter, setActiveFilter] = useState<(typeof filters)[number]>("추천");
+  const [query, setQuery] = useState("");
+  const [selectedRegion, setSelectedRegion] = useState<string>(allFilter);
+  const [selectedCategory, setSelectedCategory] = useState<(typeof categoryFilters)[number]>(allFilter);
   const { data: policies, error, isLoading } = useAsyncResource(() => appDataApi.listPolicies(), []);
+  const regionFilters = useMemo(() => {
+    const regions = policies?.map((policy) => policy.region) ?? [];
+    return [allFilter, ...Array.from(new Set(regions))];
+  }, [policies]);
+
   const visiblePolicies = useMemo(() => {
     if (!policies) return [];
-    if (activeFilter === "추천") return policies;
-    if (activeFilter === "마감임박") return policies.filter((policy) => dday(policy.deadline) !== "마감");
-    return policies.filter((policy) => policy.category === activeFilter);
-  }, [activeFilter, policies]);
+    const searchText = normalizeSearch(query);
+    return policies.filter((policy) => {
+      const searchable = [policy.title, policy.org, policy.region, policy.summary, policy.tag, policy.amount, policy.category]
+        .map((value) => normalizeSearch(value))
+        .join(" ");
+      const matchesSearch = !searchText || searchable.includes(searchText);
+      const matchesRegion = selectedRegion === allFilter || policy.region === selectedRegion;
+      const matchesCategory = selectedCategory === allFilter || policy.category === selectedCategory;
+      return matchesSearch && matchesRegion && matchesCategory;
+    });
+  }, [policies, query, selectedCategory, selectedRegion]);
+
+  const hasActiveFilters = query.trim().length > 0 || selectedRegion !== allFilter || selectedCategory !== allFilter;
+  const resetFilters = () => {
+    setQuery("");
+    setSelectedRegion(allFilter);
+    setSelectedCategory(allFilter);
+  };
 
   return (
     <section className="screen with-tabs">
@@ -39,29 +65,60 @@ export function PolicyListPage() {
           </IconButton>
         }
         right={
-          <button className="icon-btn" type="button" aria-label="필터">
+          <button className="icon-btn" disabled={!hasActiveFilters} onClick={resetFilters} type="button" aria-label="필터 초기화">
             <SlidersHorizontal size={18} />
           </button>
         }
       />
-      <div className="filter-row">
-        {filters.map((filter) => (
-          <button className={activeFilter === filter ? "filter-chip active" : "filter-chip"} key={filter} onClick={() => setActiveFilter(filter)} type="button">
-            {filter}
-          </button>
-        ))}
+      <div className="policy-search-panel card">
+        <label className="search-field">
+          <Search size={18} />
+          <input aria-label="정책 검색" placeholder="정책명, 지역, 기관, 혜택 금액 검색" value={query} onChange={(event) => setQuery(event.target.value)} />
+        </label>
+        <div className="filter-group" aria-label="지역 필터">
+          <span className="filter-label">지역</span>
+          <div className="filter-row compact">
+            {regionFilters.map((region) => (
+              <button className={selectedRegion === region ? "filter-chip active" : "filter-chip"} key={region} onClick={() => setSelectedRegion(region)} type="button">
+                {region}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="filter-group" aria-label="카테고리 필터">
+          <span className="filter-label">카테고리</span>
+          <div className="filter-row compact">
+            {categoryFilters.map((category) => (
+              <button className={selectedCategory === category ? "filter-chip active" : "filter-chip"} key={category} onClick={() => setSelectedCategory(category)} type="button">
+                {category}
+              </button>
+            ))}
+          </div>
+        </div>
+        {hasActiveFilters && (
+          <Button variant="line" full onClick={resetFilters}>
+            조건 초기화
+          </Button>
+        )}
       </div>
       {isLoading && <LoadingState label="정책을 불러오는 중입니다" />}
       {error && <ErrorState message={error} />}
       {!isLoading && !error && visiblePolicies.length === 0 && (
-        <EmptyState title="조건에 맞는 정책이 아직 없어요" body="다른 필터를 선택해 받을 수 있는 혜택을 확인해보세요." action={<Button onClick={() => setActiveFilter("추천")}>추천 정책 보기</Button>} />
+        <EmptyState
+          title={hasActiveFilters ? "검색 조건에 맞는 정책이 없어요" : "등록된 정책이 아직 없어요"}
+          body={hasActiveFilters ? "검색어를 줄이거나 지역과 카테고리를 다시 선택해보세요." : "새로운 여행 혜택이 등록되면 이곳에서 확인할 수 있어요."}
+          action={<Button onClick={resetFilters}>전체 보기</Button>}
+        />
       )}
       {!isLoading && !error && visiblePolicies.length > 0 && (
-        <div className="list">
-          {visiblePolicies.map((policy) => (
-            <PolicyListCard key={policy.id} policy={policy} />
-          ))}
-        </div>
+        <>
+          <div className="result-summary">조건에 맞는 정책 {visiblePolicies.length}개</div>
+          <div className="list">
+            {visiblePolicies.map((policy) => (
+              <PolicyListCard key={policy.id} policy={policy} />
+            ))}
+          </div>
+        </>
       )}
     </section>
   );

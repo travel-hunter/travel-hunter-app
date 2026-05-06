@@ -29,8 +29,8 @@ def make_seed_like_policy() -> PolicyModel:
         target_condition="Domestic resident\nAt least one night\nReceipt required",
         region="National",
         end_date=date(2026, 10, 31),
-        official_url="https://korean.visitkorea.or.kr/",
-        apply_url="https://korean.visitkorea.or.kr/kor/bbs/view/B_0000000083",
+        official_url="https://www.mcst.go.kr/site/s_notice/press/pressView.jsp?pMenuCD=0302000000&pSeq=22267",
+        apply_url=None,
         policy_comment="Support for domestic travel expenses.",
     )
     policy.documents = [
@@ -112,8 +112,8 @@ def test_db_mode_known_policy_slug_preserves_response_contract(monkeypatch) -> N
     assert payload["slug"] == "local-vacation"
     assert payload["amount"] == "Up to 300000 cashback"
     assert payload["documents"] == ["ID card", "Accommodation receipt"]
-    assert payload["officialUrl"] == "https://korean.visitkorea.or.kr/"
-    assert payload["applyUrl"] == "https://korean.visitkorea.or.kr/kor/bbs/view/B_0000000083"
+    assert payload["officialUrl"] == "https://www.mcst.go.kr/site/s_notice/press/pressView.jsp?pMenuCD=0302000000&pSeq=22267"
+    assert payload["applyUrl"] is None
 
 
 def test_db_policy_service_returns_none_when_repository_misses(monkeypatch) -> None:

@@ -30,6 +30,9 @@
 - [x] Show saved policies on My Page and support DB-backed saved-policy removal.
 - [x] Document staging env, production build, container validation, and release scorecard criteria.
 - [x] Expose `policies.official_url`/`policies.apply_url` as `Policy.officialUrl`/`Policy.applyUrl` and connect policy detail CTAs to external links when available.
+- [x] Build `/invites/:inviteToken/accept` so shared invite links can route through login, accept, and move to the joined trip.
+- [x] Support policy list search, region filters, and category filters without changing the API shape.
+- [x] Refine policy `officialUrl`/`applyUrl` seed data to verified official links and nullable application deep links.
 - [x] Remove completed legacy planning documents after absorbing live information into current docs.
 - [x] Ensure deleted legacy document filenames are not referenced by active docs.
 
@@ -54,9 +57,9 @@
 
 - Status: fast lane passed.
 - Date: 2026-05-06.
-- Results: frontend typecheck passed, Vitest passed 10 tests, backend pytest passed 68 tests, and `git diff --check` passed.
+- Results: frontend typecheck passed, Vitest passed 16 tests, backend pytest passed 68 tests, and `git diff --check` passed.
 - Notes: e2e, backend-mode e2e, frontend build, compose build, and compose DB runtime validation are release-gate checks. Docker Desktop 미실행은 기능 구현 blocker가 아니다.
 
 ## Next Priority
 
-- [ ] Build the invite acceptance frontend route.
+- [ ] Run release-gate validation before release candidate handoff.

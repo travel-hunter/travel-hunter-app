@@ -196,8 +196,8 @@ Response `200`:
     "category": "환급",
     "requirements": ["국내 거주자", "숙박 1박 이상", "영수증 제출"],
     "documents": ["신분증 사본", "숙박 영수증", "교통비 증빙"],
-    "officialUrl": "https://korean.visitkorea.or.kr/",
-    "applyUrl": "https://korean.visitkorea.or.kr/kor/bbs/view/B_0000000083"
+    "officialUrl": "https://www.mcst.go.kr/site/s_notice/press/pressView.jsp?pMenuCD=0302000000&pSeq=22267",
+    "applyUrl": null
   }
 ]
 ```
@@ -220,6 +220,7 @@ Link semantics:
 
 - `officialUrl` is the official information/detail page URL.
 - `applyUrl` is the application/deep-link URL.
+- `applyUrl` remains `null` when an exact official application or campaign deep link is not verified.
 - Frontend application CTAs use `applyUrl` first, then fall back to `officialUrl`, then show the preparation notice when both are null.
 
 ### `GET /api/policies/{policySlug}`

@@ -1,15 +1,28 @@
 import { FormEvent, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { appDataApi } from "../api";
 import { useSession } from "../app/session";
 import { Button, IconButton, LinkButton } from "../components/ui";
 
 const previewUser = appDataApi.getPreviewUser();
 
+function getSafeRedirect(searchParams: URLSearchParams) {
+  const redirect = searchParams.get("redirect");
+  if (!redirect || !redirect.startsWith("/") || redirect.startsWith("//")) return null;
+  return redirect;
+}
+
+function withRedirect(path: string, redirect: string | null) {
+  if (!redirect) return path;
+  return `${path}?redirect=${encodeURIComponent(redirect)}`;
+}
+
 export function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login } = useSession();
   const [error, setError] = useState("");
+  const redirect = getSafeRedirect(searchParams);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -21,7 +34,7 @@ export function LoginPage() {
         email: String(formData.get("email") || ""),
         password: String(formData.get("password") || ""),
       });
-      navigate("/home");
+      navigate(redirect ?? "/home");
     } catch {
       setError("로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.");
     }
@@ -31,7 +44,7 @@ export function LoginPage() {
     setError("");
     try {
       await login();
-      navigate("/home");
+      navigate(redirect ?? "/home");
     } catch {
       setError("로그인에 실패했습니다. 잠시 후 다시 시도해주세요.");
     }
@@ -65,7 +78,7 @@ export function LoginPage() {
       <div className="auth-links">
         <button type="button">비밀번호 찾기</button>
         <span>·</span>
-        <button type="button" onClick={() => navigate("/signup")}>
+        <button type="button" onClick={() => navigate(withRedirect("/signup", redirect))}>
           회원가입
         </button>
       </div>
@@ -86,8 +99,10 @@ export function LoginPage() {
 
 export function SignupPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { signup } = useSession();
   const [error, setError] = useState("");
+  const redirect = getSafeRedirect(searchParams);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -100,7 +115,7 @@ export function SignupPage() {
         email: String(formData.get("email") || ""),
         password: String(formData.get("password") || ""),
       });
-      navigate("/profile-setup");
+      navigate(redirect ?? "/profile-setup");
     } catch {
       setError("회원가입에 실패했습니다. 입력한 정보를 다시 확인해주세요.");
     }
@@ -144,7 +159,7 @@ export function SignupPage() {
       </form>
       <div className="auth-links">
         <span>이미 계정이 있나요?</span>
-        <LinkButton to="/login" variant="ghost">
+        <LinkButton to={withRedirect("/login", redirect)} variant="ghost">
           로그인
         </LinkButton>
       </div>

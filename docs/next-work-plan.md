@@ -11,11 +11,11 @@
 
 | 우선순위 | 작업 | 성공 기준 |
 |----------|------|-----------|
-| 1 | 저장 정책 화면화 | `GET/DELETE /api/me/saved-policies`를 지원하고, 마이페이지에서 저장 정책 목록 조회와 저장 해제가 동작한다. |
-| 2 | 친구 초대 수락 화면화 | `/invites/:inviteToken/accept` route에서 로그인 유도, 수락, 일정 이동이 동작한다. |
-| 3 | 정책 탐색 UX 개선 | 정책 목록에서 검색, 지역, 카테고리 필터가 client-side로 동작한다. |
-| 4 | 정책 신청 URL 정밀화 | 실제 정책별 공고 URL이 확정되면 `officialUrl`/`applyUrl` seed 값을 갱신한다. |
-| 5 | 릴리즈 게이트 재실행 | 릴리즈 후보 시점에 e2e, backend-mode e2e, build, compose build를 재실행한다. |
+| 완료 | 저장 정책 화면화 | `GET/DELETE /api/me/saved-policies`를 지원하고, 마이페이지에서 저장 정책 목록 조회와 저장 해제가 동작한다. |
+| 완료 | 친구 초대 수락 화면화 | `/invites/:inviteToken/accept` route에서 로그인 유도, 수락, 일정 이동이 동작한다. |
+| 완료 | 정책 탐색 UX 개선 | 정책 목록에서 검색, 지역, 카테고리 필터가 client-side로 동작한다. |
+| 완료 | 정책 신청 URL 정밀화 | 실제 정책별 공고 URL이 확정되면 `officialUrl`/`applyUrl` seed 값을 갱신한다. |
+| 1 | 릴리즈 게이트 재실행 | 릴리즈 후보 시점에 e2e, backend-mode e2e, build, compose build를 재실행한다. |
 
 ## Fast Lane 검증
 

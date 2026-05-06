@@ -35,8 +35,11 @@ Travel Hunter는 React/Vite 프론트엔드와 FastAPI 백엔드로 구성된 �
 - 모든 화면 데이터는 `frontend/src/api`의 `AppDataApi` 경계를 통해 접근한다.
 - `VITE_DATA_SOURCE=mock|backend`로 mock data와 FastAPI backend를 선택한다.
 - backend mode에서는 access token을 `Authorization: Bearer <token>`으로 보내고 refresh cookie를 위해 `credentials: "include"`를 사용한다.
+- 정책 목록은 `GET /api/policies` 결과를 기반으로 검색어, 지역, 카테고리 client-side 필터를 제공한다.
 - 정책 상세의 `내 일정에 담기`는 일정 선택 sheet를 열고, 선택한 일정에 정책을 연결한다.
+- 정책 상세의 신청/공식 안내 링크는 검증된 공식 URL만 사용하고, 정확한 신청 deep link가 없으면 `applyUrl`을 `null`로 둔다.
 - 일정 생성은 `region`, `style`, 선택적 `policySlug`를 API payload로 전송한다.
+- 초대 링크 `/invites/:inviteToken/accept`는 비로그인 사용자를 로그인으로 보낸 뒤 원래 링크로 복귀해 초대를 수락한다.
 - CI에서는 mock-mode Playwright와 backend-mode Playwright를 별도 job으로 실행하도록 구성한다.
 
 ### Route mapping
@@ -55,6 +58,7 @@ Travel Hunter는 React/Vite 프론트엔드와 FastAPI 백엔드로 구성된 �
 | `itinerary-detail` | `/trips/:tripId` | `ItineraryDetailPage` |
 | `ai-results` | `/ai-results` | `AiResultsPage` |
 | `friend-invite` | `/friend-invite` | `FriendInvitePage` |
+| Invite accept link | `/invites/:inviteToken/accept` | `InviteAcceptPage` |
 | `mypage` | `/mypage` | `MyPage` |
 
 ## 4. Backend 구현 범위
@@ -142,7 +146,7 @@ Fast lane 최근 통과 검증:
 
 - `python -m pytest`: 68 passed
 - `npm run typecheck`: passed
-- `npm test`: 10 passed
+- `npm test`: 16 passed
 - `git diff --check`: passed
 
 Release gate validation:
@@ -165,4 +169,4 @@ Current blocker:
 
 ## 8. 다음 작업
 
-다음 작업 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 친구 초대 수락 화면화다.
+다음 작업 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 릴리즈 게이트 재실행이다.

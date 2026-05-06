@@ -65,6 +65,7 @@ export type AppDataApi = {
   listRecommendations: (tripId?: string) => Promise<Recommendation[]>;
   getInviteState: (tripId?: string) => Promise<InviteState>;
   confirmInviteSent: (tripId?: string) => Promise<InviteState>;
+  acceptInvite: (inviteToken: string) => Promise<InviteState>;
 };
 
 export function getDataSource(): DataSource {

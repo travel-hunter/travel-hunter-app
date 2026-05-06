@@ -45,4 +45,5 @@ export const backendApi: AppDataApi = {
   listRecommendations: (tripId = itinerary.id): Promise<Recommendation[]> => apiClient.get<Recommendation[]>(`/api/trips/${tripId}/recommendations`),
   getInviteState: (tripId = itinerary.id): Promise<InviteState> => apiClient.get<InviteState>(`/api/trips/${tripId}/invite`),
   confirmInviteSent: (tripId = itinerary.id): Promise<InviteState> => apiClient.post<InviteState>(`/api/trips/${tripId}/invite`),
+  acceptInvite: (inviteToken: string): Promise<InviteState> => apiClient.post<InviteState>(`/api/invites/${inviteToken}/accept`),
 };

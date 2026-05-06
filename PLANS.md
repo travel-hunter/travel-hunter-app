@@ -14,10 +14,7 @@ Prioritize user-facing feature implementation over release-hardening work. Docke
 
 ## Next Milestones
 
-1. Build user-facing saved policy management: list saved policies, remove saved policies, and show the result on My Page.
-2. Add a frontend invite acceptance route for shared invite links.
-3. Improve policy discovery UX with client-side search and filters.
-4. Refine `officialUrl`/`applyUrl` seed values when exact official campaign pages are confirmed.
+1. Re-run release-gate validation before release candidate handoff.
 
 ## Guardrails
 
