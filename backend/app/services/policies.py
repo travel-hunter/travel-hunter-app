@@ -112,3 +112,51 @@ def save_policy(
         "policyId": policy_slug,
         "saved": True,
     }
+
+
+def list_saved_policies(
+    db: Session | None = None,
+    user: User | None = None,
+) -> list[dict[str, object]]:
+    if settings.backend_data_source != "db":
+        return mock_store.list_saved_policies()
+    if db is None:
+        raise RuntimeError("DB session is required when BACKEND_DATA_SOURCE=db.")
+    if user is None:
+        raise RuntimeError("User is required when BACKEND_DATA_SOURCE=db.")
+
+    return [
+        policy_to_api(policy)
+        for policy in policy_repository.list_saved_policies(db, user_id=user.id)
+    ]
+
+
+def remove_saved_policy(
+    policy_slug: str,
+    db: Session | None = None,
+    user: User | None = None,
+) -> dict[str, object] | None:
+    if settings.backend_data_source != "db":
+        policy = mock_store.get_policy(policy_slug)
+        if policy is None:
+            return None
+        return mock_store.remove_saved_policy(policy_slug)
+    if db is None:
+        raise RuntimeError("DB session is required when BACKEND_DATA_SOURCE=db.")
+    if user is None:
+        raise RuntimeError("User is required when BACKEND_DATA_SOURCE=db.")
+
+    policy = policy_repository.get_policy_by_slug(db, policy_slug)
+    if policy is None:
+        return None
+
+    policy_repository.remove_saved_policy(
+        db,
+        user_id=user.id,
+        policy_id=policy.id,
+    )
+    db.commit()
+    return {
+        "policyId": policy_slug,
+        "saved": False,
+    }

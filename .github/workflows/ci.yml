@@ -6,10 +6,11 @@ on:
     branches:
       - main
       - develop
+  workflow_dispatch:
 
 jobs:
   frontend:
-    name: Frontend mock e2e
+    name: Frontend fast lane
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -26,22 +27,9 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
-      - run: npm run build
-
-      - name: Upload frontend Playwright artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-mock-e2e-artifacts
-          path: |
-            frontend/playwright-report
-            frontend/test-results
-          if-no-files-found: ignore
 
   backend:
-    name: Backend tests
+    name: Backend fast lane
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -58,12 +46,13 @@ jobs:
       - run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
       - run: python -m pytest
 
-  frontend-backend-e2e:
-    name: Frontend backend-mode e2e
+  release-gate:
+    name: Release gate
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
+    needs:
+      - frontend
+      - backend
     steps:
       - uses: actions/checkout@v4
 
@@ -80,28 +69,25 @@ jobs:
           cache-dependency-path: backend/requirements.txt
 
       - run: npm ci
-      - run: python -m pip install --upgrade pip && python -m pip install -r ../backend/requirements.txt
+        working-directory: frontend
+      - run: python -m pip install --upgrade pip && python -m pip install -r backend/requirements.txt
       - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm run test:e2e
+        working-directory: frontend
       - run: npm run test:e2e:backend
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+      - run: docker compose -f compose.yaml config
+      - run: docker compose -f compose.yaml build
 
-      - name: Upload backend-mode Playwright artifacts
+      - name: Upload Playwright artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: frontend-backend-mode-e2e-artifacts
+          name: release-gate-playwright-artifacts
           path: |
             frontend/playwright-report
             frontend/test-results
           if-no-files-found: ignore
-
-  compose:
-    name: Docker compose smoke
-    runs-on: ubuntu-latest
-    needs:
-      - frontend
-      - backend
-      - frontend-backend-e2e
-    steps:
-      - uses: actions/checkout@v4
-      - run: docker compose -f compose.yaml config
-      - run: docker compose -f compose.yaml build

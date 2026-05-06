@@ -60,6 +60,22 @@ def save_policy(policy_slug: str) -> dict[str, Any]:
     }
 
 
+def list_saved_policies() -> list[dict[str, Any]]:
+    return [
+        _clone(policy)
+        for policy in seed.POLICIES
+        if policy["slug"] in _saved_policy_ids or policy["id"] in _saved_policy_ids
+    ]
+
+
+def remove_saved_policy(policy_slug: str) -> dict[str, Any]:
+    _saved_policy_ids.discard(policy_slug)
+    return {
+        "policyId": policy_slug,
+        "saved": False,
+    }
+
+
 def list_trips() -> list[dict[str, Any]]:
     return [_clone(seed.TRIP)]
 

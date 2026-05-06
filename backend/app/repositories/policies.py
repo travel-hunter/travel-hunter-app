@@ -41,3 +41,28 @@ def add_saved_policy(
     db.add(saved_policy)
     db.flush()
     return saved_policy
+
+
+def list_saved_policies(db: Session, *, user_id: int) -> list[Policy]:
+    statement = (
+        select(UserSavedPolicy)
+        .options(selectinload(UserSavedPolicy.policy).selectinload(Policy.documents))
+        .where(UserSavedPolicy.user_id == user_id)
+        .order_by(UserSavedPolicy.saved_at.desc(), UserSavedPolicy.id.desc())
+    )
+    saved_rows = list(db.scalars(statement).all())
+    return [row.policy for row in saved_rows]
+
+
+def remove_saved_policy(
+    db: Session,
+    *,
+    user_id: int,
+    policy_id: int,
+) -> bool:
+    saved_policy = get_saved_policy(db, user_id=user_id, policy_id=policy_id)
+    if saved_policy is None:
+        return False
+    db.delete(saved_policy)
+    db.flush()
+    return True
