@@ -19,6 +19,7 @@ Travel Hunter는 React/Vite 프론트엔드와 FastAPI/PostgreSQL 백엔드로 �
 | Backend | `backend` |
 | API contract | `docs/mvp-api-contract.md` |
 | Design system map | `docs/design-system-map.md` |
+| Design QA | `docs/design-qa.md` |
 | DB schema reference | `docs/db-schema-v0.3.sql` |
 | Release handoff | `docs/release-candidate-handoff.md` |
 | Docker VPS deployment | `docs/deployment-vps.md` |
@@ -27,6 +28,7 @@ Travel Hunter는 React/Vite 프론트엔드와 FastAPI/PostgreSQL 백엔드로 �
 
 - Vite + React + TypeScript + React Router 기반 반응형 웹.
 - Wanted Design System `.fig`를 기준으로 blue/neutral 토큰, compact radius, thin border 중심의 1차 UI pass가 적용됐다.
+- 390/1024/1440px 기준 주요 화면 브라우저 QA가 완료됐으며 결과는 `docs/design-qa.md`에 기록했다.
 - `AppRoot`, `AppProviders`, `SessionProvider`, `ProtectedRoute` 구조.
 - 모든 화면 데이터 접근은 `frontend/src/api/AppDataApi` 경계를 통해 수행.
 - `appDataApi`는 항상 `backendApi`를 사용한다.

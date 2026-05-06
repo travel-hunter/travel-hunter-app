@@ -14,13 +14,15 @@
    - 현재 구현 상태, 기준 커밋, 완료/미완료 범위, 검증 결과.
 6. `design-system-map.md`
    - Wanted Design System `.fig` 기반 토큰/컴포넌트 적용 기준.
-7. `mvp-api-contract.md`
+7. `design-qa.md`
+   - Wanted 1차 적용 이후 브라우저 시각 QA 결과와 Figma handoff 대기 항목.
+8. `mvp-api-contract.md`
    - API request/response/error 계약.
-8. `next-work-plan.md`
+9. `next-work-plan.md`
    - 다음 작업 우선순위.
-9. `db-schema-v0.3.sql`
+10. `db-schema-v0.3.sql`
    - ERD v0.3 SQL 기준본.
-10. `future-deployment.md`
+11. `future-deployment.md`
    - Docker VPS 이후 AWS/Terraform/EKS/Argo CD 확장 방향.
 
 ## 현재 기준

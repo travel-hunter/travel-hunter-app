@@ -12,10 +12,11 @@ Recommended reading order for a new developer:
 4. `docs/deployment-vps.md`: Docker VPS staging deployment plan
 5. `docs/current-work-spec.md`: current implementation status
 6. `docs/design-system-map.md`: Wanted Design System token/component mapping
-7. `docs/mvp-api-contract.md`: API request/response/error contract
-8. `docs/next-work-plan.md`: next priority after handoff
-9. `docs/db-schema-v0.3.sql`: ERD v0.3 SQL reference
-10. `docs/future-deployment.md`: later AWS/Terraform/EKS/Argo CD expansion notes
+7. `docs/design-qa.md`: Wanted design browser QA and Figma handoff status
+8. `docs/mvp-api-contract.md`: API request/response/error contract
+9. `docs/next-work-plan.md`: next priority after handoff
+10. `docs/db-schema-v0.3.sql`: ERD v0.3 SQL reference
+11. `docs/future-deployment.md`: later AWS/Terraform/EKS/Argo CD expansion notes
 
 ## Local Development
 
