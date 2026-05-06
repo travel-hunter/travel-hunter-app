@@ -6,7 +6,7 @@
 .service-layout {
   min-height: 100dvh;
   background:
-    radial-gradient(circle at 12% 0%, rgba(51, 102, 255, 0.08), transparent 28%),
+    radial-gradient(circle at 12% 0%, rgba(0, 102, 255, 0.08), transparent 28%),
     radial-gradient(circle at 88% 5%, rgba(0, 199, 174, 0.08), transparent 26%),
     var(--gray-50);
 }
@@ -154,13 +154,13 @@
 }
 
 .btn {
-  min-height: 46px;
+  min-height: 48px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border-radius: var(--radius-sm);
-  padding: 0 18px;
+  border-radius: var(--radius-lg);
+  padding: 0 28px;
   font-weight: 800;
   line-height: 1;
   letter-spacing: 0;
@@ -184,7 +184,7 @@
 .btn.primary {
   color: #fff;
   background: var(--primary-500);
-  box-shadow: 0 8px 18px rgba(51, 102, 255, 0.24);
+  box-shadow: 0 8px 18px rgba(0, 102, 255, 0.24);
 }
 
 .btn.secondary {
@@ -205,9 +205,9 @@
 }
 
 .btn.sm {
-  min-height: 34px;
-  padding: 0 12px;
-  border-radius: var(--radius-xs);
+  min-height: 32px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
   font-size: 13px;
 }
 
@@ -268,7 +268,7 @@
   position: relative;
   overflow: hidden;
   background:
-    linear-gradient(135deg, rgba(51, 102, 255, 0.92), rgba(0, 199, 174, 0.78)),
+    linear-gradient(135deg, rgba(0, 102, 255, 0.92), rgba(0, 199, 174, 0.78)),
     var(--gray-100);
 }
 
@@ -425,7 +425,7 @@
 .field:focus-within input,
 .search-field:focus-within {
   border-color: var(--primary-500);
-  box-shadow: 0 0 0 3px rgba(51, 102, 255, 0.14);
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.14);
 }
 
 .form-error {
@@ -671,9 +671,9 @@
   display: grid;
   place-items: center;
   color: var(--primary-600);
-  background: rgba(51, 102, 255, 0.10);
+  background: rgba(0, 102, 255, 0.10);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(51, 102, 255, 0.18);
+  border: 1px solid rgba(0, 102, 255, 0.18);
   font-weight: 1000;
 }
 
@@ -732,7 +732,7 @@
   background:
     radial-gradient(circle at 30% 32%, var(--primary-500) 0 6px, transparent 7px),
     radial-gradient(circle at 70% 66%, var(--secondary-500) 0 6px, transparent 7px),
-    linear-gradient(135deg, rgba(51, 102, 255, 0.14), rgba(0, 199, 174, 0.18));
+    linear-gradient(135deg, rgba(0, 102, 255, 0.14), rgba(0, 199, 174, 0.18));
 }
 
 .itinerary-body {
@@ -900,7 +900,7 @@
   position: relative;
   color: #fff;
   background:
-    linear-gradient(145deg, rgba(51, 102, 255, 0.90), rgba(17, 24, 39, 0.78)),
+    linear-gradient(145deg, rgba(0, 102, 255, 0.90), rgba(17, 24, 39, 0.78)),
     var(--gray-100);
 }
 
@@ -1061,7 +1061,7 @@
   background:
     linear-gradient(90deg, rgba(255, 255, 255, 0.42) 1px, transparent 1px),
     linear-gradient(rgba(255, 255, 255, 0.42) 1px, transparent 1px),
-    linear-gradient(135deg, rgba(0, 199, 174, 0.18), rgba(51, 102, 255, 0.16));
+    linear-gradient(135deg, rgba(0, 199, 174, 0.18), rgba(0, 102, 255, 0.16));
   background-size: 36px 36px, 36px 36px, auto;
 }
 
@@ -1071,7 +1071,7 @@
   height: 18px;
   border-radius: 999px;
   background: var(--primary-500);
-  box-shadow: 0 0 0 8px rgba(51, 102, 255, 0.18);
+  box-shadow: 0 0 0 8px rgba(0, 102, 255, 0.18);
 }
 
 .marker.one {

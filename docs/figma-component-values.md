@@ -14,7 +14,7 @@
 
 | Component | Figma node | Component set | Variant/property | 주요 수치 | 현재 앱 매핑 | 적용 판단 |
 |---|---|---|---|---|---|---|
-| Button | `16215:37602` | `Button/Button` | `Variant=Solid/Outlined`, `Color=Primary/Assistive`, `Size=Small/Medium/Large`, `Icon Only=True/False`, `Disable=True/False` | Large `48h`, Medium `40h`, Small `32h`; radius `12/10/8`; Large padding `28x12`; Medium `20x9`; Small `14x7`; Primary fill `#0066ff`; disabled fill `#f4f4f5`; outlined stroke `#70737c` at `16%` | `Button`, `LinkButton`, `.btn`, `.btn.sm` | 앱 primary `#3366ff`는 Wanted `#0066ff`보다 밝다. 2차 보정 시 primary token 교체 여부만 결정하면 된다. |
+| Button | `16215:37602` | `Button/Button` | `Variant=Solid/Outlined`, `Color=Primary/Assistive`, `Size=Small/Medium/Large`, `Icon Only=True/False`, `Disable=True/False` | Large `48h`, Medium `40h`, Small `32h`; radius `12/10/8`; Large padding `28x12`; Medium `20x9`; Small `14x7`; Primary fill `#0066ff`; disabled fill `#f4f4f5`; outlined stroke `#70737c` at `16%` | `Button`, `LinkButton`, `.btn`, `.btn.sm` | 2차 보정으로 앱 primary token, default button height/radius, small button height/radius를 Wanted 수치에 맞췄다. |
 | Text Field/Input | `16215:31385` | `Textinput/Textfield` | `Status=Normal/Positive/Negative`, `Active=True/False`, `Focus=True/False`, `Disable=True/False`, `Trailing Button=True/False` | Field width sample `335`; field height `48`; component height `100`; vertical gap `8`; background resource `335x48`; background radius `12`; negative text `#ff4242`; helper text `#37383c` at `61%` | `.field input`, `.search-field`, auth/profile form fields | 앱 input height/radius는 거의 일치. focus/error 색상은 Figma node 재확인 후 token화 가능. |
 | Textarea | `16215:32165` | `Textinput/Textarea` | `Status=Normal/Negative`, `Resize=Normal/Limit/Fixed`, `Active`, `Focus`, `Disable` | sample width `335`; normal height `138`; fixed height `190` | 현재 MVP에는 textarea 중심 화면 없음 | 보류. 실제 textarea UI가 생길 때 적용. |
 | Content Badge | `16215:25365` | `Content Badge/Content Badge` | `Variant=Solid/Outlined`, `Size=Medium/Small/XSmall`, `Color=Neutral/Accent` | Medium `28h`, Small `24h`, XSmall `20h` | `Tag`, `.tag`, policy badges | 앱 `.tag` min-height `26px`는 Small/Medium 중간값이다. 정책 카드 밀도를 유지하려면 현행 유지 또는 `24px` 축소. |
@@ -39,15 +39,14 @@
 
 ## 현재 앱과의 주요 차이
 
-- Wanted primary blue는 `#0066ff`이고 현재 앱 `--primary-500`은 `#3366ff`다.
-- Wanted Button Large는 `48px` 높이, radius `12px`인데 현재 앱 `.btn`은 min-height `46px`, radius `8px`다.
+- Wanted primary blue `#0066ff`를 현재 앱 `--primary-500`에 반영했다.
+- Wanted Button Large `48px` 높이와 radius `12px`를 현재 앱 `.btn` 기본값에 반영했다.
 - Wanted Textfield background radius는 `12px`이고 현재 앱 input radius는 Wanted 1차 pass에서 대체로 맞춰진 상태다.
 - Wanted Content Badge는 `20/24/28px`, Chip은 `24/32/36/40px` 체계다. 현재 앱 `Tag`는 `26px`라 정책 badge 밀도에는 적당하지만 정확한 Wanted size는 아니다.
 - Wanted List Card mobile width/height는 `335x64`다. Travel Hunter list card는 policy/trip 정보량 때문에 높이를 고정하지 않고 콘텐츠 기반으로 유지한다.
 
 ## 다음 결정
 
-1. `--primary-500`을 Wanted 원본 `#0066ff`로 맞출지, 현재 Travel Hunter `#3366ff`를 유지할지 결정한다.
-2. `.btn` 기본 높이를 `48px`, radius를 `12px`로 맞출지 확인한다.
-3. `Tag`/filter chip을 Content Badge 기준과 Chip 기준으로 분리할지 결정한다.
-4. Figma 앱 import 후 Sheet/Modal, Toast/Alert의 실제 node 링크를 추가한다.
+1. `Tag`/filter chip을 Content Badge 기준과 Chip 기준으로 분리할지 결정한다.
+2. Figma 앱 import 후 Sheet/Modal, Toast/Alert의 실제 node 링크를 추가한다.
+3. 복제된 Travel Hunter Figma 파일의 node URL을 원본 node ID와 나란히 기록한다.

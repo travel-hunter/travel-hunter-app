@@ -33,6 +33,7 @@ Travel Hunter는 React/Vite 프론트엔드와 FastAPI/PostgreSQL 백엔드로 �
 - Wanted Design System `.fig`를 기준으로 blue/neutral 토큰, compact radius, thin border 중심의 1차 UI pass가 적용됐다.
 - 390/1024/1440px 기준 주요 화면 브라우저 QA가 완료됐으며 결과는 `docs/design-qa.md`에 기록했다.
 - Figma 원본 Community 파일에서 Button, Textinput, Badge/Chip, Card/List Cell, Tab component set 수치를 추출해 `docs/figma-component-values.md`에 기록했다. Sheet/Modal, Toast/Alert는 Figma 앱/웹 import 후 manual node 확인이 필요하다.
+- Button primary color, default height, radius는 Wanted 원본 수치에 맞춰 2차 보정했다.
 - `AppRoot`, `AppProviders`, `SessionProvider`, `ProtectedRoute` 구조.
 - 모든 화면 데이터 접근은 `frontend/src/api/AppDataApi` 경계를 통해 수행.
 - `appDataApi`는 항상 `backendApi`를 사용한다.

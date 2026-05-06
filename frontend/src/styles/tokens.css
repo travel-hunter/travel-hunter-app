@@ -1,10 +1,10 @@
 :root {
   --font-sans: Inter, Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
-  --primary-700: #1748c9;
-  --primary-600: #2456e8;
-  --primary-500: #3366ff;
-  --primary-100: #e8efff;
-  --primary-50: #f4f7ff;
+  --primary-700: #004fc7;
+  --primary-600: #005be5;
+  --primary-500: #0066ff;
+  --primary-100: #e5f0ff;
+  --primary-50: #f2f7ff;
   --secondary-600: #d9365b;
   --secondary-500: #ff4b6e;
   --secondary-100: #fff0f4;
