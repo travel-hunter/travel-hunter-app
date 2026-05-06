@@ -1,88 +1,86 @@
-# Travel Hunter 현재 구현 명세
+# Travel Hunter 현재 작업 명세
 
 ## 현재 상태
 
-Travel Hunter는 React/Vite 프론트엔드와 FastAPI/PostgreSQL 백엔드로 구성된 국내 여행 정책/일정 MVP다. 런타임 mock mode는 제거됐고, 사용자-facing 인증/데이터 흐름은 항상 FastAPI와 PostgreSQL 기준으로 동작한다.
+Travel Hunter는 국내 여행 정책 탐색과 여행 일정 생성을 위한 MVP 앱이다. 현재 앱은 React/Vite 프론트엔드, FastAPI 백엔드, PostgreSQL DB를 기준으로 동작한다. runtime mock mode는 제거됐고, 사용자 인증과 주요 데이터 흐름은 FastAPI API와 PostgreSQL 저장소를 사용한다.
 
-## 기준 커밋
-
-- 문서 정리 시작 기준 커밋: `6436672 docs: record vps deployment prerequisites`
-- Docker VPS staging 산출물 커밋: `91df9e9 chore: add docker vps staging artifacts`
-- 실제 VPS 배포 상태: VPS 입력값 대기 중
+현재 기준 커밋은 `026336e style: align toast with wanted figma values`다. 이 커밋 이후 작업트리에는 Cloudflare Tunnel 배포 산출물과 문서 정리 변경분이 포함되어 있으며, 아직 별도 커밋 전이다.
 
 ## 주요 위치
 
 | 구분 | 위치 |
 |---|---|
-| App root | `C:\Users\HP\Documents\프로젝트\진행중\travel-hunter-app` |
-| Frontend | `frontend` |
-| Backend | `backend` |
-| API contract | `docs/mvp-api-contract.md` |
-| Design system map | `docs/design-system-map.md` |
-| Design QA | `docs/design-qa.md` |
-| Figma import checklist | `docs/figma-import-checklist.md` |
-| Figma component values | `docs/figma-component-values.md` |
-| Figma team workflow | `docs/figma-team-project-workflow.md` |
-| VPS staging inputs | `docs/vps-staging-inputs.md` |
-| DB schema reference | `docs/db-schema-v0.3.sql` |
-| Release handoff | `docs/release-candidate-handoff.md` |
-| Docker VPS deployment | `docs/deployment-vps.md` |
+| 앱 루트 | `C:\Users\HP\Documents\프로젝트\진행중\travel-hunter-app` |
+| 프론트엔드 | `frontend` |
+| 백엔드 | `backend` |
+| API 계약 | `docs/mvp-api-contract.md` |
+| DB schema 기준 | `docs/db-schema-v0.3.sql` |
+| RC 인수인계 | `docs/release-candidate-handoff.md` |
+| VPS 배포 | `docs/deployment-vps.md` |
+| Cloudflare Tunnel 배포 | `docs/deployment-tunnel.md` |
+| 디자인 매핑 | `docs/design-system-map.md` |
 
-## Frontend 구현 범위
+## 구현된 기능
 
-- Vite + React + TypeScript + React Router 기반 반응형 웹.
-- Wanted Design System `.fig`를 기준으로 blue/neutral 토큰, compact radius, thin border 중심의 1차 UI pass가 적용됐다.
-- 390/1024/1440px 기준 주요 화면 브라우저 QA가 완료됐으며 결과는 `docs/design-qa.md`에 기록했다.
-- Figma 원본 Community 파일에서 Button, Textinput, Badge/Chip, Card/List Cell, Tab component set 수치를 추출해 `docs/figma-component-values.md`에 기록했다. Sheet/Modal, Toast/Alert는 Figma 앱/웹 import 후 manual node 확인이 필요하다.
-- Button primary color, default height, radius는 Wanted 원본 수치에 맞춰 2차 보정했다.
-- Travel Hunter Figma project는 `team::1631977620101471167`의 `travle-hunter` plan에서 작업 가능하다는 점을 확인했고, `Travel Hunter Design System Handoff` 파일을 생성했다: `https://www.figma.com/design/6qxML42kKtZWIwLUU1YDpX`.
-- `AppRoot`, `AppProviders`, `SessionProvider`, `ProtectedRoute` 구조.
-- 모든 화면 데이터 접근은 `frontend/src/api/AppDataApi` 경계를 통해 수행.
+- 인증: 회원가입, 로그인, refresh, logout, `/api/me`.
+- 프로필: 지역, 여행 스타일, 예산 저장.
+- 정책: 목록, 상세, 검색/필터, 저장/삭제, 공식/신청 URL CTA.
+- 일정: 목록, 생성, 상세, 삭제, 정책 담기, 추천 결과 조회.
+- 초대: 초대 링크 생성, 초대 수락, 일정 참여자 추가.
+- 테스트 계정: `test.user@example.com / password123`, 표시명 `테스트 사용자`.
+
+## 프론트엔드 기준
+
+- Vite + React + TypeScript + React Router 기반 반응형 웹이다.
+- `AppRoot`, `AppProviders`, `SessionProvider`, `ProtectedRoute` 구조를 사용한다.
+- 모든 화면 데이터 접근은 `AppDataApi` 경계를 통한다.
 - `appDataApi`는 항상 `backendApi`를 사용한다.
-- 기존 데이터 소스 선택기와 mock e2e는 제거됐다.
-- 로그인/회원가입/세션 검증은 `/api/auth/*`, `/api/me` 기준으로 동작.
-- 정책 목록은 `GET /api/policies` 결과를 client-side 검색/지역/카테고리 필터로 탐색.
-- 정책 상세는 저장 정책, 일정 선택 sheet, 공식/신청 URL CTA를 제공.
-- 일정 생성은 `region`, `style`, 선택 `policySlug`를 `POST /api/trips` payload로 전달.
-- 초대 수락 route `/invites/:inviteToken/accept`는 로그인 복귀 후 `POST /api/invites/{inviteToken}/accept`를 호출한다.
+- 정책 탐색은 현재 `GET /api/policies` 결과를 client-side 검색/지역/카테고리 필터로 처리한다.
+- `/trips/new`는 지역, 스타일, 기간, 선택 정책을 `POST /api/trips` payload로 전달한다.
+- `/invites/:inviteToken/accept`는 로그인 복귀 후 초대 수락 API를 호출한다.
 
-## Backend 구현 범위
+## 백엔드 기준
 
-- FastAPI route/schema/service/repository/data 계층.
-- SQLAlchemy 2.x sync ORM + psycopg 3 + Alembic + PostgreSQL 16.
-- schema 생성은 Alembic만 사용하고 `create_all()`은 사용하지 않는다.
-- 개발 seed는 `python -m app.db.seed`로 주입하며 idempotent하다.
-- `/api/profile-options`는 DB-backed 앱의 정적 옵션 응답이다.
+- FastAPI route/schema/service/repository 계층을 사용한다.
+- SQLAlchemy 2.x sync ORM + psycopg 3 + Alembic + PostgreSQL 16 기준이다.
+- schema 생성은 Alembic migration만 사용하고 `create_all()`은 사용하지 않는다.
+- 개발 seed는 `python -m app.db.seed`로 주입하며 idempotent하게 동작한다.
+- API DTO는 `camelCase`, DB/SQL 필드는 `snake_case`를 유지한다.
+- 응답에는 `password_hash`, `refresh_token_hash`, `provider_id`를 노출하지 않는다.
 
-Implemented endpoints:
+## DB/API 결정
 
-- `POST /api/auth/signup`, `POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/auth/logout`
-- `GET /api/me`, `GET /api/me/profile`, `PATCH /api/me/profile`, `GET /api/profile-options`
-- `GET /api/policies`, `GET /api/policies/{policySlug}`
-- `GET /api/me/saved-policies`, `POST /api/me/saved-policies/{policySlug}`, `DELETE /api/me/saved-policies/{policySlug}`
-- `GET /api/trips`, `POST /api/trips`, `GET /api/trips/{tripId}`, `DELETE /api/trips/{tripId}`
-- `POST /api/trips/{tripId}/policies/{policySlug}`
-- `GET /api/trips/{tripId}/recommendations`
-- `GET /api/trips/{tripId}/invite`, `POST /api/trips/{tripId}/invite`, `POST /api/trips/{tripId}/invites`
-- `POST /api/invites/{inviteToken}/accept`
-
-## DB/API 기준
-
-- `policies.slug`를 정책 상세 key로 사용한다.
-- `trips.slug`는 만들지 않는다.
+- `policies.slug`는 정책 상세 key다.
+- `trips.slug`는 추가하지 않는다.
 - `Trip.id`는 DB `trips.id`를 string으로 반환한다.
-- `jeju-3-days`는 legacy seed alias일 뿐 public slug가 아니다.
-- `Policy.match`, `Trip.expectedSaving`, `InviteState.copied`, `InviteState.invited`는 service mapper 계산/상태 값이다.
-- API DTO는 `camelCase`, DB/SQL 필드는 `snake_case`.
-- 응답에 `password_hash`, `refresh_token_hash`, `provider_id`를 노출하지 않는다.
+- `jeju-3-days`는 legacy seed alias이며 public slug가 아니다.
+- `Policy.match`, `Trip.expectedSaving`, `InviteState.copied`, `InviteState.invited`는 service mapper 계산/상태값이다.
 
-## Seed Test Account
+## 디자인/Figma 상태
 
-- Email: `test.user@example.com`
-- Password: `password123`
-- Display name: `테스트 사용자`
+- Wanted Design System `.fig`를 Figma 프로젝트에 import했다.
+- Imported reference file: `https://www.figma.com/design/6X5t38FCiVoIdRdi3C2olj/Wanted-Design-System---Imported-Reference`
+- Travel Hunter handoff file: `https://www.figma.com/design/6qxML42kKtZWIwLUU1YDpX`
+- Button primary color, 기본 높이, radius를 Wanted 기준으로 보정했다.
+- Toast는 Wanted Toast child 기준 `54px`, radius `12px`, padding `11px 16px`로 보정했다.
+- MVP 8개 route의 Current/Redesign Figma frame을 생성했다.
+- 남은 디자인 작업은 Figma frame과 브라우저 캡처의 픽셀 비교 및 `Approved` 상태 전환이다.
 
-## 최근 검증
+## 배포 산출물
+
+- Local compose: `compose.yaml`
+- Public VPS direct mode:
+  - `compose.vps.yaml`
+  - `deploy/Caddyfile`
+  - `deploy/.env.staging.example`
+- NAT 제한 Cloudflare Tunnel mode:
+  - `compose.tunnel.yaml`
+  - `deploy/Caddyfile.tunnel`
+  - `deploy/.env.tunnel.example`
+
+Tunnel mode에서는 host `80/443` 포트를 열지 않는다. Cloudflare가 외부 HTTPS를 담당하고, `cloudflared` container가 outbound tunnel을 유지하며, Caddy는 Docker network 내부에서 `:80` reverse proxy로만 동작한다.
+
+## 최신 검증
 
 - `cd backend && python -m pytest`: 72 passed.
 - `cd backend && alembic upgrade head --sql`: passed.
@@ -93,10 +91,7 @@ Implemented endpoints:
 - `cd frontend && npm run build`: passed.
 - `docker compose -f compose.yaml build`: passed.
 - `docker compose --env-file deploy/.env.staging.example -f compose.vps.yaml config`: passed.
-
-Known local note:
-
-- Windows 환경에서 `backend/.pytest_cache` 접근 경고가 날 수 있지만 테스트 결과에는 영향이 없다.
+- `docker compose --env-file deploy/.env.tunnel.example -f compose.tunnel.yaml config`: passed.
 
 ## 미구현 범위
 
@@ -104,10 +99,11 @@ Known local note:
 - 정책 실시간 수집 API.
 - 지도/장소 검색/이동 시간 계산.
 - 실제 AI 추천 엔진.
-- 친구 초대 이메일/SMS/카카오톡 실제 발송.
+- 초대 이메일/SMS/카카오톡 실제 발송.
 - 운영 관리자 기능.
-- 실제 VPS staging 배포 실행. 현재 blocker는 VPS SSH 접속 정보, staging domain/DNS, repo clone 권한, 실제 `deploy/.env.staging` 값 미제공이다.
+- 실제 staging 배포와 외부 URL smoke.
+- 공개 테스트 전 개인정보/약관, 로그, 백업, 모니터링, 장애 대응 기준.
 
 ## 다음 작업
 
-다음 우선순위는 `docs/next-work-plan.md`를 따른다. 현재는 Docker VPS staging 산출물까지 커밋됐고, 실제 배포는 VPS SSH 접속 정보, staging domain/DNS, repo clone 권한, 실제 staging env 값이 준비되면 진행한다.
+다음 우선순위는 `docs/next-work-plan.md`를 따른다. 현재는 Cloudflare 계정/도메인, tunnel token, 실제 `deploy/.env.tunnel`, repo clone 권한을 확보한 뒤 `docs/deployment-tunnel.md` 절차로 외부 HTTPS staging smoke를 수행하는 단계다. Jenkinsfile은 후속 배포 자동화 단계로 미룬다.

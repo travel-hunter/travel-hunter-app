@@ -1,42 +1,36 @@
 # Travel Hunter 문서 인덱스
 
-## 읽는 순서
+## 먼저 읽을 문서
 
-1. `../CONTRIBUTING.md`
-   - 협업 규칙, 브랜치 전략, PR 규칙, 검증, secret 처리.
-2. `collaboration-handoff.md`
-   - 현재 브랜치, 구현 요약, 다음 작업, blocker.
-3. `release-candidate-handoff.md`
-   - MVP RC 범위, 실행 모드, 검증 결과, VPS 배포 상태.
+1. `release-candidate-handoff.md`
+   - MVP RC 범위, 실행 모드, 테스트 계정, 검증 결과, blocker.
+2. `current-work-spec.md`
+   - 현재 구현 상태의 단일 요약 명세.
+3. `deployment-tunnel.md`
+   - NAT 제한 환경의 Cloudflare Tunnel staging runbook.
 4. `deployment-vps.md`
-   - Docker VPS staging 실행 절차, env, Caddy routing, smoke test.
-5. `current-work-spec.md`
-   - 현재 구현 상태, 기준 커밋, 완료/미완료 범위, 검증 결과.
-6. `design-system-map.md`
-   - Wanted Design System `.fig` 기반 토큰/컴포넌트 적용 기준.
-7. `design-qa.md`
-   - Wanted 1차 적용 이후 브라우저 시각 QA 결과와 Figma handoff 대기 항목.
-8. `figma-import-checklist.md`
-   - Wanted `.fig` import, Figma page 구성, component variant 확인표.
-9. `figma-component-values.md`
-   - Figma 원본 component set node ID, variant property, 주요 수치, 현재 앱 매핑 차이.
-10. `figma-team-project-workflow.md`
-   - Travel Hunter Figma 팀/프로젝트 작업 가능 범위, 수동 import 절차, handoff 파일 구성.
-11. `vps-staging-inputs.md`
-   - Docker VPS staging 배포 전 필요한 입력값과 secret 처리 기준.
-12. `mvp-api-contract.md`
+   - public VPS 직접 노출 staging runbook.
+5. `mvp-api-contract.md`
    - API request/response/error 계약.
-13. `next-work-plan.md`
+6. `next-work-plan.md`
    - 다음 작업 우선순위.
-14. `db-schema-v0.3.sql`
-   - ERD v0.3 SQL 기준본.
-15. `future-deployment.md`
-   - Docker VPS 이후 AWS/Terraform/EKS/Argo CD 확장 방향.
+
+## 보조 문서
+
+- `vps-staging-inputs.md`: VPS staging 입력값과 secret 처리 기준.
+- `collaboration-handoff.md`: 협업자가 처음 볼 브랜치/실행/주의사항 요약.
+- `design-system-map.md`: Wanted Design System과 코드 토큰/컴포넌트 매핑.
+- `design-qa.md`: 브라우저 디자인 QA와 Figma handoff 상태.
+- `figma-import-checklist.md`: Wanted `.fig` import와 component 확인표.
+- `figma-component-values.md`: Figma component 수치 원본.
+- `figma-team-project-workflow.md`: Figma 팀/프로젝트 handoff 절차.
+- `db-schema-v0.3.sql`: ERD v0.3 SQL 기준본.
+- `future-deployment.md`: Jenkins, AWS, Terraform, EKS, Argo CD 등 후속 배포 확장 메모.
 
 ## 현재 기준
 
-- runtime mock mode는 제거됐다.
-- 앱은 FastAPI + PostgreSQL DB-backed-only 기준으로 동작한다.
-- MVP RC 배포 방향은 Docker VPS 기반 내부 테스트용 staging이다.
-- 프론트 디자인은 Wanted Design System `.fig`를 기준으로 토큰/컴포넌트 1차 적용 상태다.
-- `.agent/evals`는 명세 문서가 아니라 acceptance 기준으로 유지한다.
+- 앱은 DB-backed-only로 동작하며 runtime mock mode는 제거됐다.
+- MVP RC 배포는 Docker Compose staging을 기준으로 한다.
+- Public VPS 직접 노출이 가능하면 `deployment-vps.md`를 사용한다.
+- 학교/온프레미스 NAT 제한 환경이면 `deployment-tunnel.md`를 사용한다.
+- 실제 secret, DB password, tunnel token, staging env 파일은 repo에 커밋하지 않는다.

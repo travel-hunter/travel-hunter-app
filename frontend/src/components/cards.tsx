@@ -40,7 +40,7 @@ export function PolicyListCard({ policy }: { policy: Policy }) {
 
 export function PlaceCard({ title, meta, className }: { title: string; meta: string; className: string }) {
   return (
-    <Link className={`place-card ${className}`} to="/trips/jeju-3-days">
+    <Link className={`place-card ${className}`} to={`/trips/new?region=${encodeURIComponent(title)}`}>
       <h4>{title}</h4>
       <div className="meta">{meta}</div>
     </Link>

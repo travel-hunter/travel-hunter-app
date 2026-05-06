@@ -2,53 +2,42 @@
 
 ## 기준
 
-- 기준 커밋: `8cda17e style: apply wanted design system pass`
-- 목적: Wanted Design System 1차 적용 이후 주요 화면이 반응형 서비스 UI로 깨지지 않는지 확인한다.
+- 브라우저 QA 기준 커밋: `8cda17e style: apply wanted design system pass`
+- Figma import/component 보정 기준 커밋: `026336e style: align toast with wanted figma values`
 - 원본 Figma 파일: `C:\Users\HP\Downloads\Wanted Design System (Community).fig`
-- Figma import 상태: Codex에서 로컬 `.fig`를 Figma 앱/웹으로 직접 업로드할 수 없으므로, 실제 import와 component variant 확인은 Figma에서 수동 진행이 필요하다.
+- Figma reference: `https://www.figma.com/design/6X5t38FCiVoIdRdi3C2olj/Wanted-Design-System---Imported-Reference`
+- Travel Hunter handoff: `https://www.figma.com/design/6qxML42kKtZWIwLUU1YDpX`
 
-## 확인한 화면
+## 확인 화면과 viewport
 
-- `/login`
-- `/signup`
-- `/home`
-- `/policies`
-- `/policies/local-vacation`
-- `/trips`
-- `/trips/new`
-- `/mypage`
+- 화면: `/login`, `/signup`, `/home`, `/policies`, `/policies/local-vacation`, `/trips`, `/trips/new`, `/mypage`
+- Viewport: `390x844`, `1024x900`, `1440x1000`
 
-## 확인한 viewport
+## 완료 결과
 
-- 390 x 844
-- 1024 x 900
-- 1440 x 1000
-
-## QA 결과
-
-- 문서 전체 horizontal overflow 없음.
 - 주요 CTA, link, button의 화면 밖 이탈 없음.
-- `/login`, `/signup` input과 CTA는 Wanted token pass 이후 390px에서도 잘림 없이 렌더링됨.
-- `/policies`, `/policies/local-vacation`, `/trips`, `/trips/new`, `/mypage`는 390/1024/1440px 기준으로 카드, CTA, header, bottom tab의 치명적 겹침 없음.
-- `/home` 390px에서 `h-scroll` 영역의 offscreen 카드가 감지됐지만, 이는 의도된 가로 스크롤 카드 레이아웃이다.
-- 생성 캡처는 `frontend/test-results/design-qa`에 저장됐다. 이 경로는 git ignore 대상이며 커밋하지 않는다.
+- 인증 화면 input과 CTA는 390px에서도 잘림 없이 렌더링됨.
+- 정책/일정/마이페이지 화면은 카드, CTA, header, bottom tab의 치명적 겹침 없음.
+- `/home` 390px의 가로 스크롤 카드는 의도된 UX로 유지.
+- Button primary, height, radius는 Wanted 기준으로 보정 완료.
+- Toast는 Wanted Toast child 기준 `54px`, radius `12px`, padding `11px 16px`로 보정 완료.
 
-## Figma Handoff 대기 항목
+## Figma Handoff 상태
 
-- `Wanted Design System (Community).fig`를 Figma에 import한다.
-- Travel Hunter 디자인 파일에 다음 페이지를 만든다:
+- Wanted reference 파일 import 완료.
+- Travel Hunter handoff 파일 생성 완료.
+- Handoff 페이지:
   - `00 Wanted Reference`
   - `01 Token Map`
   - `02 Current App Screens`
   - `03 Redesigned Screens`
   - `04 Handoff`
-- Figma에서 Button, Input, Badge/Tag, Card/List, Navigation, Sheet/Toast의 실제 variant 이름과 수치를 확인한다.
-- 확인된 Figma 수치가 현재 `docs/design-system-map.md`와 다르면 토큰/컴포넌트 단위로 2차 보정한다.
-- Button, Textinput, Badge/Chip, Card/List Cell, Tab의 원본 Community node 수치는 `docs/figma-component-values.md`에 1차 기록했다.
-- Sheet/Modal, Toast/Alert는 Figma 앱/웹 import 후 해당 node를 직접 선택해 보강한다.
+- `02 Current App Screens`에는 8개 route의 `390`/`1440` Current reference frame이 생성됐다.
+- `03 Redesigned Screens`에는 8개 route의 `390`/`1440` editable Redesign native frame이 생성됐다.
+- `04 Handoff`에는 route별 `Draft` 상태 보드와 코드 반영 파일 힌트가 있다.
 
 ## 남은 Design Debt
 
-- 현재 QA는 브라우저 기준 layout QA이며, Figma frame과의 픽셀 비교는 아직 완료되지 않았다.
-- Figma import 이후 실제 component metadata가 확인되면 `docs/design-system-map.md`의 mapping을 확정해야 한다.
-- `/home`의 가로 스크롤 카드 UX는 의도된 동작이지만, Figma 화면에서 grid형으로 바꾸기로 결정하면 별도 화면 보정 작업으로 분리한다.
+- Figma frame과 브라우저 캡처의 픽셀 비교 및 `Approved` 상태 전환.
+- `/home` 가로 스크롤 카드를 grid로 바꿀지 여부.
+- `Tag`와 interactive chip의 sizing 체계 분리 여부.

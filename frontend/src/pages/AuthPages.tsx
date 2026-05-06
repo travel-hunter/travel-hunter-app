@@ -29,11 +29,18 @@ export function LoginPage() {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     setError("");
+    const email = String(formData.get("email") || "").trim();
+    const password = String(formData.get("password") || "");
+
+    if (!email || !password) {
+      setError("이메일과 비밀번호를 입력해 주세요.");
+      return;
+    }
 
     try {
       await login({
-        email: String(formData.get("email") || ""),
-        password: String(formData.get("password") || ""),
+        email,
+        password,
       });
       navigate(redirect ?? "/home");
     } catch {
@@ -109,12 +116,20 @@ export function SignupPage() {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     setError("");
+    const name = String(formData.get("name") || "").trim();
+    const email = String(formData.get("email") || "").trim();
+    const password = String(formData.get("password") || "");
+
+    if (!name || !email || password.length < 8) {
+      setError("이름, 이메일, 8자 이상 비밀번호를 입력해 주세요.");
+      return;
+    }
 
     try {
       await signup({
-        name: String(formData.get("name") || ""),
-        email: String(formData.get("email") || ""),
-        password: String(formData.get("password") || ""),
+        name,
+        email,
+        password,
       });
       navigate(redirect ?? "/profile-setup");
     } catch {

@@ -59,5 +59,5 @@
 - Toast/Alert는 import reference 기준 node와 수치를 확보했고, Toast의 크기/radius/padding을 앱 CSS에 반영했다.
 - Button primary color, default height, radius는 Wanted 원본 기준으로 2차 보정을 적용했다.
 - `Tag`와 interactive chip을 Figma 기준에 맞춰 서로 다른 sizing 체계로 분리할지 결정해야 한다.
-- 현재 1차 적용은 코드 토큰 중심의 Wanted 스타일 pass이며, Figma에 Travel Hunter redesigned screen을 실제로 생성하는 작업은 별도 단계다.
-- 화면별 픽셀 비교는 dev server와 Figma frame을 나란히 둔 뒤 보정한다.
+- 현재 1차 적용은 코드 토큰 중심의 Wanted 스타일 pass이며, Figma에 Travel Hunter editable Redesign frame 생성까지 완료했다.
+- 화면별 픽셀 비교와 `Approved` 상태 전환은 후속 디자인 handoff 작업으로 남긴다.

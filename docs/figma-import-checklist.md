@@ -16,7 +16,7 @@
 - Imported reference file key: `6X5t38FCiVoIdRdi3C2olj`
 - Travel Hunter handoff file: `https://www.figma.com/design/6qxML42kKtZWIwLUU1YDpX`
 - Travel Hunter handoff file key: `6qxML42kKtZWIwLUU1YDpX`
-- Current app baseline commit: `af1615b style: align buttons with wanted figma values`
+- Current app baseline commit: `026336e style: align toast with wanted figma values`
 - Current mapping doc: `docs/design-system-map.md`
 - Browser QA doc: `docs/design-qa.md`
 - Component values doc: `docs/figma-component-values.md`
@@ -105,4 +105,7 @@ Recommended viewport:
 - Figma 파일이 import됐고 Travel Hunter 페이지 구조가 만들어졌다.
 - Component Variant 확인표의 `Figma node/link`와 상태가 갱신됐다.
 - `docs/design-system-map.md`가 실제 Figma variant/token 이름 기준으로 보강됐다.
+- `02 Current App Screens`에 8개 route의 `390`/`1440` Current reference frame이 생성됐다.
+- `03 Redesigned Screens`에 8개 route의 `390`/`1440` editable Redesign native frame이 생성됐다.
+- `04 Handoff`에 route별 상태 보드와 코드 반영 파일 힌트가 생성됐다.
 - 필요한 경우 2차 token/component 보정이 적용됐고 Fast Lane 검증이 통과했다.
