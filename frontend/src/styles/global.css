@@ -19,7 +19,7 @@ body {
   margin: 0;
   background: var(--gray-50);
   color: var(--ink);
-  font-family: Inter, Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 button,

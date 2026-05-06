@@ -78,14 +78,15 @@ test("backend data source drives policy, trip, recommendation, invite, and logou
   await expect(page).toHaveURL(/\/trips\/[1-9][0-9]*$/);
 
   await page.goto("/trips");
-  const firstTrip = page.locator("a.itinerary-card").first();
+  const firstTrip = page.locator("article.itinerary-card").first();
   await expect(firstTrip).toBeVisible();
-  const tripHref = await firstTrip.getAttribute("href");
+  const firstTripLink = firstTrip.locator('a[href^="/trips/"]').first();
+  const tripHref = await firstTripLink.getAttribute("href");
   expect(tripHref).toMatch(/^\/trips\/[1-9][0-9]*$/);
   const tripId = tripHref?.split("/").pop() ?? "";
   expect(tripId).toMatch(numericTripId);
 
-  await firstTrip.click();
+  await firstTripLink.click();
   await expect(page).toHaveURL(new RegExp(`/trips/${tripId}$`));
   await expect(page.locator('a[href^="/ai-results?tripId="]').first()).toBeVisible();
 
