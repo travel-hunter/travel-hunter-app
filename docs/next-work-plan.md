@@ -16,7 +16,7 @@
 
 | 우선순위 | 작업 | 성공 기준 |
 |---:|---|---|
-| 1 | Figma import 및 component variant 확인 | `team::1631977620101471167` 프로젝트에서 `Wanted Design System - Imported Reference`와 `Travel Hunter Design System Handoff`를 만든 뒤, 복제 파일 node URL을 보강하고 Sheet/Modal, Toast/Alert 수치를 추가한다. |
+| 1 | Figma import 및 component variant 확인 | `Travel Hunter Design System Handoff`는 생성 완료했다. Figma 앱/웹에서 `Wanted Design System - Imported Reference`를 import한 뒤, 복제 파일 node URL을 보강하고 Sheet/Modal, Toast/Alert 수치를 추가한다. |
 | 2 | Figma 비교 기반 잔여 보정 | Sheet/Modal, Toast/Alert, Tag/Chip 분리 여부처럼 아직 node 확인이 필요한 항목만 token/component 중심으로 보정한다. |
 | 3 | VPS 배포 입력값 확보 | `docs/vps-staging-inputs.md`의 Required Inputs가 모두 준비된다. |
 | 4 | Docker VPS staging 배포 및 내부 smoke | `docs/deployment-vps.md` 절차에 따라 외부 URL에서 로그인, 정책 탐색, 일정 생성/삭제, 정책 담기, 초대 수락, 로그아웃이 통과한다. |

@@ -12,6 +12,8 @@
 - Figma plan: `travle-hunter`
 - Figma plan key: `team::1631977620101471167`
 - Local source: `C:\Users\HP\Downloads\Wanted Design System (Community).fig`
+- Travel Hunter handoff file: `https://www.figma.com/design/6qxML42kKtZWIwLUU1YDpX`
+- Travel Hunter handoff file key: `6qxML42kKtZWIwLUU1YDpX`
 - Current app baseline commit: `af1615b style: align buttons with wanted figma values`
 - Current mapping doc: `docs/design-system-map.md`
 - Browser QA doc: `docs/design-qa.md`
@@ -24,9 +26,10 @@
 2. 해당 프로젝트 안에서 `Wanted Design System (Community).fig`를 import한다.
 3. import된 파일 이름을 `Wanted Design System - Imported Reference`로 정리한다.
 4. Community 원본 파일을 직접 수정하지 않고, 팀/프로젝트 소유 reference로만 사용한다.
-5. Travel Hunter 디자인 handoff 파일을 만든다.
-   - 추천 이름: `Travel Hunter Design System Handoff`
-6. Travel Hunter handoff 파일에 다음 페이지를 만든다.
+5. Travel Hunter 디자인 handoff 파일을 연다.
+   - 생성 완료: `Travel Hunter Design System Handoff`
+   - URL: `https://www.figma.com/design/6qxML42kKtZWIwLUU1YDpX`
+6. Travel Hunter handoff 파일의 다음 페이지 구조를 확인한다.
    - `00 Wanted Reference`
    - `01 Token Map`
    - `02 Current App Screens`
@@ -97,7 +100,7 @@ Recommended viewport:
 
 ## 완료 기준
 
-- Figma 파일이 import됐고 Travel Hunter 페이지 구조가 만들어졌다.
+- Figma 파일이 import됐고 Travel Hunter 페이지 구조가 만들어졌다. 현재 handoff page 구조는 생성 완료, Wanted `.fig` import는 수동 대기 중이다.
 - Component Variant 확인표의 `Figma node/link`와 상태가 갱신됐다.
 - `docs/design-system-map.md`가 실제 Figma variant/token 이름 기준으로 보강됐다.
 - 필요한 경우 2차 token/component 보정이 적용됐고 Fast Lane 검증이 통과했다.
