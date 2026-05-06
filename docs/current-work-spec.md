@@ -144,9 +144,9 @@ python -m app.db.seed
 - `alembic upgrade head --sql`: passed
 - `docker compose -f compose.yaml config`: passed
 - `npm run typecheck`: passed
-- `npm test`: 6 passed
+- `npm test`: 7 passed
 - `npm run test:e2e`: 6 passed
-- `npm run test:e2e:backend`: 4 passed
+- `npm run test:e2e:backend`: 5 passed
 - `npm run build`: passed
 
 ## 7. 미구현 범위
