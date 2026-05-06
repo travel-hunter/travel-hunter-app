@@ -33,11 +33,11 @@
 | `Policy.applyUrl` | `policies.apply_url` | External application deep link, nullable |
 | `SavePolicyResponse.policyId` | `policies.slug` through `user_saved_policies.policy_id` | Standalone saved policy |
 | `SavePolicyResponse.saved` | `user_saved_policies` row existence | Idempotent save response |
-| `Trip.id` | `trips.id` | Mock id may be temporary |
+| `Trip.id` | `trips.id` | API returns numeric DB id as string |
 | `Trip.dates` | `trips.start_date` + `trips.end_date` | Display string |
 | `Trip.people` | `trip_members` + `users.nickname` | Joined list |
 | `Trip.days` | `trip_days` + `trip_places` | Nested display shape |
-| `InviteState.inviteToken` | `trip_invites.invite_token` | Future DB-backed field |
+| `InviteState.inviteToken` | `trip_invites.invite_token` | Invite link token |
 | `InviteState.acceptedAt` | `trip_invites.accepted_at` | Set by DB-backed invite acceptance |
 | `Profile.region` | `users.region` | Onboarding/profile preference |
 | `Profile.style` | `users.travel_style` | v0.3.1 extension |

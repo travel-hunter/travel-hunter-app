@@ -2,11 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
-from app.core.config import settings
 from app.db.session import get_optional_db
 from app.models import User
 from app.schemas.trip import InviteState
-from app.services import mock_store
 from app.services import trips as trip_service
 
 router = APIRouter(prefix="/invites", tags=["invites"])
@@ -30,17 +28,11 @@ def accept_invite(
     db: Session | None = Depends(get_optional_db),
     current_user: User | None = Depends(get_current_user),
 ) -> InviteState:
-    if settings.backend_data_source == "db":
-        invite = trip_service.accept_invite(
-            _require_db(db),
-            _require_user(current_user),
-            invite_token,
-        )
-        if invite is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invite not found")
-        return InviteState(**invite)
-
-    invite = mock_store.accept_invite(invite_token)
+    invite = trip_service.accept_invite(
+        _require_db(db),
+        _require_user(current_user),
+        invite_token,
+    )
     if invite is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invite not found")
     return InviteState(**invite)

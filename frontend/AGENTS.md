@@ -10,7 +10,7 @@ These rules apply inside `frontend/`. The app is a React, TypeScript, Vite, and 
 - Keep pages focused on rendering and user flow.
 - Access data only through `src/api` boundaries, especially `AppDataApi`.
 - Do not import seed data directly into pages or reusable UI components.
-- Keep `VITE_DATA_SOURCE=mock|backend` behavior intact unless the API contract changes intentionally.
+- The frontend always calls the FastAPI backend. Do not reintroduce a runtime data-source selector or mock API client.
 
 ## UI Rules
 

@@ -254,16 +254,33 @@ describe("Travel Hunter app", () => {
     await userEvent.setup().click(screen.getByRole("button", { name: "로그인" }));
 
     await waitFor(() => expect(document.body).toHaveTextContent("초대를 수락했어요"));
-    expect(getLink("/trips/jeju-3-days")).toBeInTheDocument();
+    const tripLink = await waitFor(() => {
+      const link = document.querySelector('a[href^="/trips/"]');
+      expect(link).toBeTruthy();
+      return link as HTMLAnchorElement;
+    });
+    expect(tripLink.getAttribute("href")).toMatch(/^\/trips\/[1-9][0-9]*$/);
   });
 
   it("accepts a valid invite after signup when a redirect is present", async () => {
     renderRoute("/signup?redirect=/invites/jeju-3d/accept");
 
-    await userEvent.setup().click(screen.getByRole("button", { name: "가입하고 맞춤 설정하기" }));
+    const user = userEvent.setup();
+    await user.type(document.querySelector('input[name="name"]') as HTMLInputElement, "초대 테스트 사용자");
+    await user.type(
+      document.querySelector('input[name="email"]') as HTMLInputElement,
+      `invite-${Date.now()}@example.com`,
+    );
+    await user.type(document.querySelector('input[name="password"]') as HTMLInputElement, "password123");
+    await user.click(screen.getByRole("button", { name: "가입하고 맞춤 설정하기" }));
 
     await waitFor(() => expect(document.body).toHaveTextContent("초대를 수락했어요"));
-    expect(getLink("/trips/jeju-3-days")).toBeInTheDocument();
+    const tripLink = await waitFor(() => {
+      const link = document.querySelector('a[href^="/trips/"]');
+      expect(link).toBeTruthy();
+      return link as HTMLAnchorElement;
+    });
+    expect(tripLink.getAttribute("href")).toMatch(/^\/trips\/[1-9][0-9]*$/);
   });
 
   it("shows an invite error state for an unknown invite token", async () => {

@@ -23,7 +23,6 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       VITE_API_BASE_URL: apiBaseUrl,
-      VITE_DATA_SOURCE: "backend",
     },
   },
   projects: [

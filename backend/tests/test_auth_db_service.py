@@ -25,14 +25,14 @@ class FakeDb:
 def make_user(
     *,
     user_id: int = 1,
-    email: str = "jiyoung@travel.kr",
+    email: str = "test.user@example.com",
     password: str = "password123",
 ) -> UserModel:
     return UserModel(
         id=user_id,
         email=email,
         password_hash=security.hash_password(password),
-        nickname="Jiyoung",
+        nickname="Test User",
         onboarding_completed=False,
         created_at=datetime(2026, 5, 4, 0, 0, 0),
         updated_at=datetime(2026, 5, 4, 0, 0, 0),
@@ -67,15 +67,15 @@ def test_signup_creates_hashed_user_and_refresh_token(monkeypatch) -> None:
 
     result = auth_service.signup(
         db,
-        SignupRequest(name="Jiyoung", email="JIYOUNG@TRAVEL.KR", password="password123"),
+        SignupRequest(name="Test User", email="TEST.USER@EXAMPLE.COM", password="password123"),
     )
 
     assert db.committed is True
     assert result.access_token
     assert result.refresh_token
-    assert result.user["email"] == "jiyoung@travel.kr"
-    assert captured["email"] == "jiyoung@travel.kr"
-    assert captured["nickname"] == "Jiyoung"
+    assert result.user["email"] == "test.user@example.com"
+    assert captured["email"] == "test.user@example.com"
+    assert captured["nickname"] == "Test User"
     assert captured["password_hash"] != "password123"
     assert security.verify_password("password123", str(captured["password_hash"]))
     assert captured["refresh_user_id"] == 1
@@ -92,7 +92,7 @@ def test_signup_rejects_duplicate_email(monkeypatch) -> None:
     with pytest.raises(auth_service.AuthServiceError) as error:
         auth_service.signup(
             FakeDb(),
-            SignupRequest(name="Jiyoung", email="jiyoung@travel.kr", password="password123"),
+            SignupRequest(name="Test User", email="test.user@example.com", password="password123"),
         )
 
     assert error.value.status_code == 409
@@ -117,7 +117,7 @@ def test_login_issues_tokens_for_valid_credentials(monkeypatch) -> None:
 
     result = auth_service.login(
         db,
-        LoginRequest(email="jiyoung@travel.kr", password="password123"),
+        LoginRequest(email="test.user@example.com", password="password123"),
     )
 
     assert db.committed is True
@@ -137,7 +137,7 @@ def test_login_rejects_invalid_credentials(monkeypatch) -> None:
     with pytest.raises(auth_service.AuthServiceError) as error:
         auth_service.login(
             FakeDb(),
-            LoginRequest(email="jiyoung@travel.kr", password="wrong-password"),
+            LoginRequest(email="test.user@example.com", password="wrong-password"),
         )
 
     assert error.value.status_code == 401

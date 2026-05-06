@@ -1,7 +1,5 @@
 import { InviteState, OnboardingSlide, Policy, Profile, ProfileOptions, Recommendation, Trip, User } from "./types";
 
-export type DataSource = "mock" | "backend";
-
 export type LoginRequest = {
   email: string;
   password: string;
@@ -67,7 +65,3 @@ export type AppDataApi = {
   confirmInviteSent: (tripId?: string) => Promise<InviteState>;
   acceptInvite: (inviteToken: string) => Promise<InviteState>;
 };
-
-export function getDataSource(): DataSource {
-  return import.meta.env.VITE_DATA_SOURCE === "backend" ? "backend" : "mock";
-}

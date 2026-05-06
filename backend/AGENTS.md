@@ -2,7 +2,7 @@
 
 ## Scope
 
-These rules apply inside `backend/`. The backend is a FastAPI service with deterministic Mock API behavior by default and PostgreSQL-backed behavior for selected MVP flows when `BACKEND_DATA_SOURCE=db`.
+These rules apply inside `backend/`. The backend is a FastAPI service backed by PostgreSQL through SQLAlchemy/Alembic. Runtime mock mode has been removed.
 
 ## Architecture
 
@@ -11,7 +11,7 @@ These rules apply inside `backend/`. The backend is a FastAPI service with deter
 - Put request and response models under `app/schemas`.
 - Put business behavior and DTO mapping under `app/services`.
 - Put DB queries under `app/repositories`.
-- Put seed/mock data under `app/data`.
+- Put seed/static data under `app/data`.
 - Keep `/api` as the API prefix. Preserve `/health` and `/api/health` compatibility.
 
 ## Contract Rules
@@ -20,15 +20,15 @@ These rules apply inside `backend/`. The backend is a FastAPI service with deter
 - Database and SQLAlchemy fields are `snake_case`.
 - Do not expose `password_hash`, `provider_id`, `refresh_token_hash`, or other secret/internal fields.
 - Policy detail lookup is slug based.
-- Trip lookup uses an opaque string handle. DB mode returns numeric string ids and accepts `jeju-3-days` only as a legacy seed alias.
+- Trip lookup uses an opaque string handle. The API returns numeric string ids and accepts `jeju-3-days` only as a legacy seed alias.
 - Do not add `trips.slug`.
 - For every API shape change, update `docs/mvp-api-contract.md`, Pydantic schemas, route/service behavior, backend tests, frontend types, and `.agent/evals`.
 
 ## DB Rules
 
 - Use Alembic for schema creation. Do not use SQLAlchemy `create_all()`.
-- Keep DB-backed services behind `BACKEND_DATA_SOURCE=db`.
-- Keep Mock API deterministic so frontend/e2e tests remain stable.
+- All user-facing data flows must use the PostgreSQL-backed service/repository path.
+- Static option lists may use seed constants, but must not reintroduce a runtime mock API mode.
 - Cover happy paths and important not-found/error paths with `TestClient` or service tests.
 
 ## Validation

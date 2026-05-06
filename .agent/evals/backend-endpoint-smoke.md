@@ -3,7 +3,7 @@
 ## Source
 
 - API contract: `docs/mvp-api-contract.md`
-- Current tests: `backend/tests/test_mock_api.py`
+- Current tests: backend route/service tests under `backend/tests`.
 
 ## Endpoint Matrix
 
@@ -48,15 +48,15 @@
 - DB mode `/api/me/profile` without valid bearer token returns 401.
 - Inaccessible DB mode trip returns 404 without leaking ownership.
 
-## DB Mode Smoke
+## DB-Backed Smoke
 
-When `BACKEND_DATA_SOURCE=db` is used, profile endpoints must persist the selected onboarding preferences:
+Profile endpoints must persist the selected onboarding preferences:
 
 - `GET /api/me/profile` returns `region`, `style`, and `budget`.
 - `PATCH /api/me/profile` stores `region` in `users.region`, `style` in `users.travel_style`, and `budget` in `users.travel_budget`.
 - PATCH marks `users.onboarding_completed` true and updates `users.updated_at`.
 
-When `BACKEND_DATA_SOURCE=db` is used, policy endpoints must preserve the same public response shape:
+Policy endpoints must preserve the same public response shape:
 
 - `GET /api/policies` returns `id`, `slug`, `title`, `org`, `deadline`, `amount`, `match`, `requirements`, `documents`, `officialUrl`, and `applyUrl`.
 - `GET /api/policies/local-vacation` returns the seeded policy with slug `local-vacation`.
@@ -66,7 +66,7 @@ When `BACKEND_DATA_SOURCE=db` is used, policy endpoints must preserve the same p
 - Repeated saved policy requests return the same response without duplicate rows.
 - Policy DB values stay `snake_case` internally and are mapped to the existing `camelCase`/display DTO shape before response validation.
 
-When `BACKEND_DATA_SOURCE=db` is used, trip endpoints must preserve the existing public DTO shape:
+Trip endpoints must preserve the existing public DTO shape:
 
 - `GET /api/trips` returns only trips owned by or shared with the current bearer-token user.
 - `GET /api/trips/{numericId}` returns `id`, `title`, `dates`, `people`, `expectedSaving`, and `days`.
@@ -79,7 +79,7 @@ When `BACKEND_DATA_SOURCE=db` is used, trip endpoints must preserve the existing
 - `expectedSaving` is the sum of linked policy `benefit_amount` values, excluding null amounts.
 - `InviteState.copied` is always false from the server and is tracked locally by the frontend UI.
 
-When `BACKEND_DATA_SOURCE=db` is used, invite acceptance must persist membership:
+Invite acceptance must persist membership:
 
 - `POST /api/invites/{inviteToken}/accept` requires bearer authentication.
 - Unknown or expired invite tokens return `404 {"detail": "Invite not found"}`.

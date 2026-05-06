@@ -2,7 +2,6 @@ import { createContext, ReactNode, useContext, useEffect, useMemo, useState } fr
 import {
   appDataApi,
   AuthResponse,
-  getDataSource,
   LoginRequest,
   setApiAccessToken,
   SignupRequest,
@@ -77,7 +76,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     async function verifyStoredSession() {
       const stored = readStoredAuth();
       if (!stored) {
-        if (getDataSource() !== "backend") return;
         try {
           const refreshed = await appDataApi.refreshSession();
           if (cancelled) return;
@@ -99,17 +97,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setProfile(await readRemoteProfile());
       } catch {
         if (cancelled) return;
-        if (getDataSource() === "backend") {
-          try {
-            const refreshed = await appDataApi.refreshSession();
-            if (cancelled) return;
-            persistAuth(refreshed);
-            setCurrentUser(refreshed.user);
-            setProfile(await readRemoteProfile());
-            return;
-          } catch {
-            // Fall through to clearing the stale local session.
-          }
+        try {
+          const refreshed = await appDataApi.refreshSession();
+          if (cancelled) return;
+          persistAuth(refreshed);
+          setCurrentUser(refreshed.user);
+          setProfile(await readRemoteProfile());
+          return;
+        } catch {
+          // Fall through to clearing the stale local session.
         }
         clearAuth();
         setCurrentUser(null);

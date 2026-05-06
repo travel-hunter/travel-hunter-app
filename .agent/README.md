@@ -16,7 +16,6 @@ This directory contains reusable operating instructions and evaluation artifacts
 - `repo-orientation`: use before non-trivial work.
 - `api-contract-sync`: use whenever API request/response shapes change.
 - `frontend-route-ui`: use for React route, page, and UI work.
-- `backend-mock-api`: use for FastAPI Mock API changes before DB persistence.
 - `db-migration-plan`: use before PostgreSQL, SQLAlchemy, or Alembic work.
 - `qa-release-readiness`: use before handoff or release readiness review.
 

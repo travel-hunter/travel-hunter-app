@@ -138,15 +138,15 @@ export function SignupPage() {
       <form className="form" onSubmit={submit}>
         <label className="field">
           <span>이름</span>
-          <input name="name" type="text" defaultValue={previewUser.name} autoComplete="name" />
+          <input name="name" type="text" placeholder="테스트 신규 사용자" autoComplete="name" />
         </label>
         <label className="field">
           <span>이메일</span>
-          <input name="email" type="email" defaultValue={previewUser.email} autoComplete="email" />
+          <input name="email" type="email" placeholder="new.user@example.com" autoComplete="email" />
         </label>
         <label className="field">
           <span>비밀번호</span>
-          <input name="password" type="password" defaultValue="password123" autoComplete="new-password" />
+          <input name="password" type="password" placeholder="8자 이상 입력" autoComplete="new-password" />
         </label>
         {error && (
           <p className="form-error" role="alert">

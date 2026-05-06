@@ -2,11 +2,9 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.models import User
 from app.models import Policy as PolicyModel
 from app.repositories import policies as policy_repository
-from app.services import mock_store
 
 
 DISPLAY_OVERRIDES = {
@@ -60,18 +58,14 @@ def policy_to_api(policy: PolicyModel) -> dict[str, object]:
 
 
 def list_policies(db: Session | None = None) -> list[dict[str, object]]:
-    if settings.backend_data_source != "db":
-        return mock_store.list_policies()
     if db is None:
-        raise RuntimeError("DB session is required when BACKEND_DATA_SOURCE=db.")
+        raise RuntimeError("DB session is required.")
     return [policy_to_api(policy) for policy in policy_repository.list_policies(db)]
 
 
 def get_policy(policy_slug: str, db: Session | None = None) -> dict[str, object] | None:
-    if settings.backend_data_source != "db":
-        return mock_store.get_policy(policy_slug)
     if db is None:
-        raise RuntimeError("DB session is required when BACKEND_DATA_SOURCE=db.")
+        raise RuntimeError("DB session is required.")
 
     policy = policy_repository.get_policy_by_slug(db, policy_slug)
     if policy is None:
@@ -84,12 +78,10 @@ def save_policy(
     db: Session | None = None,
     user: User | None = None,
 ) -> dict[str, object] | None:
-    if settings.backend_data_source != "db":
-        return mock_store.save_policy(policy_slug)
     if db is None:
-        raise RuntimeError("DB session is required when BACKEND_DATA_SOURCE=db.")
+        raise RuntimeError("DB session is required.")
     if user is None:
-        raise RuntimeError("User is required when BACKEND_DATA_SOURCE=db.")
+        raise RuntimeError("User is required.")
 
     policy = policy_repository.get_policy_by_slug(db, policy_slug)
     if policy is None:
@@ -118,12 +110,10 @@ def list_saved_policies(
     db: Session | None = None,
     user: User | None = None,
 ) -> list[dict[str, object]]:
-    if settings.backend_data_source != "db":
-        return mock_store.list_saved_policies()
     if db is None:
-        raise RuntimeError("DB session is required when BACKEND_DATA_SOURCE=db.")
+        raise RuntimeError("DB session is required.")
     if user is None:
-        raise RuntimeError("User is required when BACKEND_DATA_SOURCE=db.")
+        raise RuntimeError("User is required.")
 
     return [
         policy_to_api(policy)
@@ -136,15 +126,10 @@ def remove_saved_policy(
     db: Session | None = None,
     user: User | None = None,
 ) -> dict[str, object] | None:
-    if settings.backend_data_source != "db":
-        policy = mock_store.get_policy(policy_slug)
-        if policy is None:
-            return None
-        return mock_store.remove_saved_policy(policy_slug)
     if db is None:
-        raise RuntimeError("DB session is required when BACKEND_DATA_SOURCE=db.")
+        raise RuntimeError("DB session is required.")
     if user is None:
-        raise RuntimeError("User is required when BACKEND_DATA_SOURCE=db.")
+        raise RuntimeError("User is required.")
 
     policy = policy_repository.get_policy_by_slug(db, policy_slug)
     if policy is None:

@@ -1,5 +1,4 @@
 from datetime import date
-from types import SimpleNamespace
 
 from app.models import Policy as PolicyModel
 from app.models import PolicyDocument
@@ -12,22 +11,22 @@ def make_policy() -> PolicyModel:
     policy = PolicyModel(
         id=1,
         slug="local-vacation",
-        title="지역사랑 휴가지원",
-        organization="한국관광공사",
-        policy_type="환급",
-        description="국내 여행 지원",
+        title="Local Vacation Support",
+        organization="Travel Hunter",
+        policy_type="refund",
+        description="Domestic travel support",
         benefit_amount=300000,
-        benefit_detail="최대 30만원 환급",
-        target_condition="국내 거주자\n숙박 1박 이상\n영수증 제출",
-        region="전국",
+        benefit_detail="Up to 300000 KRW",
+        target_condition="Domestic resident\nAt least one night\nReceipt required",
+        region="National",
         end_date=date(2026, 10, 31),
         official_url="https://www.mcst.go.kr/site/s_notice/press/pressView.jsp?pMenuCD=0302000000&pSeq=22267",
         apply_url=None,
-        policy_comment="국내 1박 이상 여행 시 여행비 일부를 환급합니다.",
+        policy_comment="Support for domestic travel expenses.",
     )
     policy.documents = [
-        PolicyDocument(document_name="신분증 사본"),
-        PolicyDocument(document_name="숙박 영수증"),
+        PolicyDocument(document_name="ID card"),
+        PolicyDocument(document_name="Accommodation receipt"),
     ]
     return policy
 
@@ -38,12 +37,15 @@ def test_policy_to_api_preserves_contract_shape() -> None:
     assert payload["id"] == "local-vacation"
     assert payload["slug"] == "local-vacation"
     assert payload["label"] == "TH"
-    assert payload["tag"] == "최대 30만원"
     assert payload["deadline"] == "2026-10-31"
-    assert payload["amount"] == "최대 30만원 환급"
+    assert payload["amount"] == "Up to 300000 KRW"
     assert payload["match"] == 98
-    assert payload["requirements"] == ["국내 거주자", "숙박 1박 이상", "영수증 제출"]
-    assert payload["documents"] == ["신분증 사본", "숙박 영수증"]
+    assert payload["requirements"] == [
+        "Domestic resident",
+        "At least one night",
+        "Receipt required",
+    ]
+    assert payload["documents"] == ["ID card", "Accommodation receipt"]
     assert payload["officialUrl"] == "https://www.mcst.go.kr/site/s_notice/press/pressView.jsp?pMenuCD=0302000000&pSeq=22267"
     assert payload["applyUrl"] is None
 
@@ -52,7 +54,6 @@ def test_db_policy_service_uses_repository_boundary(monkeypatch) -> None:
     fake_db = object()
     policy = make_policy()
 
-    monkeypatch.setattr(policy_service, "settings", SimpleNamespace(backend_data_source="db"))
     monkeypatch.setattr(
         policy_service.policy_repository,
         "list_policies",
@@ -70,7 +71,7 @@ def test_db_policy_service_uses_repository_boundary(monkeypatch) -> None:
 
     assert policies[0]["slug"] == "local-vacation"
     assert detail is not None
-    assert detail["title"] == "지역사랑 휴가지원"
+    assert detail["title"] == "Local Vacation Support"
     assert missing is None
 
 
@@ -92,7 +93,6 @@ def test_db_save_policy_creates_idempotent_saved_policy(monkeypatch) -> None:
     policy = make_policy()
     added_rows: list[dict[str, int]] = []
 
-    monkeypatch.setattr(policy_service, "settings", SimpleNamespace(backend_data_source="db"))
     monkeypatch.setattr(
         policy_service.policy_repository,
         "get_policy_by_slug",
@@ -123,7 +123,6 @@ def test_db_save_policy_returns_existing_saved_policy_without_duplicate(monkeypa
     policy = make_policy()
     added_rows: list[dict[str, int]] = []
 
-    monkeypatch.setattr(policy_service, "settings", SimpleNamespace(backend_data_source="db"))
     monkeypatch.setattr(policy_service.policy_repository, "get_policy_by_slug", lambda *_args: policy)
     monkeypatch.setattr(
         policy_service.policy_repository,
@@ -147,7 +146,6 @@ def test_db_save_policy_returns_none_for_unknown_policy(monkeypatch) -> None:
     fake_db = FakeDb()
     user = make_user()
 
-    monkeypatch.setattr(policy_service, "settings", SimpleNamespace(backend_data_source="db"))
     monkeypatch.setattr(policy_service.policy_repository, "get_policy_by_slug", lambda *_args: None)
 
     assert policy_service.save_policy("missing-policy", fake_db, user) is None
@@ -159,7 +157,6 @@ def test_db_list_saved_policies_maps_saved_rows(monkeypatch) -> None:
     user = make_user()
     policy = make_policy()
 
-    monkeypatch.setattr(policy_service, "settings", SimpleNamespace(backend_data_source="db"))
     monkeypatch.setattr(
         policy_service.policy_repository,
         "list_saved_policies",
@@ -177,7 +174,6 @@ def test_db_remove_saved_policy_is_idempotent_for_existing_policy(monkeypatch) -
     policy = make_policy()
     removed_rows: list[dict[str, int]] = []
 
-    monkeypatch.setattr(policy_service, "settings", SimpleNamespace(backend_data_source="db"))
     monkeypatch.setattr(policy_service.policy_repository, "get_policy_by_slug", lambda *_args: policy)
 
     def remove_saved_policy_stub(_db, **kwargs):

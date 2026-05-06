@@ -3,7 +3,6 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.core import security
-from app.core.config import settings
 from app.db.session import get_optional_db
 from app.models import User
 from app.repositories import users as user_repository
@@ -16,9 +15,6 @@ def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: Session | None = Depends(get_optional_db),
 ) -> User | None:
-    if settings.backend_data_source != "db":
-        return None
-
     if credentials is None or db is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

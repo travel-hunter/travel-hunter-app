@@ -8,14 +8,19 @@ const frontendDir = path.join(repoRoot, "frontend");
 
 const pythonCommand = process.env.PYTHON || "python";
 const dockerCommand = process.platform === "win32" ? "docker.exe" : "docker";
-const playwrightCli = path.join(frontendDir, "node_modules", "@playwright", "test", "cli.js");
 const apiPort = process.env.E2E_API_PORT || "8001";
 const frontendPort = process.env.E2E_FRONTEND_PORT || "5174";
 const apiBaseUrl = `http://127.0.0.1:${apiPort}`;
+const commandArgs = process.argv.slice(2);
+
+if (commandArgs.length === 0) {
+  console.error("Usage: node scripts/run-backend-command.cjs <command> [...args]");
+  process.exit(1);
+}
 
 const backendEnv = {
   ...process.env,
-  APP_ENV: process.env.APP_ENV || "e2e",
+  APP_ENV: process.env.APP_ENV || "test",
   DATABASE_URL:
     process.env.DATABASE_URL ||
     "postgresql+psycopg://travelhunter:travelhunter@127.0.0.1:55432/travelhunter",
@@ -102,9 +107,9 @@ function stopProcess(child) {
 
 async function main() {
   if (!process.env.SKIP_E2E_DB_START) {
-    console.log("[backend-e2e] Starting compose PostgreSQL on 127.0.0.1:55432...");
+    console.log("[backend-test] Starting compose PostgreSQL on 127.0.0.1:55432...");
     run(dockerCommand, ["compose", "-f", path.join(repoRoot, "compose.yaml"), "up", "-d", "db"]);
-    console.log("[backend-e2e] Waiting for PostgreSQL readiness...");
+    console.log("[backend-test] Waiting for PostgreSQL readiness...");
     waitForCommand(dockerCommand, [
       "compose",
       "-f",
@@ -120,18 +125,18 @@ async function main() {
     ]);
   }
 
-  console.log("[backend-e2e] Applying Alembic migrations...");
+  console.log("[backend-test] Applying Alembic migrations...");
   run(pythonCommand, ["-m", "alembic", "upgrade", "head"], {
     cwd: backendDir,
     env: backendEnv,
   });
-  console.log("[backend-e2e] Applying idempotent development seed data...");
+  console.log("[backend-test] Applying idempotent development seed data...");
   run(pythonCommand, ["-m", "app.db.seed"], {
     cwd: backendDir,
     env: backendEnv,
   });
 
-  console.log(`[backend-e2e] Starting FastAPI on ${apiBaseUrl}...`);
+  console.log(`[backend-test] Starting FastAPI on ${apiBaseUrl}...`);
   const backendServer = spawn(
     pythonCommand,
     ["-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", apiPort],
@@ -155,21 +160,17 @@ async function main() {
 
   try {
     await waitForHealth(`${apiBaseUrl}/api/health`);
-    console.log("[backend-e2e] Running Playwright backend-mode smoke...");
-    const playwrightResult = spawnSync(
-      process.execPath,
-      [playwrightCli, "test", "--config", "playwright.backend.config.ts"],
-      {
-        cwd: frontendDir,
-        env: {
-          ...process.env,
-          E2E_FRONTEND_PORT: frontendPort,
-          VITE_API_BASE_URL: apiBaseUrl,
-        },
-        stdio: "inherit",
+    const [command, ...args] = commandArgs;
+    const result = spawnSync(command, args, {
+      cwd: frontendDir,
+      env: {
+        ...process.env,
+        VITE_API_BASE_URL: apiBaseUrl,
       },
-    );
-    process.exitCode = playwrightResult.status || 0;
+      stdio: "inherit",
+      shell: process.platform === "win32",
+    });
+    process.exitCode = result.status || 0;
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

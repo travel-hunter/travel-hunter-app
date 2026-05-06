@@ -20,7 +20,6 @@ services:
       context: ./backend
     environment:
       APP_ENV: docker
-      BACKEND_DATA_SOURCE: db
       DATABASE_URL: postgresql+psycopg://travelhunter:travelhunter@db:5432/travelhunter
       AUTH_SECRET_KEY: dev-only-change-me-secret-key-32-bytes
       ACCESS_TOKEN_EXPIRE_MINUTES: "30"
@@ -44,7 +43,6 @@ services:
       context: ./frontend
       args:
         VITE_API_BASE_URL: http://127.0.0.1:8000
-        VITE_DATA_SOURCE: backend
     ports:
       - "4173:4173"
     depends_on:

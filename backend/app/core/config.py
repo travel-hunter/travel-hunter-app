@@ -1,20 +1,9 @@
 import os
 from dataclasses import dataclass
-from typing import Literal
-
-
-BackendDataSource = Literal["mock", "db"]
 
 
 def split_csv(value: str) -> tuple[str, ...]:
     return tuple(item.strip() for item in value.split(",") if item.strip())
-
-
-def parse_backend_data_source(value: str) -> BackendDataSource:
-    normalized = value.strip().lower()
-    if normalized == "db":
-        return "db"
-    return "mock"
 
 
 @dataclass(frozen=True)
@@ -34,9 +23,6 @@ class Settings:
     refresh_cookie_secure: bool = os.getenv(
         "REFRESH_COOKIE_SECURE", "false"
     ).strip().lower() in {"1", "true", "yes", "on"}
-    backend_data_source: BackendDataSource = parse_backend_data_source(
-        os.getenv("BACKEND_DATA_SOURCE", "mock")
-    )
     cors_origins: tuple[str, ...] = split_csv(
         os.getenv(
             "CORS_ORIGINS",

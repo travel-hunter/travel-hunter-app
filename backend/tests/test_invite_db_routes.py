@@ -1,9 +1,7 @@
 from datetime import datetime
-from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
-from app.api import dependencies as api_dependencies
 from app.api.routes import invites as invite_routes
 from app.main import app
 from app.models import User as UserModel
@@ -21,10 +19,6 @@ def make_user() -> UserModel:
         created_at=datetime(2026, 5, 4, 0, 0, 0),
         updated_at=datetime(2026, 5, 4, 0, 0, 0),
     )
-
-
-def db_settings() -> SimpleNamespace:
-    return SimpleNamespace(backend_data_source="db")
 
 
 def invite_payload() -> dict[str, object]:
@@ -51,8 +45,6 @@ def install_db_route_dependencies(
     fake_db: object,
     user: UserModel | None = None,
 ) -> None:
-    monkeypatch.setattr(invite_routes, "settings", db_settings())
-    monkeypatch.setattr(api_dependencies, "settings", db_settings())
     app.dependency_overrides[invite_routes.get_optional_db] = lambda: fake_db
     app.dependency_overrides[invite_routes.get_current_user] = lambda: user
 

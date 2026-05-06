@@ -16,12 +16,36 @@ Travel Hunter MVP frontend built with React, TypeScript, Vite, and React Router.
 - `/trips/:tripId`
 - `/ai-results`
 - `/friend-invite`
+- `/invites/:inviteToken/accept`
 - `/mypage`
+
+## Data Access
+
+Pages access data only through `src/api` and `AppDataApi`. Runtime mock mode has been removed, so the frontend always calls FastAPI.
+
+- Backend URL: `VITE_API_BASE_URL=http://127.0.0.1:8000`
+- Auth: `Authorization: Bearer <accessToken>`
+- Refresh session: HttpOnly cookie via `credentials: "include"`
 
 ## Local Run
 
-```bash
-npm install
+Start PostgreSQL and FastAPI first:
+
+```powershell
+docker compose -f ..\compose.yaml up -d db
+
+cd ..\backend
+$env:DATABASE_URL="postgresql+psycopg://travelhunter:travelhunter@127.0.0.1:55432/travelhunter"
+alembic upgrade head
+python -m app.db.seed
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+Then start Vite:
+
+```powershell
+cd ..\frontend
+$env:VITE_API_BASE_URL="http://127.0.0.1:8000"
 npm run dev
 ```
 
@@ -31,65 +55,29 @@ Default dev server:
 http://127.0.0.1:5173
 ```
 
-## Data Source
-
-Pages access data only through `src/api` and `AppDataApi`.
-
-- Default: `VITE_DATA_SOURCE=mock`
-- Backend mode: `VITE_DATA_SOURCE=backend`
-- Backend URL: `VITE_API_BASE_URL=http://127.0.0.1:8000`
-
-Backend mode uses:
-
-- `POST /api/auth/login`
-- `POST /api/auth/signup`
-- `POST /api/auth/refresh`
-- `POST /api/auth/logout`
-- `GET /api/me`
-- `GET /api/me/profile`
-- `PATCH /api/me/profile`
-- policy, trip, recommendation, and invite endpoints from `docs/mvp-api-contract.md`
-- `Authorization: Bearer <accessToken>`
-- refresh cookie via `credentials: "include"`
-
-PowerShell example:
+## Docker Compose Preview
 
 ```powershell
-$env:VITE_DATA_SOURCE="backend"
-$env:VITE_API_BASE_URL="http://127.0.0.1:8000"
-npm run dev
+docker compose -f ..\compose.yaml build
+docker compose -f ..\compose.yaml up -d db
+docker compose -f ..\compose.yaml run --rm backend alembic upgrade head
+docker compose -f ..\compose.yaml run --rm backend python -m app.db.seed
+docker compose -f ..\compose.yaml up -d backend frontend
 ```
 
-## Preview And Staging Mode
-
-For Docker Compose staging handoff, the frontend image is built with:
-
-- `VITE_DATA_SOURCE=backend`
-- `VITE_API_BASE_URL=http://127.0.0.1:8000`
-
-The compose frontend preview is served at:
+Preview URL:
 
 ```text
 http://127.0.0.1:4173
 ```
 
-For a real staging domain, rebuild the frontend with `VITE_API_BASE_URL` pointing to the staging backend origin.
-
 ## Validation
+
+`npm test` and `npm run test:e2e` start compose PostgreSQL, run Alembic/seed, start FastAPI on `127.0.0.1:8001`, and run against the real backend.
 
 ```bash
 npm run typecheck
 npm test
 npm run test:e2e
-npm run test:e2e:backend
 npm run build
 ```
-
-`npm run test:e2e:backend` starts the backend-mode smoke path against FastAPI and compose PostgreSQL using the script under `frontend/scripts`.
-
-## Staging Build Notes
-
-- Set `VITE_DATA_SOURCE=backend`.
-- Set `VITE_API_BASE_URL` to the staging backend origin.
-- Run `npm run build` and serve the generated Vite assets from the container image or static host.
-- Keep `npm run test:e2e` for mock-mode UI regression and `npm run test:e2e:backend` for backend integration smoke.

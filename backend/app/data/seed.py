@@ -1,8 +1,8 @@
 USER = {
     "id": "1",
-    "name": "지영",
-    "nickname": "지영",
-    "email": "jiyoung@travel.kr",
+    "name": "테스트 사용자",
+    "nickname": "테스트 사용자",
+    "email": "test.user@example.com",
     "birthDate": "1997-04-12",
     "gender": None,
     "region": "제주",
@@ -90,7 +90,7 @@ TRIP = {
     "id": "jeju-3-days",
     "title": "제주 3일 여행",
     "dates": "2026.06.15 - 06.17",
-    "people": ["지영", "민서", "현우"],
+    "people": ["테스트 사용자", "민서", "현우"],
     "expectedSaving": "12만원",
     "days": {
         1: [

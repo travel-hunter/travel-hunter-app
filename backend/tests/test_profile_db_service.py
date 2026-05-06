@@ -24,8 +24,8 @@ class FakeDb:
 def make_user() -> User:
     return User(
         id=1,
-        email="jiyoung@travel.kr",
-        nickname="지영",
+        email="test.user@example.com",
+        nickname="테스트 사용자",
         region="제주",
         travel_style="휴식",
         travel_budget="1인 40만원 이하",

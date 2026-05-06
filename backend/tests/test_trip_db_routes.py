@@ -1,9 +1,7 @@
 from datetime import datetime
-from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
-from app.api import dependencies as api_dependencies
 from app.api.routes import trips as trip_routes
 from app.main import app
 from app.models import User as UserModel
@@ -16,16 +14,12 @@ client = TestClient(app)
 def make_user() -> UserModel:
     return UserModel(
         id=1,
-        email="jiyoung@travel.kr",
-        nickname="Jiyoung",
+        email="test.user@example.com",
+        nickname="Test User",
         onboarding_completed=True,
         created_at=datetime(2026, 5, 4, 0, 0, 0),
         updated_at=datetime(2026, 5, 4, 0, 0, 0),
     )
-
-
-def db_settings() -> SimpleNamespace:
-    return SimpleNamespace(backend_data_source="db")
 
 
 def trip_payload(trip_id: str = "7") -> dict[str, object]:
@@ -33,8 +27,8 @@ def trip_payload(trip_id: str = "7") -> dict[str, object]:
         "id": trip_id,
         "title": "Jeju 3-day trip",
         "dates": "2026.06.15 - 06.17",
-        "people": ["Jiyoung"],
-        "expectedSaving": "30만원",
+        "people": ["Test User"],
+        "expectedSaving": "30留뚯썝",
         "days": {1: [{"time": "09:00", "label": "Sunrise peak", "meta": "Nature"}]},
     }
 
@@ -59,8 +53,6 @@ def clear_overrides() -> None:
 
 
 def install_db_route_dependencies(monkeypatch, fake_db: object, user: UserModel | None = None) -> None:
-    monkeypatch.setattr(trip_routes, "settings", db_settings())
-    monkeypatch.setattr(api_dependencies, "settings", db_settings())
     app.dependency_overrides[trip_routes.get_optional_db] = lambda: fake_db
     if user is not None:
         app.dependency_overrides[trip_routes.get_current_user] = lambda: user

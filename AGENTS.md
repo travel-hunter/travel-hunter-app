@@ -2,13 +2,14 @@
 
 ## Project Goal
 
-Travel Hunter is an MVP that helps users find domestic travel support policies and connect those benefits to trip planning. The current app is a React/Vite frontend plus FastAPI backend with a shared API contract and PostgreSQL-backed foundations for policy, auth, and trip flows.
+Travel Hunter is an MVP that helps users find domestic travel support policies and connect those benefits to trip planning. The current app is a React/Vite frontend plus FastAPI backend with a shared API contract and PostgreSQL-backed policy, auth, profile, saved policy, trip, and invite flows.
 
 ## Current Phase
 
 - The frontend must depend on the `AppDataApi` boundary and must not couple pages directly to seed data or backend client details.
-- The backend keeps deterministic Mock API behavior by default and supports selected PostgreSQL-backed behavior with `BACKEND_DATA_SOURCE=db`.
-- DB-backed policy, auth, profile, saved policy, trip list/detail/create, trip policy attachment, recommendations, invite state, invite acceptance, and policy official links are implemented.
+- The frontend always calls the FastAPI backend through `AppDataApi`; mock mode has been removed.
+- The backend always uses PostgreSQL-backed behavior for user-facing data. Static profile options and seed constants live under `app/data`, but there is no runtime mock API mode.
+- Policy, auth, profile, saved policy, trip list/detail/create, trip policy attachment, recommendations, invite state, invite acceptance, and policy official links are implemented.
 - The active product and API source of truth is `docs/current-work-spec.md` and `docs/mvp-api-contract.md`.
 - ERD source material lives outside this repo at `../files`; the repo SQL baseline is `docs/db-schema-v0.3.sql`.
 
@@ -41,7 +42,7 @@ At the start of non-trivial work:
 - Policy detail routes use `policySlug` / `policies.slug`.
 - Trip routes use an internal trip id. Do not introduce public trip slugs unless a later plan explicitly changes the contract.
 - Frontend pages and components must access app data through `frontend/src/api/AppDataApi` and related API boundary files.
-- Backend routes must stay thin. Put request/response shapes in `app/schemas`, business behavior in `app/services`, DB queries in `app/repositories`, and seed/mock data in `app/data`.
+- Backend routes must stay thin. Put request/response shapes in `app/schemas`, business behavior in `app/services`, DB queries in `app/repositories`, and seed/static data in `app/data`.
 - Never commit secrets. Keep `.env.example` documented and safe.
 - Any API shape change must update the API contract, frontend types, backend schemas/routes/services, tests, and `.agent/evals` together.
 - Documentation changes must preserve UTF-8 Korean text.
@@ -56,7 +57,6 @@ cd frontend
 npm run typecheck
 npm test
 npm run test:e2e
-npm run test:e2e:backend
 npm run build
 ```
 

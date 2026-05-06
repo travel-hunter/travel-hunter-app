@@ -3,9 +3,7 @@ from app.db.session import check_database_connection
 
 
 def get_health_payload() -> dict[str, str]:
-    database_status = "configured" if settings.database_url else "not_configured"
-    if settings.backend_data_source == "db":
-        database_status = check_database_connection()
+    database_status = check_database_connection()
 
     return {
         "status": "ok",

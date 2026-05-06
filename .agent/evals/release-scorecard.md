@@ -21,7 +21,6 @@ Total: 100
 - `cd frontend && npm run typecheck`
 - `cd frontend && npm test`
 - `cd frontend && npm run test:e2e`
-- `cd frontend && npm run test:e2e:backend`
 - `cd frontend && npm run build`
 - `cd backend && python -m pytest`
 - `cd backend && alembic upgrade head --sql`

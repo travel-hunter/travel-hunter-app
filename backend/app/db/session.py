@@ -34,7 +34,7 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def get_optional_db() -> Generator[Session | None, None, None]:
-    if settings.backend_data_source != "db":
+    if not settings.database_url:
         yield None
         return
 

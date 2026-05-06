@@ -1,7 +1,7 @@
 import { expect, Page, test } from "@playwright/test";
 
 const seedUser = {
-  email: "jiyoung@travel.kr",
+  email: "test.user@example.com",
   password: "password123",
 };
 

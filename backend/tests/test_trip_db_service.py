@@ -6,7 +6,7 @@ from app.schemas.trip import CreateTripRequest
 from app.services import trips as trip_service
 
 
-def make_user(user_id: int = 1, nickname: str = "Jiyoung") -> UserModel:
+def make_user(user_id: int = 1, nickname: str = "Test User") -> UserModel:
     return UserModel(
         id=user_id,
         email=f"user-{user_id}@travel.kr",
@@ -18,7 +18,7 @@ def make_user(user_id: int = 1, nickname: str = "Jiyoung") -> UserModel:
 
 
 def make_trip() -> Trip:
-    owner = make_user(1, "Jiyoung")
+    owner = make_user(1, "Test User")
     friend = make_user(2, "Minseo")
     trip = Trip(
         id=7,
@@ -67,7 +67,7 @@ def test_trip_to_api_returns_numeric_string_id_and_contract_shape() -> None:
     assert payload["id"] == "7"
     assert payload["title"] == "Jeju 3-day trip"
     assert payload["dates"] == "2026.06.15 - 06.17"
-    assert payload["people"] == ["Jiyoung", "Minseo"]
+    assert payload["people"] == ["Test User", "Minseo"]
     assert payload["expectedSaving"] == "30만원"
     assert payload["days"] == {1: [{"time": "09:00", "label": "Sunrise peak", "meta": "Nature"}]}
 
@@ -78,7 +78,7 @@ def test_trip_to_api_includes_owner_when_owner_is_not_a_member() -> None:
 
     payload = trip_service.trip_to_api(trip)
 
-    assert payload["people"] == ["Jiyoung", "Minseo"]
+    assert payload["people"] == ["Test User", "Minseo"]
 
 
 def test_get_trip_resolves_numeric_id_and_legacy_alias(monkeypatch) -> None:
@@ -95,7 +95,7 @@ def test_get_trip_resolves_numeric_id_and_legacy_alias(monkeypatch) -> None:
         trip_service.trip_repository,
         "get_seed_alias_trip",
         lambda db, **kwargs: trip
-        if db is fake_db and kwargs["user_id"] == 1 and kwargs["owner_email"] == "jiyoung@travel.kr"
+        if db is fake_db and kwargs["user_id"] == 1 and kwargs["owner_email"] == "test.user@example.com"
         else None,
     )
 

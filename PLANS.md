@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-The MVP feature set and Docker-backed release gate are complete. The current priority is choosing the real staging environment and executing deployment from the Docker Compose release-candidate baseline.
+The MVP feature set is implemented and runtime mock mode has been removed. The current priority is validating the DB-backed-only baseline, then choosing the real staging environment and executing deployment from the Docker Compose release-candidate baseline.
 
 ## Source Of Truth
 
@@ -53,7 +53,6 @@ Run before release candidate handoff:
 ```bash
 cd frontend
 npm run test:e2e
-npm run test:e2e:backend
 npm run build
 
 cd ..

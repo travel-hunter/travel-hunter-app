@@ -6,7 +6,6 @@ from app.core.config import settings
 from app.db.session import get_optional_db
 from app.schemas.user import AuthResponse, LoginRequest, LogoutResponse, SignupRequest
 from app.services import auth as auth_service
-from app.services import mock_store
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -32,9 +31,6 @@ def login(
     response: Response,
     db: Session | None = Depends(get_optional_db),
 ) -> AuthResponse:
-    if settings.backend_data_source != "db":
-        return AuthResponse(**mock_store.create_auth_response())
-
     try:
         result = auth_service.login(_require_db(db), request)
     except auth_service.AuthServiceError as error:
@@ -48,9 +44,6 @@ def signup(
     response: Response,
     db: Session | None = Depends(get_optional_db),
 ) -> AuthResponse:
-    if settings.backend_data_source != "db":
-        return AuthResponse(**mock_store.create_auth_response())
-
     try:
         result = auth_service.signup(_require_db(db), request)
     except auth_service.AuthServiceError as error:
@@ -64,9 +57,6 @@ def refresh(
     response: Response,
     db: Session | None = Depends(get_optional_db),
 ) -> AuthResponse:
-    if settings.backend_data_source != "db":
-        return AuthResponse(**mock_store.create_auth_response())
-
     try:
         result = auth_service.refresh(
             _require_db(db),
@@ -83,7 +73,6 @@ def logout(
     response: Response,
     db: Session | None = Depends(get_optional_db),
 ) -> LogoutResponse:
-    if settings.backend_data_source == "db" and db is not None:
-        auth_service.logout(db, request.cookies.get(settings.refresh_cookie_name))
+    auth_service.logout(_require_db(db), request.cookies.get(settings.refresh_cookie_name))
     security.clear_refresh_cookie(response)
     return LogoutResponse(loggedOut=True)

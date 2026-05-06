@@ -1,6 +1,6 @@
 # Backend
 
-Travel Hunter FastAPI backend. The service keeps deterministic Mock API behavior by default and switches selected MVP flows to PostgreSQL-backed behavior with `BACKEND_DATA_SOURCE=db`.
+Travel Hunter FastAPI backend. Runtime mock mode has been removed; user-facing auth and data flows use PostgreSQL through SQLAlchemy and Alembic.
 
 ## Stack
 
@@ -9,9 +9,9 @@ Travel Hunter FastAPI backend. The service keeps deterministic Mock API behavior
 - SQLAlchemy 2.x
 - Alembic
 - psycopg 3
+- PostgreSQL 16
 - pwdlib Argon2 password hashing
 - PyJWT
-- PostgreSQL 16
 - Pytest
 
 ## Structure
@@ -22,30 +22,20 @@ Travel Hunter FastAPI backend. The service keeps deterministic Mock API behavior
 - `app/schemas`: Pydantic request/response models
 - `app/services`: business behavior and DTO mapping
 - `app/repositories`: DB query boundaries
-- `app/data`: deterministic mock/seed data
+- `app/data`: seed/static constants
 - `app/db`: SQLAlchemy session, Alembic metadata, dev seed command
 - `app/models`: ERD v0.3 SQLAlchemy models
-- `alembic`: ERD v0.3 migration and profile preference extension migration
+- `alembic`: migrations
 
 ## Local Run
 
-```bash
+```powershell
 python -m pip install -r requirements.txt
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-```
-
-Default mode:
-
-```powershell
-$env:BACKEND_DATA_SOURCE="mock"
-```
-
-DB-backed mode:
-
-```powershell
-$env:BACKEND_DATA_SOURCE="db"
 $env:DATABASE_URL="postgresql+psycopg://travelhunter:travelhunter@127.0.0.1:55432/travelhunter"
 $env:AUTH_SECRET_KEY="dev-only-change-me-secret-key-32-bytes"
+alembic upgrade head
+python -m app.db.seed
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Auth settings:
@@ -65,7 +55,7 @@ curl http://127.0.0.1:8000/api/health
 
 ## DB Schema And Seed
 
-The v0.3 reference SQL is preserved in `docs/db-schema-v0.3.sql`. Runtime schema creation uses Alembic only; do not use SQLAlchemy `create_all()`.
+The v0.3 reference SQL is preserved in `../docs/db-schema-v0.3.sql`. Runtime schema creation uses Alembic only; do not use SQLAlchemy `create_all()`.
 
 ```bash
 alembic upgrade head
@@ -75,15 +65,22 @@ python -m app.db.seed
 Compose exposes PostgreSQL on host `55432`.
 
 ```bash
-docker compose -f compose.yaml up -d db
-docker compose -f compose.yaml run --rm backend alembic upgrade head
-docker compose -f compose.yaml run --rm backend python -m app.db.seed
+docker compose -f ../compose.yaml up -d db
+docker compose -f ../compose.yaml run --rm backend alembic upgrade head
+docker compose -f ../compose.yaml run --rm backend python -m app.db.seed
 ```
 
-## Current DB-backed Scope
+Seeded test account:
+
+- Email: `test.user@example.com`
+- Password: `password123`
+- Display name: `테스트 사용자`
+
+## Implemented API Scope
 
 - `/api/auth/signup`, `/api/auth/login`, `/api/auth/refresh`, `/api/auth/logout`
-- `/api/me`, `/api/me/profile`
+- `/api/me`, `/api/me/profile`, `/api/profile-options`
+- `/api/me/saved-policies`
 - `/api/me/saved-policies/{policySlug}`
 - `/api/policies`, `/api/policies/{policySlug}`
 - `/api/trips`, `/api/trips/{tripId}`
@@ -93,11 +90,7 @@ docker compose -f compose.yaml run --rm backend python -m app.db.seed
 - `/api/trips/{tripId}/invites`
 - `/api/invites/{inviteToken}/accept`
 
-Mock-only or partial scope:
-
-- social login, real policy collection, real AI recommendations, real invite delivery
-
-Policy detail responses expose `policies.official_url` as `officialUrl` and `policies.apply_url` as `applyUrl`. Frontend application CTAs use `applyUrl` first, then fall back to `officialUrl`, and show the preparation notice when both are null.
+Policy detail responses expose `policies.official_url` as `officialUrl` and `policies.apply_url` as `applyUrl`. Frontend application CTAs use `applyUrl` first, then `officialUrl`, then the preparation notice when both are null.
 
 ## Validation
 
@@ -106,19 +99,12 @@ python -m pytest
 alembic upgrade head --sql
 ```
 
-## Staging Readiness Notes
+## Staging Notes
 
-- Use `APP_ENV=staging` and `BACKEND_DATA_SOURCE=db`.
 - Use a strong non-default `AUTH_SECRET_KEY`.
 - Use `REFRESH_COOKIE_SECURE=true` behind HTTPS.
 - Set `DATABASE_URL` to the staging PostgreSQL instance using the `postgresql+psycopg://` scheme.
 - Set `CORS_ORIGINS` to the deployed frontend origin.
-- Apply schema with Alembic only; do not use `create_all()`.
-
-For local Docker Compose staging validation, compose provides:
-
-- backend API: `http://127.0.0.1:8000`
-- PostgreSQL host port: `127.0.0.1:55432`
-- backend data source: `BACKEND_DATA_SOURCE=db`
+- Apply schema with Alembic only.
 
 Release-candidate handoff details are in `../docs/release-candidate-handoff.md`.

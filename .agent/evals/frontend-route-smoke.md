@@ -3,8 +3,7 @@
 ## Source
 
 - App routes are documented in `docs/current-work-spec.md`.
-- Current e2e smoke test is `frontend/e2e/app-smoke.spec.ts`.
-- Backend-mode e2e smoke test is `frontend/e2e-backend/backend-mode.spec.ts`.
+- Current DB-backed e2e smoke test is `frontend/e2e-backend/backend-mode.spec.ts`.
 
 ## Public Routes
 
@@ -71,13 +70,13 @@ Core screens:
 - `/policies/local-vacation`
 - `/trips/jeju-3-days`
 
-## Backend Mode Integration Smoke
+## DB-Backed Integration Smoke
 
 Run with:
 
 ```bash
 cd frontend
-npm run test:e2e:backend
+npm run test:e2e
 ```
 
 Expected:
@@ -85,7 +84,7 @@ Expected:
 - Compose PostgreSQL is started on host `127.0.0.1:55432`.
 - Alembic migration and development seed run before the browser test.
 - FastAPI runs on `127.0.0.1:8001`.
-- Vite runs with `VITE_DATA_SOURCE=backend` on `127.0.0.1:5174`.
+- Vite runs on `127.0.0.1:5174` and calls FastAPI through `VITE_API_BASE_URL`.
 - Anonymous `/home` redirects to `/login`.
 - Seed login reaches `/home`.
 - Profile setup persists region/style/budget through `/api/me/profile` and restored profile copy remains visible after reload.

@@ -82,7 +82,7 @@ def seed_users(db: Session) -> dict[str, User]:
         "민서": get_or_create_user(db, email="minseo@travel.kr", nickname="민서"),
         "현우": get_or_create_user(db, email="hyunwoo@travel.kr", nickname="현우"),
     }
-    return {"지영": main_user, **companions}
+    return {str(seed.USER["nickname"]): main_user, **companions}
 
 
 def seed_policies(db: Session) -> dict[str, Policy]:
@@ -239,12 +239,13 @@ def seed_recommendations(db: Session, user: User, trip: Trip) -> None:
 def seed_dev_data(db: Session) -> None:
     users_by_name = seed_users(db)
     policies = seed_policies(db)
-    trip = get_or_create_trip(db, users_by_name["지영"])
+    main_user = users_by_name[str(seed.USER["nickname"])]
+    trip = get_or_create_trip(db, main_user)
     seed_trip_days_and_places(db, trip)
     seed_trip_members(db, trip, users_by_name)
     seed_trip_policy(db, trip, policies["local-vacation"])
-    seed_trip_invite(db, trip, users_by_name["지영"])
-    seed_recommendations(db, users_by_name["지영"], trip)
+    seed_trip_invite(db, trip, main_user)
+    seed_recommendations(db, main_user, trip)
 
 
 def main() -> None:

@@ -4,7 +4,7 @@ export type ApiHealth = {
   status: "ok";
   service: string;
   environment: string;
-  database: "configured" | "not_configured";
+  database: "connected" | "unavailable" | "not_configured";
 };
 
 export const apiConfig = {

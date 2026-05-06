@@ -1,10 +1,8 @@
 from datetime import date
-from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api import dependencies as api_dependencies
 from app.api.routes import policies as policy_routes
 from app.main import app
 from app.models import Policy as PolicyModel
@@ -53,25 +51,9 @@ def make_user() -> UserModel:
     return UserModel(id=7, email="friend@travel.kr", nickname="Friend")
 
 
-def test_mock_mode_unknown_policy_slug_returns_404(monkeypatch) -> None:
-    monkeypatch.setattr(policy_service, "settings", SimpleNamespace(backend_data_source="mock"))
-    app.dependency_overrides[policy_routes.get_optional_db] = lambda: None
-
-    try:
-        known_response = client.get("/api/policies/local-vacation")
-        missing_response = client.get("/api/policies/missing-policy")
-    finally:
-        clear_db_dependency_override()
-
-    assert known_response.status_code == 200
-    assert missing_response.status_code == 404
-    assert missing_response.json() == {"detail": "Policy not found"}
-
-
 def test_db_mode_unknown_policy_slug_returns_404(monkeypatch) -> None:
     fake_db = object()
 
-    monkeypatch.setattr(policy_service, "settings", SimpleNamespace(backend_data_source="db"))
     monkeypatch.setattr(
         policy_service.policy_repository,
         "get_policy_by_slug",
@@ -92,7 +74,6 @@ def test_db_mode_known_policy_slug_preserves_response_contract(monkeypatch) -> N
     fake_db = object()
     policy = make_seed_like_policy()
 
-    monkeypatch.setattr(policy_service, "settings", SimpleNamespace(backend_data_source="db"))
     monkeypatch.setattr(
         policy_service.policy_repository,
         "get_policy_by_slug",
@@ -119,7 +100,6 @@ def test_db_mode_known_policy_slug_preserves_response_contract(monkeypatch) -> N
 def test_db_policy_service_returns_none_when_repository_misses(monkeypatch) -> None:
     fake_db = object()
 
-    monkeypatch.setattr(policy_service, "settings", SimpleNamespace(backend_data_source="db"))
     monkeypatch.setattr(
         policy_service.policy_repository,
         "get_policy_by_slug",
@@ -130,7 +110,6 @@ def test_db_policy_service_returns_none_when_repository_misses(monkeypatch) -> N
 
 
 def test_db_policy_service_requires_session_in_db_mode(monkeypatch) -> None:
-    monkeypatch.setattr(policy_service, "settings", SimpleNamespace(backend_data_source="db"))
 
     with pytest.raises(RuntimeError, match="DB session is required"):
         policy_service.list_policies(None)
@@ -141,8 +120,6 @@ def test_db_policy_service_requires_session_in_db_mode(monkeypatch) -> None:
 
 def test_db_saved_policy_requires_user(monkeypatch) -> None:
     fake_db = object()
-    monkeypatch.setattr(policy_routes, "settings", SimpleNamespace(backend_data_source="db"))
-    monkeypatch.setattr(api_dependencies, "settings", SimpleNamespace(backend_data_source="db"))
     set_db_dependency_override(fake_db)
     app.dependency_overrides[policy_routes.get_current_user] = lambda: None
 
@@ -158,8 +135,6 @@ def test_db_saved_policy_requires_user(monkeypatch) -> None:
 def test_db_saved_policy_unknown_policy_returns_404(monkeypatch) -> None:
     fake_db = object()
     user = make_user()
-    monkeypatch.setattr(policy_routes, "settings", SimpleNamespace(backend_data_source="db"))
-    monkeypatch.setattr(api_dependencies, "settings", SimpleNamespace(backend_data_source="db"))
     monkeypatch.setattr(policy_service, "save_policy", lambda *_args: None)
     set_db_dependency_override(fake_db)
     app.dependency_overrides[policy_routes.get_current_user] = lambda: user
@@ -176,8 +151,6 @@ def test_db_saved_policy_unknown_policy_returns_404(monkeypatch) -> None:
 def test_db_saved_policy_returns_existing_response_shape(monkeypatch) -> None:
     fake_db = object()
     user = make_user()
-    monkeypatch.setattr(policy_routes, "settings", SimpleNamespace(backend_data_source="db"))
-    monkeypatch.setattr(api_dependencies, "settings", SimpleNamespace(backend_data_source="db"))
     monkeypatch.setattr(
         policy_service,
         "save_policy",
@@ -199,8 +172,6 @@ def test_db_saved_policy_returns_existing_response_shape(monkeypatch) -> None:
 
 def test_db_list_saved_policies_requires_user(monkeypatch) -> None:
     fake_db = object()
-    monkeypatch.setattr(policy_routes, "settings", SimpleNamespace(backend_data_source="db"))
-    monkeypatch.setattr(api_dependencies, "settings", SimpleNamespace(backend_data_source="db"))
     set_db_dependency_override(fake_db)
     app.dependency_overrides[policy_routes.get_current_user] = lambda: None
 
@@ -217,8 +188,6 @@ def test_db_list_saved_policies_returns_policy_list(monkeypatch) -> None:
     fake_db = object()
     user = make_user()
     policy = make_seed_like_policy()
-    monkeypatch.setattr(policy_routes, "settings", SimpleNamespace(backend_data_source="db"))
-    monkeypatch.setattr(api_dependencies, "settings", SimpleNamespace(backend_data_source="db"))
     monkeypatch.setattr(
         policy_service,
         "list_saved_policies",
@@ -240,8 +209,6 @@ def test_db_list_saved_policies_returns_policy_list(monkeypatch) -> None:
 
 def test_db_remove_saved_policy_requires_user(monkeypatch) -> None:
     fake_db = object()
-    monkeypatch.setattr(policy_routes, "settings", SimpleNamespace(backend_data_source="db"))
-    monkeypatch.setattr(api_dependencies, "settings", SimpleNamespace(backend_data_source="db"))
     set_db_dependency_override(fake_db)
     app.dependency_overrides[policy_routes.get_current_user] = lambda: None
 
@@ -257,8 +224,6 @@ def test_db_remove_saved_policy_requires_user(monkeypatch) -> None:
 def test_db_remove_saved_policy_returns_existing_response_shape(monkeypatch) -> None:
     fake_db = object()
     user = make_user()
-    monkeypatch.setattr(policy_routes, "settings", SimpleNamespace(backend_data_source="db"))
-    monkeypatch.setattr(api_dependencies, "settings", SimpleNamespace(backend_data_source="db"))
     monkeypatch.setattr(
         policy_service,
         "remove_saved_policy",
