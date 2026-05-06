@@ -66,11 +66,11 @@ Implemented endpoints:
 
 ## 최근 검증
 
-- `cd backend && python -m pytest`: 64 passed.
+- `cd backend && python -m pytest`: 72 passed.
 - `cd backend && alembic upgrade head --sql`: passed.
 - `docker compose -f compose.yaml config`: passed.
 - `cd frontend && npm run typecheck`: passed.
-- `cd frontend && npm test`: DB-backed Vitest 16 passed.
+- `cd frontend && npm test`: DB-backed Vitest 20 passed.
 - `cd frontend && npm run test:e2e`: DB-backed Playwright 5 passed.
 - `cd frontend && npm run build`: passed.
 - `docker compose -f compose.yaml build`: passed.
