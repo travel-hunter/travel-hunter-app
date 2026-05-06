@@ -182,6 +182,16 @@
       }
     },
     {
+      "method": "POST",
+      "path": "/api/me/saved-policies/local-vacation",
+      "status": 200,
+      "requiredFields": {
+        "policyId": "string",
+        "saved": "boolean"
+      },
+      "dbModeBehavior": "Requires bearer auth and stores user_saved_policies idempotently."
+    },
+    {
       "method": "GET",
       "path": "/api/trips",
       "status": 200,

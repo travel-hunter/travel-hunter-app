@@ -4,10 +4,12 @@ from types import SimpleNamespace
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api import dependencies as api_dependencies
 from app.api.routes import policies as policy_routes
 from app.main import app
 from app.models import Policy as PolicyModel
 from app.models import PolicyDocument
+from app.models import User as UserModel
 from app.services import policies as policy_service
 
 
@@ -42,6 +44,11 @@ def set_db_dependency_override(fake_db: object) -> None:
 
 def clear_db_dependency_override() -> None:
     app.dependency_overrides.pop(policy_routes.get_optional_db, None)
+    app.dependency_overrides.pop(policy_routes.get_current_user, None)
+
+
+def make_user() -> UserModel:
+    return UserModel(id=7, email="friend@travel.kr", nickname="Friend")
 
 
 def test_mock_mode_unknown_policy_slug_returns_404(monkeypatch) -> None:
@@ -126,3 +133,61 @@ def test_db_policy_service_requires_session_in_db_mode(monkeypatch) -> None:
 
     with pytest.raises(RuntimeError, match="DB session is required"):
         policy_service.get_policy("missing-policy", None)
+
+
+def test_db_saved_policy_requires_user(monkeypatch) -> None:
+    fake_db = object()
+    monkeypatch.setattr(policy_routes, "settings", SimpleNamespace(backend_data_source="db"))
+    monkeypatch.setattr(api_dependencies, "settings", SimpleNamespace(backend_data_source="db"))
+    set_db_dependency_override(fake_db)
+    app.dependency_overrides[policy_routes.get_current_user] = lambda: None
+
+    try:
+        response = client.post("/api/me/saved-policies/local-vacation")
+    finally:
+        clear_db_dependency_override()
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Not authenticated"}
+
+
+def test_db_saved_policy_unknown_policy_returns_404(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    monkeypatch.setattr(policy_routes, "settings", SimpleNamespace(backend_data_source="db"))
+    monkeypatch.setattr(api_dependencies, "settings", SimpleNamespace(backend_data_source="db"))
+    monkeypatch.setattr(policy_service, "save_policy", lambda *_args: None)
+    set_db_dependency_override(fake_db)
+    app.dependency_overrides[policy_routes.get_current_user] = lambda: user
+
+    try:
+        response = client.post("/api/me/saved-policies/missing-policy")
+    finally:
+        clear_db_dependency_override()
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Policy not found"}
+
+
+def test_db_saved_policy_returns_existing_response_shape(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    monkeypatch.setattr(policy_routes, "settings", SimpleNamespace(backend_data_source="db"))
+    monkeypatch.setattr(api_dependencies, "settings", SimpleNamespace(backend_data_source="db"))
+    monkeypatch.setattr(
+        policy_service,
+        "save_policy",
+        lambda policy_slug, db, current_user: {"policyId": policy_slug, "saved": True}
+        if db is fake_db and current_user is user
+        else None,
+    )
+    set_db_dependency_override(fake_db)
+    app.dependency_overrides[policy_routes.get_current_user] = lambda: user
+
+    try:
+        response = client.post("/api/me/saved-policies/local-vacation")
+    finally:
+        clear_db_dependency_override()
+
+    assert response.status_code == 200
+    assert response.json() == {"policyId": "local-vacation", "saved": True}

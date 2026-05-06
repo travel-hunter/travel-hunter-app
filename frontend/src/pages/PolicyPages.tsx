@@ -77,6 +77,7 @@ export function PolicyDetailPage() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [sheetError, setSheetError] = useState("");
+  const [isSavingPolicy, setIsSavingPolicy] = useState(false);
 
   const addToTrip = async () => {
     if (!policy) return;
@@ -124,6 +125,20 @@ export function PolicyDetailPage() {
     setNotice("공식 신청 연결은 준비 중입니다. 필요한 서류와 신청 기간을 먼저 확인해주세요.");
   };
 
+  const saveStandalonePolicy = async () => {
+    if (!policy || isSavingPolicy) return;
+    setIsSavingPolicy(true);
+    try {
+      await appDataApi.savePolicy(policy.slug);
+      if (!likedPolicy) togglePolicyLike();
+      setNotice("관심 정책으로 저장했어요.");
+    } catch {
+      setNotice("정책을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setIsSavingPolicy(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <section className="screen detail">
@@ -152,7 +167,7 @@ export function PolicyDetailPage() {
             ‹
           </IconButton>
           <div className="row">
-            <button className="icon-btn" onClick={togglePolicyLike} type="button" aria-label="저장">
+            <button className="icon-btn" disabled={isSavingPolicy} onClick={saveStandalonePolicy} type="button" aria-label="저장">
               <Heart size={18} fill={likedPolicy ? "currentColor" : "none"} />
             </button>
             <IconButton label="공유" to="/friend-invite">

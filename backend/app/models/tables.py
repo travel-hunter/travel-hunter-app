@@ -58,6 +58,9 @@ class User(Base):
     trip_memberships: Mapped[list[TripMember]] = relationship(back_populates="user")
     created_invites: Mapped[list[TripInvite]] = relationship(back_populates="creator")
     recommendations: Mapped[list[Recommendation]] = relationship(back_populates="user")
+    saved_policies: Mapped[list[UserSavedPolicy]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class AuthRefreshToken(Base):
@@ -121,6 +124,7 @@ class Policy(Base):
         back_populates="policy", cascade="all, delete-orphan"
     )
     trip_links: Mapped[list[TripPolicy]] = relationship(back_populates="policy")
+    user_saves: Mapped[list[UserSavedPolicy]] = relationship(back_populates="policy")
 
 
 class PolicyDocument(Base):
@@ -243,6 +247,25 @@ class TripPolicy(Base):
 
     trip: Mapped[Trip] = relationship(back_populates="policies")
     policy: Mapped[Policy] = relationship(back_populates="trip_links")
+
+
+class UserSavedPolicy(Base):
+    __tablename__ = "user_saved_policies"
+    __table_args__ = (UniqueConstraint("user_id", "policy_id"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    policy_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("policies.id"), nullable=False, index=True
+    )
+    saved_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+
+    user: Mapped[User] = relationship(back_populates="saved_policies")
+    policy: Mapped[Policy] = relationship(back_populates="user_saves")
 
 
 class TripInvite(Base):

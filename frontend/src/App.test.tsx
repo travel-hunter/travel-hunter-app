@@ -109,6 +109,17 @@ describe("Travel Hunter app", () => {
     await waitFor(() => expect(document.querySelector(".toast")).toBeTruthy());
   });
 
+  it("saves a policy from the policy detail header action", async () => {
+    await login();
+    cleanup();
+    renderRoute("/policies/local-vacation");
+
+    const saveButton = await screen.findByRole("button", { name: "저장" });
+    await userEvent.setup().click(saveButton);
+
+    await waitFor(() => expect(document.body).toHaveTextContent("관심 정책으로 저장했어요."));
+  });
+
   it("saves profile setup choices before showing the personalized home", async () => {
     await login();
     cleanup();

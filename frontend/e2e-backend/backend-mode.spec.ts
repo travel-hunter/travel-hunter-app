@@ -59,6 +59,8 @@ test("backend data source drives policy, trip, recommendation, invite, and logou
 
   await page.goto("/policies/local-vacation");
   await expect(page.locator("#root")).not.toBeEmpty();
+  await page.getByRole("button", { name: "저장" }).click();
+  await expect(page.locator(".toast")).toContainText("관심 정책");
   await expect(page.locator(".sticky-cta button").first()).toBeVisible();
   await page.locator(".sticky-cta button").first().click();
   const policyTripSheet = page.locator(".trip-select-sheet");

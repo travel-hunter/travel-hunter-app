@@ -3,6 +3,7 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.models import User
 from app.models import Policy as PolicyModel
 from app.repositories import policies as policy_repository
 from app.services import mock_store
@@ -76,5 +77,36 @@ def get_policy(policy_slug: str, db: Session | None = None) -> dict[str, object]
     return policy_to_api(policy)
 
 
-def save_policy(policy_slug: str) -> dict[str, object]:
-    return mock_store.save_policy(policy_slug)
+def save_policy(
+    policy_slug: str,
+    db: Session | None = None,
+    user: User | None = None,
+) -> dict[str, object] | None:
+    if settings.backend_data_source != "db":
+        return mock_store.save_policy(policy_slug)
+    if db is None:
+        raise RuntimeError("DB session is required when BACKEND_DATA_SOURCE=db.")
+    if user is None:
+        raise RuntimeError("User is required when BACKEND_DATA_SOURCE=db.")
+
+    policy = policy_repository.get_policy_by_slug(db, policy_slug)
+    if policy is None:
+        return None
+
+    existing = policy_repository.get_saved_policy(
+        db,
+        user_id=user.id,
+        policy_id=policy.id,
+    )
+    if existing is None:
+        policy_repository.add_saved_policy(
+            db,
+            user_id=user.id,
+            policy_id=policy.id,
+        )
+        db.commit()
+
+    return {
+        "policyId": policy_slug,
+        "saved": True,
+    }

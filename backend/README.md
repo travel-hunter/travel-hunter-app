@@ -84,6 +84,7 @@ docker compose -f compose.yaml run --rm backend python -m app.db.seed
 
 - `/api/auth/signup`, `/api/auth/login`, `/api/auth/refresh`, `/api/auth/logout`
 - `/api/me`, `/api/me/profile`
+- `/api/me/saved-policies/{policySlug}`
 - `/api/policies`, `/api/policies/{policySlug}`
 - `/api/trips`, `/api/trips/{tripId}`
 - `/api/trips/{tripId}/policies/{policySlug}`
@@ -94,7 +95,6 @@ docker compose -f compose.yaml run --rm backend python -m app.db.seed
 
 Mock-only or partial scope:
 
-- `/api/me/saved-policies/{policySlug}` DB persistence
 - social login, real policy collection, real AI recommendations, real invite delivery
 
 ## Validation

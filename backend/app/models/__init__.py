@@ -11,6 +11,7 @@ from app.models.tables import (
     TripPlace,
     TripPolicy,
     User,
+    UserSavedPolicy,
 )
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "TripPlace",
     "TripPolicy",
     "User",
+    "UserSavedPolicy",
 ]

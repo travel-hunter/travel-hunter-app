@@ -76,6 +76,7 @@ DB-backed 완료 endpoint:
 - `GET /api/me`
 - `GET /api/me/profile`
 - `PATCH /api/me/profile`
+- `POST /api/me/saved-policies/{policySlug}`
 - `GET /api/trips`
 - `POST /api/trips`
 - `GET /api/trips/{tripId}`
@@ -86,9 +87,7 @@ DB-backed 완료 endpoint:
 - `POST /api/trips/{tripId}/invites`
 - `POST /api/invites/{inviteToken}/accept`
 
-Mock-only 또는 부분 구현 endpoint:
-
-- `POST /api/me/saved-policies/{policySlug}`: 정책 단독 저장 상태이며 현재 정책 담기 저장 기준은 `trip_policies`다.
+Mock-only 또는 부분 구현 endpoint: 현재 없음. 실제 외부 연동 기능은 미구현 범위에 별도로 둔다.
 
 ## 5. ERD/API v0.3 기준
 
@@ -102,6 +101,7 @@ Mock-only 또는 부분 구현 endpoint:
 - 응답에 `password_hash`, `refresh_token_hash`, `provider_id`를 포함하지 않는다.
 - `Policy.match`, `Trip.expectedSaving`, `InviteState.copied`, `InviteState.invited`는 DB 원본 필드가 아니라 계산/상태 값이다.
 - `users.travel_style`, `users.travel_budget`은 profile persistence용 v0.3.1 extension migration으로 추가한다.
+- `user_saved_policies`는 정책 단독 저장 persistence용 v0.3.2 extension migration으로 추가한다.
 
 ## 6. 실행 및 검증
 
@@ -140,12 +140,12 @@ python -m app.db.seed
 
 최근 통과 검증:
 
-- `python -m pytest`: 56 passed
-- `BACKEND_DATA_SOURCE=db python -m pytest tests\test_invite_db_routes.py tests\test_trip_db_service.py -q`: 16 passed
+- `python -m pytest`: 62 passed
+- targeted `BACKEND_DATA_SOURCE=db` policy/invite/trip tests: 29 passed
 - `alembic upgrade head --sql`: passed
 - `docker compose -f compose.yaml config`: passed
 - `npm run typecheck`: passed
-- `npm test`: 7 passed
+- `npm test`: 8 passed
 - `npm run test:e2e`: 6 passed
 - `npm run test:e2e:backend`: 5 passed
 - `npm run build`: passed
@@ -158,7 +158,6 @@ Current blocker:
 
 - 소셜 로그인 실제 연동
 - 정책 실시간 수집 API
-- 정책 단독 저장 DB persistence
 - 공식 정책 신청 deep link/API
 - 지도/장소 검색/이동 시간 계산
 - 실제 AI 추천 엔진
@@ -167,4 +166,4 @@ Current blocker:
 
 ## 8. 다음 작업
 
-다음 작업 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 saved-policies DB persistence다.
+다음 작업 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 배포 readiness 정리다.

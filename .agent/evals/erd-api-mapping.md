@@ -15,6 +15,7 @@
 - `users.gender` exists.
 - `users.preferred_regions` stores user interest regions.
 - `users.travel_style` and `users.travel_budget` are v0.3.1 profile persistence extension fields.
+- `user_saved_policies` is the v0.3.2 standalone saved policy persistence extension table.
 - Trip child tables use the `trip_*` singular prefix, such as `trip_days`, `trip_members`, `trip_policies`, `trip_places`, and `trip_invites`.
 
 ## API Mapping Checks
@@ -28,6 +29,8 @@
 | `Policy.summary` | `policies.policy_comment` | Display summary |
 | `Policy.category` | `policies.policy_type` | Frontend category label |
 | `Policy.documents` | `policy_documents.document_name[]` | Joined list |
+| `SavePolicyResponse.policyId` | `policies.slug` through `user_saved_policies.policy_id` | Standalone saved policy |
+| `SavePolicyResponse.saved` | `user_saved_policies` row existence | Idempotent save response |
 | `Trip.id` | `trips.id` | Mock id may be temporary |
 | `Trip.dates` | `trips.start_date` + `trips.end_date` | Display string |
 | `Trip.people` | `trip_members` + `users.nickname` | Joined list |

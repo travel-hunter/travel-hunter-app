@@ -222,6 +222,8 @@ Errors:
 
 ### `POST /api/me/saved-policies/{policySlug}`
 
+DB mode에서는 `Authorization: Bearer <accessToken>`이 필요하다.
+
 Response `200`:
 
 ```json
@@ -230,6 +232,17 @@ Response `200`:
   "saved": true
 }
 ```
+
+DB mode behavior:
+
+- `policySlug`는 `policies.slug`로 조회한다.
+- 저장 상태는 `user_saved_policies`에 저장한다.
+- 이미 저장된 정책이면 중복 row를 만들지 않고 같은 응답을 반환한다.
+
+Errors:
+
+- missing, invalid, expired access token: `401 {"detail": "Not authenticated"}`
+- unknown policy slug: `404 {"detail": "Policy not found"}`
 
 ## 일정
 

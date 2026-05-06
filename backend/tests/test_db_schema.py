@@ -15,6 +15,7 @@ def test_erd_v0_3_tables_are_registered() -> None:
         "trip_members",
         "trip_policies",
         "trip_invites",
+        "user_saved_policies",
         "recommendations",
     }
 
@@ -30,6 +31,8 @@ def test_erd_v0_3_decision_columns_are_registered() -> None:
     assert "gender" in users.c
     assert "travel_style" in users.c
     assert "travel_budget" in users.c
+    user_saved_policies = Base.metadata.tables["user_saved_policies"]
+    assert "saved_at" in user_saved_policies.c
     assert "slug" in policies.c
     assert "invite_token" in trip_invites.c
     assert "trips_days" not in Base.metadata.tables
