@@ -7,6 +7,7 @@
 - [x] `.agent/skills` procedures exist for recurring workflows.
 - [x] `.agent/evals` acceptance artifacts exist.
 - [x] `docs/current-work-spec.md` is the current implementation summary.
+- [x] `docs/release-candidate-handoff.md` is the MVP release-candidate handoff guide.
 - [x] `docs/mvp-api-contract.md` is the API contract.
 - [x] `docs/next-work-plan.md` is the next-priority plan.
 - [x] `docs/db-schema-v0.3.sql` is the ERD v0.3 SQL baseline.
@@ -62,4 +63,4 @@
 
 ## Next Priority
 
-- [ ] Prepare release candidate handoff and choose the staging/deployment target.
+- [ ] Choose the real staging environment and execute deployment from the Docker Compose release-candidate baseline.

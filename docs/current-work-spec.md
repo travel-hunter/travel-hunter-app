@@ -8,6 +8,7 @@ Travel Hunter는 React/Vite 프론트엔드와 FastAPI 백엔드로 구성된 �
 
 | 문서 | 역할 |
 |------|------|
+| `docs/release-candidate-handoff.md` | MVP 릴리즈 후보 인수인계 |
 | `docs/current-work-spec.md` | 현재 구현 상태 요약 |
 | `docs/mvp-api-contract.md` | API request/response/error 계약 |
 | `docs/next-work-plan.md` | 다음 작업 우선순위 |
@@ -174,4 +175,4 @@ Current blocker:
 
 ## 8. 다음 작업
 
-다음 작업 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 릴리즈 후보 인수인계와 staging/deployment target 결정이다.
+다음 작업 우선순위는 `docs/next-work-plan.md`를 따른다. 릴리즈 후보 인수인계 후 1순위는 실제 staging 환경 선택 및 배포 실행이다.

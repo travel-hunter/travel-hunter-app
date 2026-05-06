@@ -114,3 +114,11 @@ alembic upgrade head --sql
 - Set `DATABASE_URL` to the staging PostgreSQL instance using the `postgresql+psycopg://` scheme.
 - Set `CORS_ORIGINS` to the deployed frontend origin.
 - Apply schema with Alembic only; do not use `create_all()`.
+
+For local Docker Compose staging validation, compose provides:
+
+- backend API: `http://127.0.0.1:8000`
+- PostgreSQL host port: `127.0.0.1:55432`
+- backend data source: `BACKEND_DATA_SOURCE=db`
+
+Release-candidate handoff details are in `../docs/release-candidate-handoff.md`.

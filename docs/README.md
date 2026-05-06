@@ -4,13 +4,15 @@
 
 ## 읽는 순서
 
-1. `current-work-spec.md`
+1. `release-candidate-handoff.md`
+   - MVP 릴리즈 후보 범위, 실행 모드, URL, 환경변수, release gate 통과 결과를 확인한다.
+2. `current-work-spec.md`
    - 현재 구현 상태, 주요 위치, 완료/미완료 범위, 검증 명령을 확인한다.
-2. `mvp-api-contract.md`
+3. `mvp-api-contract.md`
    - API request/response/error 계약을 확인한다.
-3. `next-work-plan.md`
+4. `next-work-plan.md`
    - 바로 다음 구현 우선순위를 확인한다.
-4. `db-schema-v0.3.sql`
+5. `db-schema-v0.3.sql`
    - ERD v0.3 SQL 기준본을 확인한다.
 
 ## 정리된 과거 문서의 대체 위치

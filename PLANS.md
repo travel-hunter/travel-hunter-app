@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-Prioritize user-facing feature implementation over release-hardening work. Docker-backed e2e, compose build, and the release scorecard are release gates, not daily blockers.
+The MVP feature set and Docker-backed release gate are complete. The current priority is choosing the real staging environment and executing deployment from the Docker Compose release-candidate baseline.
 
 ## Baseline
 
@@ -14,7 +14,7 @@ Prioritize user-facing feature implementation over release-hardening work. Docke
 
 ## Next Milestones
 
-1. Prepare release candidate handoff and choose the staging/deployment target.
+1. Choose the real staging environment and execute deployment from the Docker Compose release-candidate baseline.
 
 ## Guardrails
 

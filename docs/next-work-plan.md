@@ -16,7 +16,8 @@
 | 완료 | 정책 탐색 UX 개선 | 정책 목록에서 검색, 지역, 카테고리 필터가 client-side로 동작한다. |
 | 완료 | 정책 신청 URL 정밀화 | 실제 정책별 공고 URL이 확정되면 `officialUrl`/`applyUrl` seed 값을 갱신한다. |
 | 완료 | Docker-backed 릴리즈 게이트 재실행 | Docker Desktop 실행 후 backend-mode e2e, compose build, compose DB migration/seed를 재실행했다. |
-| 1 | 릴리즈 후보 인수인계 | 통과한 release gate 결과, 실행 방법, 남은 미구현 범위, staging/deployment target 결정을 한 묶음으로 정리한다. |
+| 완료 | 릴리즈 후보 인수인계 | 통과한 release gate 결과, 실행 방법, 남은 미구현 범위, Docker Compose staging 방향을 한 묶음으로 정리했다. |
+| 1 | 실제 staging 환경 선택 및 배포 실행 | Docker Compose 기준을 바탕으로 실제 배포 플랫폼, domain, HTTPS, secret, DB 운영 값을 확정하고 배포한다. |
 
 ## Fast Lane 검증
 

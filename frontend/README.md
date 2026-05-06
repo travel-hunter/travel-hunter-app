@@ -60,6 +60,21 @@ $env:VITE_API_BASE_URL="http://127.0.0.1:8000"
 npm run dev
 ```
 
+## Preview And Staging Mode
+
+For Docker Compose staging handoff, the frontend image is built with:
+
+- `VITE_DATA_SOURCE=backend`
+- `VITE_API_BASE_URL=http://127.0.0.1:8000`
+
+The compose frontend preview is served at:
+
+```text
+http://127.0.0.1:4173
+```
+
+For a real staging domain, rebuild the frontend with `VITE_API_BASE_URL` pointing to the staging backend origin.
+
 ## Validation
 
 ```bash
