@@ -13,10 +13,12 @@ Recommended reading order for a new developer:
 5. `docs/current-work-spec.md`: current implementation status
 6. `docs/design-system-map.md`: Wanted Design System token/component mapping
 7. `docs/design-qa.md`: Wanted design browser QA and Figma handoff status
-8. `docs/mvp-api-contract.md`: API request/response/error contract
-9. `docs/next-work-plan.md`: next priority after handoff
-10. `docs/db-schema-v0.3.sql`: ERD v0.3 SQL reference
-11. `docs/future-deployment.md`: later AWS/Terraform/EKS/Argo CD expansion notes
+8. `docs/figma-import-checklist.md`: Wanted `.fig` import and component variant checklist
+9. `docs/vps-staging-inputs.md`: staging VPS inputs and secret handling checklist
+10. `docs/mvp-api-contract.md`: API request/response/error contract
+11. `docs/next-work-plan.md`: next priority after handoff
+12. `docs/db-schema-v0.3.sql`: ERD v0.3 SQL reference
+13. `docs/future-deployment.md`: later AWS/Terraform/EKS/Argo CD expansion notes
 
 ## Local Development
 

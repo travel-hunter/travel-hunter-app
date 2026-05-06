@@ -20,6 +20,8 @@ Travel Hunter는 React/Vite 프론트엔드와 FastAPI/PostgreSQL 백엔드로 �
 | API contract | `docs/mvp-api-contract.md` |
 | Design system map | `docs/design-system-map.md` |
 | Design QA | `docs/design-qa.md` |
+| Figma import checklist | `docs/figma-import-checklist.md` |
+| VPS staging inputs | `docs/vps-staging-inputs.md` |
 | DB schema reference | `docs/db-schema-v0.3.sql` |
 | Release handoff | `docs/release-candidate-handoff.md` |
 | Docker VPS deployment | `docs/deployment-vps.md` |

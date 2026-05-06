@@ -45,6 +45,7 @@
 ## Figma Handoff 규칙
 
 - Figma에는 원본 Wanted 파일을 import한 뒤 Travel Hunter 전용 파일에서 `Token Map`, `Redesigned Screens`, `Handoff` 페이지를 분리한다.
+- 실제 import와 component variant 확인 절차는 `docs/figma-import-checklist.md`를 따른다.
 - Figma component variant 이름이 확정되면 이 문서의 token/component mapping을 실제 이름으로 갱신한다.
 - Code Connect는 앱 스타일 적용이 안정화된 뒤 `Button`, `Tag`, `Card`, `Input`부터 연결한다.
 - Figma 원본과 실제 앱이 다른 경우, 앱의 접근성, 모바일 touch area, 현재 API/route 구조를 우선한다.
