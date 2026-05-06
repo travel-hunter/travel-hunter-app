@@ -13,6 +13,9 @@
 - [x] `docs/next-work-plan.md` is the next-priority plan.
 - [x] `docs/db-schema-v0.3.sql` is the ERD v0.3 SQL baseline.
 - [x] `docs/future-deployment.md` preserves later AWS/Terraform/EKS expansion notes.
+- [x] `CONTRIBUTING.md` documents collaboration rules.
+- [x] `docs/collaboration-handoff.md` documents the collaboration handoff.
+- [x] GitHub PR and issue templates exist.
 
 ## Current Implementation Checks
 

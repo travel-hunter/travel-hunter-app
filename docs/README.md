@@ -2,19 +2,23 @@
 
 ## 읽는 순서
 
-1. `release-candidate-handoff.md`
+1. `../CONTRIBUTING.md`
+   - 협업 규칙, 브랜치 전략, PR 규칙, 검증, secret 처리.
+2. `collaboration-handoff.md`
+   - 현재 브랜치, 구현 요약, 다음 작업, blocker.
+3. `release-candidate-handoff.md`
    - MVP RC 범위, 실행 모드, 검증 결과, VPS 배포 상태.
-2. `deployment-vps.md`
+4. `deployment-vps.md`
    - Docker VPS staging 실행 절차, env, Caddy routing, smoke test.
-3. `current-work-spec.md`
+5. `current-work-spec.md`
    - 현재 구현 상태, 기준 커밋, 완료/미완료 범위, 검증 결과.
-4. `mvp-api-contract.md`
+6. `mvp-api-contract.md`
    - API request/response/error 계약.
-5. `next-work-plan.md`
+7. `next-work-plan.md`
    - 다음 작업 우선순위.
-6. `db-schema-v0.3.sql`
+8. `db-schema-v0.3.sql`
    - ERD v0.3 SQL 기준본.
-7. `future-deployment.md`
+9. `future-deployment.md`
    - Docker VPS 이후 AWS/Terraform/EKS/Argo CD 확장 방향.
 
 ## 현재 기준

@@ -6,13 +6,15 @@ Travel Hunter is a React/Vite frontend plus FastAPI/PostgreSQL backend for the d
 
 Recommended reading order for a new developer:
 
-1. `docs/release-candidate-handoff.md`: release candidate scope, run modes, URLs, env, and validation evidence
-2. `docs/deployment-vps.md`: Docker VPS staging deployment plan
-3. `docs/current-work-spec.md`: current implementation status
-4. `docs/mvp-api-contract.md`: API request/response/error contract
-5. `docs/next-work-plan.md`: next priority after handoff
-6. `docs/db-schema-v0.3.sql`: ERD v0.3 SQL reference
-7. `docs/future-deployment.md`: later AWS/Terraform/EKS/Argo CD expansion notes
+1. `CONTRIBUTING.md`: collaboration rules, branch strategy, PR rules, validation, and secret handling
+2. `docs/collaboration-handoff.md`: current branch, implementation summary, next work, and blockers
+3. `docs/release-candidate-handoff.md`: release candidate scope, run modes, URLs, env, and validation evidence
+4. `docs/deployment-vps.md`: Docker VPS staging deployment plan
+5. `docs/current-work-spec.md`: current implementation status
+6. `docs/mvp-api-contract.md`: API request/response/error contract
+7. `docs/next-work-plan.md`: next priority after handoff
+8. `docs/db-schema-v0.3.sql`: ERD v0.3 SQL reference
+9. `docs/future-deployment.md`: later AWS/Terraform/EKS/Argo CD expansion notes
 
 ## Local Development
 
