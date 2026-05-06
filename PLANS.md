@@ -4,13 +4,13 @@
 
 The MVP feature set and Docker-backed release gate are complete. The current priority is choosing the real staging environment and executing deployment from the Docker Compose release-candidate baseline.
 
-## Baseline
+## Source Of Truth
 
-- Frontend: React, TypeScript, Vite, React Router, `AppDataApi`, `VITE_DATA_SOURCE=mock|backend`.
-- Backend: FastAPI, SQLAlchemy, Alembic, deterministic mock services, DB-backed auth/profile/policy/trip/invite/saved-policy services.
-- Contract: `docs/mvp-api-contract.md`.
-- Current implementation spec: `docs/current-work-spec.md`.
-- Next implementation priority: `docs/next-work-plan.md`.
+- Current implementation spec: `docs/current-work-spec.md`
+- Release candidate handoff: `docs/release-candidate-handoff.md`
+- API contract: `docs/mvp-api-contract.md`
+- Next priority: `docs/next-work-plan.md`
+- Future deployment notes: `docs/future-deployment.md`
 
 ## Next Milestones
 
@@ -59,4 +59,6 @@ npm run build
 cd ..
 docker compose -f compose.yaml config
 docker compose -f compose.yaml build
+docker compose -f compose.yaml run --rm backend alembic upgrade head
+docker compose -f compose.yaml run --rm backend python -m app.db.seed
 ```

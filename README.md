@@ -13,6 +13,7 @@ Recommended reading order for a new developer:
 3. `docs/mvp-api-contract.md`: API request/response/error contract
 4. `docs/next-work-plan.md`: next priority after handoff
 5. `docs/db-schema-v0.3.sql`: ERD v0.3 SQL reference
+6. `docs/future-deployment.md`: later AWS/Terraform/EKS/Argo CD expansion notes
 
 ## Local Development
 

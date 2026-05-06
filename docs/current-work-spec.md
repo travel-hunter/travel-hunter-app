@@ -13,6 +13,7 @@ Travel Hunter는 React/Vite 프론트엔드와 FastAPI 백엔드로 구성된 �
 | `docs/mvp-api-contract.md` | API request/response/error 계약 |
 | `docs/next-work-plan.md` | 다음 작업 우선순위 |
 | `docs/db-schema-v0.3.sql` | ERD v0.3 SQL 기준본 |
+| `docs/future-deployment.md` | Docker Compose 이후 배포 확장 메모 |
 
 ## 2. 주요 위치
 

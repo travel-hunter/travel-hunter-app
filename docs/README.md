@@ -14,6 +14,8 @@
    - 바로 다음 구현 우선순위를 확인한다.
 5. `db-schema-v0.3.sql`
    - ERD v0.3 SQL 기준본을 확인한다.
+6. `future-deployment.md`
+   - Docker Compose 이후 AWS/Terraform/EKS/Argo CD 확장 방향을 확인한다.
 
 ## 정리된 과거 문서의 대체 위치
 
@@ -23,6 +25,7 @@
 | ERD/API 확정 전 준비 계획 | `mvp-api-contract.md`, `db-schema-v0.3.sql` |
 | 완료된 정책 error path 테스트 계획 | `current-work-spec.md`, `CHECKLIST.md` |
 | prototype route/source mapping | `current-work-spec.md`의 route mapping |
+| Terraform/Kubernetes placeholder | `future-deployment.md` |
 
 ## Eval 문서
 
