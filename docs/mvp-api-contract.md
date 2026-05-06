@@ -371,7 +371,17 @@ Response `200`: `InviteState`.
 
 Response `200`: `InviteState` with `acceptedAt`.
 
-현재 DB-backed membership 처리는 하지 않는다.
+DB mode behavior:
+
+- Bearer access token이 필요하다.
+- 유효한 invite token이면 `trip_invites.accepted_at`을 설정하고 현재 사용자를 `trip_members`에 `role="editor"`로 추가한다.
+- 이미 수락된 invite이거나 이미 참여자인 사용자도 중복 row 없이 200을 반환한다.
+- `acceptedAt`은 기존 또는 새 `trip_invites.accepted_at` 값이다.
+
+Errors:
+
+- missing, invalid, expired access token: `401 {"detail": "Not authenticated"}`
+- unknown or expired invite token: `404 {"detail": "Invite not found"}`
 
 ## Health
 

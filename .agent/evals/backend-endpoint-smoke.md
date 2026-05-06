@@ -32,7 +32,7 @@
 | `GET /api/trips/{tripId}/invite` | 200 | `inviteUrl`, `inviteToken` | P1 |
 | `POST /api/trips/{tripId}/invite` | 200 | `invited` is true | P1 |
 | `POST /api/trips/{tripId}/invites` | 200 | `tripId` returned | P1 |
-| `POST /api/invites/jeju-3d/accept` | 200 | `acceptedAt` returned | P1 |
+| `POST /api/invites/jeju-3d/accept` | 200 | `acceptedAt` returned and DB mode inserts `trip_members` idempotently | P1 |
 
 ## Missing Coverage To Add When Behavior Changes
 
@@ -44,7 +44,6 @@
 - DB mode `/api/me` without valid bearer token returns 401.
 - DB mode invalid refresh token returns 401.
 - DB mode `/api/me/profile` without valid bearer token returns 401.
-- Invite accept with unknown token returns the documented error.
 - Inaccessible DB mode trip returns 404 without leaking ownership.
 
 ## DB Mode Smoke
@@ -73,3 +72,11 @@ When `BACKEND_DATA_SOURCE=db` is used, trip endpoints must preserve the existing
 - `people` includes owner first, then member nicknames with duplicates removed.
 - `expectedSaving` is the sum of linked policy `benefit_amount` values, excluding null amounts.
 - `InviteState.copied` is always false from the server and is tracked locally by the frontend UI.
+
+When `BACKEND_DATA_SOURCE=db` is used, invite acceptance must persist membership:
+
+- `POST /api/invites/{inviteToken}/accept` requires bearer authentication.
+- Unknown or expired invite tokens return `404 {"detail": "Invite not found"}`.
+- Valid invite tokens set `trip_invites.accepted_at` when it is empty.
+- Valid invite tokens add the current user to `trip_members` with role `editor` when missing.
+- Repeated acceptance by the same user does not create duplicate membership rows.

@@ -269,10 +269,27 @@
         "createdAt": "string",
         "acceptedAt": "string|null",
         "invited": "boolean",
-            "copied": "boolean"
+        "copied": "boolean"
       },
       "serverCopiedValue": false,
       "invitedMeaning": "true when a valid invite token exists or the current request created/confirmed one"
+    },
+    {
+      "method": "POST",
+      "path": "/api/invites/jeju-3d/accept",
+      "status": 200,
+      "requiredFields": {
+        "id": "string",
+        "tripId": "string",
+        "inviteToken": "string",
+        "inviteUrl": "string",
+        "expiresAt": "string",
+        "createdAt": "string",
+        "acceptedAt": "string",
+        "invited": "boolean",
+        "copied": "boolean"
+      },
+      "dbModeBehavior": "Requires bearer auth, marks trip_invites.accepted_at, and inserts trip_members idempotently."
     }
   ]
 }

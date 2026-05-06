@@ -134,6 +134,14 @@ def add_trip_member(db: Session, *, trip_id: int, user_id: int, role: str) -> Tr
     return membership
 
 
+def get_trip_member(db: Session, *, trip_id: int, user_id: int) -> TripMember | None:
+    statement = select(TripMember).where(
+        TripMember.trip_id == trip_id,
+        TripMember.user_id == user_id,
+    )
+    return db.scalar(statement)
+
+
 def get_trip_policy(db: Session, *, trip_id: int, policy_id: int) -> TripPolicy | None:
     statement = select(TripPolicy).where(
         TripPolicy.trip_id == trip_id,
@@ -177,6 +185,15 @@ def get_latest_active_invite(db: Session, *, trip_id: int, now) -> TripInvite | 
         .where(TripInvite.trip_id == trip_id)
         .where(TripInvite.expires_at > now)
         .order_by(TripInvite.created_at.desc(), TripInvite.id.desc())
+    )
+    return db.scalar(statement)
+
+
+def get_active_invite_by_token(db: Session, *, invite_token: str, now) -> TripInvite | None:
+    statement = (
+        select(TripInvite)
+        .where(TripInvite.invite_token == invite_token)
+        .where(TripInvite.expires_at > now)
     )
     return db.scalar(statement)
 

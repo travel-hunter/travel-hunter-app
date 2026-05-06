@@ -83,11 +83,11 @@ DB-backed 완료 endpoint:
 - `GET /api/trips/{tripId}/invite`
 - `POST /api/trips/{tripId}/invite`
 - `POST /api/trips/{tripId}/invites`
+- `POST /api/invites/{inviteToken}/accept`
 
 Mock-only 또는 부분 구현 endpoint:
 
 - `POST /api/me/saved-policies/{policySlug}`: 정책 단독 저장 상태이며 현재 정책 담기 저장 기준은 `trip_policies`다.
-- `POST /api/invites/{inviteToken}/accept`: 현재 mock invite accept이며 DB membership 처리는 다음 작업이다.
 
 ## 5. ERD/API v0.3 기준
 
@@ -139,8 +139,8 @@ python -m app.db.seed
 
 최근 통과 검증:
 
-- `python -m pytest`: 50 passed
-- `BACKEND_DATA_SOURCE=db python -m pytest`: 50 passed
+- `python -m pytest`: 56 passed
+- `BACKEND_DATA_SOURCE=db python -m pytest tests\test_invite_db_routes.py tests\test_trip_db_service.py -q`: 16 passed
 - `alembic upgrade head --sql`: passed
 - `docker compose -f compose.yaml config`: passed
 - `npm run typecheck`: passed
@@ -148,6 +148,10 @@ python -m app.db.seed
 - `npm run test:e2e`: 6 passed
 - `npm run test:e2e:backend`: 5 passed
 - `npm run build`: passed
+
+Current blocker:
+
+- Docker Desktop daemon is unavailable in the current local session, so compose DB runtime validation and the full `BACKEND_DATA_SOURCE=db python -m pytest` suite are not rerun in this pass.
 
 ## 7. 미구현 범위
 
@@ -158,10 +162,9 @@ python -m app.db.seed
 - 지도/장소 검색/이동 시간 계산
 - 실제 AI 추천 엔진
 - 친구 초대 실제 발송
-- 초대 수락의 `trip_members` DB 처리
 - backend-mode e2e CI 고정
 - AWS/EKS/Argo CD 배포
 
 ## 8. 다음 작업
 
-다음 작업 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 친구 초대 수락 DB-backed 구현이다.
+다음 작업 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 backend-mode e2e CI 고정이다.

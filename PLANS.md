@@ -2,12 +2,12 @@
 
 ## Current Phase
 
-Keep the API contract stable while moving from DB-backed policy/auth/trip/profile foundations into invite acceptance and release readiness.
+Keep the API contract stable while moving from DB-backed policy/auth/trip/profile/invite acceptance foundations into backend-mode CI and release readiness.
 
 ## Baseline
 
 - Frontend: React, TypeScript, Vite, React Router, `AppDataApi`, `VITE_DATA_SOURCE=mock|backend`.
-- Backend: FastAPI, Pydantic schemas, SQLAlchemy models, Alembic v0.3 migration, profile preference extension migration, deterministic mock services, DB-backed policy/auth/trip/profile services.
+- Backend: FastAPI, Pydantic schemas, SQLAlchemy models, Alembic v0.3 migration, profile preference extension migration, deterministic mock services, DB-backed policy/auth/trip/profile/invite acceptance services.
 - Contract: `docs/mvp-api-contract.md`.
 - Current implementation spec: `docs/current-work-spec.md`.
 - Next implementation priority: `docs/next-work-plan.md`.
@@ -15,11 +15,10 @@ Keep the API contract stable while moving from DB-backed policy/auth/trip/profil
 
 ## Next Milestones
 
-1. Implement DB-backed invite acceptance and `trip_members` insertion.
-2. Fix backend-mode e2e into CI as a separate smoke path.
-3. Implement saved-policies DB persistence.
-4. Prepare deployment readiness docs and validation.
-5. Connect policy application deep links.
+1. Fix backend-mode e2e into CI as a separate smoke path.
+2. Implement saved-policies DB persistence.
+3. Prepare deployment readiness docs and validation.
+4. Connect policy application deep links.
 
 ## Guardrails
 

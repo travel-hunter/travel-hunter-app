@@ -33,7 +33,7 @@
 | `Trip.people` | `trip_members` + `users.nickname` | Joined list |
 | `Trip.days` | `trip_days` + `trip_places` | Nested display shape |
 | `InviteState.inviteToken` | `trip_invites.invite_token` | Future DB-backed field |
-| `InviteState.acceptedAt` | `trip_invites.accepted_at` | Nullable until accepted |
+| `InviteState.acceptedAt` | `trip_invites.accepted_at` | Set by DB-backed invite acceptance |
 | `Profile.region` | `users.region` | Onboarding/profile preference |
 | `Profile.style` | `users.travel_style` | v0.3.1 extension |
 | `Profile.budget` | `users.travel_budget` | v0.3.1 extension |

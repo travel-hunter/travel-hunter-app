@@ -318,3 +318,33 @@ def confirm_invite_sent(
     invite = _ensure_invite(db, trip, user)
     db.commit()
     return invite_to_api(invite, trip_id=trip.id, invited=True)
+
+
+def accept_invite(db: Session, user: User, invite_token: str) -> dict[str, object] | None:
+    now = security.utc_now_naive()
+    invite = trip_repository.get_active_invite_by_token(
+        db,
+        invite_token=invite_token,
+        now=now,
+    )
+    if invite is None:
+        return None
+
+    if invite.accepted_at is None:
+        invite.accepted_at = now
+
+    existing_member = trip_repository.get_trip_member(
+        db,
+        trip_id=invite.trip_id,
+        user_id=user.id,
+    )
+    if existing_member is None:
+        trip_repository.add_trip_member(
+            db,
+            trip_id=invite.trip_id,
+            user_id=user.id,
+            role="editor",
+        )
+
+    db.commit()
+    return invite_to_api(invite, trip_id=invite.trip_id, invited=True)

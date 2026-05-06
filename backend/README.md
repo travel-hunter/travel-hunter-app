@@ -90,11 +90,11 @@ docker compose -f compose.yaml run --rm backend python -m app.db.seed
 - `/api/trips/{tripId}/recommendations`
 - `/api/trips/{tripId}/invite`
 - `/api/trips/{tripId}/invites`
+- `/api/invites/{inviteToken}/accept`
 
 Mock-only or partial scope:
 
 - `/api/me/saved-policies/{policySlug}` DB persistence
-- `/api/invites/{inviteToken}/accept` DB membership handling
 - social login, real policy collection, real AI recommendations, real invite delivery
 
 ## Validation

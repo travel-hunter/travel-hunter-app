@@ -1,6 +1,6 @@
 from datetime import date, datetime, time, timedelta
 
-from app.models import Policy, Recommendation, Trip, TripDay, TripMember, TripPlace, TripPolicy
+from app.models import Policy, Recommendation, Trip, TripDay, TripInvite, TripMember, TripPlace, TripPolicy
 from app.models import User as UserModel
 from app.schemas.trip import CreateTripRequest
 from app.services import trips as trip_service
@@ -267,4 +267,100 @@ def test_create_trip_rejects_unknown_policy_slug(monkeypatch) -> None:
     else:
         raise AssertionError("expected TripServiceError")
 
+    assert fake_db.commits == 0
+
+
+def test_accept_invite_marks_acceptance_and_adds_member(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user(3, "Friend")
+    invite = TripInvite(
+        id=9,
+        trip_id=7,
+        invite_token="abc",
+        created_by=1,
+        created_at=datetime(2026, 5, 4, 0, 0, 0),
+        expires_at=datetime(2026, 6, 30, 0, 0, 0),
+        accepted_at=None,
+    )
+    captured_membership: dict[str, object] = {}
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_active_invite_by_token",
+        lambda db, *, invite_token, now: invite
+        if db is fake_db and invite_token == "abc"
+        else None,
+    )
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_trip_member",
+        lambda *_args, **_kwargs: None,
+    )
+
+    def add_member_stub(_db, **kwargs):
+        captured_membership.update(kwargs)
+
+    monkeypatch.setattr(trip_service.trip_repository, "add_trip_member", add_member_stub)
+
+    payload = trip_service.accept_invite(fake_db, user, "abc")
+
+    assert payload is not None
+    assert payload["tripId"] == "7"
+    assert payload["acceptedAt"] is not None
+    assert payload["invited"] is True
+    assert invite.accepted_at is not None
+    assert captured_membership == {"trip_id": 7, "user_id": 3, "role": "editor"}
+    assert fake_db.commits == 1
+
+
+def test_accept_invite_is_idempotent_for_existing_member(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user(3, "Friend")
+    accepted_at = datetime(2026, 5, 5, 0, 0, 0)
+    invite = TripInvite(
+        id=9,
+        trip_id=7,
+        invite_token="abc",
+        created_by=1,
+        created_at=datetime(2026, 5, 4, 0, 0, 0),
+        expires_at=datetime(2026, 6, 30, 0, 0, 0),
+        accepted_at=accepted_at,
+    )
+    added_members: list[dict[str, object]] = []
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_active_invite_by_token",
+        lambda *_args, **_kwargs: invite,
+    )
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_trip_member",
+        lambda *_args, **_kwargs: TripMember(id=4, trip_id=7, user_id=3, role="editor"),
+    )
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "add_trip_member",
+        lambda _db, **kwargs: added_members.append(kwargs),
+    )
+
+    payload = trip_service.accept_invite(fake_db, user, "abc")
+
+    assert payload is not None
+    assert payload["acceptedAt"] == "2026-05-05T00:00:00Z"
+    assert invite.accepted_at == accepted_at
+    assert added_members == []
+    assert fake_db.commits == 1
+
+
+def test_accept_invite_returns_none_for_missing_or_expired_token(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user(3, "Friend")
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_active_invite_by_token",
+        lambda *_args, **_kwargs: None,
+    )
+
+    assert trip_service.accept_invite(fake_db, user, "missing") is None
     assert fake_db.commits == 0
