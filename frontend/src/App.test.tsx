@@ -2,7 +2,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
-import { appDataApi, type Policy, type Trip } from "./api";
+import { appDataApi, type InviteState, type Policy, type Trip } from "./api";
 import { App } from "./app/App";
 import { AppProviders, AppRoot } from "./app/AppRoot";
 
@@ -548,6 +548,54 @@ describe("Travel Hunter app", () => {
     await user.click(screen.getByRole("button", { name: "추천 홈 보기" }));
 
     await waitFor(() => expect(document.body).toHaveTextContent("부산 여행"));
+  });
+
+  it("saves selected invite roles from the friend invite page", async () => {
+    const trip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "55",
+      title: "Invite role trip",
+    };
+    const inviteState: InviteState = {
+      id: "9",
+      tripId: "55",
+      inviteToken: "abc",
+      inviteUrl: "travelhunter.app/i/abc",
+      expiresAt: "2026-06-30T00:00:00Z",
+      createdAt: "2026-05-04T00:00:00Z",
+      acceptedAt: null,
+      invited: false,
+      copied: false,
+      role: "editor",
+    };
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(trip);
+    const getInviteSpy = vi.spyOn(appDataApi, "getInviteState").mockResolvedValue(inviteState);
+    const confirmInviteSpy = vi.spyOn(appDataApi, "confirmInviteSent").mockImplementation(async (tripId, role = "editor") => ({
+      ...inviteState,
+      tripId: tripId ?? "55",
+      role,
+      invited: true,
+    }));
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/friend-invite?tripId=55");
+      const user = userEvent.setup();
+
+      await waitFor(() => expect(getInviteSpy).toHaveBeenCalledWith("55"));
+      await user.click(await screen.findByRole("button", { name: /보기만 가능/ }));
+      await user.click(screen.getByRole("button", { name: "친구에게 초대 보내기" }));
+      await waitFor(() => expect(confirmInviteSpy).toHaveBeenCalledWith("55", "viewer"));
+
+      await user.click(screen.getByRole("button", { name: /함께 편집/ }));
+      await user.click(screen.getByRole("button", { name: "초대 완료" }));
+      await waitFor(() => expect(confirmInviteSpy).toHaveBeenLastCalledWith("55", "editor"));
+    } finally {
+      getTripSpy.mockRestore();
+      getInviteSpy.mockRestore();
+      confirmInviteSpy.mockRestore();
+    }
   });
 
   it("preserves an invite redirect through login and signup navigation", async () => {

@@ -1,4 +1,4 @@
-import { InviteState, OnboardingSlide, Policy, Profile, ProfileOptions, Recommendation, Trip, User } from "./types";
+import { InviteRole, InviteState, OnboardingSlide, Policy, Profile, ProfileOptions, Recommendation, Trip, User } from "./types";
 
 export type LoginRequest = {
   email: string;
@@ -80,6 +80,6 @@ export type AppDataApi = {
   addPolicyToTrip: (tripId: string, policySlug: string) => Promise<TripPolicyResponse>;
   listRecommendations: (tripId?: string) => Promise<Recommendation[]>;
   getInviteState: (tripId?: string) => Promise<InviteState>;
-  confirmInviteSent: (tripId?: string) => Promise<InviteState>;
+  confirmInviteSent: (tripId?: string, role?: InviteRole) => Promise<InviteState>;
   acceptInvite: (inviteToken: string) => Promise<InviteState>;
 };

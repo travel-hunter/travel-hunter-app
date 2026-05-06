@@ -80,6 +80,8 @@ export type Recommendation = {
   reason: string;
 };
 
+export type InviteRole = "viewer" | "editor";
+
 export type InviteState = {
   id: string;
   tripId: string;
@@ -90,6 +92,7 @@ export type InviteState = {
   acceptedAt: string | null;
   invited: boolean;
   copied: boolean;
+  role: InviteRole;
 };
 
 export type ProfileOptions = {

@@ -227,12 +227,14 @@ def create_invite(
     invite_token: str,
     created_by: int,
     expires_at,
+    role: str = "editor",
 ) -> TripInvite:
     invite = TripInvite(
         trip_id=trip_id,
         invite_token=invite_token,
         created_by=created_by,
         expires_at=expires_at,
+        role=role,
     )
     db.add(invite)
     db.flush()

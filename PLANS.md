@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-The MVP is DB-backed-only and runtime mock mode has been removed. Docker VPS direct staging artifacts and Cloudflare Tunnel staging artifacts exist, but the current working priority is user-facing feature completion. Trip place editing, mypage profile editing, and adding AI recommendation items to a trip timeline are implemented; the next functional priority is persisting invite role settings for `viewer/editor`. Deployment and Jenkins automation are deferred until the feature pass pauses or release staging resumes.
+The MVP is DB-backed-only and runtime mock mode has been removed. Docker VPS direct staging artifacts and Cloudflare Tunnel staging artifacts exist, but the current working priority is user-facing feature completion. Trip place editing, mypage profile editing, adding AI recommendation items to a trip timeline, and persisting invite role settings for `viewer/editor` are implemented. The next functional priority is persisting deadline notification settings. Deployment and Jenkins automation are deferred until the feature pass pauses or release staging resumes.
 
 ## Source Of Truth
 

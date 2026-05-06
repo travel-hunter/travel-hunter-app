@@ -5,6 +5,7 @@ from app.api.dependencies import get_current_user
 from app.db.session import get_optional_db
 from app.models import User
 from app.schemas.trip import (
+    ConfirmInviteRequest,
     CreateTripPlaceRequest,
     CreateTripRequest,
     DeleteTripResponse,
@@ -202,6 +203,7 @@ def get_invite_state(
 @router.post("/{trip_id}/invite", response_model=InviteState)
 def confirm_invite_sent(
     trip_id: str,
+    payload: ConfirmInviteRequest | None = Body(default=None),
     db: Session | None = Depends(get_optional_db),
     current_user: User | None = Depends(get_current_user),
 ) -> InviteState:
@@ -209,6 +211,7 @@ def confirm_invite_sent(
         _require_db(db),
         _require_user(current_user),
         trip_id,
+        payload.role if payload else "editor",
     )
     if invite_state is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trip not found")
@@ -218,13 +221,15 @@ def confirm_invite_sent(
 @router.post("/{trip_id}/invites", response_model=InviteState)
 def create_trip_invite(
     trip_id: str,
+    payload: ConfirmInviteRequest | None = Body(default=None),
     db: Session | None = Depends(get_optional_db),
     current_user: User | None = Depends(get_current_user),
 ) -> InviteState:
-    invite_state = trip_service.get_invite_state(
+    invite_state = trip_service.confirm_invite_sent(
         _require_db(db),
         _require_user(current_user),
         trip_id,
+        payload.role if payload else "editor",
     )
     if invite_state is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trip not found")

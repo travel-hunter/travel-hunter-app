@@ -216,6 +216,7 @@ def seed_trip_invite(db: Session, trip: Trip, creator: User) -> None:
 
     invite.trip_id = trip.id
     invite.created_by = creator.id
+    invite.role = "editor"
     invite.accepted_at = None
     invite.created_at = parse_datetime(seed.INVITE_CREATED_AT)
     invite.expires_at = parse_datetime(seed.INVITE_EXPIRES_AT)

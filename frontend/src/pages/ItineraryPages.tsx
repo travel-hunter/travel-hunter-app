@@ -1,7 +1,7 @@
 import { Bot, ChevronLeft, Plus, Send, Share2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { appDataApi, type InviteState, type ItineraryPlace, type Recommendation, type Trip, type TripPlaceRequest } from "../api";
+import { appDataApi, type InviteRole, type InviteState, type ItineraryPlace, type Recommendation, type Trip, type TripPlaceRequest } from "../api";
 import { useAsyncResource } from "../api/useAsyncResource";
 import { useSession } from "../app/session";
 import { ItineraryCard } from "../components/cards";
@@ -9,6 +9,10 @@ import { Button, EmptyState, ErrorState, IconButton, LinkButton, LoadingState, P
 
 const profileOptions = appDataApi.getProfileOptions();
 const durationOptions = [2, 3, 4, 5] as const;
+const inviteRoleOptions: Array<{ role: InviteRole; label: string; body: string }> = [
+  { role: "viewer", label: "보기만 가능", body: "일정과 연결된 정책을 확인할 수 있어요." },
+  { role: "editor", label: "함께 편집", body: "장소 의견과 일정 편집에 참여할 수 있어요." },
+];
 
 async function resolveTripId(tripId: string | null | undefined): Promise<string | undefined> {
   if (tripId) return tripId;
@@ -579,8 +583,13 @@ export function FriendInvitePage() {
   const [sentInviteState, setSentInviteState] = useState<InviteState | null>(null);
   const [copied, setCopied] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState<InviteRole>("editor");
   const effectiveInviteState = sentInviteState ?? inviteState;
   const detailPath = activeTripId ? `/trips/${activeTripId}` : "/trips";
+
+  useEffect(() => {
+    if (effectiveInviteState?.role) setSelectedRole(effectiveInviteState.role);
+  }, [effectiveInviteState?.role]);
 
   const copyInviteLink = async () => {
     const inviteUrl = effectiveInviteState?.inviteUrl ?? "";
@@ -596,7 +605,7 @@ export function FriendInvitePage() {
   const sendFriendInvite = async () => {
     const tripId = activeTripId || effectiveInviteState?.tripId;
     if (tripId) {
-      const nextInviteState = await appDataApi.confirmInviteSent(tripId);
+      const nextInviteState = await appDataApi.confirmInviteSent(tripId, selectedRole);
       setSentInviteState(nextInviteState);
     }
     sendInvite();
@@ -631,10 +640,24 @@ export function FriendInvitePage() {
           </div>
         </div>
         <div className="card">
-          <div className="card-body">
-            <SettingRow label="보기 권한" body="일정과 연결된 정책 확인" value="기본" />
-            <SettingRow label="댓글 권한" body="장소 의견과 체크리스트 의견 추가" value="허용" tone="primary" />
-            <SettingRow label="편집 권한" body="장소 순서와 시간 변경" value="제한" tone="gray" />
+          <div className="card-body stack tight">
+            <div>
+              <div className="choice-label">초대 권한</div>
+              <p className="meta">친구가 초대를 수락하면 선택한 권한이 일정 참여자 역할로 저장돼요.</p>
+            </div>
+            <div className="choice-grid">
+              {inviteRoleOptions.map((option) => (
+                <button
+                  className={`choice ${selectedRole === option.role ? "active" : ""}`}
+                  key={option.role}
+                  onClick={() => setSelectedRole(option.role)}
+                  type="button"
+                >
+                  <strong>{option.label}</strong>
+                  <span className="meta">{option.body}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
         {notice && <Toast>{notice}</Toast>}

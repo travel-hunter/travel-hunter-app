@@ -44,6 +44,7 @@ def invite_payload(trip_id: str = "7") -> dict[str, object]:
         "acceptedAt": None,
         "invited": False,
         "copied": False,
+        "role": "editor",
     }
 
 
@@ -347,7 +348,7 @@ def test_db_recommendation_and_invite_routes(monkeypatch) -> None:
     monkeypatch.setattr(
         trip_routes.trip_service,
         "confirm_invite_sent",
-        lambda db, current_user, trip_id: {**invite_payload(trip_id), "invited": True}
+        lambda db, current_user, trip_id, role="editor": {**invite_payload(trip_id), "invited": True, "role": role}
         if db is fake_db and current_user is user and trip_id == "7"
         else None,
     )
@@ -355,7 +356,7 @@ def test_db_recommendation_and_invite_routes(monkeypatch) -> None:
     try:
         recommendations = client.get("/api/trips/7/recommendations")
         invite = client.get("/api/trips/7/invite")
-        confirm = client.post("/api/trips/7/invite")
+        confirm = client.post("/api/trips/7/invite", json={"role": "viewer"})
     finally:
         clear_overrides()
 
@@ -365,3 +366,17 @@ def test_db_recommendation_and_invite_routes(monkeypatch) -> None:
     assert invite.json()["tripId"] == "7"
     assert confirm.status_code == 200
     assert confirm.json()["invited"] is True
+    assert confirm.json()["role"] == "viewer"
+
+
+def test_db_trip_invite_route_rejects_invalid_role(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    install_db_route_dependencies(monkeypatch, fake_db, user)
+
+    try:
+        response = client.post("/api/trips/7/invite", json={"role": "owner"})
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 422

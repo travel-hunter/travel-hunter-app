@@ -19,6 +19,7 @@
 - [x] Itinerary detail place add/edit/delete is connected to `trip_places`.
 - [x] Mypage profile editing is connected to `PATCH /api/me/profile`.
 - [x] AI recommendation items can be added to a trip timeline through the place add API.
+- [x] Invite role settings persist `viewer/editor` to `trip_invites.role` and invite acceptance writes the role to `trip_members.role`.
 - [x] Wanted Design System import, component values, Button correction, and Toast correction documented.
 - [x] Figma editable Current/Redesign frames exist for first-pass MVP routes.
 - [x] Public VPS artifacts exist: `compose.vps.yaml`, `deploy/Caddyfile`, `deploy/.env.staging.example`.
@@ -27,18 +28,18 @@
 ## 마지막 검증 결과
 
 - Date: 2026-05-06.
-- Backend pytest: 78 passed.
-- Frontend DB-backed Vitest: 24 passed.
+- Backend pytest: 80 passed.
+- Frontend DB-backed Vitest: 25 passed.
 - DB-backed Playwright e2e: 5 passed.
 - Frontend build: passed.
 - Alembic offline SQL: passed.
 - Local compose config/build: passed.
 - VPS compose config: passed.
 - Tunnel compose config: passed.
-- `git diff --check`: passed for the latest AI recommendation place-add work.
+- `git diff --check`: passed for the latest invite role persistence work.
 
 ## 다음 우선순위
 
-- [ ] Persist invite role settings for `viewer/editor`.
 - [ ] Persist deadline notification settings.
+- [ ] Enforce `viewer/editor` permissions on trip editing.
 - [ ] Resume Cloudflare Tunnel staging deployment when the feature pass pauses.

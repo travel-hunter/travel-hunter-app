@@ -1,4 +1,9 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
+
+InviteRole = Literal["viewer", "editor"]
 
 
 class ItineraryPlace(BaseModel):
@@ -43,6 +48,11 @@ class InviteState(BaseModel):
     acceptedAt: str | None = None
     invited: bool
     copied: bool
+    role: InviteRole = "editor"
+
+
+class ConfirmInviteRequest(BaseModel):
+    role: InviteRole = "editor"
 
 
 class TripPolicyResponse(BaseModel):

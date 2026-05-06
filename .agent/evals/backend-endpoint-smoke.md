@@ -31,10 +31,10 @@
 | `GET /api/trips/0` | 404 | zero is not a canonical numeric handle | P1 |
 | `POST /api/trips/{tripId}/policies/local-vacation` | 200 | `added` is true | P1 |
 | `GET /api/trips/{tripId}/recommendations` | 200 | first recommendation `title` | P1 |
-| `GET /api/trips/{tripId}/invite` | 200 | `inviteUrl`, `inviteToken` | P1 |
-| `POST /api/trips/{tripId}/invite` | 200 | `invited` is true | P1 |
-| `POST /api/trips/{tripId}/invites` | 200 | `tripId` returned | P1 |
-| `POST /api/invites/jeju-3d/accept` | 200 | `acceptedAt` returned and DB mode inserts `trip_members` idempotently | P1 |
+| `GET /api/trips/{tripId}/invite` | 200 | `inviteUrl`, `inviteToken`, `role` | P1 |
+| `POST /api/trips/{tripId}/invite` | 200 | `invited` is true and selected `viewer/editor` role is returned | P1 |
+| `POST /api/trips/{tripId}/invites` | 200 | `tripId` and selected `role` returned | P1 |
+| `POST /api/invites/jeju-3d/accept` | 200 | `acceptedAt` returned and DB mode inserts `trip_members` idempotently with invite role | P1 |
 
 ## Missing Coverage To Add When Behavior Changes
 
@@ -78,11 +78,12 @@ Trip endpoints must preserve the existing public DTO shape:
 - `people` includes owner first, then member nicknames with duplicates removed.
 - `expectedSaving` is the sum of linked policy `benefit_amount` values, excluding null amounts.
 - `InviteState.copied` is always false from the server and is tracked locally by the frontend UI.
+- `InviteState.role` is `viewer` or `editor`; missing request role defaults to `editor`.
 
 Invite acceptance must persist membership:
 
 - `POST /api/invites/{inviteToken}/accept` requires bearer authentication.
 - Unknown or expired invite tokens return `404 {"detail": "Invite not found"}`.
 - Valid invite tokens set `trip_invites.accepted_at` when it is empty.
-- Valid invite tokens add the current user to `trip_members` with role `editor` when missing.
+- Valid invite tokens add the current user to `trip_members` with the invite `role` when missing.
 - Repeated acceptance by the same user does not create duplicate membership rows.

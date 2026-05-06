@@ -575,6 +575,12 @@
   background: var(--primary-50);
 }
 
+.choice .meta {
+  display: block;
+  margin-top: 4px;
+  font-weight: 700;
+}
+
 .top-search {
   gap: 12px;
   padding: 0 0 18px;

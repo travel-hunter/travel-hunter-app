@@ -39,6 +39,7 @@
 | `Trip.days` | `trip_days` + `trip_places` | Nested display shape |
 | `InviteState.inviteToken` | `trip_invites.invite_token` | Invite link token |
 | `InviteState.acceptedAt` | `trip_invites.accepted_at` | Set by DB-backed invite acceptance |
+| `InviteState.role` | `trip_invites.role` | `viewer` or `editor`; accepted invite writes this value to `trip_members.role` for new members |
 | `Profile.region` | `users.region` | Onboarding/profile preference |
 | `Profile.style` | `users.travel_style` | v0.3.1 extension |
 | `Profile.budget` | `users.travel_budget` | v0.3.1 extension |

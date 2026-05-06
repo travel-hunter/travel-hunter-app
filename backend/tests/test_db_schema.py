@@ -36,6 +36,7 @@ def test_erd_v0_3_decision_columns_are_registered() -> None:
     assert "slug" in policies.c
     assert "apply_url" in policies.c
     assert "invite_token" in trip_invites.c
+    assert "role" in trip_invites.c
     assert "trips_days" not in Base.metadata.tables
     assert "trips_members" not in Base.metadata.tables
     assert "trips_policies" not in Base.metadata.tables

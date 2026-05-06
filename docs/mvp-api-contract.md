@@ -417,17 +417,26 @@ Response `200`: `InviteState`
   "createdAt": "2026-05-04T00:00:00Z",
   "acceptedAt": null,
   "invited": true,
-  "copied": false
+  "copied": false,
+  "role": "editor"
 }
 ```
 
 ### `POST /api/trips/{tripId}/invite`
 
-Response `200`: `InviteState` with `invited=true`
+Optional request:
+
+```json
+{ "role": "viewer" }
+```
+
+`role` accepts `viewer` or `editor`; omitted role defaults to `editor`.
+
+Response `200`: `InviteState` with `invited=true` and selected `role`.
 
 ### `POST /api/trips/{tripId}/invites`
 
-Response `200`: `InviteState`
+Same request and response semantics as `POST /api/trips/{tripId}/invite`.
 
 ### `POST /api/invites/{inviteToken}/accept`
 
@@ -438,7 +447,7 @@ Response `200`: `InviteState` with `acceptedAt`
 Behavior:
 
 - valid token sets `trip_invites.accepted_at` when empty.
-- current user is added to `trip_members` as `editor` when missing.
+- current user is added to `trip_members` with the invite `role` when missing.
 - repeated accept is idempotent.
 
 Errors:

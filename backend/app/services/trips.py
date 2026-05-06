@@ -381,10 +381,12 @@ def _new_invite_token() -> str:
     return secrets.token_urlsafe(12)
 
 
-def _ensure_invite(db: Session, trip: Trip, user: User) -> TripInvite:
+def _ensure_invite(db: Session, trip: Trip, user: User, role: str | None = None) -> TripInvite:
     now = security.utc_now_naive()
     invite = trip_repository.get_latest_active_invite(db, trip_id=trip.id, now=now)
     if invite is not None:
+        if role is not None:
+            invite.role = role
         return invite
 
     return trip_repository.create_invite(
@@ -393,6 +395,7 @@ def _ensure_invite(db: Session, trip: Trip, user: User) -> TripInvite:
         invite_token=_new_invite_token(),
         created_by=user.id,
         expires_at=now + timedelta(days=60),
+        role=role or "editor",
     )
 
 
@@ -407,6 +410,7 @@ def invite_to_api(invite: TripInvite, *, trip_id: int, invited: bool = False) ->
         "acceptedAt": _iso(invite.accepted_at),
         "invited": invited or invite.expires_at > security.utc_now_naive(),
         "copied": False,
+        "role": invite.role or "editor",
     }
 
 
@@ -427,11 +431,12 @@ def confirm_invite_sent(
     db: Session,
     user: User,
     trip_handle: str,
+    role: str = "editor",
 ) -> dict[str, object] | None:
     trip = _resolve_trip(db, trip_handle, user)
     if trip is None:
         return None
-    invite = _ensure_invite(db, trip, user)
+    invite = _ensure_invite(db, trip, user, role)
     db.commit()
     return invite_to_api(invite, trip_id=trip.id, invited=True)
 
@@ -459,7 +464,7 @@ def accept_invite(db: Session, user: User, invite_token: str) -> dict[str, objec
             db,
             trip_id=invite.trip_id,
             user_id=user.id,
-            role="editor",
+            role=invite.role or "editor",
         )
 
     db.commit()

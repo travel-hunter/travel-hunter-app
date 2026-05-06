@@ -20,7 +20,7 @@ import {
   TripPlaceUpdateRequest,
   TripPolicyResponse,
 } from "./dataApi";
-import { InviteState, Policy, Profile, ProfileOptions, Recommendation, Trip, User } from "./types";
+import { InviteRole, InviteState, Policy, Profile, ProfileOptions, Recommendation, Trip, User } from "./types";
 
 const defaultLogin: LoginRequest = {
   email: user.email,
@@ -60,6 +60,6 @@ export const backendApi: AppDataApi = {
   addPolicyToTrip: (tripId: string, policySlug: string): Promise<TripPolicyResponse> => apiClient.post<TripPolicyResponse>(`/api/trips/${tripId}/policies/${policySlug}`),
   listRecommendations: (tripId = itinerary.id): Promise<Recommendation[]> => apiClient.get<Recommendation[]>(`/api/trips/${tripId}/recommendations`),
   getInviteState: (tripId = itinerary.id): Promise<InviteState> => apiClient.get<InviteState>(`/api/trips/${tripId}/invite`),
-  confirmInviteSent: (tripId = itinerary.id): Promise<InviteState> => apiClient.post<InviteState>(`/api/trips/${tripId}/invite`),
+  confirmInviteSent: (tripId = itinerary.id, role?: InviteRole): Promise<InviteState> => apiClient.post<InviteState>(`/api/trips/${tripId}/invite`, role ? { role } : undefined),
   acceptInvite: (inviteToken: string): Promise<InviteState> => apiClient.post<InviteState>(`/api/invites/${inviteToken}/accept`),
 };

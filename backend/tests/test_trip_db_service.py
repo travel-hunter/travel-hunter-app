@@ -346,6 +346,7 @@ def test_invite_to_api_computes_display_flags() -> None:
         trip_id=7,
         invite_token="abc",
         created_by=1,
+        role="viewer",
         created_at=datetime(2026, 5, 4, 0, 0, 0),
         expires_at=datetime(2026, 5, 4, 0, 0, 0) + timedelta(days=30),
     )
@@ -357,6 +358,44 @@ def test_invite_to_api_computes_display_flags() -> None:
     assert payload["inviteUrl"] == "travelhunter.app/i/abc"
     assert payload["invited"] is True
     assert payload["copied"] is False
+    assert payload["role"] == "viewer"
+
+
+def test_confirm_invite_sent_updates_active_invite_role(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    invite = TripInvite(
+        id=9,
+        trip_id=7,
+        invite_token="abc",
+        created_by=1,
+        role="editor",
+        created_at=datetime(2026, 5, 4, 0, 0, 0),
+        expires_at=datetime(2026, 6, 30, 0, 0, 0),
+    )
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip
+        if db is fake_db and trip_id == 7 and user_id == 1
+        else None,
+    )
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_latest_active_invite",
+        lambda db, **kwargs: invite
+        if db is fake_db and kwargs["trip_id"] == 7
+        else None,
+    )
+
+    payload = trip_service.confirm_invite_sent(fake_db, user, "7", "viewer")
+
+    assert payload is not None
+    assert payload["role"] == "viewer"
+    assert invite.role == "viewer"
+    assert fake_db.commits == 1
 
 
 def install_create_trip_stubs(monkeypatch, *, policy: Policy | None = None):
@@ -500,6 +539,7 @@ def test_accept_invite_marks_acceptance_and_adds_member(monkeypatch) -> None:
         trip_id=7,
         invite_token="abc",
         created_by=1,
+        role="viewer",
         created_at=datetime(2026, 5, 4, 0, 0, 0),
         expires_at=datetime(2026, 6, 30, 0, 0, 0),
         accepted_at=None,
@@ -531,7 +571,7 @@ def test_accept_invite_marks_acceptance_and_adds_member(monkeypatch) -> None:
     assert payload["acceptedAt"] is not None
     assert payload["invited"] is True
     assert invite.accepted_at is not None
-    assert captured_membership == {"trip_id": 7, "user_id": 3, "role": "editor"}
+    assert captured_membership == {"trip_id": 7, "user_id": 3, "role": "viewer"}
     assert fake_db.commits == 1
 
 
@@ -544,6 +584,7 @@ def test_accept_invite_is_idempotent_for_existing_member(monkeypatch) -> None:
         trip_id=7,
         invite_token="abc",
         created_by=1,
+        role="editor",
         created_at=datetime(2026, 5, 4, 0, 0, 0),
         expires_at=datetime(2026, 6, 30, 0, 0, 0),
         accepted_at=accepted_at,

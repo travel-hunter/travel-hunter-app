@@ -278,6 +278,7 @@ class TripInvite(Base):
     )
     invite_token: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
     created_by: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
+    role: Mapped[str] = mapped_column(String(20), nullable=False, server_default="editor")
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
