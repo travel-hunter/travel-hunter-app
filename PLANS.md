@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-The MVP feature set is implemented and runtime mock mode has been removed. Docker VPS direct staging artifacts and Cloudflare Tunnel staging artifacts exist. The current priority is collecting real tunnel inputs, deploying the RC to an external HTTPS staging URL, and recording smoke results. Jenkins automation is deferred until after manual tunnel staging is proven.
+The MVP is DB-backed-only and runtime mock mode has been removed. Docker VPS direct staging artifacts and Cloudflare Tunnel staging artifacts exist, but the current working priority is user-facing feature completion. The latest feature target is itinerary detail place CRUD; the next functional priority is mypage profile editing. Deployment and Jenkins automation are deferred until the feature pass pauses or release staging resumes.
 
 ## Source Of Truth
 

@@ -7,7 +7,19 @@ import {
   user,
 } from "../data/seedData";
 import { apiClient } from "./client";
-import { AppDataApi, AuthResponse, CreateTripRequest, DeleteTripResponse, LoginRequest, LogoutResponse, SavePolicyResponse, SignupRequest, TripPolicyResponse } from "./dataApi";
+import {
+  AppDataApi,
+  AuthResponse,
+  CreateTripRequest,
+  DeleteTripResponse,
+  LoginRequest,
+  LogoutResponse,
+  SavePolicyResponse,
+  SignupRequest,
+  TripPlaceRequest,
+  TripPlaceUpdateRequest,
+  TripPolicyResponse,
+} from "./dataApi";
 import { InviteState, Policy, Profile, ProfileOptions, Recommendation, Trip, User } from "./types";
 
 const defaultLogin: LoginRequest = {
@@ -42,6 +54,9 @@ export const backendApi: AppDataApi = {
   createTrip: (trip?: CreateTripRequest): Promise<Trip> => apiClient.post<Trip>("/api/trips", trip),
   deleteTrip: (tripId: string): Promise<DeleteTripResponse> => apiClient.delete<DeleteTripResponse>(`/api/trips/${tripId}`),
   getTrip: (tripId = itinerary.id): Promise<Trip> => apiClient.get<Trip>(`/api/trips/${tripId}`),
+  addTripPlace: (tripId: string, dayNumber: number, place: TripPlaceRequest): Promise<Trip> => apiClient.post<Trip>(`/api/trips/${tripId}/days/${dayNumber}/places`, place),
+  updateTripPlace: (tripId: string, placeId: string, place: TripPlaceUpdateRequest): Promise<Trip> => apiClient.patch<Trip>(`/api/trips/${tripId}/places/${placeId}`, place),
+  deleteTripPlace: (tripId: string, placeId: string): Promise<Trip> => apiClient.delete<Trip>(`/api/trips/${tripId}/places/${placeId}`),
   addPolicyToTrip: (tripId: string, policySlug: string): Promise<TripPolicyResponse> => apiClient.post<TripPolicyResponse>(`/api/trips/${tripId}/policies/${policySlug}`),
   listRecommendations: (tripId = itinerary.id): Promise<Recommendation[]> => apiClient.get<Recommendation[]>(`/api/trips/${tripId}/recommendations`),
   getInviteState: (tripId = itinerary.id): Promise<InviteState> => apiClient.get<InviteState>(`/api/trips/${tripId}/invite`),

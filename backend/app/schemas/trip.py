@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 
 
 class ItineraryPlace(BaseModel):
+    id: str | None = None
     time: str
     label: str
     meta: str
@@ -53,3 +54,15 @@ class TripPolicyResponse(BaseModel):
 class DeleteTripResponse(BaseModel):
     tripId: str
     deleted: bool
+
+
+class CreateTripPlaceRequest(BaseModel):
+    time: str | None = None
+    label: str = Field(min_length=1, max_length=200)
+    meta: str | None = None
+
+
+class UpdateTripPlaceRequest(BaseModel):
+    time: str | None = None
+    label: str | None = Field(default=None, min_length=1, max_length=200)
+    meta: str | None = None

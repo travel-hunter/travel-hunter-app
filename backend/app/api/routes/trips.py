@@ -4,7 +4,16 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import get_current_user
 from app.db.session import get_optional_db
 from app.models import User
-from app.schemas.trip import CreateTripRequest, DeleteTripResponse, InviteState, Recommendation, Trip, TripPolicyResponse
+from app.schemas.trip import (
+    CreateTripPlaceRequest,
+    CreateTripRequest,
+    DeleteTripResponse,
+    InviteState,
+    Recommendation,
+    Trip,
+    TripPolicyResponse,
+    UpdateTripPlaceRequest,
+)
 from app.services import trips as trip_service
 
 router = APIRouter(prefix="/trips", tags=["trips"])
@@ -95,6 +104,67 @@ def add_policy_to_trip(
     except trip_service.TripServiceError as error:
         _raise_trip_error(error)
     return TripPolicyResponse(**result)
+
+
+@router.post("/{trip_id}/days/{day_number}/places", response_model=Trip)
+def add_place_to_trip_day(
+    trip_id: str,
+    day_number: int,
+    payload: CreateTripPlaceRequest,
+    db: Session | None = Depends(get_optional_db),
+    current_user: User | None = Depends(get_current_user),
+) -> Trip:
+    try:
+        trip = trip_service.add_place_to_trip_day(
+            _require_db(db),
+            _require_user(current_user),
+            trip_id,
+            day_number,
+            payload,
+        )
+    except trip_service.TripServiceError as error:
+        _raise_trip_error(error)
+    return Trip(**trip)
+
+
+@router.patch("/{trip_id}/places/{place_id}", response_model=Trip)
+def update_trip_place(
+    trip_id: str,
+    place_id: int,
+    payload: UpdateTripPlaceRequest,
+    db: Session | None = Depends(get_optional_db),
+    current_user: User | None = Depends(get_current_user),
+) -> Trip:
+    try:
+        trip = trip_service.update_trip_place(
+            _require_db(db),
+            _require_user(current_user),
+            trip_id,
+            place_id,
+            payload,
+        )
+    except trip_service.TripServiceError as error:
+        _raise_trip_error(error)
+    return Trip(**trip)
+
+
+@router.delete("/{trip_id}/places/{place_id}", response_model=Trip)
+def delete_trip_place(
+    trip_id: str,
+    place_id: int,
+    db: Session | None = Depends(get_optional_db),
+    current_user: User | None = Depends(get_current_user),
+) -> Trip:
+    try:
+        trip = trip_service.delete_trip_place(
+            _require_db(db),
+            _require_user(current_user),
+            trip_id,
+            place_id,
+        )
+    except trip_service.TripServiceError as error:
+        _raise_trip_error(error)
+    return Trip(**trip)
 
 
 @router.get("/{trip_id}/recommendations", response_model=list[Recommendation])

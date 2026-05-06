@@ -130,6 +130,7 @@ def add_trip_place(
         memo=memo,
     )
     db.add(place)
+    db.flush()
     return place
 
 
@@ -194,6 +195,10 @@ def detach_recommendations_from_trip(db: Session, *, trip_id: int) -> None:
 
 def delete_trip(db: Session, trip: Trip) -> None:
     db.delete(trip)
+
+
+def delete_trip_place(db: Session, place: TripPlace) -> None:
+    db.delete(place)
 
 
 def get_latest_active_invite(db: Session, *, trip_id: int, now) -> TripInvite | None:

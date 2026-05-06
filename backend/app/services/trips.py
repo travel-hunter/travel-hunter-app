@@ -9,10 +9,10 @@ from sqlalchemy.orm import Session
 
 from app.core import security
 from app.data import seed
-from app.models import Trip, TripInvite, User
+from app.models import Trip, TripDay, TripInvite, TripPlace, User
 from app.repositories import policies as policy_repository
 from app.repositories import trips as trip_repository
-from app.schemas.trip import CreateTripRequest
+from app.schemas.trip import CreateTripPlaceRequest, CreateTripRequest, UpdateTripPlaceRequest
 
 
 LEGACY_TRIP_ALIAS = str(seed.TRIP["id"])
@@ -37,6 +37,15 @@ class TripServiceError(Exception):
 
 def _parse_time(value: str) -> time:
     return datetime.strptime(value, "%H:%M").time()
+
+
+def _parse_optional_time(value: str | None) -> time | None:
+    if value is None or value.strip() == "":
+        return None
+    try:
+        return _parse_time(value.strip())
+    except ValueError as exc:
+        raise TripServiceError(422, "Invalid visit time") from exc
 
 
 def _iso(value: datetime | None) -> str | None:
@@ -90,6 +99,7 @@ def trip_to_api(trip: Trip) -> dict[str, object]:
         )
         days[trip_day.day_number] = [
             {
+                "id": str(place.id) if place.id is not None else None,
                 "time": place.visit_time.strftime("%H:%M") if place.visit_time else "",
                 "label": place.place_name,
                 "meta": place.memo or place.address or "",
@@ -128,6 +138,30 @@ def _resolve_required_trip(db: Session, trip_handle: str, user: User) -> Trip:
     if trip is None:
         raise TripServiceError(404, "Trip not found")
     return trip
+
+
+def _refresh_trip_payload(db: Session, trip_id: int, user: User) -> dict[str, object]:
+    if hasattr(db, "expire_all"):
+        db.expire_all()
+    trip = trip_repository.get_accessible_trip_by_id(db, trip_id, user.id)
+    if trip is None:
+        raise TripServiceError(404, "Trip not found")
+    return trip_to_api(trip)
+
+
+def _find_trip_day(trip: Trip, day_number: int) -> TripDay:
+    for trip_day in trip.days:
+        if trip_day.day_number == day_number:
+            return trip_day
+    raise TripServiceError(404, "Trip not found")
+
+
+def _find_trip_place(trip: Trip, place_id: int) -> TripPlace:
+    for trip_day in trip.days:
+        for place in trip_day.places:
+            if place.id == place_id:
+                return place
+    raise TripServiceError(404, "Trip not found")
 
 
 def list_trips(db: Session, user: User) -> list[dict[str, object]]:
@@ -238,6 +272,70 @@ def add_policy_to_trip(
         db.commit()
 
     return {"tripId": str(trip.id), "policyId": policy_slug, "added": True}
+
+
+def add_place_to_trip_day(
+    db: Session,
+    user: User,
+    trip_handle: str,
+    day_number: int,
+    payload: CreateTripPlaceRequest,
+) -> dict[str, object]:
+    trip = _resolve_required_trip(db, trip_handle, user)
+    trip_day = _find_trip_day(trip, day_number)
+    label = payload.label.strip()
+    if not label:
+        raise TripServiceError(422, "Place label is required")
+
+    next_order = max((place.order_num or 0 for place in trip_day.places), default=0) + 1
+    trip_repository.add_trip_place(
+        db,
+        trip_day_id=trip_day.id,
+        place_name=label,
+        visit_time=_parse_optional_time(payload.time),
+        order_num=next_order,
+        memo=payload.meta.strip() if payload.meta is not None else None,
+    )
+    db.commit()
+    return _refresh_trip_payload(db, trip.id, user)
+
+
+def update_trip_place(
+    db: Session,
+    user: User,
+    trip_handle: str,
+    place_id: int,
+    payload: UpdateTripPlaceRequest,
+) -> dict[str, object]:
+    trip = _resolve_required_trip(db, trip_handle, user)
+    place = _find_trip_place(trip, place_id)
+    values = payload.model_dump(exclude_unset=True)
+
+    if "label" in values:
+        label = (values["label"] or "").strip()
+        if not label:
+            raise TripServiceError(422, "Place label is required")
+        place.place_name = label
+    if "time" in values:
+        place.visit_time = _parse_optional_time(values["time"])
+    if "meta" in values:
+        place.memo = values["meta"].strip() if values["meta"] is not None else None
+
+    db.commit()
+    return _refresh_trip_payload(db, trip.id, user)
+
+
+def delete_trip_place(
+    db: Session,
+    user: User,
+    trip_handle: str,
+    place_id: int,
+) -> dict[str, object]:
+    trip = _resolve_required_trip(db, trip_handle, user)
+    place = _find_trip_place(trip, place_id)
+    trip_repository.delete_trip_place(db, place)
+    db.commit()
+    return _refresh_trip_payload(db, trip.id, user)
 
 
 def _recommendation_items(value: Any) -> list[dict[str, str]]:

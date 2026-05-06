@@ -159,6 +159,78 @@ describe("Travel Hunter app", () => {
     }
   });
 
+  it("adds, edits, and deletes places from the itinerary detail", async () => {
+    const initialTrip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "55",
+      title: "Jeju editable trip",
+      days: { 1: [{ id: "1", time: "09:00", label: "Sunrise peak", meta: "Nature" }] },
+    };
+    const addedTrip: Trip = {
+      ...initialTrip,
+      days: { 1: [...initialTrip.days[1], { id: "2", time: "14:30", label: "Cafe stop", meta: "Dessert" }] },
+    };
+    const editedTrip: Trip = {
+      ...addedTrip,
+      days: { 1: [{ id: "1", time: "10:15", label: "Updated peak", meta: "New memo" }, addedTrip.days[1][1]] },
+    };
+    const deletedTrip: Trip = {
+      ...editedTrip,
+      days: { 1: [editedTrip.days[1][1]] },
+    };
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(initialTrip);
+    const addPlaceSpy = vi.spyOn(appDataApi, "addTripPlace").mockResolvedValue(addedTrip);
+    const updatePlaceSpy = vi.spyOn(appDataApi, "updateTripPlace").mockResolvedValue(editedTrip);
+    const deletePlaceSpy = vi.spyOn(appDataApi, "deleteTripPlace").mockResolvedValue(deletedTrip);
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/trips/55");
+      const user = userEvent.setup();
+
+      await waitFor(() => expect(document.body).toHaveTextContent("Sunrise peak"));
+      await user.click(document.querySelector(".dashed") as HTMLButtonElement);
+      await user.type(document.querySelector('input[name="place-time"]') as HTMLInputElement, "14:30");
+      await user.type(document.querySelector('input[name="place-label"]') as HTMLInputElement, "Cafe stop");
+      await user.type(document.querySelector('textarea[name="place-meta"]') as HTMLTextAreaElement, "Dessert");
+      await user.click(document.querySelector(".sheet-actions button") as HTMLButtonElement);
+
+      await waitFor(() =>
+        expect(addPlaceSpy).toHaveBeenCalledWith("55", 1, {
+          time: "14:30",
+          label: "Cafe stop",
+          meta: "Dessert",
+        }),
+      );
+      await waitFor(() => expect(document.body).toHaveTextContent("Cafe stop"));
+
+      await user.click(document.querySelector(".place-actions .ghost") as HTMLButtonElement);
+      await user.clear(document.querySelector('input[name="place-time"]') as HTMLInputElement);
+      await user.type(document.querySelector('input[name="place-time"]') as HTMLInputElement, "10:15");
+      await user.clear(document.querySelector('input[name="place-label"]') as HTMLInputElement);
+      await user.type(document.querySelector('input[name="place-label"]') as HTMLInputElement, "Updated peak");
+      await user.clear(document.querySelector('textarea[name="place-meta"]') as HTMLTextAreaElement);
+      await user.type(document.querySelector('textarea[name="place-meta"]') as HTMLTextAreaElement, "New memo");
+      await user.click(document.querySelector(".sheet-actions button") as HTMLButtonElement);
+
+      await waitFor(() => expect(updatePlaceSpy).toHaveBeenCalledWith("55", "1", expect.objectContaining({ label: "Updated peak" })));
+      await waitFor(() => expect(document.body).toHaveTextContent("Updated peak"));
+
+      await user.click(document.querySelector(".place-actions .line") as HTMLButtonElement);
+      await waitFor(() => expect(deletePlaceSpy).toHaveBeenCalledWith("55", "1"));
+      expect(confirmSpy).toHaveBeenCalledWith("이 장소를 일정에서 삭제할까요?");
+      await waitFor(() => expect(screen.queryByText("Updated peak")).not.toBeInTheDocument());
+    } finally {
+      getTripSpy.mockRestore();
+      addPlaceSpy.mockRestore();
+      updatePlaceSpy.mockRestore();
+      deletePlaceSpy.mockRestore();
+      confirmSpy.mockRestore();
+    }
+  });
+
   it("deletes trips from the trips list but not from the home card", async () => {
     const trip: Trip = {
       ...appDataApi.getPreviewTrip(),

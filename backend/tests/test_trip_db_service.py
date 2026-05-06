@@ -2,7 +2,7 @@ from datetime import date, datetime, time, timedelta
 
 from app.models import Policy, Recommendation, Trip, TripDay, TripInvite, TripMember, TripPlace, TripPolicy
 from app.models import User as UserModel
-from app.schemas.trip import CreateTripRequest
+from app.schemas.trip import CreateTripPlaceRequest, CreateTripRequest, UpdateTripPlaceRequest
 from app.services import trips as trip_service
 
 
@@ -69,7 +69,7 @@ def test_trip_to_api_returns_numeric_string_id_and_contract_shape() -> None:
     assert payload["dates"] == "2026.06.15 - 06.17"
     assert payload["people"] == ["Test User", "Minseo"]
     assert payload["expectedSaving"] == "30만원"
-    assert payload["days"] == {1: [{"time": "09:00", "label": "Sunrise peak", "meta": "Nature"}]}
+    assert payload["days"] == {1: [{"id": "1", "time": "09:00", "label": "Sunrise peak", "meta": "Nature"}]}
 
 
 def test_trip_to_api_includes_owner_when_owner_is_not_a_member() -> None:
@@ -195,6 +195,135 @@ def test_delete_trip_returns_none_for_missing_or_unowned_trip(monkeypatch) -> No
     assert trip_service.delete_trip("001", fake_db, user) is None
     assert trip_service.delete_trip("7", fake_db, user) is None
     assert lookup_calls == [7]
+    assert fake_db.commits == 0
+
+
+def test_add_place_to_trip_day_persists_place_and_returns_updated_trip(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    captured: dict[str, object] = {}
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip
+        if db is fake_db and trip_id == 7 and user_id == 1
+        else None,
+    )
+
+    def add_place_stub(_db, **kwargs):
+        captured.update(kwargs)
+        place = TripPlace(
+            id=2,
+            trip_day_id=kwargs["trip_day_id"],
+            place_name=kwargs["place_name"],
+            visit_time=kwargs["visit_time"],
+            order_num=kwargs["order_num"],
+            memo=kwargs["memo"],
+        )
+        trip.days[0].places.append(place)
+        return place
+
+    monkeypatch.setattr(trip_service.trip_repository, "add_trip_place", add_place_stub)
+
+    payload = trip_service.add_place_to_trip_day(
+        fake_db,
+        user,
+        "7",
+        1,
+        CreateTripPlaceRequest(time="14:30", label="Cafe stop", meta="Dessert"),
+    )
+
+    assert captured["trip_day_id"] == 1
+    assert captured["place_name"] == "Cafe stop"
+    assert captured["visit_time"] == time(14, 30)
+    assert captured["order_num"] == 2
+    assert payload["days"][1][-1] == {"id": "2", "time": "14:30", "label": "Cafe stop", "meta": "Dessert"}
+    assert fake_db.commits == 1
+
+
+def test_update_trip_place_changes_existing_place(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda *_args, **_kwargs: trip,
+    )
+
+    payload = trip_service.update_trip_place(
+        fake_db,
+        user,
+        "7",
+        1,
+        UpdateTripPlaceRequest(time="10:15", label="Updated peak", meta="New memo"),
+    )
+
+    assert payload["days"][1][0] == {"id": "1", "time": "10:15", "label": "Updated peak", "meta": "New memo"}
+    assert fake_db.commits == 1
+
+
+def test_delete_trip_place_removes_existing_place(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    deleted: list[TripPlace] = []
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda *_args, **_kwargs: trip,
+    )
+
+    def delete_place_stub(_db, place):
+        deleted.append(place)
+        trip.days[0].places.remove(place)
+
+    monkeypatch.setattr(trip_service.trip_repository, "delete_trip_place", delete_place_stub)
+
+    payload = trip_service.delete_trip_place(fake_db, user, "7", 1)
+
+    assert deleted[0].id == 1
+    assert payload["days"][1] == []
+    assert fake_db.commits == 1
+
+
+def test_trip_place_crud_returns_404_for_missing_day_or_place(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda *_args, **_kwargs: trip,
+    )
+
+    for action in (
+        lambda: trip_service.add_place_to_trip_day(
+            fake_db,
+            user,
+            "7",
+            99,
+            CreateTripPlaceRequest(time="12:00", label="Missing day", meta=""),
+        ),
+        lambda: trip_service.update_trip_place(
+            fake_db,
+            user,
+            "7",
+            999,
+            UpdateTripPlaceRequest(label="Missing place"),
+        ),
+        lambda: trip_service.delete_trip_place(fake_db, user, "7", 999),
+    ):
+        try:
+            action()
+        except trip_service.TripServiceError as error:
+            assert error.status_code == 404
+            assert error.detail == "Trip not found"
+        else:
+            raise AssertionError("expected TripServiceError")
+
     assert fake_db.commits == 0
 
 

@@ -58,6 +58,7 @@ export type Policy = {
 };
 
 export type ItineraryPlace = {
+  id?: string;
   time: string;
   label: string;
   meta: string;

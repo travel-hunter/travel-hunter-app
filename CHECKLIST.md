@@ -16,6 +16,7 @@
 
 - [x] Runtime mock mode removed.
 - [x] MVP user flows implemented against FastAPI/PostgreSQL.
+- [x] Itinerary detail place add/edit/delete is connected to `trip_places`.
 - [x] Wanted Design System import, component values, Button correction, and Toast correction documented.
 - [x] Figma editable Current/Redesign frames exist for first-pass MVP routes.
 - [x] Public VPS artifacts exist: `compose.vps.yaml`, `deploy/Caddyfile`, `deploy/.env.staging.example`.
@@ -24,21 +25,20 @@
 ## 마지막 검증 결과
 
 - Date: 2026-05-06.
-- Backend pytest: 72 passed.
-- Frontend DB-backed Vitest: 20 passed.
+- Backend pytest: 78 passed.
+- Frontend DB-backed Vitest: 21 passed.
 - DB-backed Playwright e2e: 5 passed.
 - Frontend build: passed.
 - Alembic offline SQL: passed.
 - Local compose config/build: passed.
 - VPS compose config: passed.
 - Tunnel compose config: passed.
-- `git diff --check`: passed for the latest tunnel artifact work.
+- `git diff --check`: passed for the latest itinerary place CRUD work.
 
 ## 다음 우선순위
 
-- [ ] Provide Cloudflare domain/tunnel token, repo clone access, and real tunnel env values.
-- [ ] Execute Cloudflare Tunnel staging deployment from the current RC baseline.
-- [ ] Run the internal-test smoke checklist on the external staging URL.
-- [ ] Record staging URL, commit, validation result, and blockers.
-- [ ] Define public-test operations basics: privacy/terms, backup, logs, monitoring, incident response.
-- [ ] Add Jenkins automation later, after manual tunnel staging is proven.
+- [ ] Implement mypage profile editing UX with the existing `PATCH /api/me/profile` endpoint.
+- [ ] Add AI recommendation items to the trip timeline by reusing the place add API.
+- [ ] Persist invite role settings for `viewer/editor`.
+- [ ] Persist deadline notification settings.
+- [ ] Resume Cloudflare Tunnel staging deployment when the feature pass pauses.

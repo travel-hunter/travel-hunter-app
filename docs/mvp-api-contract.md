@@ -332,6 +332,69 @@ Response `200`:
 }
 ```
 
+### `POST /api/trips/{tripId}/days/{dayNumber}/places`
+
+Bearer token required. The requester must be able to access the trip as owner or member.
+
+Request:
+
+```json
+{
+  "time": "14:30",
+  "label": "Cafe stop",
+  "meta": "Reservation note"
+}
+```
+
+Response `200`: updated `Trip`.
+
+Rules:
+
+- `tripId` follows the same opaque handle rules as `GET /api/trips/{tripId}`.
+- `dayNumber` must belong to the resolved trip.
+- `label` is required.
+- `time` is optional. When present it must use `HH:MM`.
+- New places are appended after the current max `order_num` for that day.
+
+Errors:
+
+- unauthenticated: `401 {"detail": "Not authenticated"}`
+- unknown, inaccessible, or day-missing trip: `404 {"detail": "Trip not found"}`
+- invalid body or invalid time: `422`
+
+### `PATCH /api/trips/{tripId}/places/{placeId}`
+
+Bearer token required. The requester must be able to access the trip as owner or member.
+
+Request body accepts partial fields:
+
+```json
+{
+  "time": "10:15",
+  "label": "Updated place",
+  "meta": "Updated memo"
+}
+```
+
+Response `200`: updated `Trip`.
+
+Errors:
+
+- unauthenticated: `401 {"detail": "Not authenticated"}`
+- unknown, inaccessible, or cross-trip place: `404 {"detail": "Trip not found"}`
+- invalid body or invalid time: `422`
+
+### `DELETE /api/trips/{tripId}/places/{placeId}`
+
+Bearer token required. The requester must be able to access the trip as owner or member.
+
+Response `200`: updated `Trip`.
+
+Errors:
+
+- unauthenticated: `401 {"detail": "Not authenticated"}`
+- unknown, inaccessible, or cross-trip place: `404 {"detail": "Trip not found"}`
+
 ## Recommendations
 
 ### `GET /api/trips/{tripId}/recommendations`

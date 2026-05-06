@@ -45,6 +45,14 @@ export type CreateTripRequest = {
   durationDays?: number;
 };
 
+export type TripPlaceRequest = {
+  time?: string;
+  label: string;
+  meta?: string;
+};
+
+export type TripPlaceUpdateRequest = Partial<TripPlaceRequest>;
+
 export type AppDataApi = {
   getPreviewUser: () => User;
   getOnboardingSlides: () => readonly OnboardingSlide[];
@@ -66,6 +74,9 @@ export type AppDataApi = {
   createTrip: (trip?: CreateTripRequest) => Promise<Trip>;
   deleteTrip: (tripId: string) => Promise<DeleteTripResponse>;
   getTrip: (tripId?: string) => Promise<Trip>;
+  addTripPlace: (tripId: string, dayNumber: number, place: TripPlaceRequest) => Promise<Trip>;
+  updateTripPlace: (tripId: string, placeId: string, place: TripPlaceUpdateRequest) => Promise<Trip>;
+  deleteTripPlace: (tripId: string, placeId: string) => Promise<Trip>;
   addPolicyToTrip: (tripId: string, policySlug: string) => Promise<TripPolicyResponse>;
   listRecommendations: (tripId?: string) => Promise<Recommendation[]>;
   getInviteState: (tripId?: string) => Promise<InviteState>;

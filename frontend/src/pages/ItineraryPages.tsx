@@ -1,7 +1,7 @@
 import { Bot, ChevronLeft, Plus, Send, Share2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { appDataApi, type InviteState, type Trip } from "../api";
+import { appDataApi, type InviteState, type ItineraryPlace, type Trip, type TripPlaceRequest } from "../api";
 import { useAsyncResource } from "../api/useAsyncResource";
 import { useSession } from "../app/session";
 import { ItineraryCard } from "../components/cards";
@@ -193,11 +193,21 @@ export function ItineraryDetailPage() {
   const navigate = useNavigate();
   const { addedPolicy } = useSession();
   const [activeDay, setActiveDay] = useState(1);
-  const { data: trip, error, isLoading } = useAsyncResource(() => appDataApi.getTrip(tripId), [tripId]);
+  const { data: loadedTrip, error, isLoading } = useAsyncResource(() => appDataApi.getTrip(tripId), [tripId]);
+  const [trip, setTrip] = useState<Trip | null>(null);
+  const [placeEditor, setPlaceEditor] = useState<{ mode: "add"; dayNumber: number } | { mode: "edit"; dayNumber: number; place: ItineraryPlace } | null>(null);
+  const [placeForm, setPlaceForm] = useState<TripPlaceRequest>({ time: "", label: "", meta: "" });
+  const [placeError, setPlaceError] = useState("");
+  const [isSavingPlace, setIsSavingPlace] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const dayNumbers = trip ? tripDayNumbers(trip.days) : [];
   const visibleDay = dayNumbers.includes(activeDay) ? activeDay : (dayNumbers[0] ?? 1);
   const dayPlaces = trip?.days[visibleDay] ?? [];
   const stayLabel = formatStayLabel(dayNumbers.length || 3);
+
+  useEffect(() => {
+    if (loadedTrip) setTrip(loadedTrip);
+  }, [loadedTrip]);
 
   useEffect(() => {
     if (dayNumbers.length > 0) setActiveDay(dayNumbers[0]);
@@ -208,6 +218,65 @@ export function ItineraryDetailPage() {
       navigate(`/trips/${trip.id}`, { replace: true });
     }
   }, [navigate, trip, tripId]);
+
+  const openAddPlace = () => {
+    setPlaceEditor({ mode: "add", dayNumber: visibleDay });
+    setPlaceForm({ time: "", label: "", meta: "" });
+    setPlaceError("");
+  };
+
+  const openEditPlace = (place: ItineraryPlace) => {
+    setPlaceEditor({ mode: "edit", dayNumber: visibleDay, place });
+    setPlaceForm({ time: place.time, label: place.label, meta: place.meta });
+    setPlaceError("");
+  };
+
+  const submitPlaceEditor = async () => {
+    if (!trip || !placeEditor) return;
+    const label = placeForm.label.trim();
+    if (!label) {
+      setPlaceError("장소명을 입력해 주세요.");
+      return;
+    }
+    setIsSavingPlace(true);
+    setPlaceError("");
+    try {
+      const payload = {
+        time: placeForm.time?.trim() || undefined,
+        label,
+        meta: placeForm.meta?.trim() || undefined,
+      };
+      const nextTrip =
+        placeEditor.mode === "add"
+          ? await appDataApi.addTripPlace(trip.id, placeEditor.dayNumber, payload)
+          : await appDataApi.updateTripPlace(trip.id, placeEditor.place.id ?? "", payload);
+      setTrip(nextTrip);
+      setPlaceEditor(null);
+      setNotice(placeEditor.mode === "add" ? "장소를 일정에 추가했어요." : "장소 정보를 수정했어요.");
+      window.setTimeout(() => setNotice(null), 1800);
+    } catch {
+      setPlaceError("장소 정보를 저장하지 못했어요. 입력값을 확인하고 다시 시도해 주세요.");
+    } finally {
+      setIsSavingPlace(false);
+    }
+  };
+
+  const deletePlace = async (place: ItineraryPlace) => {
+    if (!trip || !place.id || isSavingPlace) return;
+    if (!window.confirm("이 장소를 일정에서 삭제할까요?")) return;
+    setIsSavingPlace(true);
+    setPlaceError("");
+    try {
+      const nextTrip = await appDataApi.deleteTripPlace(trip.id, place.id);
+      setTrip(nextTrip);
+      setNotice("장소를 일정에서 삭제했어요.");
+      window.setTimeout(() => setNotice(null), 1800);
+    } catch {
+      setPlaceError("장소를 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setIsSavingPlace(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -277,27 +346,116 @@ export function ItineraryDetailPage() {
         ))}
       </div>
       <div className="timeline">
-        {dayPlaces.length === 0 && <EmptyState title="아직 추가된 장소가 없어요" body="장소 추가 기능은 다음 단계에서 연결할 예정입니다." />}
+        {dayPlaces.length === 0 && <EmptyState title="아직 추가된 장소가 없어요" body="장소 추가 버튼으로 방문지를 일정에 저장해 보세요." />}
         {dayPlaces.map((place) => (
-          <div className="timeline-item" key={`${place.time}-${place.label}`}>
+          <div className="timeline-item" key={place.id ?? `${place.time}-${place.label}`}>
             <div className="time">{place.time}</div>
             <article className="place-detail">
               <div>
                 <h4>{place.label}</h4>
                 <div className="meta">{place.meta}</div>
               </div>
-              <div className="drag">⋮⋮</div>
+              <div className="place-actions">
+                <button className="btn sm ghost" type="button" onClick={() => openEditPlace(place)} disabled={!place.id || isSavingPlace}>
+                  수정
+                </button>
+                <button className="btn sm line" type="button" onClick={() => deletePlace(place)} disabled={!place.id || isSavingPlace}>
+                  삭제
+                </button>
+              </div>
             </article>
           </div>
         ))}
-        <button className="dashed" type="button">
+        <button className="dashed" type="button" onClick={openAddPlace}>
           + 장소 추가
         </button>
         <Link className="btn secondary full" to={`/ai-results?tripId=${encodeURIComponent(trip.id)}`}>
           AI 추천 일정 보기
         </Link>
       </div>
+      {placeError && !placeEditor && <Toast>{placeError}</Toast>}
+      {notice && <Toast>{notice}</Toast>}
+      {placeEditor && (
+        <PlaceEditorSheet
+          error={placeError}
+          form={placeForm}
+          isSaving={isSavingPlace}
+          mode={placeEditor.mode}
+          onChange={setPlaceForm}
+          onClose={() => !isSavingPlace && setPlaceEditor(null)}
+          onSubmit={submitPlaceEditor}
+        />
+      )}
     </section>
+  );
+}
+
+function PlaceEditorSheet({
+  error,
+  form,
+  isSaving,
+  mode,
+  onChange,
+  onClose,
+  onSubmit,
+}: {
+  error: string;
+  form: TripPlaceRequest;
+  isSaving: boolean;
+  mode: "add" | "edit";
+  onChange: (form: TripPlaceRequest) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <div className="sheet-backdrop" role="presentation" onMouseDown={onClose}>
+      <section className="trip-select-sheet" role="dialog" aria-modal="true" aria-labelledby="place-editor-title" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="sheet-head">
+          <div>
+            <h2 id="place-editor-title">{mode === "add" ? "장소 추가" : "장소 수정"}</h2>
+            <p className="meta">장소명, 방문 시간, 메모를 입력해 일정에 저장하세요.</p>
+          </div>
+          <button className="btn sm ghost" type="button" onClick={onClose} disabled={isSaving}>
+            닫기
+          </button>
+        </div>
+        <div className="form place-editor-form">
+          <label className="field">
+            방문 시간
+            <input
+              name="place-time"
+              placeholder="09:30"
+              value={form.time ?? ""}
+              onChange={(event) => onChange({ ...form, time: event.target.value })}
+            />
+          </label>
+          <label className="field">
+            장소명
+            <input
+              name="place-label"
+              placeholder="성산일출봉"
+              value={form.label}
+              onChange={(event) => onChange({ ...form, label: event.target.value })}
+            />
+          </label>
+          <label className="field">
+            메모
+            <textarea
+              name="place-meta"
+              placeholder="이동 메모나 예약 정보를 적어주세요"
+              value={form.meta ?? ""}
+              onChange={(event) => onChange({ ...form, meta: event.target.value })}
+            />
+          </label>
+          {error && <p className="form-error">{error}</p>}
+        </div>
+        <div className="sheet-actions">
+          <Button full disabled={isSaving} onClick={onSubmit}>
+            {isSaving ? "저장 중입니다" : "저장하기"}
+          </Button>
+        </div>
+      </section>
+    </div>
   );
 }
 

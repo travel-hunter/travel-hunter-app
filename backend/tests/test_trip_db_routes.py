@@ -29,7 +29,7 @@ def trip_payload(trip_id: str = "7") -> dict[str, object]:
         "dates": "2026.06.15 - 06.17",
         "people": ["Test User"],
         "expectedSaving": "30留뚯썝",
-        "days": {1: [{"time": "09:00", "label": "Sunrise peak", "meta": "Nature"}]},
+        "days": {1: [{"id": "1", "time": "09:00", "label": "Sunrise peak", "meta": "Nature"}]},
     }
 
 
@@ -253,6 +253,77 @@ def test_db_add_policy_maps_service_errors(monkeypatch) -> None:
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Policy not found"}
+
+
+def test_db_trip_place_crud_routes_return_updated_trip(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    install_db_route_dependencies(monkeypatch, fake_db, user)
+    calls: list[tuple[str, object]] = []
+
+    def add_place(db, current_user, trip_id, day_number, payload):
+        calls.append(("add", payload))
+        return trip_payload(trip_id) if db is fake_db and current_user is user and day_number == 1 else None
+
+    def update_place(db, current_user, trip_id, place_id, payload):
+        calls.append(("update", payload))
+        return trip_payload(trip_id) if db is fake_db and current_user is user and place_id == 1 else None
+
+    def delete_place(db, current_user, trip_id, place_id):
+        calls.append(("delete", place_id))
+        return trip_payload(trip_id) if db is fake_db and current_user is user and place_id == 1 else None
+
+    monkeypatch.setattr(trip_routes.trip_service, "add_place_to_trip_day", add_place)
+    monkeypatch.setattr(trip_routes.trip_service, "update_trip_place", update_place)
+    monkeypatch.setattr(trip_routes.trip_service, "delete_trip_place", delete_place)
+
+    try:
+        add_response = client.post(
+            "/api/trips/7/days/1/places",
+            json={"time": "10:00", "label": "Cafe", "meta": "Dessert"},
+        )
+        update_response = client.patch(
+            "/api/trips/7/places/1",
+            json={"time": "11:00", "label": "Updated cafe"},
+        )
+        delete_response = client.delete("/api/trips/7/places/1")
+    finally:
+        clear_overrides()
+
+    assert add_response.status_code == 200
+    assert update_response.status_code == 200
+    assert delete_response.status_code == 200
+    assert add_response.json()["id"] == "7"
+    assert calls[0][0] == "add"
+    assert calls[0][1].label == "Cafe"
+    assert calls[1][0] == "update"
+    assert calls[1][1].label == "Updated cafe"
+    assert calls[2] == ("delete", 1)
+
+
+def test_db_trip_place_routes_map_service_errors(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    install_db_route_dependencies(monkeypatch, fake_db, user)
+
+    def reject(*_args):
+        raise trip_service.TripServiceError(404, "Trip not found")
+
+    monkeypatch.setattr(trip_routes.trip_service, "add_place_to_trip_day", reject)
+    monkeypatch.setattr(trip_routes.trip_service, "update_trip_place", reject)
+    monkeypatch.setattr(trip_routes.trip_service, "delete_trip_place", reject)
+
+    try:
+        add_response = client.post("/api/trips/7/days/99/places", json={"label": "Missing"})
+        update_response = client.patch("/api/trips/7/places/999", json={"label": "Missing"})
+        delete_response = client.delete("/api/trips/7/places/999")
+    finally:
+        clear_overrides()
+
+    assert add_response.status_code == 404
+    assert update_response.status_code == 404
+    assert delete_response.status_code == 404
+    assert add_response.json() == {"detail": "Trip not found"}
 
 
 def test_db_recommendation_and_invite_routes(monkeypatch) -> None:
