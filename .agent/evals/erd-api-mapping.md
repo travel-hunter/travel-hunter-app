@@ -42,6 +42,7 @@
 | `Trip.dates` | `trips.start_date` + `trips.end_date` | Display string |
 | `Trip.people` | `trip_members` + `users.nickname` | Joined list |
 | `Trip.days` | `trip_days` + `trip_places` | Nested display shape |
+| `Trip place move` | `trip_places.trip_day_id`, `trip_places.order_num` | Moving a place changes day membership when needed and normalizes affected day ordering |
 | `Trip.currentUserRole` | `trips.owner_id` + `trip_members.role` | `owner` when requester owns the trip, otherwise `editor` or `viewer` membership role |
 | `InviteState.inviteToken` | `trip_invites.invite_token` | Invite link token |
 | `InviteState.acceptedAt` | `trip_invites.accepted_at` | Set by DB-backed invite acceptance |

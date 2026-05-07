@@ -95,5 +95,6 @@ Expected:
 - Policy detail `내 일정에 담기` opens the trip picker and persists through `POST /api/trips/{tripId}/policies/{policySlug}`.
 - Trip list returns a canonical numeric trip id.
 - Trip creation with `?policySlug=local-vacation` returns a canonical numeric trip id and keeps recommendation/invite routes working.
+- Trip detail place add/edit/delete and drag-and-drop move run through backend APIs.
 - Trip detail, AI recommendations, friend invite, and logout run through backend APIs.
 - Legacy `jeju-3-days` either canonicalizes to numeric id when there is one exact seed match, or fails closed with 404 in a dirty shared dev DB.

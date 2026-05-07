@@ -78,3 +78,8 @@ class UpdateTripPlaceRequest(BaseModel):
     time: str | None = None
     label: str | None = Field(default=None, min_length=1, max_length=200)
     meta: str | None = None
+
+
+class MoveTripPlaceRequest(BaseModel):
+    dayNumber: int = Field(ge=1)
+    position: int = Field(ge=1)

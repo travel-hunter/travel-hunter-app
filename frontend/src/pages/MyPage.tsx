@@ -1,7 +1,7 @@
 import { LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { appDataApi, type ContactInfo, type NotificationSettings, type Policy, type Profile } from "../api";
+import { appDataApi, type ContactInfo, type NotificationSettings, type Policy, type Profile, type Trip } from "../api";
 import { useSession } from "../app/session";
 import { Button, Tag } from "../components/ui";
 import { money } from "../utils";
@@ -12,11 +12,13 @@ export function MyPage() {
   const navigate = useNavigate();
   const { currentUser, likedPolicy, logout, profile, saveProfile } = useSession();
   const previewUser = appDataApi.getPreviewUser();
-  const previewTrip = appDataApi.getPreviewTrip();
   const name = currentUser?.name ?? previewUser.name;
   const [savedPolicies, setSavedPolicies] = useState<Policy[]>([]);
   const [isLoadingSavedPolicies, setIsLoadingSavedPolicies] = useState(true);
   const [savedPolicyError, setSavedPolicyError] = useState("");
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [isLoadingTrips, setIsLoadingTrips] = useState(true);
+  const [tripError, setTripError] = useState("");
   const [removingPolicySlug, setRemovingPolicySlug] = useState<string | null>(null);
   const [isProfileEditorOpen, setIsProfileEditorOpen] = useState(false);
   const [profileDraft, setProfileDraft] = useState<Profile>(() => profile);
@@ -49,6 +51,30 @@ export function MyPage() {
       })
       .finally(() => {
         if (isCurrent) setIsLoadingSavedPolicies(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isCurrent = true;
+    setIsLoadingTrips(true);
+    setTripError("");
+
+    appDataApi
+      .listTrips()
+      .then((nextTrips) => {
+        if (!isCurrent) return;
+        setTrips(nextTrips);
+      })
+      .catch(() => {
+        if (!isCurrent) return;
+        setTripError("일정 정보를 불러오지 못했어요");
+      })
+      .finally(() => {
+        if (isCurrent) setIsLoadingTrips(false);
       });
 
     return () => {
@@ -189,6 +215,15 @@ export function MyPage() {
       : likedPolicy
         ? "1건 저장됨"
         : "아직 저장한 정책이 없습니다";
+  const tripSummaryLabel = isLoadingTrips
+    ? "일정을 불러오는 중"
+    : tripError
+      ? tripError
+      : trips.length === 0
+        ? "아직 등록된 일정이 없습니다"
+        : trips.length === 1
+          ? trips[0].title
+          : `${trips[0].title}, 그 외 ${trips.length - 1}건`;
   const deadlineEnabled = notificationSettings?.deadlineEnabled ?? true;
   const deadlineLeadDays = notificationSettings?.deadlineLeadDays ?? [7, 1];
   const deadlineLabel = deadlineEnabled
@@ -270,7 +305,7 @@ export function MyPage() {
             <Link className="setting-row" to="/trips">
               <div>
                 <strong>내 일정</strong>
-                <div className="meta">{previewTrip.title}</div>
+                <div className="meta">{tripSummaryLabel}</div>
               </div>
               <span>›</span>
             </Link>

@@ -10,6 +10,7 @@ from app.schemas.trip import (
     CreateTripRequest,
     DeleteTripResponse,
     InviteState,
+    MoveTripPlaceRequest,
     Recommendation,
     Trip,
     TripPolicyResponse,
@@ -138,6 +139,27 @@ def update_trip_place(
 ) -> Trip:
     try:
         trip = trip_service.update_trip_place(
+            _require_db(db),
+            _require_user(current_user),
+            trip_id,
+            place_id,
+            payload,
+        )
+    except trip_service.TripServiceError as error:
+        _raise_trip_error(error)
+    return Trip(**trip)
+
+
+@router.patch("/{trip_id}/places/{place_id}/move", response_model=Trip)
+def move_trip_place(
+    trip_id: str,
+    place_id: int,
+    payload: MoveTripPlaceRequest,
+    db: Session | None = Depends(get_optional_db),
+    current_user: User | None = Depends(get_current_user),
+) -> Trip:
+    try:
+        trip = trip_service.move_trip_place(
             _require_db(db),
             _require_user(current_user),
             trip_id,

@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "line";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "line" | "danger";
 
 export function Button({
   children,
@@ -123,6 +123,54 @@ export function Toast({ children }: { children: ReactNode }) {
   return (
     <div className="toast" role="status">
       {children}
+    </div>
+  );
+}
+
+export function ConfirmDialog({
+  open,
+  title,
+  body,
+  error,
+  confirmLabel,
+  cancelLabel = "취소",
+  isSubmitting = false,
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean;
+  title: string;
+  body: string;
+  error?: string;
+  confirmLabel: string;
+  cancelLabel?: string;
+  isSubmitting?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  if (!open) return null;
+
+  const cancel = () => {
+    if (!isSubmitting) onCancel();
+  };
+
+  return (
+    <div className="sheet-backdrop confirm-backdrop" role="presentation" onMouseDown={cancel}>
+      <section className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-dialog-title" onMouseDown={(event) => event.stopPropagation()}>
+        <div>
+          <h2 id="confirm-dialog-title">{title}</h2>
+          <p>{body}</p>
+          {error && <p className="form-error">{error}</p>}
+        </div>
+        <div className="confirm-actions">
+          <Button variant="line" disabled={isSubmitting} onClick={cancel}>
+            {cancelLabel}
+          </Button>
+          <Button variant="danger" disabled={isSubmitting} onClick={onConfirm}>
+            {isSubmitting ? `${confirmLabel} 중` : confirmLabel}
+          </Button>
+        </div>
+      </section>
     </div>
   );
 }

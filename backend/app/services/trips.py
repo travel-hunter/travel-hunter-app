@@ -12,7 +12,7 @@ from app.data import seed
 from app.models import Trip, TripDay, TripInvite, TripPlace, User
 from app.repositories import policies as policy_repository
 from app.repositories import trips as trip_repository
-from app.schemas.trip import CreateTripPlaceRequest, CreateTripRequest, UpdateTripPlaceRequest
+from app.schemas.trip import CreateTripPlaceRequest, CreateTripRequest, MoveTripPlaceRequest, UpdateTripPlaceRequest
 
 
 LEGACY_TRIP_ALIAS = str(seed.TRIP["id"])
@@ -180,6 +180,21 @@ def _find_trip_place(trip: Trip, place_id: int) -> TripPlace:
     raise TripServiceError(404, "Trip not found")
 
 
+def _find_trip_day_for_place(trip: Trip, place: TripPlace) -> TripDay:
+    for trip_day in trip.days:
+        for candidate in trip_day.places:
+            if candidate is place or candidate.id == place.id:
+                return trip_day
+    raise TripServiceError(404, "Trip not found")
+
+
+def _ordered_places(trip_day: TripDay) -> list[TripPlace]:
+    return sorted(
+        trip_day.places,
+        key=lambda place: (place.order_num is None, place.order_num or 0, place.id or 0),
+    )
+
+
 def list_trips(db: Session, user: User) -> list[dict[str, object]]:
     return [trip_to_api(trip, user) for trip in trip_repository.list_accessible_trips(db, user.id)]
 
@@ -338,6 +353,39 @@ def update_trip_place(
         place.visit_time = _parse_optional_time(values["time"])
     if "meta" in values:
         place.memo = values["meta"].strip() if values["meta"] is not None else None
+
+    db.commit()
+    return _refresh_trip_payload(db, trip.id, user)
+
+
+def move_trip_place(
+    db: Session,
+    user: User,
+    trip_handle: str,
+    place_id: int,
+    payload: MoveTripPlaceRequest,
+) -> dict[str, object]:
+    trip = _resolve_required_trip(db, trip_handle, user)
+    _require_trip_editor(trip, user)
+    place = _find_trip_place(trip, place_id)
+    source_day = _find_trip_day_for_place(trip, place)
+    target_day = _find_trip_day(trip, payload.dayNumber)
+
+    source_places_without_place = [
+        candidate for candidate in _ordered_places(source_day) if candidate.id != place.id
+    ]
+    same_day = source_day.id == target_day.id
+    target_places = source_places_without_place if same_day else _ordered_places(target_day)
+    max_position = len(target_places) + 1
+    if payload.position > max_position:
+        raise TripServiceError(422, "Invalid place position")
+
+    target_places.insert(payload.position - 1, place)
+    if same_day:
+        trip_repository.reorder_trip_day_places(source_day, target_places)
+    else:
+        trip_repository.reorder_trip_day_places(source_day, source_places_without_place)
+        trip_repository.reorder_trip_day_places(target_day, target_places)
 
     db.commit()
     return _refresh_trip_payload(db, trip.id, user)

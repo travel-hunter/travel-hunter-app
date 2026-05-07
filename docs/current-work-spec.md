@@ -18,7 +18,7 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 - OAuth: Kakao/Google authorization code 시작, callback state 검증, social account 연결/생성, refresh cookie 기반 frontend callback.
 - Profile: onboarding, mypage profile edit, notification contact 저장.
 - Policies: 목록, 상세, 검색/필터, 저장/삭제, official/apply URL CTA, 정책 링크 복사, Web Share API 공유 fallback.
-- Trips: 목록, 생성, 상세, 삭제, 정책 담기, 장소 추가/수정/삭제.
+- Trips: 목록, 생성, 상세, 삭제, 정책 담기, 장소 추가/수정/삭제, 장소 드래그앤드롭 순서/날짜 이동.
 - Draft autosave: `/trips/new` 일정 생성 draft와 `/trips/:id` 장소 추가/수정 draft를 24시간 localStorage에 임시 저장한다.
 - AI recommendations: 추천 결과를 실제 `trip_places`에 추가, 추천 기준 sheet.
 - Invites: 링크 생성, viewer/editor role 저장, 수락, 일정 멤버십 저장, 장소 편집 권한 enforcement.
@@ -66,8 +66,8 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 
 ## 최신 검증
 
-- `cd backend && python -m pytest`: 160 passed.
-- `cd frontend && npm test`: 45 passed.
+- `cd backend && python -m pytest`: 164 passed.
+- `cd frontend && npm test`: 51 passed.
 - `cd frontend && npm run typecheck`: passed.
 - `cd frontend && npm run build`: passed, production sourcemap 미생성, PWA manifest/icon 산출물 확인.
 - `frontend/public/manifest.webmanifest`: valid JSON, app name/theme/icon metadata 확인.

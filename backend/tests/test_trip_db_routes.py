@@ -275,8 +275,13 @@ def test_db_trip_place_crud_routes_return_updated_trip(monkeypatch) -> None:
         calls.append(("delete", place_id))
         return trip_payload(trip_id) if db is fake_db and current_user is user and place_id == 1 else None
 
+    def move_place(db, current_user, trip_id, place_id, payload):
+        calls.append(("move", payload))
+        return trip_payload(trip_id) if db is fake_db and current_user is user and place_id == 1 else None
+
     monkeypatch.setattr(trip_routes.trip_service, "add_place_to_trip_day", add_place)
     monkeypatch.setattr(trip_routes.trip_service, "update_trip_place", update_place)
+    monkeypatch.setattr(trip_routes.trip_service, "move_trip_place", move_place)
     monkeypatch.setattr(trip_routes.trip_service, "delete_trip_place", delete_place)
 
     try:
@@ -288,19 +293,27 @@ def test_db_trip_place_crud_routes_return_updated_trip(monkeypatch) -> None:
             "/api/trips/7/places/1",
             json={"time": "11:00", "label": "Updated cafe"},
         )
+        move_response = client.patch(
+            "/api/trips/7/places/1/move",
+            json={"dayNumber": 2, "position": 1},
+        )
         delete_response = client.delete("/api/trips/7/places/1")
     finally:
         clear_overrides()
 
     assert add_response.status_code == 200
     assert update_response.status_code == 200
+    assert move_response.status_code == 200
     assert delete_response.status_code == 200
     assert add_response.json()["id"] == "7"
     assert calls[0][0] == "add"
     assert calls[0][1].label == "Cafe"
     assert calls[1][0] == "update"
     assert calls[1][1].label == "Updated cafe"
-    assert calls[2] == ("delete", 1)
+    assert calls[2][0] == "move"
+    assert calls[2][1].dayNumber == 2
+    assert calls[2][1].position == 1
+    assert calls[3] == ("delete", 1)
 
 
 def test_db_trip_place_routes_map_service_errors(monkeypatch) -> None:
@@ -313,17 +326,20 @@ def test_db_trip_place_routes_map_service_errors(monkeypatch) -> None:
 
     monkeypatch.setattr(trip_routes.trip_service, "add_place_to_trip_day", reject)
     monkeypatch.setattr(trip_routes.trip_service, "update_trip_place", reject)
+    monkeypatch.setattr(trip_routes.trip_service, "move_trip_place", reject)
     monkeypatch.setattr(trip_routes.trip_service, "delete_trip_place", reject)
 
     try:
         add_response = client.post("/api/trips/7/days/99/places", json={"label": "Missing"})
         update_response = client.patch("/api/trips/7/places/999", json={"label": "Missing"})
+        move_response = client.patch("/api/trips/7/places/999/move", json={"dayNumber": 1, "position": 1})
         delete_response = client.delete("/api/trips/7/places/999")
     finally:
         clear_overrides()
 
     assert add_response.status_code == 404
     assert update_response.status_code == 404
+    assert move_response.status_code == 404
     assert delete_response.status_code == 404
     assert add_response.json() == {"detail": "Trip not found"}
 
@@ -337,14 +353,30 @@ def test_db_trip_place_routes_map_viewer_permission_error(monkeypatch) -> None:
         raise trip_service.TripServiceError(403, "Trip edit permission required")
 
     monkeypatch.setattr(trip_routes.trip_service, "add_place_to_trip_day", reject)
+    monkeypatch.setattr(trip_routes.trip_service, "move_trip_place", reject)
 
     try:
         response = client.post("/api/trips/7/days/1/places", json={"label": "Read only"})
+        move_response = client.patch("/api/trips/7/places/1/move", json={"dayNumber": 1, "position": 1})
     finally:
         clear_overrides()
 
     assert response.status_code == 403
     assert response.json() == {"detail": "Trip edit permission required"}
+    assert move_response.status_code == 403
+
+
+def test_db_trip_place_move_route_rejects_invalid_position(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    install_db_route_dependencies(monkeypatch, fake_db, user)
+
+    try:
+        response = client.patch("/api/trips/7/places/1/move", json={"dayNumber": 1, "position": 0})
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 422
 
 
 def test_db_recommendation_and_invite_routes(monkeypatch) -> None:

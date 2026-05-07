@@ -2,7 +2,7 @@ from datetime import date, datetime, time, timedelta
 
 from app.models import Policy, Recommendation, Trip, TripDay, TripInvite, TripMember, TripPlace, TripPolicy
 from app.models import User as UserModel
-from app.schemas.trip import CreateTripPlaceRequest, CreateTripRequest, UpdateTripPlaceRequest
+from app.schemas.trip import CreateTripPlaceRequest, CreateTripRequest, MoveTripPlaceRequest, UpdateTripPlaceRequest
 from app.services import trips as trip_service
 
 
@@ -279,6 +279,79 @@ def test_update_trip_place_changes_existing_place(monkeypatch) -> None:
     assert fake_db.commits == 1
 
 
+def test_move_trip_place_reorders_places_within_same_day(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    trip.days[0].places.append(
+        TripPlace(
+            id=2,
+            trip_day_id=1,
+            place_name="Cafe stop",
+            visit_time=time(14, 30),
+            order_num=2,
+            memo="Dessert",
+        )
+    )
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda *_args, **_kwargs: trip,
+    )
+
+    payload = trip_service.move_trip_place(
+        fake_db,
+        user,
+        "7",
+        2,
+        MoveTripPlaceRequest(dayNumber=1, position=1),
+    )
+
+    assert [place.order_num for place in trip.days[0].places] == [1, 2]
+    assert payload["days"][1][0]["label"] == "Cafe stop"
+    assert payload["days"][1][1]["label"] == "Sunrise peak"
+    assert fake_db.commits == 1
+
+
+def test_move_trip_place_moves_place_to_another_day(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    second_day = TripDay(id=2, trip_id=7, day_number=2, date=date(2026, 6, 16))
+    second_day.places = [
+        TripPlace(
+            id=2,
+            trip_day_id=2,
+            place_name="Lunch stop",
+            visit_time=time(12, 0),
+            order_num=1,
+            memo="Food",
+        )
+    ]
+    trip.days.append(second_day)
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda *_args, **_kwargs: trip,
+    )
+
+    payload = trip_service.move_trip_place(
+        fake_db,
+        user,
+        "7",
+        1,
+        MoveTripPlaceRequest(dayNumber=2, position=2),
+    )
+
+    moved_place = second_day.places[1]
+    assert trip.days[0].places == []
+    assert moved_place.id == 1
+    assert moved_place.trip_day_id == 2
+    assert [place.order_num for place in second_day.places] == [1, 2]
+    assert payload["days"][2][-1]["label"] == "Sunrise peak"
+    assert fake_db.commits == 1
+
+
 def test_delete_trip_place_removes_existing_place(monkeypatch) -> None:
     fake_db = FakeDb()
     user = make_user()
@@ -329,6 +402,13 @@ def test_trip_place_crud_returns_404_for_missing_day_or_place(monkeypatch) -> No
             UpdateTripPlaceRequest(label="Missing place"),
         ),
         lambda: trip_service.delete_trip_place(fake_db, user, "7", 999),
+        lambda: trip_service.move_trip_place(
+            fake_db,
+            user,
+            "7",
+            1,
+            MoveTripPlaceRequest(dayNumber=99, position=1),
+        ),
     ):
         try:
             action()
@@ -339,6 +419,34 @@ def test_trip_place_crud_returns_404_for_missing_day_or_place(monkeypatch) -> No
             raise AssertionError("expected TripServiceError")
 
     assert fake_db.commits == 0
+
+
+def test_move_trip_place_rejects_invalid_position(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda *_args, **_kwargs: trip,
+    )
+
+    try:
+        trip_service.move_trip_place(
+            fake_db,
+            user,
+            "7",
+            1,
+            MoveTripPlaceRequest(dayNumber=1, position=2),
+        )
+    except trip_service.TripServiceError as error:
+        assert error.status_code == 422
+        assert error.detail == "Invalid place position"
+    else:
+        raise AssertionError("expected TripServiceError")
+
+    assert fake_db.commits == 0
+
 
 def test_viewer_member_cannot_edit_trip_places(monkeypatch) -> None:
     fake_db = FakeDb()
@@ -367,6 +475,13 @@ def test_viewer_member_cannot_edit_trip_places(monkeypatch) -> None:
             UpdateTripPlaceRequest(label="Viewer edit"),
         ),
         lambda: trip_service.delete_trip_place(fake_db, user, "7", 1),
+        lambda: trip_service.move_trip_place(
+            fake_db,
+            user,
+            "7",
+            1,
+            MoveTripPlaceRequest(dayNumber=1, position=1),
+        ),
     ):
         try:
             action()

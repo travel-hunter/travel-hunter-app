@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -38,6 +38,24 @@ async function login() {
   expect(submit).toBeTruthy();
   await user.click(submit as HTMLButtonElement);
   await waitFor(() => expect(getLink("/policies")).toBeInTheDocument());
+}
+
+async function setPlaceTimeFromDefault(user: ReturnType<typeof userEvent.setup>, time: string) {
+  const [hour, minute] = time.split(":").map(Number);
+  const clearButton = screen.queryByRole("button", { name: "시간 비우기" }) as HTMLButtonElement | null;
+  if (clearButton && !clearButton.disabled) await user.click(clearButton);
+
+  const defaultButton = screen.queryByRole("button", { name: "09:00 설정" });
+  if (defaultButton) await user.click(defaultButton);
+
+  const hourUpButton = screen.getByRole("button", { name: "방문 시간 1시간 증가" });
+  const minuteUpButton = screen.getByRole("button", { name: "방문 시간 10분 증가" });
+  for (let index = 0; index < (hour - 9 + 24) % 24; index += 1) {
+    await user.click(hourUpButton);
+  }
+  for (let index = 0; index < Math.floor(minute / 10); index += 1) {
+    await user.click(minuteUpButton);
+  }
 }
 
 describe("Travel Hunter app", () => {
@@ -106,12 +124,14 @@ describe("Travel Hunter app", () => {
     const createdTrip: Trip = {
       ...appDataApi.getPreviewTrip(),
       id: "44",
+      title: "부산 맛집 여행",
       dates: "2026.06.15 - 06.18",
       days: { 1: [], 2: [], 3: [], 4: [] },
     };
     const createTripSpy = vi.spyOn(appDataApi, "createTrip").mockResolvedValue(createdTrip);
     const addPolicySpy = vi.spyOn(appDataApi, "addPolicyToTrip").mockResolvedValue({ tripId: "44", policyId: "local-vacation", added: true });
     const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(createdTrip);
+    const listTripsSpy = vi.spyOn(appDataApi, "listTrips").mockResolvedValue([createdTrip]);
 
     try {
       expect(document.body).toHaveTextContent("선택한 조건을 바탕으로 여행 일정을 만들어드려요.");
@@ -121,11 +141,17 @@ describe("Travel Hunter app", () => {
       await user.click(screen.getByRole("button", { name: "부산" }));
       await waitFor(() => expect(window.localStorage.getItem("travel-hunter:draft:trip-create:local-vacation")).toContain("부산"));
       await user.click(screen.getByRole("button", { name: "부산 4일 일정 만들기" }));
+      const dialog = await screen.findByRole("dialog", { name: "일정 이름을 정해주세요" });
+      const titleInput = within(dialog).getByRole("textbox", { name: "일정 이름" });
+      expect(titleInput).toHaveValue("부산 4일 여행");
+      await user.clear(titleInput);
+      await user.type(titleInput, "부산 맛집 여행");
+      await user.click(within(dialog).getByRole("button", { name: "확인" }));
 
       await waitFor(() =>
         expect(createTripSpy).toHaveBeenCalledWith(
           expect.objectContaining({
-            title: "부산 4일 여행",
+            title: "부산 맛집 여행",
             region: "부산",
             style: expect.any(String),
             policySlug: "local-vacation",
@@ -134,10 +160,41 @@ describe("Travel Hunter app", () => {
         ),
       );
       expect(window.localStorage.getItem("travel-hunter:draft:trip-create:local-vacation")).toBeNull();
+
+      cleanup();
+      renderRoute("/trips");
+      await waitFor(() => expect(screen.getByRole("heading", { name: "부산 맛집 여행", level: 4 })).toBeInTheDocument());
     } finally {
       createTripSpy.mockRestore();
       addPolicySpy.mockRestore();
       getTripSpy.mockRestore();
+      listTripsSpy.mockRestore();
+    }
+  });
+
+  it("cancels or blocks trip creation from the trip name dialog", async () => {
+    await login();
+    cleanup();
+    renderRoute("/trips/new");
+    const user = userEvent.setup();
+    const createTripSpy = vi.spyOn(appDataApi, "createTrip").mockResolvedValue(appDataApi.getPreviewTrip());
+
+    try {
+      await user.click(screen.getByRole("button", { name: /일 일정 만들기/ }));
+      const cancelDialog = await screen.findByRole("dialog", { name: "일정 이름을 정해주세요" });
+      await user.click(within(cancelDialog).getByRole("button", { name: "취소" }));
+      await waitFor(() => expect(screen.queryByRole("dialog", { name: "일정 이름을 정해주세요" })).not.toBeInTheDocument());
+      expect(createTripSpy).not.toHaveBeenCalled();
+
+      await user.click(screen.getByRole("button", { name: /일 일정 만들기/ }));
+      const emptyDialog = await screen.findByRole("dialog", { name: "일정 이름을 정해주세요" });
+      const titleInput = within(emptyDialog).getByRole("textbox", { name: "일정 이름" });
+      await user.clear(titleInput);
+      await user.click(within(emptyDialog).getByRole("button", { name: "확인" }));
+      expect(await within(emptyDialog).findByText("일정 이름을 입력해 주세요.")).toBeInTheDocument();
+      expect(createTripSpy).not.toHaveBeenCalled();
+    } finally {
+      createTripSpy.mockRestore();
     }
   });
 
@@ -194,7 +251,7 @@ describe("Travel Hunter app", () => {
     };
     const editedTrip: Trip = {
       ...addedTrip,
-      days: { 1: [{ id: "1", time: "10:15", label: "Updated peak", meta: "New memo" }, addedTrip.days[1][1]] },
+      days: { 1: [{ id: "1", time: "10:20", label: "Updated peak", meta: "New memo" }, addedTrip.days[1][1]] },
     };
     const deletedTrip: Trip = {
       ...editedTrip,
@@ -204,7 +261,7 @@ describe("Travel Hunter app", () => {
     const addPlaceSpy = vi.spyOn(appDataApi, "addTripPlace").mockResolvedValue(addedTrip);
     const updatePlaceSpy = vi.spyOn(appDataApi, "updateTripPlace").mockResolvedValue(editedTrip);
     const deletePlaceSpy = vi.spyOn(appDataApi, "deleteTripPlace").mockResolvedValue(deletedTrip);
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const confirmSpy = vi.spyOn(window, "confirm");
 
     try {
       await login();
@@ -214,7 +271,9 @@ describe("Travel Hunter app", () => {
 
       await waitFor(() => expect(document.body).toHaveTextContent("Sunrise peak"));
       await user.click(document.querySelector(".dashed") as HTMLButtonElement);
-      await user.type(document.querySelector('input[name="place-time"]') as HTMLInputElement, "14:30");
+      expect(screen.getByRole("group", { name: "방문 시간 선택" })).toBeInTheDocument();
+      expect(document.querySelector('input[name="place-time"]:not([type="hidden"])')).toBeNull();
+      await setPlaceTimeFromDefault(user, "14:30");
       await user.type(document.querySelector('input[name="place-label"]') as HTMLInputElement, "Cafe stop");
       await user.type(document.querySelector('textarea[name="place-meta"]') as HTMLTextAreaElement, "Dessert");
       await waitFor(() => expect(window.localStorage.getItem("travel-hunter:draft:trip-place:55:add:1")).toContain("Cafe stop"));
@@ -231,8 +290,7 @@ describe("Travel Hunter app", () => {
       await waitFor(() => expect(document.body).toHaveTextContent("Cafe stop"));
 
       await user.click(document.querySelector(".place-actions .ghost") as HTMLButtonElement);
-      await user.clear(document.querySelector('input[name="place-time"]') as HTMLInputElement);
-      await user.type(document.querySelector('input[name="place-time"]') as HTMLInputElement, "10:15");
+      await setPlaceTimeFromDefault(user, "10:20");
       await user.clear(document.querySelector('input[name="place-label"]') as HTMLInputElement);
       await user.type(document.querySelector('input[name="place-label"]') as HTMLInputElement, "Updated peak");
       await user.clear(document.querySelector('textarea[name="place-meta"]') as HTMLTextAreaElement);
@@ -240,13 +298,15 @@ describe("Travel Hunter app", () => {
       await waitFor(() => expect(window.localStorage.getItem("travel-hunter:draft:trip-place:55:edit:1")).toContain("Updated peak"));
       await user.click(document.querySelector(".sheet-actions button") as HTMLButtonElement);
 
-      await waitFor(() => expect(updatePlaceSpy).toHaveBeenCalledWith("55", "1", expect.objectContaining({ label: "Updated peak" })));
+      await waitFor(() => expect(updatePlaceSpy).toHaveBeenCalledWith("55", "1", expect.objectContaining({ label: "Updated peak", time: "10:20" })));
       expect(window.localStorage.getItem("travel-hunter:draft:trip-place:55:edit:1")).toBeNull();
       await waitFor(() => expect(document.body).toHaveTextContent("Updated peak"));
 
       await user.click(document.querySelector(".place-actions .line") as HTMLButtonElement);
+      const deleteDialog = await screen.findByRole("dialog", { name: "장소를 삭제할까요?" });
+      expect(confirmSpy).not.toHaveBeenCalled();
+      await user.click(within(deleteDialog).getByRole("button", { name: "삭제" }));
       await waitFor(() => expect(deletePlaceSpy).toHaveBeenCalledWith("55", "1"));
-      expect(confirmSpy).toHaveBeenCalledWith("이 장소를 일정에서 삭제할까요?");
       await waitFor(() => expect(screen.queryByText("Updated peak")).not.toBeInTheDocument());
     } finally {
       getTripSpy.mockRestore();
@@ -274,8 +334,7 @@ describe("Travel Hunter app", () => {
 
       await waitFor(() => expect(document.body).toHaveTextContent("Sunrise peak"));
       await user.click(document.querySelector(".place-actions .ghost") as HTMLButtonElement);
-      await user.clear(document.querySelector('input[name="place-time"]') as HTMLInputElement);
-      await user.type(document.querySelector('input[name="place-time"]') as HTMLInputElement, "11:20");
+      await setPlaceTimeFromDefault(user, "11:20");
       await user.clear(document.querySelector('input[name="place-label"]') as HTMLInputElement);
       await user.type(document.querySelector('input[name="place-label"]') as HTMLInputElement, "Draft peak");
       await user.clear(document.querySelector('textarea[name="place-meta"]') as HTMLTextAreaElement);
@@ -319,7 +378,10 @@ describe("Travel Hunter app", () => {
 
       await waitFor(() => expect(document.querySelector(".dashed")).toBeTruthy());
       await user.click(document.querySelector(".dashed") as HTMLButtonElement);
-      await user.type(document.querySelector('input[name="place-time"]') as HTMLInputElement, "16:00");
+      await setPlaceTimeFromDefault(user, "23:50");
+      await user.click(screen.getByRole("button", { name: "방문 시간 10분 증가" }));
+      expect(document.querySelector('input[name="place-time"]')).toHaveValue("00:00");
+      await setPlaceTimeFromDefault(user, "16:00");
       await user.type(document.querySelector('input[name="place-label"]') as HTMLInputElement, "Tea house");
       await user.type(document.querySelector('textarea[name="place-meta"]') as HTMLTextAreaElement, "Reservation");
       await waitFor(() => expect(window.localStorage.getItem("travel-hunter:draft:trip-place:55:add:1")).toContain("Tea house"));
@@ -347,6 +409,43 @@ describe("Travel Hunter app", () => {
     }
   });
 
+  it("validates place time as a 10 minute spinner value", async () => {
+    const initialTrip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "55",
+      title: "Jeju editable trip",
+      days: { 1: [] },
+    };
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(initialTrip);
+    const addPlaceSpy = vi.spyOn(appDataApi, "addTripPlace").mockResolvedValue(initialTrip);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/trips/55");
+      const user = userEvent.setup();
+      window.localStorage.setItem(
+        "travel-hunter:draft:trip-place:55:add:1",
+        JSON.stringify({
+          version: 1,
+          savedAt: Date.now(),
+          value: { dayNumber: 1, time: "09:35", label: "Invalid time stop", meta: "" },
+        }),
+      );
+
+      await waitFor(() => expect(document.querySelector(".dashed")).toBeTruthy());
+      await user.click(document.querySelector(".dashed") as HTMLButtonElement);
+      expect(document.querySelector('input[name="place-time"]')).toHaveValue("09:35");
+      await user.click(document.querySelector(".sheet-actions button") as HTMLButtonElement);
+
+      expect(addPlaceSpy).not.toHaveBeenCalled();
+      expect(screen.getByText("방문 시간은 10분 단위로 선택해 주세요.")).toBeInTheDocument();
+    } finally {
+      getTripSpy.mockRestore();
+      addPlaceSpy.mockRestore();
+    }
+  });
+
   it("renders viewer trips as read-only in the itinerary detail", async () => {
     const viewerTrip: Trip = {
       ...appDataApi.getPreviewTrip(),
@@ -366,8 +465,108 @@ describe("Travel Hunter app", () => {
       expect(document.body).toHaveTextContent("보기 권한으로 참여 중입니다");
       expect(document.querySelector(".dashed")).toHaveAttribute("hidden");
       expect(document.querySelector(".place-actions")).toHaveAttribute("hidden");
+      expect(screen.queryByRole("button", { name: "Sunrise peak 순서 이동" })).not.toBeInTheDocument();
     } finally {
       getTripSpy.mockRestore();
+    }
+  });
+
+  it("moves places with drag handles within a day and to another day", async () => {
+    const initialTrip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "55",
+      title: "Movable trip",
+      days: {
+        1: [
+          { id: "1", time: "09:00", label: "Morning market", meta: "Breakfast" },
+          { id: "2", time: "14:00", label: "Cafe stop", meta: "Dessert" },
+        ],
+        2: [{ id: "3", time: "10:00", label: "Beach walk", meta: "Sea" }],
+      },
+    };
+    const movedUpTrip: Trip = {
+      ...initialTrip,
+      days: {
+        1: [initialTrip.days[1][1], initialTrip.days[1][0]],
+        2: initialTrip.days[2],
+      },
+    };
+    const movedDayTrip: Trip = {
+      ...initialTrip,
+      days: {
+        1: [initialTrip.days[1][0]],
+        2: [initialTrip.days[2][0], initialTrip.days[1][1]],
+      },
+    };
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(initialTrip);
+    const movePlaceSpy = vi
+      .spyOn(appDataApi, "moveTripPlace")
+      .mockResolvedValueOnce(movedUpTrip)
+      .mockResolvedValueOnce(movedDayTrip);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/trips/55");
+      const user = userEvent.setup();
+
+      await waitFor(() => expect(document.body).toHaveTextContent("Cafe stop"));
+      expect(screen.queryByRole("button", { name: "위로" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "아래로" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "이동" })).not.toBeInTheDocument();
+      const secondTimelineItem = document.querySelectorAll(".timeline-item")[1] as HTMLElement;
+      const cafeDragHandle = within(secondTimelineItem).getByRole("button", { name: "Cafe stop 순서 이동" });
+      fireEvent.keyDown(cafeDragHandle, { key: "ArrowUp" });
+
+      await waitFor(() => expect(movePlaceSpy).toHaveBeenCalledWith("55", "2", { dayNumber: 1, position: 1 }));
+      await waitFor(() => expect((document.querySelector(".place-detail h4") as HTMLElement).textContent).toBe("Cafe stop"));
+
+      const firstTimelineItem = document.querySelectorAll(".timeline-item")[0] as HTMLElement;
+      const movedCafeDragHandle = within(firstTimelineItem).getByRole("button", { name: "Cafe stop 순서 이동" });
+      fireEvent.keyDown(movedCafeDragHandle, { key: "ArrowRight", shiftKey: true });
+
+      await waitFor(() => expect(movePlaceSpy).toHaveBeenLastCalledWith("55", "2", { dayNumber: 2, position: 2 }));
+      await waitFor(() => expect(screen.getByText("Day 2")).toBeInTheDocument());
+      await user.click(screen.getByText("Day 2"));
+      expect(document.body).toHaveTextContent("Cafe stop");
+    } finally {
+      getTripSpy.mockRestore();
+      movePlaceSpy.mockRestore();
+    }
+  });
+
+  it("shows a message when moving a place fails", async () => {
+    const trip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "55",
+      title: "Move failure trip",
+      days: {
+        1: [
+          { id: "1", time: "09:00", label: "Morning market", meta: "Breakfast" },
+          { id: "2", time: "14:00", label: "Cafe stop", meta: "Dessert" },
+        ],
+      },
+    };
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(trip);
+    const movePlaceSpy = vi.spyOn(appDataApi, "moveTripPlace").mockRejectedValue(new Error("move failed"));
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/trips/55");
+      const user = userEvent.setup();
+
+      await waitFor(() => expect(document.body).toHaveTextContent("Cafe stop"));
+      const secondTimelineItem = document.querySelectorAll(".timeline-item")[1] as HTMLElement;
+      const cafeDragHandle = within(secondTimelineItem).getByRole("button", { name: "Cafe stop 순서 이동" });
+      fireEvent.keyDown(cafeDragHandle, { key: "ArrowUp" });
+
+      await waitFor(() => expect(movePlaceSpy).toHaveBeenCalledWith("55", "2", { dayNumber: 1, position: 1 }));
+      await waitFor(() => expect(document.body).toHaveTextContent("장소 순서를 변경하지 못했어요. 잠시 후 다시 시도해 주세요."));
+      expect((document.querySelector(".place-detail h4") as HTMLElement).textContent).toBe("Morning market");
+    } finally {
+      getTripSpy.mockRestore();
+      movePlaceSpy.mockRestore();
     }
   });
 
@@ -460,7 +659,7 @@ describe("Travel Hunter app", () => {
     };
     const listTripsSpy = vi.spyOn(appDataApi, "listTrips").mockResolvedValue([trip]);
     const deleteTripSpy = vi.spyOn(appDataApi, "deleteTrip").mockResolvedValue({ tripId: "77", deleted: true });
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const confirmSpy = vi.spyOn(window, "confirm");
 
     try {
       await login();
@@ -470,10 +669,20 @@ describe("Travel Hunter app", () => {
       cleanup();
       renderRoute("/trips");
       const deleteButton = await screen.findByRole("button", { name: "삭제" });
-      await userEvent.setup().click(deleteButton);
+      const user = userEvent.setup();
+      await user.click(deleteButton);
+
+      const cancelDialog = await screen.findByRole("dialog", { name: "일정을 삭제할까요?" });
+      expect(document.body).toHaveTextContent("부산 4일 여행 일정과 연결된 장소, 초대, 정책 연결이 함께 삭제됩니다.");
+      expect(confirmSpy).not.toHaveBeenCalled();
+      await user.click(within(cancelDialog).getByRole("button", { name: "취소" }));
+      expect(deleteTripSpy).not.toHaveBeenCalled();
+
+      await user.click(await screen.findByRole("button", { name: "삭제" }));
+      const deleteDialog = await screen.findByRole("dialog", { name: "일정을 삭제할까요?" });
+      await user.click(within(deleteDialog).getByRole("button", { name: "삭제" }));
 
       await waitFor(() => expect(deleteTripSpy).toHaveBeenCalledWith("77"));
-      expect(confirmSpy).toHaveBeenCalledWith("이 일정을 삭제할까요?");
       await waitFor(() => expect(screen.queryByText("부산 4일 여행")).not.toBeInTheDocument());
       expect(document.body).toHaveTextContent("아직 등록된 일정이 없어요");
     } finally {
@@ -493,13 +702,17 @@ describe("Travel Hunter app", () => {
     };
     const listTripsSpy = vi.spyOn(appDataApi, "listTrips").mockResolvedValue([trip]);
     const deleteTripSpy = vi.spyOn(appDataApi, "deleteTrip").mockRejectedValue(new Error("Trip not found"));
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const confirmSpy = vi.spyOn(window, "confirm");
 
     try {
       await login();
       cleanup();
       renderRoute("/trips");
-      await userEvent.setup().click(await screen.findByRole("button", { name: "삭제" }));
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole("button", { name: "삭제" }));
+      const deleteDialog = await screen.findByRole("dialog", { name: "일정을 삭제할까요?" });
+      expect(confirmSpy).not.toHaveBeenCalled();
+      await user.click(within(deleteDialog).getByRole("button", { name: "삭제" }));
 
       await waitFor(() => expect(document.body).toHaveTextContent("일정을 삭제하지 못했어요. 잠시 후 다시 시도해 주세요."));
       expect(document.body).toHaveTextContent("강원 2일 여행");
@@ -683,6 +896,60 @@ describe("Travel Hunter app", () => {
     } finally {
       getContactSpy.mockRestore();
       updateContactSpy.mockRestore();
+    }
+  });
+
+  it("shows one trip title in the my page trip summary", async () => {
+    const trip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "101",
+      title: "부산 맛집 여행",
+    };
+
+    await login();
+    const listTripsSpy = vi.spyOn(appDataApi, "listTrips").mockResolvedValue([trip]);
+
+    try {
+      cleanup();
+      renderRoute("/mypage");
+
+      await waitFor(() => expect(document.body).toHaveTextContent("부산 맛집 여행"));
+    } finally {
+      listTripsSpy.mockRestore();
+    }
+  });
+
+  it("shows the first trip title and extra count in the my page trip summary", async () => {
+    const trips: Trip[] = [
+      { ...appDataApi.getPreviewTrip(), id: "101", title: "부산 맛집 여행" },
+      { ...appDataApi.getPreviewTrip(), id: "102", title: "강원 2일 여행" },
+      { ...appDataApi.getPreviewTrip(), id: "103", title: "제주 3일 여행" },
+    ];
+
+    await login();
+    const listTripsSpy = vi.spyOn(appDataApi, "listTrips").mockResolvedValue(trips);
+
+    try {
+      cleanup();
+      renderRoute("/mypage");
+
+      await waitFor(() => expect(document.body).toHaveTextContent("부산 맛집 여행, 그 외 2건"));
+    } finally {
+      listTripsSpy.mockRestore();
+    }
+  });
+
+  it("shows a trip summary error on my page when trips fail to load", async () => {
+    await login();
+    const listTripsSpy = vi.spyOn(appDataApi, "listTrips").mockRejectedValue(new Error("load failed"));
+
+    try {
+      cleanup();
+      renderRoute("/mypage");
+
+      await waitFor(() => expect(document.body).toHaveTextContent("일정 정보를 불러오지 못했어요"));
+    } finally {
+      listTripsSpy.mockRestore();
     }
   });
 

@@ -72,6 +72,11 @@ export type TripPlaceRequest = {
 
 export type TripPlaceUpdateRequest = Partial<TripPlaceRequest>;
 
+export type TripPlaceMoveRequest = {
+  dayNumber: number;
+  position: number;
+};
+
 export type ContactUpdateRequest = {
   phoneNumber: string | null;
 };
@@ -106,6 +111,7 @@ export type AppDataApi = {
   getTrip: (tripId?: string) => Promise<Trip>;
   addTripPlace: (tripId: string, dayNumber: number, place: TripPlaceRequest) => Promise<Trip>;
   updateTripPlace: (tripId: string, placeId: string, place: TripPlaceUpdateRequest) => Promise<Trip>;
+  moveTripPlace: (tripId: string, placeId: string, move: TripPlaceMoveRequest) => Promise<Trip>;
   deleteTripPlace: (tripId: string, placeId: string) => Promise<Trip>;
   addPolicyToTrip: (tripId: string, policySlug: string) => Promise<TripPolicyResponse>;
   listRecommendations: (tripId?: string) => Promise<Recommendation[]>;

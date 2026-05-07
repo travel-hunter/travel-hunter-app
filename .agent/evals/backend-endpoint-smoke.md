@@ -40,6 +40,7 @@
 | `GET /api/trips/001` | 404 | noncanonical numeric-like handle is not id `1` | P1 |
 | `GET /api/trips/0` | 404 | zero is not a canonical numeric handle | P1 |
 | `POST /api/trips/{tripId}/policies/local-vacation` | 200 | `added` is true | P1 |
+| `PATCH /api/trips/{tripId}/places/{placeId}/move` | 200 | owner/editor can move a place within a day or to another day and affected `order_num` values are normalized | P1 |
 | `GET /api/trips/{tripId}/recommendations` | 200 | first recommendation `title` | P1 |
 | `GET /api/trips/{tripId}/invite` | 200 | `inviteUrl`, `inviteToken`, `role` | P1 |
 | `POST /api/trips/{tripId}/invite` | 200 | `invited` is true and selected `viewer/editor` role is returned | P1 |
@@ -122,6 +123,7 @@ Trip endpoints must preserve the existing public DTO shape:
 - `InviteState.copied` is always false from the server and is tracked locally by the frontend UI.
 - `InviteState.role` is `viewer` or `editor`; missing request role defaults to `editor`.
 - `Trip.currentUserRole` is `owner`, `editor`, or `viewer`; place add/update/delete requires `owner` or `editor`.
+- Place move uses `trip_places.order_num` for same-day reordering and `trip_places.trip_day_id` for cross-day movement, then normalizes each affected day to consecutive 1-based order values.
 - Accessible `viewer` users receive `403 {"detail": "Trip edit permission required"}` for trip place mutations.
 
 Invite acceptance must persist membership:

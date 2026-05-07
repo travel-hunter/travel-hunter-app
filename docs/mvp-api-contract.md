@@ -575,6 +575,7 @@ Response `200`:
 ### `POST /api/trips/{tripId}/days/{dayNumber}/places`
 
 Bearer token required. The requester must be able to access the trip as `owner` or `editor`.
+The frontend calls this endpoint from the itinerary detail drag-and-drop place movement UI.
 
 Request:
 
@@ -625,6 +626,35 @@ Errors:
 - unknown, inaccessible, or cross-trip place: `404 {"detail": "Trip not found"}`
 - accessible `viewer` member: `403 {"detail": "Trip edit permission required"}`
 - invalid body or invalid time: `422`
+
+### `PATCH /api/trips/{tripId}/places/{placeId}/move`
+
+Bearer token required. The requester must be able to access the trip as `owner` or `editor`.
+
+Request:
+
+```json
+{
+  "dayNumber": 2,
+  "position": 1
+}
+```
+
+Response `200`: updated `Trip`.
+
+Rules:
+
+- `position` is 1-based.
+- Moving inside the same day reorders `trip_places.order_num`.
+- Moving to another day updates `trip_places.trip_day_id` and reorders both affected days.
+- After a move, each affected day has consecutive `order_num` values starting at `1`.
+
+Errors:
+
+- unauthenticated: `401 {"detail": "Not authenticated"}`
+- unknown, inaccessible, day-missing, or cross-trip place: `404 {"detail": "Trip not found"}`
+- accessible `viewer` member: `403 {"detail": "Trip edit permission required"}`
+- invalid day number or position: `422`
 
 ### `DELETE /api/trips/{tripId}/places/{placeId}`
 

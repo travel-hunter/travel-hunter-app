@@ -1,16 +1,23 @@
-import { Bot, ChevronLeft, Plus, Send, Share2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, type DragEndEvent, type DragStartEvent, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
+import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { Bot, ChevronLeft, GripVertical, Plus, Send, Share2 } from "lucide-react";
+import { useEffect, useState, type KeyboardEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { appDataApi, type InviteRole, type InviteState, type ItineraryPlace, type Recommendation, type Trip, type TripPlaceRequest } from "../api";
 import { useAsyncResource } from "../api/useAsyncResource";
 import { useSession } from "../app/session";
 import { ItineraryCard } from "../components/cards";
-import { Button, EmptyState, ErrorState, IconButton, LinkButton, LoadingState, PageHead, Tag, Toast, TopBar } from "../components/ui";
+import { Button, ConfirmDialog, EmptyState, ErrorState, IconButton, LinkButton, LoadingState, PageHead, Tag, Toast, TopBar } from "../components/ui";
 import { clearDraft, createDraftKey, readDraft, saveDraft } from "../utils/draftStorage";
 import { shareLinkWithFallback } from "../utils/share";
 
 const profileOptions = appDataApi.getProfileOptions();
 const durationOptions = [2, 3, 4, 5] as const;
+const defaultPlaceTime = "09:00";
+const placeMinuteStep = 10;
+const placeMinuteOptions = [0, 10, 20, 30, 40, 50] as const;
+const placeTimeErrorMessage = "방문 시간은 10분 단위로 선택해 주세요.";
 type DurationDays = (typeof durationOptions)[number];
 type TripCreateDraft = {
   region: string;
@@ -88,25 +95,81 @@ function tripPlaceEditDraftKey(tripId: string, placeId: string): string {
   return createDraftKey(`trip-place:${tripId}:edit:${placeId}`);
 }
 
+function placeDragId(placeId: string): string {
+  return `place:${placeId}`;
+}
+
+function dayDropId(dayNumber: number): string {
+  return `day:${dayNumber}`;
+}
+
+function parsePlaceDragId(id: unknown): string | null {
+  const value = String(id);
+  return value.startsWith("place:") ? value.slice("place:".length) : null;
+}
+
+function parseDayDropId(id: unknown): number | null {
+  const value = String(id);
+  if (!value.startsWith("day:")) return null;
+  const dayNumber = Number(value.slice("day:".length));
+  return Number.isFinite(dayNumber) ? dayNumber : null;
+}
+
+function parsePlaceTime(value: string | null | undefined): { hour: number; minute: number } | null {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec((value ?? "").trim());
+  if (!match) return null;
+  return { hour: Number(match[1]), minute: Number(match[2]) };
+}
+
+function formatPlaceTime(hour: number, minute: number): string {
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function isTenMinutePlaceTime(value: string | null | undefined): boolean {
+  if (!value || value.trim() === "") return true;
+  const parsed = parsePlaceTime(value);
+  return Boolean(parsed && placeMinuteOptions.includes(parsed.minute as (typeof placeMinuteOptions)[number]));
+}
+
+function placeTimeBase(value: string | null | undefined): { hour: number; minute: number } {
+  const parsed = parsePlaceTime(value);
+  if (parsed && parsed.minute % placeMinuteStep === 0) return parsed;
+  return parsePlaceTime(defaultPlaceTime) ?? { hour: 9, minute: 0 };
+}
+
 export function ItineraryListPage() {
   const { addedPolicy } = useSession();
   const { data: loadedTrips, error, isLoading } = useAsyncResource(() => appDataApi.listTrips(), []);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [deletingTripId, setDeletingTripId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState("");
+  const [deleteCandidateTrip, setDeleteCandidateTrip] = useState<Trip | null>(null);
 
   useEffect(() => {
     if (loadedTrips) setTrips(loadedTrips);
   }, [loadedTrips]);
 
-  const deleteTrip = async (trip: Trip) => {
+  const requestDeleteTrip = (trip: Trip) => {
     if (deletingTripId) return;
-    if (!window.confirm("이 일정을 삭제할까요?")) return;
+    setDeleteCandidateTrip(trip);
+    setDeleteError("");
+  };
+
+  const cancelDeleteTrip = () => {
+    if (deletingTripId) return;
+    setDeleteCandidateTrip(null);
+    setDeleteError("");
+  };
+
+  const confirmDeleteTrip = async () => {
+    const trip = deleteCandidateTrip;
+    if (!trip || deletingTripId) return;
     setDeletingTripId(trip.id);
     setDeleteError("");
     try {
       await appDataApi.deleteTrip(trip.id);
       setTrips((current) => current.filter((item) => item.id !== trip.id));
+      setDeleteCandidateTrip(null);
     } catch {
       setDeleteError("일정을 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.");
     } finally {
@@ -127,12 +190,11 @@ export function ItineraryListPage() {
       <div className="content stack padded">
         {isLoading && <LoadingState label="일정을 불러오는 중입니다" />}
         {error && <ErrorState message={error} />}
-        {deleteError && <ErrorState message={deleteError} />}
         {!isLoading && !error && trips.length === 0 && (
           <EmptyState title="아직 등록된 일정이 없어요" body="첫 여행을 만들고 받을 수 있는 혜택을 함께 확인해보세요." action={<LinkButton to="/trips/new">일정 만들기</LinkButton>} />
         )}
         {trips.map((trip) => (
-          <ItineraryCard key={trip.id} trip={trip} addedPolicy={addedPolicy} isDeleting={deletingTripId === trip.id} onDelete={deleteTrip} />
+          <ItineraryCard key={trip.id} trip={trip} addedPolicy={addedPolicy} isDeleting={deletingTripId === trip.id} onDelete={requestDeleteTrip} />
         ))}
         <Link className="list-card card" to="/trips/new">
           <div className="between">
@@ -145,6 +207,16 @@ export function ItineraryListPage() {
           <p className="meta">지역, 날짜, 테마를 선택하면 받을 수 있는 정책과 이동 동선을 함께 맞춰드려요.</p>
         </Link>
       </div>
+      <ConfirmDialog
+        open={Boolean(deleteCandidateTrip)}
+        title="일정을 삭제할까요?"
+        body={`${deleteCandidateTrip?.title ?? "선택한 일정"} 일정과 연결된 장소, 초대, 정책 연결이 함께 삭제됩니다.`}
+        error={deleteError}
+        confirmLabel="삭제"
+        isSubmitting={Boolean(deletingTripId)}
+        onCancel={cancelDeleteTrip}
+        onConfirm={confirmDeleteTrip}
+      />
     </section>
   );
 }
@@ -160,6 +232,9 @@ export function ItineraryCreatePage() {
   const [error, setError] = useState("");
   const [durationDays, setDurationDays] = useState<DurationDays>(isDurationOption(initialDraft?.durationDays) ? initialDraft.durationDays : 3);
   const [isDraftReady, setIsDraftReady] = useState(false);
+  const [isTripNameDialogOpen, setIsTripNameDialogOpen] = useState(false);
+  const [tripNameDraft, setTripNameDraft] = useState("");
+  const [tripNameError, setTripNameError] = useState("");
   const selectedRegion = profile.region.trim() || "선택한 지역";
   const tripTitle = `${selectedRegion} ${durationDays}일 여행`;
 
@@ -183,12 +258,33 @@ export function ItineraryCreatePage() {
     });
   }, [draftKey, durationDays, isDraftReady, policySlug, profile.region, profile.style]);
 
-  const createTrip = async () => {
+  const openTripNameDialog = () => {
+    setTripNameDraft(tripTitle);
+    setTripNameError("");
+    setIsTripNameDialogOpen(true);
+  };
+
+  const closeTripNameDialog = () => {
+    if (isCreating) return;
+    setIsTripNameDialogOpen(false);
+    setTripNameError("");
+  };
+
+  const submitTripNameDialog = () => {
+    const customTitle = tripNameDraft.trim();
+    if (!customTitle) {
+      setTripNameError("일정 이름을 입력해 주세요.");
+      return;
+    }
+    void createTrip(customTitle);
+  };
+
+  const createTrip = async (customTitle: string) => {
     setIsCreating(true);
     setError("");
     try {
       const trip = await appDataApi.createTrip({
-        title: tripTitle,
+        title: customTitle,
         region: profile.region,
         style: profile.style,
         policySlug,
@@ -201,6 +297,7 @@ export function ItineraryCreatePage() {
       clearDraft(draftKey);
       navigate(`/trips/${trip.id}`);
     } catch {
+      setIsTripNameDialogOpen(false);
       setError("일정을 만들지 못했어요. 선택한 조건을 확인하고 다시 시도해 주세요.");
     } finally {
       setIsCreating(false);
@@ -228,10 +325,19 @@ export function ItineraryCreatePage() {
           </div>
         </div>
         {error && <ErrorState message={error} />}
-        <Button full disabled={isCreating} onClick={createTrip}>
+        <Button full disabled={isCreating} onClick={openTripNameDialog}>
           {isCreating ? "일정을 만드는 중입니다" : `${selectedRegion} ${durationDays}일 일정 만들기`}
         </Button>
       </div>
+      <TripNameDialog
+        error={tripNameError}
+        isSubmitting={isCreating}
+        onCancel={closeTripNameDialog}
+        onChange={setTripNameDraft}
+        onSubmit={submitTripNameDialog}
+        open={isTripNameDialogOpen}
+        value={tripNameDraft}
+      />
     </section>
   );
 }
@@ -266,6 +372,54 @@ function DurationChoiceGroup({ selected, onSelect }: { selected: DurationDays; o
   );
 }
 
+function TripNameDialog({
+  error,
+  isSubmitting,
+  onCancel,
+  onChange,
+  onSubmit,
+  open,
+  value,
+}: {
+  error: string;
+  isSubmitting: boolean;
+  onCancel: () => void;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+  open: boolean;
+  value: string;
+}) {
+  if (!open) return null;
+
+  const cancel = () => {
+    if (!isSubmitting) onCancel();
+  };
+
+  return (
+    <div className="sheet-backdrop confirm-backdrop" role="presentation" onMouseDown={cancel}>
+      <section className="confirm-dialog trip-name-dialog" role="dialog" aria-modal="true" aria-labelledby="trip-name-dialog-title" onMouseDown={(event) => event.stopPropagation()}>
+        <div>
+          <h2 id="trip-name-dialog-title">일정 이름을 정해주세요</h2>
+          <p>일정 목록과 마이페이지에 표시될 이름입니다.</p>
+        </div>
+        <label className="field">
+          일정 이름
+          <input autoFocus disabled={isSubmitting} name="trip-title" onChange={(event) => onChange(event.target.value)} value={value} />
+        </label>
+        {error && <p className="form-error">{error}</p>}
+        <div className="confirm-actions">
+          <Button variant="line" disabled={isSubmitting} onClick={cancel}>
+            취소
+          </Button>
+          <Button disabled={isSubmitting} onClick={onSubmit}>
+            {isSubmitting ? "생성 중" : "확인"}
+          </Button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export function ItineraryDetailPage() {
   const { tripId } = useParams();
   const navigate = useNavigate();
@@ -276,13 +430,24 @@ export function ItineraryDetailPage() {
   const [placeEditor, setPlaceEditor] = useState<{ mode: "add"; dayNumber: number } | { mode: "edit"; dayNumber: number; place: ItineraryPlace } | null>(null);
   const [placeForm, setPlaceForm] = useState<TripPlaceRequest>({ time: "", label: "", meta: "" });
   const [placeError, setPlaceError] = useState("");
+  const [placeDeleteError, setPlaceDeleteError] = useState("");
   const [isSavingPlace, setIsSavingPlace] = useState(false);
+  const [movingPlaceId, setMovingPlaceId] = useState<string | null>(null);
+  const [draggingPlaceId, setDraggingPlaceId] = useState<string | null>(null);
+  const [moveError, setMoveError] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
+  const [deleteCandidatePlace, setDeleteCandidatePlace] = useState<ItineraryPlace | null>(null);
   const dayNumbers = trip ? tripDayNumbers(trip.days) : [];
   const visibleDay = dayNumbers.includes(activeDay) ? activeDay : (dayNumbers[0] ?? 1);
   const dayPlaces = trip?.days[visibleDay] ?? [];
+  const sortablePlaceIds = dayPlaces.flatMap((place) => (place.id ? [placeDragId(place.id)] : []));
   const stayLabel = formatStayLabel(dayNumbers.length || 3);
   const canEditTrip = trip?.currentUserRole === "owner" || trip?.currentUserRole === "editor";
+  const dragSensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   useEffect(() => {
     if (loadedTrip) setTrip(loadedTrip);
@@ -331,11 +496,16 @@ export function ItineraryDetailPage() {
       setPlaceError("장소명을 입력해 주세요.");
       return;
     }
+    const time = placeForm.time?.trim() ?? "";
+    if (!isTenMinutePlaceTime(time)) {
+      setPlaceError(placeTimeErrorMessage);
+      return;
+    }
     setIsSavingPlace(true);
     setPlaceError("");
     try {
       const payload = {
-        time: placeForm.time?.trim() || undefined,
+        time: time || undefined,
         label,
         meta: placeForm.meta?.trim() || undefined,
       };
@@ -356,23 +526,84 @@ export function ItineraryDetailPage() {
     }
   };
 
-  const deletePlace = async (place: ItineraryPlace) => {
+  const requestDeletePlace = (place: ItineraryPlace) => {
     if (!trip || !place.id || isSavingPlace) return;
     if (!canEditTrip) {
       setPlaceError("이 일정은 보기 권한으로 참여 중이라 편집할 수 없어요.");
       return;
     }
-    if (!window.confirm("이 장소를 일정에서 삭제할까요?")) return;
+    setDeleteCandidatePlace(place);
+    setPlaceDeleteError("");
+  };
+
+  const movePlaceTo = async (place: ItineraryPlace, dayNumber: number, position: number) => {
+    if (!trip || !place.id || movingPlaceId) return;
+    if (!canEditTrip) {
+      setPlaceError("이 일정은 보기 권한으로 참여 중이라 편집할 수 없어요.");
+      return;
+    }
+    setMovingPlaceId(place.id);
+    setMoveError("");
+    try {
+      const nextTrip = await appDataApi.moveTripPlace(trip.id, place.id, { dayNumber, position });
+      setTrip(nextTrip);
+      setActiveDay(dayNumber);
+      setNotice("장소 순서를 변경했어요.");
+      window.setTimeout(() => setNotice(null), 1800);
+    } catch {
+      setMoveError("장소 순서를 변경하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setMovingPlaceId(null);
+    }
+  };
+
+  const handlePlaceDragStart = (event: DragStartEvent) => {
+    const placeId = parsePlaceDragId(event.active.id);
+    if (placeId) setDraggingPlaceId(placeId);
+  };
+
+  const handlePlaceDragEnd = (event: DragEndEvent) => {
+    setDraggingPlaceId(null);
+    if (!trip || !canEditTrip || movingPlaceId || !event.over) return;
+    const placeId = parsePlaceDragId(event.active.id);
+    if (!placeId) return;
+    const place = dayPlaces.find((item) => item.id === placeId);
+    if (!place) return;
+
+    const overPlaceId = parsePlaceDragId(event.over.id);
+    if (overPlaceId) {
+      const targetIndex = dayPlaces.findIndex((item) => item.id === overPlaceId);
+      if (targetIndex < 0 || overPlaceId === placeId) return;
+      void movePlaceTo(place, visibleDay, targetIndex + 1);
+      return;
+    }
+
+    const targetDay = parseDayDropId(event.over.id);
+    if (!targetDay || targetDay === visibleDay || !dayNumbers.includes(targetDay)) return;
+    const targetCount = trip.days[targetDay]?.length ?? 0;
+    void movePlaceTo(place, targetDay, targetCount + 1);
+  };
+
+  const cancelDeletePlace = () => {
+    if (isSavingPlace) return;
+    setDeleteCandidatePlace(null);
+    setPlaceDeleteError("");
+  };
+
+  const confirmDeletePlace = async () => {
+    const place = deleteCandidatePlace;
+    if (!trip || !place?.id || isSavingPlace) return;
     setIsSavingPlace(true);
-    setPlaceError("");
+    setPlaceDeleteError("");
     try {
       const nextTrip = await appDataApi.deleteTripPlace(trip.id, place.id);
       clearDraft(tripPlaceEditDraftKey(trip.id, place.id));
       setTrip(nextTrip);
+      setDeleteCandidatePlace(null);
       setNotice("장소를 일정에서 삭제했어요.");
       window.setTimeout(() => setNotice(null), 1800);
     } catch {
-      setPlaceError("장소를 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.");
+      setPlaceDeleteError("장소를 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.");
     } finally {
       setIsSavingPlace(false);
     }
@@ -465,14 +696,25 @@ export function ItineraryDetailPage() {
         <div className="marker two" />
         <div className="marker three" />
       </div>
-      <div className="day-tabs">
-        {dayNumbers.map((day) => (
-          <button className={visibleDay === day ? "day-tab active" : "day-tab"} key={day} onClick={() => setActiveDay(day)} type="button">
-            <strong>Day {day}</strong>
-            <span>{formatDayDateLabel(trip.dates, day)}</span>
-          </button>
-        ))}
-      </div>
+      <DndContext
+        sensors={dragSensors}
+        collisionDetection={closestCenter}
+        onDragStart={handlePlaceDragStart}
+        onDragCancel={() => setDraggingPlaceId(null)}
+        onDragEnd={handlePlaceDragEnd}
+      >
+        <div className="day-tabs">
+          {dayNumbers.map((day) => (
+            <DroppableDayTab
+              canDrop={canEditTrip && Boolean(draggingPlaceId)}
+              dateLabel={formatDayDateLabel(trip.dates, day)}
+              day={day}
+              isActive={visibleDay === day}
+              key={day}
+              onSelect={setActiveDay}
+            />
+          ))}
+        </div>
       {!canEditTrip && (
         <div className="card">
           <div className="card-body stack tight">
@@ -481,35 +723,36 @@ export function ItineraryDetailPage() {
           </div>
         </div>
       )}
-      <div className="timeline">
-        {dayPlaces.length === 0 && <EmptyState title="아직 추가된 장소가 없어요" body="장소 추가 버튼으로 방문지를 일정에 저장해 보세요." />}
-        {dayPlaces.map((place) => (
-          <div className="timeline-item" key={place.id ?? `${place.time}-${place.label}`}>
-            <div className="time">{place.time}</div>
-            <article className="place-detail">
-              <div>
-                <h4>{place.label}</h4>
-                <div className="meta">{place.meta}</div>
-              </div>
-              <div className="place-actions" hidden={!canEditTrip}>
-                <button className="btn sm ghost" type="button" onClick={() => openEditPlace(place)} disabled={!place.id || isSavingPlace}>
-                  수정
-                </button>
-                <button className="btn sm line" type="button" onClick={() => deletePlace(place)} disabled={!place.id || isSavingPlace}>
-                  삭제
-                </button>
-              </div>
-            </article>
-          </div>
-        ))}
-        <button className="dashed" type="button" onClick={openAddPlace} hidden={!canEditTrip}>
-          + 장소 추가
-        </button>
-        <Link className="btn secondary full" to={`/ai-results?tripId=${encodeURIComponent(trip.id)}`}>
-          AI 추천 일정 보기
-        </Link>
-      </div>
+        <div className="timeline">
+          {dayPlaces.length === 0 && <EmptyState title="아직 추가된 장소가 없어요" body="장소 추가 버튼으로 방문지를 일정에 저장해 보세요." />}
+          <SortableContext items={sortablePlaceIds} strategy={verticalListSortingStrategy}>
+            {dayPlaces.map((place) => (
+              <SortablePlaceItem
+                canEditTrip={canEditTrip}
+                currentDay={visibleDay}
+                dayNumbers={dayNumbers}
+                disabled={Boolean(movingPlaceId) || isSavingPlace}
+                isMoving={movingPlaceId === place.id}
+                key={place.id ?? `${place.time}-${place.label}`}
+                onDelete={requestDeletePlace}
+                onEdit={openEditPlace}
+                onMove={movePlaceTo}
+                place={place}
+                places={dayPlaces}
+                trip={trip}
+              />
+            ))}
+          </SortableContext>
+          <button className="dashed" type="button" onClick={openAddPlace} hidden={!canEditTrip}>
+            + 장소 추가
+          </button>
+          <Link className="btn secondary full" to={`/ai-results?tripId=${encodeURIComponent(trip.id)}`}>
+            AI 추천 일정 보기
+          </Link>
+        </div>
+      </DndContext>
       {placeError && !placeEditor && <Toast>{placeError}</Toast>}
+      {moveError && <Toast>{moveError}</Toast>}
       {notice && <Toast>{notice}</Toast>}
       {placeEditor && (
         <PlaceEditorSheet
@@ -522,7 +765,211 @@ export function ItineraryDetailPage() {
           onSubmit={submitPlaceEditor}
         />
       )}
+      <ConfirmDialog
+        open={Boolean(deleteCandidatePlace)}
+        title="장소를 삭제할까요?"
+        body={`${deleteCandidatePlace?.label ?? "선택한 장소"} 장소가 이 일정에서 삭제됩니다.`}
+        error={placeDeleteError}
+        confirmLabel="삭제"
+        isSubmitting={isSavingPlace}
+        onCancel={cancelDeletePlace}
+        onConfirm={confirmDeletePlace}
+      />
     </section>
+  );
+}
+
+function DroppableDayTab({
+  canDrop,
+  dateLabel,
+  day,
+  isActive,
+  onSelect,
+}: {
+  canDrop: boolean;
+  dateLabel: string;
+  day: number;
+  isActive: boolean;
+  onSelect: (day: number) => void;
+}) {
+  const { isOver, setNodeRef } = useDroppable({ id: dayDropId(day), disabled: !canDrop });
+  const className = ["day-tab", isActive ? "active" : "", canDrop ? "drop-target" : "", isOver ? "over" : ""].filter(Boolean).join(" ");
+
+  return (
+    <button className={className} key={day} onClick={() => onSelect(day)} ref={setNodeRef} type="button">
+      <strong>Day {day}</strong>
+      <span>{dateLabel}</span>
+    </button>
+  );
+}
+
+function SortablePlaceItem({
+  canEditTrip,
+  currentDay,
+  dayNumbers,
+  disabled,
+  isMoving,
+  onDelete,
+  onEdit,
+  onMove,
+  place,
+  places,
+  trip,
+}: {
+  canEditTrip: boolean;
+  currentDay: number;
+  dayNumbers: number[];
+  disabled: boolean;
+  isMoving: boolean;
+  onDelete: (place: ItineraryPlace) => void;
+  onEdit: (place: ItineraryPlace) => void;
+  onMove: (place: ItineraryPlace, dayNumber: number, position: number) => Promise<void>;
+  place: ItineraryPlace;
+  places: ItineraryPlace[];
+  trip: Trip;
+}) {
+  const sortableId = place.id ? placeDragId(place.id) : `missing:${place.time}-${place.label}`;
+  const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
+    id: sortableId,
+    disabled: !canEditTrip || !place.id || disabled,
+  });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+  const className = ["timeline-item", isDragging ? "dragging" : ""].filter(Boolean).join(" ");
+  const sortableListeners = listeners ?? {};
+  const moveWithKeyboard = (event: KeyboardEvent<HTMLButtonElement>): boolean => {
+    if (!place.id || disabled) return false;
+    const currentIndex = places.findIndex((item) => item.id === place.id);
+    if (currentIndex < 0) return false;
+    if (event.key === "ArrowUp" && currentIndex > 0) {
+      event.preventDefault();
+      void onMove(place, currentDay, currentIndex);
+      return true;
+    }
+    if (event.key === "ArrowDown" && currentIndex < places.length - 1) {
+      event.preventDefault();
+      void onMove(place, currentDay, currentIndex + 2);
+      return true;
+    }
+    if (event.shiftKey && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+      const currentDayIndex = dayNumbers.indexOf(currentDay);
+      const nextDayIndex = event.key === "ArrowRight" ? currentDayIndex + 1 : currentDayIndex - 1;
+      const targetDay = dayNumbers[nextDayIndex];
+      if (!targetDay) return false;
+      event.preventDefault();
+      const targetCount = trip.days[targetDay]?.length ?? 0;
+      void onMove(place, targetDay, targetCount + 1);
+      return true;
+    }
+    return false;
+  };
+
+  return (
+    <div className={className} data-place-id={place.id} ref={setNodeRef} style={style}>
+      <div className="time">{place.time}</div>
+      <article className="place-detail">
+        {canEditTrip && place.id && (
+          <button
+            className="drag-handle"
+            type="button"
+            aria-label={`${place.label} 순서 이동`}
+            disabled={disabled}
+            {...attributes}
+            {...sortableListeners}
+            onKeyDown={(event) => {
+              if (!moveWithKeyboard(event)) sortableListeners.onKeyDown?.(event);
+            }}
+          >
+            <GripVertical size={16} />
+          </button>
+        )}
+        <div className="place-copy">
+          <h4>{place.label}</h4>
+          <div className="meta">{place.meta}</div>
+        </div>
+        <div className="place-actions" hidden={!canEditTrip}>
+          <button className="btn sm ghost" type="button" onClick={() => onEdit(place)} disabled={!place.id || disabled}>
+            수정
+          </button>
+          <button className="btn sm line" type="button" onClick={() => onDelete(place)} disabled={!place.id || disabled || isMoving}>
+            삭제
+          </button>
+        </div>
+      </article>
+    </div>
+  );
+}
+
+function PlaceTimePicker({
+  disabled,
+  onChange,
+  value,
+}: {
+  disabled: boolean;
+  onChange: (time: string) => void;
+  value: string;
+}) {
+  const parsed = parsePlaceTime(value);
+  const isTimeSet = Boolean(value && parsed);
+  const base = placeTimeBase(value);
+  const displayValue = isTimeSet && parsed ? formatPlaceTime(parsed.hour, parsed.minute) : "시간 없음";
+
+  const setTime = (hour: number, minute: number) => {
+    onChange(formatPlaceTime((hour + 24) % 24, minute));
+  };
+  const shiftHour = (amount: number) => {
+    setTime(base.hour + amount, base.minute);
+  };
+  const shiftMinute = (amount: number) => {
+    const totalMinutes = base.hour * 60 + base.minute + amount;
+    const normalized = (totalMinutes + 24 * 60) % (24 * 60);
+    setTime(Math.floor(normalized / 60), normalized % 60);
+  };
+
+  return (
+    <div className="field place-time-picker">
+      <span>방문 시간</span>
+      <div className="time-picker-control" role="group" aria-label="방문 시간 선택">
+        <div className="time-picker-display" aria-live="polite">
+          <strong>{displayValue}</strong>
+          <span>{isTimeSet ? "10분 단위로 조절할 수 있어요" : `기본 ${defaultPlaceTime}부터 설정할 수 있어요`}</span>
+        </div>
+        <div className="time-picker-spinners">
+          <div className="time-stepper" aria-label="방문 시 조절">
+            <span>시</span>
+            <button type="button" className="time-stepper-button" onClick={() => shiftHour(-1)} disabled={disabled} aria-label="방문 시간 1시간 감소">
+              -
+            </button>
+            <strong>{String(base.hour).padStart(2, "0")}</strong>
+            <button type="button" className="time-stepper-button" onClick={() => shiftHour(1)} disabled={disabled} aria-label="방문 시간 1시간 증가">
+              +
+            </button>
+          </div>
+          <div className="time-stepper" aria-label="방문 분 조절">
+            <span>분</span>
+            <button type="button" className="time-stepper-button" onClick={() => shiftMinute(-placeMinuteStep)} disabled={disabled} aria-label="방문 시간 10분 감소">
+              -10
+            </button>
+            <strong>{String(base.minute).padStart(2, "0")}</strong>
+            <button type="button" className="time-stepper-button" onClick={() => shiftMinute(placeMinuteStep)} disabled={disabled} aria-label="방문 시간 10분 증가">
+              +10
+            </button>
+          </div>
+        </div>
+        <div className="time-picker-actions">
+          {!isTimeSet && (
+            <button type="button" className="btn sm ghost" onClick={() => onChange(defaultPlaceTime)} disabled={disabled}>
+              {defaultPlaceTime} 설정
+            </button>
+          )}
+          <button type="button" className="btn sm line" onClick={() => onChange("")} disabled={disabled || !isTimeSet}>
+            시간 비우기
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -556,15 +1003,8 @@ function PlaceEditorSheet({
           </button>
         </div>
         <div className="form place-editor-form">
-          <label className="field">
-            방문 시간
-            <input
-              name="place-time"
-              placeholder="09:30"
-              value={form.time ?? ""}
-              onChange={(event) => onChange({ ...form, time: event.target.value })}
-            />
-          </label>
+          <PlaceTimePicker disabled={isSaving} value={form.time ?? ""} onChange={(time) => onChange({ ...form, time })} />
+          <input type="hidden" name="place-time" value={form.time ?? ""} readOnly />
           <label className="field">
             장소명
             <input

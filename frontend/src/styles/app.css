@@ -204,6 +204,12 @@
   border: 1px solid var(--gray-200);
 }
 
+.btn.danger {
+  color: #fff;
+  background: #dc2626;
+  box-shadow: 0 8px 18px rgba(220, 38, 38, 0.22);
+}
+
 .btn.sm {
   min-height: 32px;
   padding: 0 14px;
@@ -1142,6 +1148,21 @@
   border-color: var(--primary-500);
 }
 
+.day-tab.drop-target {
+  border-style: dashed;
+}
+
+.day-tab.drop-target.over {
+  color: var(--primary-700);
+  background: rgba(0, 102, 255, 0.08);
+  border-color: var(--primary-500);
+}
+
+.day-tab.active.drop-target.over {
+  color: #fff;
+  background: var(--primary-600);
+}
+
 .timeline {
   display: grid;
   gap: 12px;
@@ -1162,7 +1183,6 @@
 
 .place-detail {
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
   gap: 10px;
   padding: 14px;
@@ -1175,24 +1195,152 @@
   margin: 0 0 4px;
 }
 
-.drag {
-  color: var(--gray-300);
+.timeline-item.dragging {
+  position: relative;
+  z-index: 5;
+}
+
+.timeline-item.dragging .place-detail {
+  border-color: var(--primary-500);
+  box-shadow: var(--shadow-md);
+}
+
+.place-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.drag-handle {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--gray-50);
+  color: var(--gray-500);
+  cursor: grab;
+  touch-action: none;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.drag-handle:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.drag-handle:focus-visible {
+  outline: 3px solid rgba(0, 102, 255, 0.2);
+  outline-offset: 2px;
 }
 
 .place-actions {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 6px;
+  max-width: 230px;
 }
 
 .readonly-trip .place-actions,
-.readonly-trip .dashed {
+.readonly-trip .dashed,
+.readonly-trip .drag-handle {
   display: none;
 }
 
 .place-editor-form {
   padding: 0;
+}
+
+.place-time-picker {
+  gap: 9px;
+}
+
+.time-picker-control {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  padding: 13px;
+  background: #fff;
+}
+
+.time-picker-display {
+  display: grid;
+  gap: 3px;
+  text-align: center;
+}
+
+.time-picker-display strong {
+  color: var(--ink);
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.time-picker-display span {
+  color: var(--gray-500);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.time-picker-spinners {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.time-stepper {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 7px;
+  justify-items: stretch;
+}
+
+.time-stepper span {
+  color: var(--gray-500);
+  font-size: 12px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.time-stepper strong {
+  min-height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: var(--gray-50);
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.time-stepper-button {
+  min-height: 44px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  background: var(--gray-50);
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.time-stepper-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.time-picker-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .dashed {
@@ -1445,6 +1593,45 @@
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   background: var(--white);
   box-shadow: 0 -18px 48px rgba(23, 23, 40, 0.18);
+}
+
+.confirm-backdrop {
+  align-items: center;
+  padding: 20px;
+}
+
+.confirm-dialog {
+  width: min(100%, 420px);
+  display: grid;
+  gap: 18px;
+  justify-self: center;
+  padding: 22px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-xl);
+  background: var(--white);
+  box-shadow: 0 22px 70px rgba(15, 23, 42, 0.24);
+}
+
+.confirm-dialog h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.confirm-dialog p {
+  margin: 0;
+  color: var(--gray-600);
+  line-height: 1.5;
+}
+
+.confirm-dialog .form-error {
+  color: #b42318;
+}
+
+.confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
 
 .sheet-head {

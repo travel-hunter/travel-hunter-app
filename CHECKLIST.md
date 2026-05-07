@@ -17,6 +17,7 @@
 - [x] Runtime mock mode removed.
 - [x] MVP user flows implemented against FastAPI/PostgreSQL.
 - [x] Itinerary detail place add/edit/delete is connected to `trip_places`.
+- [x] Itinerary detail place drag-and-drop reordering and cross-day movement is connected to `trip_places.order_num` and `trip_day_id`.
 - [x] Mypage profile editing is connected to `PATCH /api/me/profile`.
 - [x] AI recommendation items can be added to a trip timeline through the place add API.
 - [x] Invite role settings persist `viewer/editor` and place editing permissions are enforced.
@@ -44,7 +45,7 @@
 ## 마지막 검증 결과
 
 - Date: 2026-05-07.
-- Backend pytest: 160 passed.
+- Backend pytest: 164 passed.
 - Alembic offline SQL: passed.
 - Local compose config: passed.
 - VPS compose config: passed.
@@ -52,7 +53,7 @@
 - `git diff --check`: passed.
 - Frontend typecheck/build: passed.
 - Frontend build output includes PWA manifest/icons and no sourcemap files.
-- Frontend DB-backed Vitest: 36 passed.
+- Frontend DB-backed Vitest: 51 passed.
 - Previous DB-backed Playwright e2e: 5 passed.
 - Local compose config/build: passed.
 - VPS compose config: passed.

@@ -426,6 +426,22 @@
       }
     },
     {
+      "method": "PATCH",
+      "path": "/api/trips/1/places/2/move",
+      "status": 200,
+      "request": {
+        "dayNumber": 2,
+        "position": 1
+      },
+      "requiredFields": {
+        "id": "string",
+        "title": "string",
+        "days": "object",
+        "currentUserRole": "string enum(owner|editor|viewer)"
+      },
+      "dbModeBehavior": "Requires owner/editor access, updates trip_places.trip_day_id when day changes, normalizes affected trip_places.order_num values to consecutive 1-based positions, and returns the updated Trip."
+    },
+    {
       "method": "GET",
       "path": "/api/trips/1/recommendations",
       "status": 200,

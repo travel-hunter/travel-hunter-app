@@ -201,6 +201,14 @@ def delete_trip_place(db: Session, place: TripPlace) -> None:
     db.delete(place)
 
 
+def reorder_trip_day_places(trip_day: TripDay, places: list[TripPlace]) -> None:
+    trip_day.places = list(places)
+    for order_num, place in enumerate(places, start=1):
+        place.trip_day = trip_day
+        place.trip_day_id = trip_day.id
+        place.order_num = order_num
+
+
 def get_latest_active_invite(db: Session, *, trip_id: int, now) -> TripInvite | None:
     statement = (
         select(TripInvite)
