@@ -1,6 +1,6 @@
 """add notification delivery foundation
 
-Revision ID: 0007_notification_delivery_foundation
+Revision ID: 0007_notification_delivery
 Revises: 0006_user_notification_settings
 Create Date: 2026-05-07
 """
@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "0007_notification_delivery_foundation"
+revision = "0007_notification_delivery"
 down_revision = "0006_user_notification_settings"
 branch_labels = None
 depends_on = None

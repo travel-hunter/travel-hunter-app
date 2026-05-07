@@ -13,6 +13,7 @@ from app.services import auth as auth_service
 class FakeDb:
     def __init__(self) -> None:
         self.committed = False
+        self.rolled_back = False
         self.added: list[object] = []
 
     def add(self, value: object) -> None:
@@ -20,6 +21,9 @@ class FakeDb:
 
     def commit(self) -> None:
         self.committed = True
+
+    def rollback(self) -> None:
+        self.rolled_back = True
 
 
 def make_user(
@@ -206,3 +210,93 @@ def test_logout_revokes_active_refresh_token(monkeypatch) -> None:
 
     assert token.revoked_at is not None
     assert db.committed is True
+
+
+def test_password_reset_request_does_not_expose_unknown_email(monkeypatch) -> None:
+    monkeypatch.setattr(
+        auth_service.user_repository,
+        "get_user_by_email",
+        lambda _db, _email: None,
+    )
+
+    result = auth_service.request_password_reset(
+        FakeDb(),
+        auth_service.PasswordResetRequest(email="unknown@example.com"),
+    )
+
+    assert result == {"requested": True}
+
+
+def test_password_reset_request_stores_hash_and_sends_email(monkeypatch) -> None:
+    db = FakeDb()
+    user = make_user()
+    captured: dict[str, object] = {}
+
+    monkeypatch.setattr(
+        auth_service.user_repository,
+        "get_user_by_email",
+        lambda _db, email: user if email == user.email else None,
+    )
+    monkeypatch.setattr(auth_service.security, "create_urlsafe_token", lambda: "raw-reset-token")
+    monkeypatch.setattr(
+        auth_service.password_reset_repository,
+        "create_password_reset_token",
+        lambda _db, **kwargs: captured.update(kwargs),
+    )
+    monkeypatch.setattr(
+        auth_service,
+        "send_password_reset_email",
+        lambda **kwargs: captured.update({"email": kwargs}),
+    )
+
+    result = auth_service.request_password_reset(
+        db,
+        auth_service.PasswordResetRequest(email="TEST.USER@EXAMPLE.COM"),
+    )
+
+    assert result == {"requested": True}
+    assert db.committed is True
+    assert captured["user_id"] == 1
+    assert captured["token_hash"] != "raw-reset-token"
+    assert captured["email"]["to_email"] == user.email
+    assert "raw-reset-token" in captured["email"]["reset_url"]
+
+
+def test_password_reset_confirm_changes_password_and_revokes_sessions(monkeypatch) -> None:
+    db = FakeDb()
+    user = make_user()
+    token = SimpleNamespace(user=user, user_id=user.id, used_at=None)
+    captured: dict[str, object] = {}
+
+    monkeypatch.setattr(
+        auth_service.password_reset_repository,
+        "get_active_password_reset_token",
+        lambda _db, **kwargs: token,
+    )
+    monkeypatch.setattr(
+        auth_service.user_repository,
+        "update_user_password",
+        lambda _db, _user, **kwargs: captured.update(kwargs),
+    )
+    monkeypatch.setattr(
+        auth_service.password_reset_repository,
+        "mark_password_reset_token_used",
+        lambda _db, _token, **kwargs: captured.update({"used_at": kwargs["used_at"]}),
+    )
+    monkeypatch.setattr(
+        auth_service.token_repository,
+        "revoke_user_refresh_tokens",
+        lambda _db, **kwargs: captured.update({"revoked": kwargs}),
+    )
+
+    result = auth_service.confirm_password_reset(
+        db,
+        auth_service.PasswordResetConfirm(token="raw-reset-token", newPassword="new-password123"),
+    )
+
+    assert result == {"reset": True}
+    assert db.committed is True
+    assert captured["password_hash"] != "new-password123"
+    assert security.verify_password("new-password123", str(captured["password_hash"]))
+    assert captured["used_at"] is not None
+    assert captured["revoked"]["user_id"] == 1

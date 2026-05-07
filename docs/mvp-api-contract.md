@@ -91,6 +91,105 @@ Response `200`:
 { "loggedOut": true }
 ```
 
+### `POST /api/auth/password-reset/request`
+
+Request:
+
+```json
+{
+  "email": "test.user@example.com"
+}
+```
+
+Response `200`:
+
+```json
+{ "requested": true }
+```
+
+Behavior:
+
+- Unknown email also returns `200 {"requested": true}` so account existence is not exposed.
+- Existing user creates a `password_reset_tokens` row with SHA-256 token hash, expiry, and `used_at=null`.
+- Raw reset token is never stored.
+- Reset link is sent by SMTP to `${TRAVEL_HUNTER_PUBLIC_BASE_URL}/reset-password?token=...`.
+- SMTP delivery misconfiguration or failure returns `503 {"detail": "Email delivery is not configured"}` or the delivery error message.
+
+### `POST /api/auth/password-reset/confirm`
+
+Request:
+
+```json
+{
+  "token": "raw-reset-token-from-email",
+  "newPassword": "new-password-123"
+}
+```
+
+Response `200`:
+
+```json
+{ "reset": true }
+```
+
+Behavior:
+
+- Token is matched by SHA-256 hash.
+- Expired, used, or unknown token returns `400 {"detail": "Invalid or expired reset token"}`.
+- Success updates `users.password_hash`, marks the reset token used, and revokes existing refresh tokens for the user.
+
+### `GET /api/auth/oauth/{provider}/start`
+
+Supported providers: `kakao`, `google`.
+
+Query:
+
+- `redirect`: optional internal frontend path, for example `/home` or `/invites/{token}/accept`.
+
+Response:
+
+- `302` redirect to provider authorization URL.
+- Sets `OAUTH_STATE_COOKIE_NAME` HttpOnly cookie scoped to `/api/auth/oauth`.
+
+Behavior:
+
+- External redirects are not allowed. Missing, external, or `//...` redirect values fall back to `/home`.
+- Kakao uses Kakao Login REST authorization code flow.
+- Google uses OpenID Connect authorization code flow with `openid email profile`.
+
+Errors:
+
+- unsupported provider: `404 {"detail": "OAuth provider not supported"}`
+- missing provider env: `503 {"detail": "OAuth provider is not configured"}`
+
+### `GET /api/auth/oauth/{provider}/callback`
+
+Provider callback endpoint.
+
+Query:
+
+- `code`
+- `state`
+
+Response:
+
+- `302` redirect to `${TRAVEL_HUNTER_PUBLIC_BASE_URL}/oauth/callback?redirect=...`.
+- Sets the normal refresh HttpOnly cookie.
+- Clears the OAuth state cookie.
+
+Behavior:
+
+- State query must match the state cookie.
+- Existing `social_accounts(provider, provider_id)` logs in that user.
+- If no social account exists but provider email matches an existing user, the social account is linked.
+- Otherwise a new user is created with an OAuth-only account.
+- Frontend `/oauth/callback` calls `/api/auth/refresh` to obtain the access token.
+
+Errors:
+
+- state mismatch or missing code/state: `400`
+- provider token/userinfo error: `502`
+
 ## User/Profile
 
 ### `GET /api/me`

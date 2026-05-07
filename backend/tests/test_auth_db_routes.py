@@ -7,6 +7,7 @@ from app.api.routes import profile as profile_routes
 from app.main import app
 from app.models import User as UserModel
 from app.services import auth as auth_service
+from app.services import oauth as oauth_service
 
 
 client = TestClient(app)
@@ -122,3 +123,99 @@ def test_db_logout_clears_refresh_cookie(monkeypatch) -> None:
     assert response.json() == {"loggedOut": True}
     assert captured == {"db": fake_db, "token": "refresh-token"}
     assert "travel_hunter_refresh=" in response.headers["set-cookie"]
+
+
+def test_password_reset_request_route_hides_account_existence(monkeypatch) -> None:
+    fake_db = object()
+
+    monkeypatch.setattr(
+        auth_routes.auth_service,
+        "request_password_reset",
+        lambda db, request: {"requested": True},
+    )
+    app.dependency_overrides[auth_routes.get_optional_db] = lambda: fake_db
+
+    try:
+        response = client.post(
+            "/api/auth/password-reset/request",
+            json={"email": "unknown@example.com"},
+        )
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    assert response.json() == {"requested": True}
+
+
+def test_password_reset_confirm_route(monkeypatch) -> None:
+    fake_db = object()
+
+    monkeypatch.setattr(
+        auth_routes.auth_service,
+        "confirm_password_reset",
+        lambda db, request: {"reset": True},
+    )
+    app.dependency_overrides[auth_routes.get_optional_db] = lambda: fake_db
+
+    try:
+        response = client.post(
+            "/api/auth/password-reset/confirm",
+            json={"token": "reset-token", "newPassword": "new-password123"},
+        )
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    assert response.json() == {"reset": True}
+
+
+def test_oauth_start_sets_state_cookie(monkeypatch) -> None:
+    monkeypatch.setattr(
+        auth_routes.oauth_service,
+        "build_authorization_redirect",
+        lambda provider, redirect: oauth_service.OAuthStartResult(
+            authorization_url="https://provider.example/authorize",
+            state="state-token:/home",
+            redirect="/home",
+        ),
+    )
+
+    response = client.get("/api/auth/oauth/google/start?redirect=/home", follow_redirects=False)
+
+    assert response.status_code == 302
+    assert response.headers["location"] == "https://provider.example/authorize"
+    assert "travel_hunter_oauth_state=" in response.headers["set-cookie"]
+    assert "state-token:/home" in response.headers["set-cookie"]
+
+
+def test_oauth_callback_sets_refresh_cookie_and_redirects(monkeypatch) -> None:
+    fake_db = object()
+    result = oauth_service.OAuthCallbackResult(
+        auth=auth_service.AuthResult(
+            access_token="access-token",
+            refresh_token="refresh-token",
+            user=auth_service.user_to_api(make_user()),
+        ),
+        frontend_redirect_url="http://127.0.0.1:5173/oauth/callback?redirect=%2Fhome",
+    )
+
+    monkeypatch.setattr(
+        auth_routes.oauth_service,
+        "complete_oauth_callback",
+        lambda *args, **kwargs: result,
+    )
+    app.dependency_overrides[auth_routes.get_optional_db] = lambda: fake_db
+
+    try:
+        client.cookies.set("travel_hunter_oauth_state", "state-token:/home")
+        response = client.get(
+            "/api/auth/oauth/google/callback?code=abc&state=state-token:/home",
+            follow_redirects=False,
+        )
+    finally:
+        client.cookies.clear()
+        clear_overrides()
+
+    assert response.status_code == 302
+    assert response.headers["location"] == "http://127.0.0.1:5173/oauth/callback?redirect=%2Fhome"
+    assert "travel_hunter_refresh=refresh-token" in response.headers["set-cookie"]

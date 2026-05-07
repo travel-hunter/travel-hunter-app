@@ -28,20 +28,23 @@
 - [x] SOLAPI Kakao AlimTalk provider adapter dispatches pending notification deliveries.
 - [x] Notification retry policy resends retryable `failed` deliveries on later scheduler cycles.
 - [x] SOLAPI webhook delivery status tracking reflects final provider reports in `notification_deliveries`.
+- [x] Password reset request/confirm flow is connected to SMTP-backed reset links.
+- [x] Kakao/Google OAuth authorization code flow is connected to login buttons.
+- [x] Button audit fixes are applied for policy share, static policy documents, invite wording, and AI criteria sheet.
 - [x] Public VPS artifacts exist.
 - [x] Cloudflare Tunnel artifacts exist.
 
 ## 마지막 검증 결과
 
 - Date: 2026-05-07.
-- Backend pytest: 153 passed.
+- Backend pytest: 160 passed.
 - Alembic offline SQL: passed.
 - Local compose config: passed.
 - VPS compose config: passed.
 - Tunnel compose config: passed.
 - `git diff --check`: passed.
-- Previous frontend typecheck/build: passed.
-- Previous Frontend DB-backed Vitest: 28 passed.
+- Frontend typecheck/build: passed.
+- Frontend DB-backed Vitest: 36 passed.
 - Previous DB-backed Playwright e2e: 5 passed.
 - Local compose config/build: passed.
 - VPS compose config: passed.
@@ -56,5 +59,6 @@
 - [x] Implement Kakao AlimTalk provider adapter.
 - [x] Implement notification retry policy.
 - [x] Implement SOLAPI webhook delivery status tracking.
-- [ ] Plan social login OAuth.
+- [x] Implement password reset and social login OAuth entry points.
+- [ ] Verify OAuth provider credentials and SMTP delivery in staging.
 - [ ] Resume Cloudflare Tunnel staging deployment when the feature pass pauses.

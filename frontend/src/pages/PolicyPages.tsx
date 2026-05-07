@@ -196,6 +196,17 @@ export function PolicyDetailPage() {
     }
   };
 
+  const copyPolicyLink = async () => {
+    if (!policy) return;
+    const policyUrl = `${window.location.origin}/policies/${policy.slug}`;
+    try {
+      if (window.navigator.clipboard) await window.navigator.clipboard.writeText(policyUrl);
+      setNotice("정책 링크를 복사했어요.");
+    } catch {
+      setNotice("정책 링크를 복사하지 못했어요. 주소창의 URL을 직접 복사해 주세요.");
+    }
+  };
+
   if (isLoading) {
     return (
       <section className="screen detail">
@@ -229,7 +240,7 @@ export function PolicyDetailPage() {
             <button className="icon-btn" disabled={isSavingPolicy} onClick={saveStandalonePolicy} type="button" aria-label="저장">
               <Heart size={18} fill={likedPolicy ? "currentColor" : "none"} />
             </button>
-            <IconButton label="공유" to="/friend-invite">
+            <IconButton label="공유" onClick={copyPolicyLink}>
               <Share2 size={18} />
             </IconButton>
           </div>
@@ -274,10 +285,10 @@ export function PolicyDetailPage() {
           <h3>필요 서류</h3>
           <div className="check-list">
             {policy.documents.map((document) => (
-              <button className="check-item" key={document} type="button">
+              <div className="check-item" key={document}>
                 <span className="checkbox" />
                 <span>{document}</span>
-              </button>
+              </div>
             ))}
           </div>
         </section>

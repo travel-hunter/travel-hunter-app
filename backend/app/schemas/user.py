@@ -80,3 +80,20 @@ class AuthResponse(BaseModel):
 
 class LogoutResponse(BaseModel):
     loggedOut: bool
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str = Field(min_length=1)
+    newPassword: str = Field(min_length=8)
+
+
+class PasswordResetResponse(BaseModel):
+    requested: bool
+
+
+class PasswordResetConfirmResponse(BaseModel):
+    reset: bool

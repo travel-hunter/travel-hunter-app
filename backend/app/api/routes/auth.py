@@ -1,11 +1,22 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.core import security
 from app.core.config import settings
 from app.db.session import get_optional_db
-from app.schemas.user import AuthResponse, LoginRequest, LogoutResponse, SignupRequest
+from app.schemas.user import (
+    AuthResponse,
+    LoginRequest,
+    LogoutResponse,
+    PasswordResetConfirm,
+    PasswordResetConfirmResponse,
+    PasswordResetRequest,
+    PasswordResetResponse,
+    SignupRequest,
+)
 from app.services import auth as auth_service
+from app.services import oauth as oauth_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -76,3 +87,85 @@ def logout(
     auth_service.logout(_require_db(db), request.cookies.get(settings.refresh_cookie_name))
     security.clear_refresh_cookie(response)
     return LogoutResponse(loggedOut=True)
+
+
+@router.post("/password-reset/request", response_model=PasswordResetResponse)
+def request_password_reset(
+    request: PasswordResetRequest,
+    db: Session | None = Depends(get_optional_db),
+) -> PasswordResetResponse:
+    try:
+        result = auth_service.request_password_reset(_require_db(db), request)
+    except auth_service.AuthServiceError as error:
+        _raise_auth_error(error)
+    return PasswordResetResponse(**result)
+
+
+@router.post("/password-reset/confirm", response_model=PasswordResetConfirmResponse)
+def confirm_password_reset(
+    request: PasswordResetConfirm,
+    db: Session | None = Depends(get_optional_db),
+) -> PasswordResetConfirmResponse:
+    try:
+        result = auth_service.confirm_password_reset(_require_db(db), request)
+    except auth_service.AuthServiceError as error:
+        _raise_auth_error(error)
+    return PasswordResetConfirmResponse(**result)
+
+
+def _raise_oauth_error(error: oauth_service.OAuthServiceError) -> None:
+    raise HTTPException(status_code=error.status_code, detail=error.detail)
+
+
+@router.get("/oauth/{provider}/start")
+def start_oauth(
+    provider: str,
+    redirect: str | None = Query(default=None),
+) -> RedirectResponse:
+    try:
+        result = oauth_service.build_authorization_redirect(provider, redirect)
+    except oauth_service.OAuthServiceError as error:
+        _raise_oauth_error(error)
+
+    response = RedirectResponse(result.authorization_url, status_code=302)
+    response.set_cookie(
+        key=settings.oauth_state_cookie_name,
+        value=result.state,
+        max_age=600,
+        httponly=True,
+        secure=settings.refresh_cookie_secure,
+        samesite="lax",
+        path="/api/auth/oauth",
+    )
+    return response
+
+
+@router.get("/oauth/{provider}/callback")
+def complete_oauth(
+    provider: str,
+    request: Request,
+    code: str | None = Query(default=None),
+    state: str | None = Query(default=None),
+    db: Session | None = Depends(get_optional_db),
+) -> RedirectResponse:
+    try:
+        result = oauth_service.complete_oauth_callback(
+            _require_db(db),
+            provider=provider,
+            code=code,
+            state=state,
+            state_cookie=request.cookies.get(settings.oauth_state_cookie_name),
+        )
+    except oauth_service.OAuthServiceError as error:
+        _raise_oauth_error(error)
+
+    response = RedirectResponse(result.frontend_redirect_url, status_code=302)
+    security.set_refresh_cookie(response, result.auth.refresh_token)
+    response.delete_cookie(
+        key=settings.oauth_state_cookie_name,
+        httponly=True,
+        secure=settings.refresh_cookie_secure,
+        samesite="lax",
+        path="/api/auth/oauth",
+    )
+    return response

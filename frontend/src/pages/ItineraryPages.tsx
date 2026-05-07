@@ -511,6 +511,7 @@ export function AiResultsPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [addError, setAddError] = useState("");
   const [addingRecommendation, setAddingRecommendation] = useState<string | null>(null);
+  const [isCriteriaOpen, setIsCriteriaOpen] = useState(false);
   const detailPath = activeTripId ? `/trips/${activeTripId}` : "/trips";
   const { data: recommendations, error, isLoading } = useAsyncResource(async () => {
     const resolvedTripId = await resolveTripId(requestedTripId);
@@ -545,7 +546,7 @@ export function AiResultsPage() {
           </IconButton>
         }
         right={
-          <button className="icon-btn" type="button" aria-label="추천 기준">
+          <button className="icon-btn" type="button" aria-label="추천 기준" onClick={() => setIsCriteriaOpen(true)}>
             <Bot size={18} />
           </button>
         }
@@ -585,6 +586,7 @@ export function AiResultsPage() {
         ))}
         {notice && <Toast>{notice}</Toast>}
       </div>
+      {isCriteriaOpen && <RecommendationCriteriaSheet onClose={() => setIsCriteriaOpen(false)} />}
     </section>
   );
 }
@@ -634,7 +636,7 @@ export function FriendInvitePage() {
       setSentInviteState(nextInviteState);
     }
     sendInvite();
-    setNotice("친구에게 초대장을 보냈어요.");
+    setNotice("초대 링크가 준비됐어요. 링크를 복사해 친구에게 공유해 주세요.");
   };
 
   const title = trip?.title ?? "제주 3일 여행";
@@ -655,7 +657,7 @@ export function FriendInvitePage() {
         {(tripError || inviteError) && <ErrorState message={tripError ?? inviteError ?? "초대 정보를 찾지 못했어요."} />}
         <div className="card">
           <div className="card-body stack">
-            <PageHead eyebrow="공유 권한" title={`${title}에 친구를 초대하세요`} body="초대받은 친구는 일정 확인과 장소 의견 추가를 할 수 있어요." />
+            <PageHead eyebrow="공유 권한" title={`${title} 초대 링크를 준비하세요`} body="초대 링크를 활성화한 뒤 복사해서 친구에게 직접 공유할 수 있어요." />
             <div className="invite-link">
               <span>{inviteUrl}</span>
               <button className="btn sm ghost" onClick={copyInviteLink} type="button">
@@ -688,10 +690,47 @@ export function FriendInvitePage() {
         {notice && <Toast>{notice}</Toast>}
         <Button full onClick={sendFriendInvite}>
           <Send size={18} />
-          {invited || effectiveInviteState?.invited ? "초대 완료" : "친구에게 초대 보내기"}
+          {invited || effectiveInviteState?.invited ? "초대 링크 준비 완료" : "초대 링크 활성화"}
         </Button>
       </div>
     </section>
+  );
+}
+
+function RecommendationCriteriaSheet({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="sheet-backdrop" role="presentation" onMouseDown={onClose}>
+      <section className="trip-select-sheet" role="dialog" aria-modal="true" aria-labelledby="recommendation-criteria-title" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="sheet-head">
+          <div>
+            <Tag tone="primary">추천 기준</Tag>
+            <h2 id="recommendation-criteria-title">AI 추천 기준</h2>
+            <p className="meta">현재 추천은 저장된 정책과 일정 정보를 바탕으로 후보를 정리합니다.</p>
+          </div>
+          <button className="btn sm ghost" type="button" onClick={onClose}>
+            닫기
+          </button>
+        </div>
+        <div className="stack tight">
+          <div className="setting-row">
+            <strong>정책 조건</strong>
+            <span className="meta">일정에 연결된 정책의 지역, 대상 조건, 마감일을 우선 고려합니다.</span>
+          </div>
+          <div className="setting-row">
+            <strong>이동 거리</strong>
+            <span className="meta">같은 일차 안에서 이동 부담이 적은 후보를 우선 보여줍니다.</span>
+          </div>
+          <div className="setting-row">
+            <strong>예산</strong>
+            <span className="meta">사용자의 예산 설정과 예상 절감액이 맞는 장소를 함께 봅니다.</span>
+          </div>
+          <div className="setting-row">
+            <strong>여행 스타일</strong>
+            <span className="meta">휴식, 맛집, 체험 같은 선호 스타일과 맞는 후보를 고릅니다.</span>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }
 

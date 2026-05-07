@@ -1,18 +1,36 @@
-# Travel Hunter 다음 기능 구현 우선순위
+# Travel Hunter 다음 작업 우선순위
 
 ## 기준
 
-- 배포, Jenkins, Figma 후속 작업은 기능 우선순위에서 제외한다.
-- MVP는 DB-backed-only 흐름이다.
-- 최근 기능 패스는 장소 편집, 마이페이지 프로필 편집, AI 추천 일정 추가, 초대 권한 저장/enforcement, 마감 알림 설정 저장, 알림 연락처 저장, 마감 알림 대상 계산 service, FastAPI 내부 scheduler, SOLAPI Kakao AlimTalk provider adapter, 알림 retry 정책, SOLAPI webhook 배송 상태 추적까지 완료했다.
+- DB-backed-only 원칙을 유지한다.
+- Runtime mock mode는 다시 추가하지 않는다.
+- 기능 변경 시 API 계약, frontend type, backend schema/test를 함께 갱신한다.
+- 실제 secret/env 값은 repo에 기록하지 않는다.
+
+## 완료된 최근 작업
+
+- 일정 장소 추가/수정/삭제.
+- 마이페이지 프로필 편집.
+- AI 추천 결과를 일정 타임라인에 추가.
+- 초대 role 저장과 viewer/editor 편집 권한 enforcement.
+- 마감 알림 설정, 연락처 저장, 대상 계산, scheduler, SOLAPI adapter, retry, webhook 추적.
+- 버튼 audit 기반 수정:
+  - 비밀번호 재설정 flow.
+  - Kakao/Google OAuth flow.
+  - 정책 링크 복사.
+  - 필요 서류 static checklist.
+  - 친구 초대 링크 활성화 문구.
+  - AI 추천 기준 sheet.
 
 ## 다음 우선순위
 
 | 우선순위 | 작업 | 성공 기준 |
 |---:|---|---|
-| 1 | 소셜 로그인 OAuth | staging URL과 provider secret 확정 후 Kakao 또는 Google부터 연결한다. |
-| 2 | 전화번호 실인증/OTP | 카카오 알림톡 수신 연락처의 실제 소유 여부를 검증한다. |
-| 3 | Cloudflare Tunnel staging 배포 재개 | 기능 패스가 멈추거나 release staging으로 복귀할 때 외부 URL smoke를 진행한다. |
+| 1 | 현재 미커밋 기능/문서 변경분 기준점 고정 | Fast lane과 e2e 검증 결과를 포함해 커밋 |
+| 2 | Password reset SMTP staging smoke | SMTP env를 주입해 reset email 발송, 링크 진입, password confirm을 외부 URL 기준으로 확인 |
+| 3 | Kakao/Google OAuth staging smoke | provider console redirect URI와 env 값을 맞추고 실제 social login callback/refresh를 확인 |
+| 4 | Cloudflare Tunnel staging 배포 | 외부 HTTPS URL에서 로그인, 정책, 일정, 초대, reset/OAuth 주요 smoke 확인 |
+| 5 | 전화번호 실인증/OTP 설계 | Kakao AlimTalk 수신 연락처의 실제 소유 여부를 검증하는 흐름 확정 |
 
 ## Fast Lane
 
@@ -32,10 +50,15 @@ cd backend
 alembic upgrade head --sql
 ```
 
-## 주의사항
+## Release Gate
 
-- Runtime mock mode를 다시 추가하지 않는다.
-- `trips.slug`를 추가하지 않는다.
-- 마감 알림 1차 대상은 저장 정책(`user_saved_policies`)으로 제한한다.
-- 실제 카카오 알림톡 발송은 비즈니스 채널, 승인 템플릿, provider secret 준비 후 진행한다.
-- API shape가 바뀌면 `docs/mvp-api-contract.md`, frontend type, backend schema를 함께 갱신한다.
+```powershell
+cd frontend
+npm run build
+npm run test:e2e
+
+cd ..
+docker compose -f compose.yaml config
+docker compose --env-file deploy/.env.staging.example -f compose.vps.yaml config
+docker compose --env-file deploy/.env.tunnel.example -f compose.tunnel.yaml config
+```

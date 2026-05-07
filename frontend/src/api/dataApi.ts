@@ -20,6 +20,25 @@ export type LogoutResponse = {
   loggedOut: boolean;
 };
 
+export type PasswordResetRequest = {
+  email: string;
+};
+
+export type PasswordResetConfirmRequest = {
+  token: string;
+  newPassword: string;
+};
+
+export type PasswordResetResponse = {
+  requested: boolean;
+};
+
+export type PasswordResetConfirmResponse = {
+  reset: boolean;
+};
+
+export type OAuthProvider = "kakao" | "google";
+
 export type SavePolicyResponse = {
   policyId: string;
   saved: boolean;
@@ -66,6 +85,9 @@ export type AppDataApi = {
   signup: (request?: SignupRequest) => Promise<AuthResponse>;
   refreshSession: () => Promise<AuthResponse>;
   logout: () => Promise<LogoutResponse>;
+  requestPasswordReset: (request: PasswordResetRequest) => Promise<PasswordResetResponse>;
+  confirmPasswordReset: (request: PasswordResetConfirmRequest) => Promise<PasswordResetConfirmResponse>;
+  getOAuthStartUrl: (provider: OAuthProvider, redirect?: string | null) => string;
   getCurrentUser: () => Promise<User>;
   getProfile: () => Promise<Profile>;
   updateProfile: (profile: Partial<Profile>) => Promise<Profile>;

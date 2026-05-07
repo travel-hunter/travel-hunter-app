@@ -2,7 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core import security
-from app.models import User
+from app.models import SocialAccount, User
 
 
 def get_user_by_email(db: Session, email: str) -> User | None:
@@ -28,7 +28,7 @@ def create_user(
     *,
     email: str,
     nickname: str,
-    password_hash: str,
+    password_hash: str | None,
 ) -> User:
     user = User(
         email=email,
@@ -39,6 +39,56 @@ def create_user(
     db.add(user)
     db.flush()
     return user
+
+
+def update_user_password(
+    db: Session,
+    user: User,
+    *,
+    password_hash: str,
+) -> User:
+    user.password_hash = password_hash
+    user.updated_at = security.utc_now_naive()
+    db.add(user)
+    db.flush()
+    return user
+
+
+def get_social_account(
+    db: Session,
+    *,
+    provider: str,
+    provider_id: str,
+) -> SocialAccount | None:
+    statement = (
+        select(SocialAccount)
+        .options(selectinload(SocialAccount.user).selectinload(User.social_accounts))
+        .where(
+            SocialAccount.provider == provider,
+            SocialAccount.provider_id == provider_id,
+        )
+    )
+    return db.scalar(statement)
+
+
+def create_social_account(
+    db: Session,
+    *,
+    user: User,
+    provider: str,
+    provider_id: str,
+    provider_nickname: str | None = None,
+) -> SocialAccount:
+    account = SocialAccount(
+        user_id=int(user.id),
+        user=user,
+        provider=provider,
+        provider_id=provider_id,
+        provider_nickname=provider_nickname,
+    )
+    db.add(account)
+    db.flush()
+    return account
 
 
 def update_user_profile(

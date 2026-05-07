@@ -725,17 +725,99 @@ describe("Travel Hunter app", () => {
 
       await waitFor(() => expect(getInviteSpy).toHaveBeenCalledWith("55"));
       await user.click(await screen.findByRole("button", { name: /보기만 가능/ }));
-      await user.click(screen.getByRole("button", { name: "친구에게 초대 보내기" }));
+      await user.click(screen.getByRole("button", { name: "초대 링크 활성화" }));
       await waitFor(() => expect(confirmInviteSpy).toHaveBeenCalledWith("55", "viewer"));
 
       await user.click(screen.getByRole("button", { name: /함께 편집/ }));
-      await user.click(screen.getByRole("button", { name: "초대 완료" }));
+      await user.click(screen.getByRole("button", { name: "초대 링크 준비 완료" }));
       await waitFor(() => expect(confirmInviteSpy).toHaveBeenLastCalledWith("55", "editor"));
     } finally {
       getTripSpy.mockRestore();
       getInviteSpy.mockRestore();
       confirmInviteSpy.mockRestore();
     }
+  });
+
+  it("requests a password reset email from the forgot password page", async () => {
+    const requestSpy = vi.spyOn(appDataApi, "requestPasswordReset").mockResolvedValue({ requested: true });
+
+    try {
+      renderRoute("/forgot-password");
+      const user = userEvent.setup();
+
+      await user.type(screen.getByRole("textbox", { name: "이메일" }), testEmail);
+      await user.click(screen.getByRole("button", { name: "재설정 링크 받기" }));
+
+      await waitFor(() => expect(requestSpy).toHaveBeenCalledWith({ email: testEmail }));
+      expect(document.body).toHaveTextContent("비밀번호 재설정 링크를 보냈어요");
+    } finally {
+      requestSpy.mockRestore();
+    }
+  });
+
+  it("confirms a password reset token and links back to login", async () => {
+    const confirmSpy = vi.spyOn(appDataApi, "confirmPasswordReset").mockResolvedValue({ reset: true });
+
+    try {
+      renderRoute("/reset-password?token=abc123");
+      const user = userEvent.setup();
+
+      await user.type(document.querySelector('input[name="password"]') as HTMLInputElement, "new-password123");
+      await user.click(screen.getByRole("button", { name: "비밀번호 변경" }));
+
+      await waitFor(() => expect(confirmSpy).toHaveBeenCalledWith({ token: "abc123", newPassword: "new-password123" }));
+      expect(document.body).toHaveTextContent("비밀번호를 변경했어요");
+    } finally {
+      confirmSpy.mockRestore();
+    }
+  });
+
+  it("links social login buttons to backend OAuth start routes", () => {
+    const kakaoUrl = "http://127.0.0.1:8000/api/auth/oauth/kakao/start?redirect=%2Fhome";
+    const googleUrl = "http://127.0.0.1:8000/api/auth/oauth/google/start?redirect=%2Fhome";
+    const oauthSpy = vi.spyOn(appDataApi, "getOAuthStartUrl").mockImplementation((provider) => (provider === "kakao" ? kakaoUrl : googleUrl));
+
+    try {
+      renderRoute("/login");
+
+      expect(screen.getByRole("link", { name: "카카오로 로그인" })).toHaveAttribute("href", kakaoUrl);
+      expect(screen.getByRole("link", { name: "Google로 로그인" })).toHaveAttribute("href", googleUrl);
+    } finally {
+      oauthSpy.mockRestore();
+    }
+  });
+
+  it("copies the current policy URL instead of routing to friend invite", async () => {
+    await login();
+    cleanup();
+    renderRoute("/policies/local-vacation");
+
+    await userEvent.setup().click(await screen.findByRole("button", { name: "공유" }));
+
+    expect(screen.queryByRole("link", { name: /친구 초대/ })).not.toBeInTheDocument();
+    await waitFor(() => expect(document.body).toHaveTextContent("정책 링크를 복사했어요"));
+  });
+
+  it("renders policy documents as static checklist rows", async () => {
+    await login();
+    cleanup();
+    renderRoute("/policies/local-vacation");
+
+    await waitFor(() => expect(document.body).toHaveTextContent("필요 서류"));
+    expect(document.querySelectorAll(".check-item").length).toBeGreaterThan(0);
+    expect(document.querySelector(".check-item")?.tagName).toBe("DIV");
+  });
+
+  it("opens an AI recommendation criteria sheet", async () => {
+    await login();
+    cleanup();
+    renderRoute("/ai-results?tripId=jeju-3-days");
+
+    await userEvent.setup().click(await screen.findByRole("button", { name: "추천 기준" }));
+
+    expect(screen.getByRole("dialog", { name: "AI 추천 기준" })).toBeInTheDocument();
+    expect(document.body).toHaveTextContent("정책 조건");
+    expect(document.body).toHaveTextContent("이동 거리");
   });
 
   it("preserves an invite redirect through login and signup navigation", async () => {

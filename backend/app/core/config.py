@@ -63,6 +63,29 @@ class Settings:
     travel_hunter_public_base_url: str = os.getenv(
         "TRAVEL_HUNTER_PUBLIC_BASE_URL", ""
     )
+    password_reset_expire_minutes: int = int(
+        os.getenv("PASSWORD_RESET_EXPIRE_MINUTES", "30")
+    )
+    smtp_host: str = os.getenv("SMTP_HOST", "")
+    smtp_port: int = int(os.getenv("SMTP_PORT", "587"))
+    smtp_username: str = os.getenv("SMTP_USERNAME", "")
+    smtp_password: str = os.getenv("SMTP_PASSWORD", "")
+    smtp_from_email: str = os.getenv("SMTP_FROM_EMAIL", "")
+    smtp_use_tls: bool = os.getenv("SMTP_USE_TLS", "true").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    kakao_client_id: str = os.getenv("KAKAO_CLIENT_ID", "")
+    kakao_client_secret: str = os.getenv("KAKAO_CLIENT_SECRET", "")
+    kakao_redirect_uri: str = os.getenv("KAKAO_REDIRECT_URI", "")
+    google_client_id: str = os.getenv("GOOGLE_CLIENT_ID", "")
+    google_client_secret: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    google_redirect_uri: str = os.getenv("GOOGLE_REDIRECT_URI", "")
+    oauth_state_cookie_name: str = os.getenv(
+        "OAUTH_STATE_COOKIE_NAME", "travel_hunter_oauth_state"
+    )
 
 
 settings = Settings()

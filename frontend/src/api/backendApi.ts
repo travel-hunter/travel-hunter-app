@@ -6,7 +6,7 @@ import {
   travelStyles,
   user,
 } from "../data/seedData";
-import { apiClient } from "./client";
+import { apiClient, apiConfig } from "./client";
 import {
   AppDataApi,
   AuthResponse,
@@ -15,6 +15,11 @@ import {
   DeleteTripResponse,
   LoginRequest,
   LogoutResponse,
+  OAuthProvider,
+  PasswordResetConfirmRequest,
+  PasswordResetConfirmResponse,
+  PasswordResetRequest,
+  PasswordResetResponse,
   SavePolicyResponse,
   SignupRequest,
   TripPlaceRequest,
@@ -43,6 +48,12 @@ export const backendApi: AppDataApi = {
   signup: (request = defaultSignup): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/signup", request),
   refreshSession: (): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/refresh"),
   logout: (): Promise<LogoutResponse> => apiClient.post<LogoutResponse>("/api/auth/logout"),
+  requestPasswordReset: (request: PasswordResetRequest): Promise<PasswordResetResponse> => apiClient.post<PasswordResetResponse>("/api/auth/password-reset/request", request),
+  confirmPasswordReset: (request: PasswordResetConfirmRequest): Promise<PasswordResetConfirmResponse> => apiClient.post<PasswordResetConfirmResponse>("/api/auth/password-reset/confirm", request),
+  getOAuthStartUrl: (provider: OAuthProvider, redirect?: string | null): string => {
+    const query = redirect ? `?redirect=${encodeURIComponent(redirect)}` : "";
+    return `${apiConfig.baseUrl}/api/auth/oauth/${provider}/start${query}`;
+  },
   getCurrentUser: (): Promise<User> => apiClient.get<User>("/api/me"),
   getProfile: (): Promise<Profile> => apiClient.get<Profile>("/api/me/profile"),
   updateProfile: (profile: Partial<Profile>): Promise<Profile> => apiClient.patch<Profile>("/api/me/profile", profile),

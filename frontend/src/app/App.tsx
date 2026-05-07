@@ -1,7 +1,7 @@
 import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { PublicLayout, ServiceLayout } from "../components/AppLayout";
 import { AiResultsPage, FriendInvitePage, ItineraryCreatePage, ItineraryDetailPage, ItineraryListPage } from "../pages/ItineraryPages";
-import { LoginPage, SignupPage } from "../pages/AuthPages";
+import { ForgotPasswordPage, LoginPage, OAuthCallbackPage, ResetPasswordPage, SignupPage } from "../pages/AuthPages";
 import { HomePage } from "../pages/HomePage";
 import { InviteAcceptPage } from "../pages/InviteAcceptPage";
 import { MyPage } from "../pages/MyPage";
@@ -18,6 +18,9 @@ export function App() {
         <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
       </Route>
       <Route element={<ProtectedRoute />}>
         <Route element={<PublicLayout />}>

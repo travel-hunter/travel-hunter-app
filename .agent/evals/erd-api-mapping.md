@@ -16,6 +16,8 @@
 - `users.preferred_regions` stores user interest regions.
 - `users.travel_style` and `users.travel_budget` are v0.3.1 profile persistence extension fields.
 - `users.phone_number` and `users.phone_verified_at` are notification-delivery contact extension fields.
+- `password_reset_tokens` stores password reset token hashes and usage/expiry metadata.
+- `social_accounts` links OAuth provider identities to users.
 - `user_saved_policies` is the v0.3.2 standalone saved policy persistence extension table.
 - `user_notification_settings` is the standalone per-user notification preference table.
 - `notification_deliveries` is the delivery history and duplicate-prevention table for deadline notifications.
@@ -47,6 +49,10 @@
 | `Profile.region` | `users.region` | Onboarding/profile preference |
 | `Profile.style` | `users.travel_style` | v0.3.1 extension |
 | `Profile.budget` | `users.travel_budget` | v0.3.1 extension |
+| `PasswordResetToken.tokenHash` | `password_reset_tokens.token_hash` | Raw token is never stored; API confirm matches by SHA-256 hash |
+| `PasswordResetToken.usedAt` | `password_reset_tokens.used_at` | Set after successful reset to prevent reuse |
+| `OAuth provider link` | `social_accounts.provider`, `social_accounts.provider_id` | Callback logs in an existing social account or links/creates a user |
+| `OAuth user email` | `users.email` | Used as secondary link key when no social account exists |
 | `ContactInfo.phoneNumber` | `users.phone_number` | Kakao AlimTalk destination contact, nullable |
 | `ContactInfo.phoneVerified` | `users.phone_verified_at != null` | Read-only verification state for this phase |
 | `NotificationSettings.deadlineEnabled` | `user_notification_settings.deadline_enabled` | Defaults to true when no row exists |

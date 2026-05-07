@@ -2,104 +2,82 @@
 
 ## 현재 상태
 
-Travel Hunter는 국내 여행 정책 탐색, 일정 관리, 정책 저장, 초대 협업, 마감 알림 설정을 제공하는 DB-backed-only MVP다. Runtime mock mode는 제거됐고, 프론트엔드는 항상 FastAPI backend를 호출한다.
+Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저장, 초대 협업, 마감 알림 기반을 제공하는 DB-backed-only MVP다. Runtime mock mode는 제거됐고, frontend는 항상 FastAPI backend를 호출한다.
 
-현재 작업트리에는 SOLAPI webhook으로 들어온 최종 배송 리포트를 `notification_deliveries`에 반영하는 배송 상태 추적 구현이 포함된다.
+이번 변경으로 버튼 audit에서 확인된 인증/공유/placeholder 항목을 실제 흐름으로 정리했다.
 
-## 주요 구현 범위
+## 구현 완료 범위
 
-- 인증: 회원가입, 로그인, refresh, logout, `/api/me`.
-- 프로필: 온보딩/마이페이지에서 지역, 여행 스타일, 예산 저장.
-- 정책: 목록, 상세, 검색/필터, 저장/삭제, 공식 안내/신청 URL CTA.
-- 일정: 목록, 생성, 상세, 삭제, 정책 담기, 장소 추가/수정/삭제.
-- AI 추천: `/ai-results` 추천 항목을 실제 일정 장소로 추가.
-- 초대: 초대 링크 생성, 수락, `viewer/editor` 권한 저장, 장소 편집 권한 enforcement.
-- 알림 설정: 마감 알림 켜기/끄기, 카카오 알림톡 연락처 저장.
-- 알림 발송 기반: `notification_deliveries` 이력 테이블, D-7/D-1 대상 계산 service, FastAPI 내부 scheduler, SOLAPI 알림톡 dispatch, failed delivery retry, SOLAPI webhook 배송 상태 추적.
+- Auth: 회원가입, 로그인, refresh, logout, `/api/me`.
+- Password reset: email reset link 요청, token confirm, password hash 갱신, 기존 refresh token revoke.
+- OAuth: Kakao/Google authorization code 시작, callback state 검증, social account 연결/생성, refresh cookie 기반 frontend callback.
+- Profile: onboarding, mypage profile edit, notification contact 저장.
+- Policies: 목록, 상세, 검색/필터, 저장/삭제, official/apply URL CTA, 정책 링크 복사.
+- Trips: 목록, 생성, 상세, 삭제, 정책 담기, 장소 추가/수정/삭제.
+- AI recommendations: 추천 결과를 실제 `trip_places`에 추가, 추천 기준 sheet.
+- Invites: 링크 생성, viewer/editor role 저장, 수락, 일정 멤버십 저장, 장소 편집 권한 enforcement.
+- Notifications: deadline 설정 저장, contact 저장, delivery history, target calculation, FastAPI scheduler, SOLAPI AlimTalk adapter, retry, SOLAPI webhook 상태 추적.
+- Design/deployment: Wanted Design System 1차 적용, Figma handoff 문서, Docker VPS/Tunnel 배포 산출물.
 
-## 백엔드 기준
+## Backend 기준
 
 - FastAPI route/schema/service/repository 계층.
 - SQLAlchemy 2.x sync ORM + psycopg 3 + Alembic + PostgreSQL 16.
-- `create_all()`은 사용하지 않고 schema 생성은 Alembic migration만 기준으로 한다.
-- API DTO는 `camelCase`, DB 컬럼은 `snake_case`를 유지한다.
-- route는 얇게 유지하고 business logic은 service/repository에 둔다.
+- `create_all()`은 사용하지 않고 schema 생성은 Alembic migration만 허용한다.
+- API DTO는 `camelCase`, DB column은 `snake_case`를 유지한다.
+- 보안 필드(`password_hash`, `refresh_token_hash`, reset token raw value, OAuth provider id)는 response에 노출하지 않는다.
 
-## Notification Scheduler
+## Auth/OAuth 추가 사항
 
-- 모듈: `backend/app/services/notification_scheduler.py`.
-- FastAPI lifespan에서 background task로 연결된다.
-- 기본값은 비활성화다.
-- `NOTIFICATION_SCHEDULER_ENABLED=true`일 때만 시작한다.
-- enabled 상태에서 `DATABASE_URL`이 없으면 startup에서 실패한다.
-- KST 기준 `NOTIFICATION_RUN_AT` 이후 하루 한 번 dispatch service를 실행한다.
-- dispatch service는 target calculation 후 `pending` 후보를 provider 설정에 따라 SOLAPI로 접수한다.
-- SOLAPI webhook endpoint는 provider의 최종 배송 리포트를 받아 `4000` 성공은 `sent`, 실패 코드는 `failed`로 반영한다.
-- retry delay가 남은 failed row가 있으면 같은 날짜를 완료 처리하지 않고 다음 polling cycle에서 다시 확인한다.
-- dispatch 실패는 로그로 남기고 다음 polling cycle에서 다시 시도할 수 있다.
-- shutdown 시 background task를 cancel한다.
-- public HTTP endpoint, DB migration, frontend 변경은 없다.
+- `password_reset_tokens`는 raw token이 아니라 SHA-256 hash를 저장한다.
+- reset token 기본 만료는 `PASSWORD_RESET_EXPIRE_MINUTES`이며 기본값은 30분이다.
+- SMTP 미설정 환경에서 실제 계정에 password reset email을 발송해야 하면 `503 Email delivery is not configured`로 실패한다.
+- OAuth state는 HttpOnly cookie로 검증한다.
+- OAuth redirect 값은 내부 path만 허용한다. 외부 URL 또는 `//...` 값은 `/home`으로 대체한다.
+- OAuth callback 성공 후 frontend `/oauth/callback?redirect=...`로 돌아가고, frontend는 `/api/auth/refresh`로 access token을 복구한다.
 
-## Runtime Env
+## Runtime Env 추가
 
-- `NOTIFICATION_SCHEDULER_ENABLED=false`
-- `NOTIFICATION_RUN_AT=09:00`
-- `NOTIFICATION_POLL_SECONDS=60`
-- `NOTIFICATION_RETRY_ENABLED=true`
-- `NOTIFICATION_RETRY_MAX_ATTEMPTS=3`
-- `NOTIFICATION_RETRY_DELAY_SECONDS=600`
-- `KAKAO_ALIMTALK_ENABLED=false`
-- `SOLAPI_BASE_URL=https://api.solapi.com`
-- `SOLAPI_API_KEY`, `SOLAPI_API_SECRET`, `SOLAPI_PF_ID`, `SOLAPI_TEMPLATE_ID_D7`, `SOLAPI_TEMPLATE_ID_D1`
-- `SOLAPI_FROM_NUMBER`, `SOLAPI_DISABLE_SMS=true`, `SOLAPI_TIMEOUT_SECONDS=5`
-- `TRAVEL_HUNTER_PUBLIC_BASE_URL`
-- `SOLAPI_WEBHOOK_SECRET`
-
-위 값은 `backend/.env.example`, `compose.yaml`, `compose.vps.yaml`, `compose.tunnel.yaml`, 배포 env example에 반영되어 있다.
-
-## 디자인/Figma 상태
-
-- Wanted Design System `.fig`를 Figma 프로젝트에 import했다.
-- Imported reference file: `https://www.figma.com/design/6X5t38FCiVoIdRdi3C2olj/Wanted-Design-System---Imported-Reference`.
-- Travel Hunter handoff file: `https://www.figma.com/design/6qxML42kKtZWIwLUU1YDpX`.
-- Button primary color, 기본 높이, radius, Toast 기준을 Wanted 수치에 맞춰 보정했다.
+- Password reset/SMTP:
+  - `PASSWORD_RESET_EXPIRE_MINUTES`
+  - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`, `SMTP_USE_TLS`
+  - `TRAVEL_HUNTER_PUBLIC_BASE_URL`
+- OAuth:
+  - `KAKAO_CLIENT_ID`, `KAKAO_CLIENT_SECRET`, `KAKAO_REDIRECT_URI`
+  - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`
+  - `OAUTH_STATE_COOKIE_NAME`
+- Notification:
+  - `NOTIFICATION_SCHEDULER_ENABLED`, `NOTIFICATION_RUN_AT`, `NOTIFICATION_POLL_SECONDS`
+  - `KAKAO_ALIMTALK_ENABLED`, `SOLAPI_*`, `NOTIFICATION_RETRY_*`, `SOLAPI_WEBHOOK_SECRET`
 
 ## 배포 산출물
 
 - Local compose: `compose.yaml`.
 - Public VPS direct mode: `compose.vps.yaml`, `deploy/Caddyfile`, `deploy/.env.staging.example`.
 - NAT 제한 Cloudflare Tunnel mode: `compose.tunnel.yaml`, `deploy/Caddyfile.tunnel`, `deploy/.env.tunnel.example`.
+- 실제 secret/env 값은 repo에 커밋하지 않는다.
 
 ## 최신 검증
 
-- `cd backend && python -m pytest`: 153 passed.
+- `cd backend && python -m pytest`: 160 passed.
+- `cd frontend && npm test`: 36 passed.
+- `cd frontend && npm run typecheck`: passed.
+- `cd frontend && npm run build`: passed.
 - `cd backend && alembic upgrade head --sql`: passed.
 - `docker compose -f compose.yaml config`: passed.
 - `docker compose --env-file deploy/.env.staging.example -f compose.vps.yaml config`: passed.
 - `docker compose --env-file deploy/.env.tunnel.example -f compose.tunnel.yaml config`: passed.
 - `git diff --check`: passed.
 
-이전 검증 기준:
+## 미구현/조건부 범위
 
-- `cd frontend && npm run typecheck`: passed.
-- `cd frontend && npm run build`: passed.
-- Frontend DB-backed Vitest: 28 passed.
-- DB-backed Playwright e2e: 5 passed.
-- Local compose config/build: passed.
-- VPS compose config: passed.
-- Tunnel compose config: passed.
-
-## 미구현 범위
-
-- 전화번호 실인증/OTP.
-- 소셜 로그인 실제 연동.
-- 정책 실시간 수집 API.
-- 지도 장소 검색과 이동 시간 계산.
-- 실제 AI 추천 엔진.
-- 초대 이메일/SMS/카카오톡 실제 발송.
-- 운영 관리자 기능.
-- 실제 staging 배포와 외부 URL smoke.
+- SMTP 설정 없이는 password reset email 실제 발송이 불가하다.
+- Kakao/Google provider secret과 redirect URI가 없으면 OAuth 실제 로그인이 불가하다.
+- 전화번호 실인증/OTP는 아직 없다.
+- 정책 실시간 수집, 지도/장소 검색, 실제 AI 추천 엔진은 아직 없다.
+- 친구 초대 email/SMS/Kakao 외부 발송은 아직 없다.
+- 실제 staging 외부 URL smoke는 배포 입력값 확보 후 진행한다.
 
 ## 다음 작업
 
-다음 기능 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 소셜 로그인 OAuth다.
+다음 기능 우선순위는 `docs/next-work-plan.md`를 따른다. 현재는 버튼 audit 수정분 검증/커밋 후 OAuth provider 실환경 연결 점검 또는 Cloudflare Tunnel staging 배포로 이어갈 수 있다.

@@ -1,6 +1,7 @@
 from app.models.tables import (
     AuthRefreshToken,
     NotificationDelivery,
+    PasswordResetToken,
     Policy,
     PolicyDocument,
     Recommendation,
@@ -19,6 +20,7 @@ from app.models.tables import (
 __all__ = [
     "AuthRefreshToken",
     "NotificationDelivery",
+    "PasswordResetToken",
     "Policy",
     "PolicyDocument",
     "Recommendation",

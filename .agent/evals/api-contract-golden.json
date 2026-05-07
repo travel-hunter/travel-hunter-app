@@ -102,6 +102,55 @@
       }
     },
     {
+      "method": "POST",
+      "path": "/api/auth/password-reset/request",
+      "status": 200,
+      "request": {
+        "email": "test.user@example.com"
+      },
+      "requiredFields": {
+        "requested": "boolean"
+      },
+      "dbModeBehavior": "Always returns requested=true for valid email shape, stores only a SHA-256 reset token hash for existing users, and sends a reset link by SMTP when configured."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/password-reset/confirm",
+      "status": 200,
+      "request": {
+        "token": "raw-reset-token",
+        "newPassword": "new-password-123"
+      },
+      "requiredFields": {
+        "reset": "boolean"
+      },
+      "dbModeBehavior": "Validates the hashed token, rejects expired/used/unknown tokens, updates users.password_hash, marks the token used, and revokes existing refresh tokens."
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/oauth/kakao/start",
+      "status": 302,
+      "query": {
+        "redirect": "/home"
+      },
+      "requiredBehavior": "Sets OAuth state HttpOnly cookie and redirects to the Kakao authorization URL."
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/oauth/google/start",
+      "status": 302,
+      "query": {
+        "redirect": "/home"
+      },
+      "requiredBehavior": "Sets OAuth state HttpOnly cookie and redirects to the Google OpenID Connect authorization URL."
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/oauth/{provider}/callback",
+      "status": 302,
+      "requiredBehavior": "Validates code/state, links or creates the user through social_accounts, sets the refresh cookie, clears the OAuth state cookie, and redirects to frontend /oauth/callback."
+    },
+    {
       "method": "GET",
       "path": "/api/me",
       "status": 200,

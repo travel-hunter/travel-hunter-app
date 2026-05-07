@@ -23,6 +23,8 @@
 - `collaboration-handoff.md`: 협업자가 처음 볼 브랜치, 실행, 주의사항 요약.
 - `design-system-map.md`: Wanted Design System과 코드 토큰/컴포넌트 매핑.
 - `design-qa.md`: 브라우저 디자인 QA와 Figma handoff 상태.
+- `button-audit-report.md`: 실제 웹 버튼/링크/CTA 동작 점검 리포트와 수정 우선순위.
+- `feature-implementation-status.md`: 기능군별 완료/조건부 완료/미구현 상태표.
 - `figma-import-checklist.md`: Wanted `.fig` import와 component 확인표.
 - `figma-component-values.md`: Figma component 수치 원본.
 - `figma-team-project-workflow.md`: Figma 팀/프로젝트 handoff 절차.

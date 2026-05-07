@@ -15,6 +15,11 @@
 | `POST /api/auth/signup` | 200 | `AuthResponse` shape matches login | P1 |
 | `POST /api/auth/refresh` | 200 | DB mode rotates refresh token and returns `AuthResponse` | P1 |
 | `POST /api/auth/logout` | 200 | `{ "loggedOut": true }` and refresh cookie clear | P1 |
+| `POST /api/auth/password-reset/request` | 200 | valid email-shaped request returns `{ "requested": true }` without exposing account existence | P1 |
+| `POST /api/auth/password-reset/confirm` | 200 | valid reset token updates password, marks token used, and revokes refresh tokens | P1 |
+| `GET /api/auth/oauth/kakao/start` | 302 | configured Kakao provider redirects to authorization URL and sets state cookie | P1 |
+| `GET /api/auth/oauth/google/start` | 302 | configured Google provider redirects to OpenID Connect authorization URL and sets state cookie | P1 |
+| `GET /api/auth/oauth/{provider}/callback` | 302 | validates state, links/creates user by social account or email, sets refresh cookie, redirects to frontend callback | P1 |
 | `GET /api/me` | 200 | `homeRegion`, `onboardingCompleted` | P0 |
 | `GET /api/me/profile` | 200 | `region`, `style`, `budget` | P1 |
 | `PATCH /api/me/profile` | 200 | patched profile fields returned and DB mode marks onboarding complete | P1 |
@@ -50,6 +55,10 @@
 - DB mode invalid login returns 401.
 - DB mode `/api/me` without valid bearer token returns 401.
 - DB mode invalid refresh token returns 401.
+- Password reset invalid/expired/used token returns 400.
+- Password reset SMTP misconfiguration for existing users returns 503.
+- OAuth start without required provider env returns 503.
+- OAuth callback state mismatch returns 400.
 - DB mode `/api/me/profile` without valid bearer token returns 401.
 - Inaccessible DB mode trip returns 404 without leaking ownership.
 
@@ -79,6 +88,15 @@ Profile endpoints must persist the selected onboarding preferences:
 - `POST /api/webhooks/solapi` accepts provider event arrays and, when `SOLAPI_WEBHOOK_SECRET` is configured, requires `X-Solapi-Secret` to match the SHA1 hash of that secret.
 - SOLAPI webhook status `4000` marks a matched delivery `sent`; `2000` and `3000` are ignored as accepted/in-progress states; failure status codes mark matched deliveries `failed`.
 - Unknown webhook `messageId` values and malformed events are ignored without failing the whole webhook request.
+
+Auth recovery and OAuth endpoints must preserve security boundaries:
+
+- Password reset request stores only `password_reset_tokens.token_hash`, never the raw token.
+- Password reset request does not reveal whether an email exists.
+- Password reset confirm marks the token used and revokes existing refresh tokens for the user.
+- OAuth start must store state in an HttpOnly cookie and only preserve internal redirect paths.
+- OAuth callback must reject missing or mismatched state.
+- OAuth callback links an existing `social_accounts(provider, provider_id)` record first, then links by email, otherwise creates an OAuth-only user.
 
 Policy endpoints must preserve the same public response shape:
 

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.models import AuthRefreshToken, User
@@ -50,3 +50,17 @@ def revoke_refresh_token(
 ) -> None:
     token.revoked_at = revoked_at
     db.add(token)
+
+
+def revoke_user_refresh_tokens(
+    db: Session,
+    *,
+    user_id: int,
+    revoked_at: datetime,
+) -> None:
+    db.execute(
+        update(AuthRefreshToken)
+        .where(AuthRefreshToken.user_id == user_id)
+        .where(AuthRefreshToken.revoked_at.is_(None))
+        .values(revoked_at=revoked_at)
+    )
