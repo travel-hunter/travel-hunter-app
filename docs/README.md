@@ -31,6 +31,7 @@
 - `notification-delivery-plan.md`: 마감 알림 발송 기반 설계. 카카오 알림톡, FastAPI 내부 scheduler, D-7/D-1 대상 계산 기준.
 - `benchmark-ildan-checkin.md`: 일단체크인 벤치마크 분석과 Travel Hunter 적용 후보.
 - `pwa-offline-strategy.md`: service worker/offline cache 도입 여부와 안전 기준.
+- `draft-autosave-next-scope.md`: draft autosave 2차 범위 검토와 개인정보 저장 제외 기준.
 - `project-structure-audit.md`: 현재 폴더/파일 구조 점검과 정리 후보.
 - `design-system-map.md`: Wanted Design System과 코드 토큰/컴포넌트 매핑.
 - `figma-import-checklist.md`: Wanted `.fig` import와 component 확인표.

@@ -33,6 +33,7 @@
 - [x] Button audit fixes are applied for policy share, static policy documents, invite wording, and AI criteria sheet.
 - [x] Web Share API sharing fallback is implemented for policy and invite links.
 - [x] Draft autosave is implemented for trip creation and add-place sheets.
+- [x] Draft autosave second-scope review is documented; place edit draft is the only next autosave candidate.
 - [x] Production sourcemap is explicitly disabled and build output has no `.map` files.
 - [x] PWA manifest/meta and app icons are provided.
 - [x] PWA service worker/offline caching strategy is documented without enabling runtime caching.

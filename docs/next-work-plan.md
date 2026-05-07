@@ -32,6 +32,9 @@
 - 작성 중 draft autosave 1차 구현:
   - `/trips/new` 일정 생성 draft.
   - `/trips/:id` 장소 추가 draft.
+- Draft autosave 2차 범위 검토:
+  - 다음 구현 후보는 장소 수정 draft로 제한한다.
+  - 마이페이지 프로필 draft는 보류하고 연락처 draft는 개인정보 저장 위험 때문에 제외한다.
 - PWA service worker/offline 전략 검토:
   - 현재는 service worker를 추가하지 않는다.
   - 후속 구현 시 static shell/assets만 캐시하고 `/api/*`와 auth/reset/OAuth 데이터는 캐시하지 않는다.
@@ -43,7 +46,7 @@
 | 1 | Password reset SMTP staging smoke | SMTP env와 public HTTPS base URL을 주입해 reset email 발송, 링크 진입, password confirm을 외부 URL 기준으로 확인 |
 | 2 | Kakao/Google OAuth staging smoke | provider console redirect URI와 env 값을 맞추고 실제 social login callback/refresh를 확인 |
 | 3 | Cloudflare Tunnel staging smoke | 외부 HTTPS URL에서 `/api/health`, 로그인, 정책/일정 핵심 흐름 확인 |
-| 4 | Draft autosave 2차 범위 검토 | 장소 수정, 마이페이지 프로필, 연락처 draft를 추가할지 결정 |
+| 4 | 장소 수정 draft autosave 구현 | `/trips/:id` 장소 수정 sheet의 `time`, `label`, `meta` draft를 `placeId` 기준으로 저장하고 저장/닫기/삭제 시 정리 |
 | 5 | 전화번호 OTP 설계/구현 | Kakao AlimTalk 수신 연락처 실소유 검증 |
 | 6 | PWA service worker 1차 구현 | staging smoke 이후 static shell/assets only 정책으로 구현 여부 결정 |
 
