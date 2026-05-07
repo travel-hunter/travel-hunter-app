@@ -64,6 +64,11 @@ Profile endpoints must persist the selected onboarding preferences:
 - `GET /api/me/notification-settings` returns `deadlineEnabled` and fixed `deadlineLeadDays` `[7, 1]`.
 - `PATCH /api/me/notification-settings` upserts one `user_notification_settings` row per user.
 - Notification settings persist only user preference; actual push/email delivery is out of scope for this endpoint.
+- Internal target calculation service creates `notification_deliveries` candidates from saved policies whose `policies.end_date` is D-7/D-1.
+- Internal target calculation service excludes `deadline_enabled=false` users, reuses existing `pending` rows, and does not duplicate `sent` or `skipped` rows.
+- Internal target calculation service records `skipped` candidates when a user lacks a verified phone number.
+- Internal notification scheduler is disabled by default, runs only with `NOTIFICATION_SCHEDULER_ENABLED=true`, and invokes target calculation at most once per KST date after `NOTIFICATION_RUN_AT`.
+- Internal notification scheduler must not expose a public endpoint and must not mark provider delivery as `sent` or `failed`.
 
 Policy endpoints must preserve the same public response shape:
 

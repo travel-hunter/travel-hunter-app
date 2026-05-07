@@ -19,38 +19,37 @@
 - [x] Itinerary detail place add/edit/delete is connected to `trip_places`.
 - [x] Mypage profile editing is connected to `PATCH /api/me/profile`.
 - [x] AI recommendation items can be added to a trip timeline through the place add API.
-- [x] Invite role settings persist `viewer/editor` to `trip_invites.role` and invite acceptance writes the role to `trip_members.role`.
-- [x] `viewer/editor` permissions are enforced for trip place editing.
+- [x] Invite role settings persist `viewer/editor` and place editing permissions are enforced.
 - [x] Deadline notification preference persists to `user_notification_settings.deadline_enabled`.
-- [x] Deadline notification delivery design is documented for Kakao AlimTalk and FastAPI internal scheduler.
 - [x] Deadline notification contact persists to `users.phone_number`.
 - [x] Notification delivery history foundation exists in `notification_deliveries`.
-- [x] Wanted Design System import, component values, Button correction, and Toast correction documented.
-- [x] Figma editable Current/Redesign frames exist for first-pass MVP routes.
-- [x] Public VPS artifacts exist: `compose.vps.yaml`, `deploy/Caddyfile`, `deploy/.env.staging.example`.
-- [x] Cloudflare Tunnel artifacts exist: `compose.tunnel.yaml`, `deploy/Caddyfile.tunnel`, `deploy/.env.tunnel.example`.
+- [x] Deadline notification target calculation service creates idempotent `pending/skipped` candidates.
+- [x] FastAPI internal notification scheduler is connected through lifespan and gated by env.
+- [x] Public VPS artifacts exist.
+- [x] Cloudflare Tunnel artifacts exist.
 
 ## 마지막 검증 결과
 
 - Date: 2026-05-07.
-- Backend pytest: 97 passed.
-- Frontend typecheck: passed.
-- Frontend build: passed.
+- Backend pytest: 115 passed.
 - Alembic offline SQL: passed.
-- Frontend `npm test`: blocked because Docker Desktop daemon was not running during compose PostgreSQL startup.
+- Local compose config: passed.
+- VPS compose config: passed.
+- Tunnel compose config: passed.
+- `git diff --check`: passed.
+- Previous frontend typecheck/build: passed.
 - Previous Frontend DB-backed Vitest: 28 passed.
 - Previous DB-backed Playwright e2e: 5 passed.
 - Local compose config/build: passed.
 - VPS compose config: passed.
 - Tunnel compose config: passed.
-- `git diff --check`: passed for the latest notification contact foundation work.
 
 ## 다음 우선순위
 
 - [x] Prepare deadline notification delivery implementation.
 - [x] Add phone number storage and notification delivery history migration.
-- [ ] Implement deadline notification target calculation service.
-  - [ ] Calculate D-7/D-1 targets from `user_saved_policies` and `policies.end_date`.
-  - [ ] Filter by `deadline_enabled`, `phone_number`, and `phone_verified_at`.
-  - [ ] Reuse `notification_deliveries` unique key to avoid duplicate candidates.
+- [x] Implement deadline notification target calculation service.
+- [x] Implement FastAPI internal notification scheduler.
+- [ ] Implement Kakao AlimTalk provider adapter.
+- [ ] Implement notification retry policy.
 - [ ] Resume Cloudflare Tunnel staging deployment when the feature pass pauses.

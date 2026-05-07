@@ -29,6 +29,13 @@ class Settings:
             "http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:4173,http://localhost:4173",
         )
     )
+    notification_scheduler_enabled: bool = os.getenv(
+        "NOTIFICATION_SCHEDULER_ENABLED", "false"
+    ).strip().lower() in {"1", "true", "yes", "on"}
+    notification_run_at: str = os.getenv("NOTIFICATION_RUN_AT", "09:00")
+    notification_poll_seconds: int = int(
+        os.getenv("NOTIFICATION_POLL_SECONDS", "60")
+    )
 
 
 settings = Settings()

@@ -2,172 +2,99 @@
 
 ## Summary
 
-- 이 문서는 마감 알림 발송 설계 기준이다. 현재 1차 기반으로 전화번호 저장과 발송 이력 테이블은 추가됐고, 실제 카카오 알림톡 발송과 scheduler 구현은 다음 단계로 둔다.
-- 1차 발송 채널은 카카오 알림톡으로 고정한다.
-- 스케줄러는 FastAPI 내부 background task 방식으로 설계한다.
-- 현재 저장된 사용자 설정은 `user_notification_settings.deadline_enabled`이며, D-7/D-1 기준은 기존 API의 `deadlineLeadDays = [7, 1]`을 따른다.
+- 마감 알림은 카카오 알림톡을 1차 발송 채널로 둔다.
+- 현재 구현 완료 범위는 알림 설정 저장, 연락처 저장, 발송 이력 테이블, D-7/D-1 대상 계산 service, FastAPI 내부 scheduler다.
+- scheduler는 기본 비활성화이며 `NOTIFICATION_SCHEDULER_ENABLED=true`일 때만 하루 1회 target calculation service를 실행한다.
+- 실제 카카오 알림톡 provider, 발송 성공/실패 처리, retry 정책은 다음 단계다.
 
-## Targeting Rules
+## Current Implementation
 
-- 1차 알림 대상은 사용자가 저장한 정책이다.
-- 기준 데이터는 `user_saved_policies`로 연결된 `policies.end_date`다.
-- 매일 KST 기준 `NOTIFICATION_RUN_AT=09:00` 이후 한 번 실행한다.
-- 실행일을 `today`라고 할 때, `today + 7일`, `today + 1일`에 마감되는 저장 정책을 찾는다.
-- `policies.end_date`가 없거나 이미 지난 정책은 제외한다.
-- 사용자 설정 row가 없으면 기존 API 기본값과 동일하게 `deadline_enabled=true`로 취급한다.
-- `deadline_enabled=false`인 사용자는 제외한다.
-- 카카오 알림톡 수신에 필요한 전화번호가 없거나 검증되지 않은 사용자는 `skipped`로 기록하고 발송하지 않는다.
+- `users.phone_number`: 카카오 알림톡 수신 연락처.
+- `users.phone_verified_at`: 연락처 검증 여부. 현재는 read-only 값이다.
+- `user_notification_settings.deadline_enabled`: 사용자별 정책 마감 알림 전체 켜기/끄기.
+- `notification_deliveries`: 사용자/정책/channel/lead day/마감일 조합의 발송 후보와 이력.
+- `backend/app/services/notification_delivery.py`: D-7/D-1 대상 계산 service.
+- `backend/app/services/notification_scheduler.py`: FastAPI 내부 scheduler.
 
-## Target Calculation Service
+## Target Calculation
 
-다음 구현 단계의 핵심은 HTTP API가 아니라 내부 service다.
+- `user_saved_policies`에 저장된 정책만 대상이다.
+- `policies.end_date == today + lead_day`인 정책만 대상이다.
+- `lead_days` 기본값은 `[7, 1]`이다.
+- `user_notification_settings` row가 없으면 `deadline_enabled=true`로 취급한다.
+- `deadline_enabled=false` 사용자는 제외한다.
+- 전화번호가 있고 `phone_verified_at`이 있으면 `pending` 후보를 만든다.
+- 전화번호가 없거나 미검증이면 `skipped` 후보를 만든다.
+- 기존 `sent`/`skipped` row는 제외한다.
+- 기존 `pending` row는 재사용한다.
+- 기존 `failed` row는 retry 정책이 생길 때까지 제외한다.
 
-- 권장 위치: `backend/app/services/notification_delivery.py`
-- 권장 repository: `backend/app/repositories/notification_deliveries.py`
-- 입력값:
-  - `today`: KST 기준 실행일.
-  - `lead_days`: 기본값 `[7, 1]`.
-  - `channel`: 기본값 `kakao_alimtalk`.
-- 조회 기준:
-  - `user_saved_policies`로 저장된 정책만 조회한다.
-  - `policies.end_date == today + lead_day`인 정책만 조회한다.
-  - `policies.end_date is null`인 정책은 제외한다.
-  - `user_notification_settings` row가 없으면 `deadline_enabled=true`로 취급한다.
-  - `deadline_enabled=false`인 사용자는 제외한다.
-- 연락처 기준:
-  - `users.phone_number is null`이면 provider 발송 대상이 아니다.
-  - `users.phone_verified_at is null`이면 provider 발송 대상이 아니다.
-  - 전화번호가 없거나 미검증인 경우에는 `notification_deliveries.status=skipped` 후보로 기록한다.
-- 중복 방지:
-  - `(user_id, policy_id, channel, lead_day, target_deadline_date)` unique key를 기준으로 한다.
-  - 이미 `sent` 또는 `skipped`인 row가 있으면 새 대상에서 제외한다.
-  - 이미 `pending`인 row가 있으면 새로 만들지 않고 기존 row를 재사용한다.
-  - `failed` retry는 scheduler/provider 단계에서 별도로 다룬다.
-- 내부 DTO:
-  - `user_id`
-  - `policy_id`
-  - `policy_title`
-  - `policy_slug`
-  - `phone_number`
-  - `lead_day`
-  - `target_deadline_date`
-  - `channel`
-  - `delivery_status_candidate`: `pending` 또는 `skipped`
+## Scheduler
 
-이 DTO는 scheduler와 Kakao provider adapter가 함께 쓰는 내부 값이며, public API response로 노출하지 않는다.
+- FastAPI lifespan에서 background task로 시작한다.
+- `NOTIFICATION_SCHEDULER_ENABLED=false`가 기본값이다.
+- enabled 상태에서 `DATABASE_URL`이 없으면 startup에서 실패한다.
+- 시간 기준은 KST이며 `zoneinfo.ZoneInfo("Asia/Seoul")`를 사용한다.
+- `NOTIFICATION_RUN_AT=09:00` 이후 같은 KST 날짜에 한 번만 실행한다.
+- `NOTIFICATION_POLL_SECONDS=60` 간격으로 실행 가능 여부를 확인한다.
+- target calculation 실패는 로그로 남기고 앱 프로세스는 죽이지 않는다.
+- 실패한 날짜는 성공 처리하지 않으므로 다음 polling cycle에서 다시 시도할 수 있다.
+- shutdown 시 background task를 cancel하고 정상 종료한다.
+- multi-worker 중복 실행은 별도 distributed lock 없이 `notification_deliveries` unique key로 방어한다.
 
-## Data Model Direction
+## Runtime Env
 
-1차 기반 구현에서 다음 DB 기준을 추가했다.
+- `NOTIFICATION_SCHEDULER_ENABLED`: `true`일 때 scheduler 시작.
+- `NOTIFICATION_RUN_AT`: KST 기준 실행 시각. 형식은 `HH:MM` 또는 `HH:MM:SS`.
+- `NOTIFICATION_POLL_SECONDS`: scheduler polling 간격. 1 이상이어야 한다.
 
-- `users.phone_number`: 카카오 알림톡 수신 전화번호.
-- `users.phone_verified_at`: MVP에서는 수동 검증 또는 테스트 seed 기준으로 채울 수 있는 nullable timestamp.
-- `notification_deliveries`: 발송 이력과 중복 방지 테이블.
+## Kakao AlimTalk Direction
 
-`notification_deliveries` 권장 필드:
+실제 발송 전 준비물:
 
-- `id`
-- `user_id`
-- `policy_id`
-- `channel`: 1차 값은 `kakao_alimtalk`
-- `lead_day`: `7` 또는 `1`
-- `target_deadline_date`: 정책 마감일
-- `status`: `pending`, `sent`, `failed`, `skipped`
-- `attempt_count`
-- `provider_message_id`
-- `error_message`
-- `scheduled_at`
-- `sent_at`
-- `failed_at`
-- `created_at`
-- `updated_at`
+- 카카오 비즈니스 채널.
+- 승인된 알림톡 템플릿.
+- 발송 대행사 또는 Kakao-compatible provider 계정.
+- sender key, template code, API key/secret.
+- 수신 전화번호 검증 정책.
 
-중복 방지 unique key:
+권장 환경변수:
 
-- `(user_id, policy_id, channel, lead_day, target_deadline_date)`
-
-## Scheduler Design
-
-- FastAPI lifespan/startup에서 background task를 시작한다.
-- 환경변수 `NOTIFICATION_SCHEDULER_ENABLED=true`일 때만 동작한다.
-- 기본값은 local 개발 혼선을 막기 위해 `false`로 둔다.
-- scheduler는 60초 간격으로 현재 KST 시간을 확인하고, 해당 날짜에 아직 실행하지 않았고 `NOTIFICATION_RUN_AT` 이후면 한 번 실행한다.
-- DB 작업은 sync SQLAlchemy 구조를 유지한다.
-- 여러 프로세스가 동시에 실행되어도 `notification_deliveries` unique key로 중복 발송을 막는다.
-- 운영 확장 단계에서는 cron container 또는 외부 job runner로 교체할 수 있게 발송 대상 계산/service 로직은 scheduler와 분리한다.
-
-## Kakao AlimTalk Integration Direction
-
-- 실제 발송 전 준비물:
-  - 카카오 비즈니스 채널
-  - 알림톡 템플릿 승인
-  - 발송 대행사 또는 API provider 계정
-  - sender key, template code, API key/secret
-  - 수신자 전화번호 저장 및 검증 정책
-- provider adapter를 `KakaoAlimtalkClient` 형태로 분리한다.
-- 환경변수 후보:
-  - `KAKAO_ALIMTALK_ENABLED`
-  - `KAKAO_ALIMTALK_BASE_URL`
-  - `KAKAO_ALIMTALK_API_KEY`
-  - `KAKAO_ALIMTALK_SENDER_KEY`
-  - `KAKAO_ALIMTALK_TEMPLATE_CODE_D7`
-  - `KAKAO_ALIMTALK_TEMPLATE_CODE_D1`
-  - `KAKAO_ALIMTALK_TIMEOUT_SECONDS`
-- 템플릿 변수 후보:
-  - 사용자 이름
-  - 정책명
-  - 마감일
-  - 남은 일수
-  - 공식 안내 URL 또는 앱 정책 상세 URL
+- `KAKAO_ALIMTALK_ENABLED`
+- `KAKAO_ALIMTALK_BASE_URL`
+- `KAKAO_ALIMTALK_API_KEY`
+- `KAKAO_ALIMTALK_SENDER_KEY`
+- `KAKAO_ALIMTALK_TEMPLATE_CODE_D7`
+- `KAKAO_ALIMTALK_TEMPLATE_CODE_D1`
+- `KAKAO_ALIMTALK_TIMEOUT_SECONDS`
 
 ## Failure And Retry Rules
 
-- 발송 성공 시 `status=sent`, `sent_at`, `provider_message_id`를 저장한다.
-- 전화번호 없음, 전화번호 미검증, 템플릿 설정 없음은 `status=skipped`로 저장한다.
-- provider 오류나 네트워크 오류는 `status=failed`, `attempt_count`, `error_message`, `failed_at`을 저장한다.
-- 1차 구현의 자동 재시도는 같은 실행 내 최대 1회로 제한한다.
-- 장기 재시도 큐는 후속 작업으로 둔다.
-- 같은 사용자/정책/마감일/lead day/channel 조합은 이미 `sent` 또는 `skipped`이면 다시 발송하지 않는다.
-- `failed`는 다음 scheduler 실행에서 `attempt_count < 2`인 경우 한 번 더 시도할 수 있다.
+- 발송 성공: `status=sent`, `sent_at`, `provider_message_id` 저장.
+- 전화번호 없음, 미검증, 템플릿 설정 없음: `status=skipped`.
+- provider 또는 network 오류: `status=failed`, `attempt_count`, `error_message`, `failed_at` 저장.
+- `failed` retry는 provider/retry 단계에서 구현한다.
+- 같은 사용자/정책/channel/lead day/마감일 조합이 이미 `sent` 또는 `skipped`이면 다시 발송하지 않는다.
 
 ## Next Implementation Order
 
-1. 대상 계산 service 구현
-   - D-7/D-1 저장 정책 조회.
-   - 사용자 알림 설정과 전화번호 검증 필터.
-   - `notification_deliveries` unique key 기준으로 pending/skipped 후보를 중복 없이 만든다.
-2. FastAPI 내부 scheduler 구현
-   - `NOTIFICATION_SCHEDULER_ENABLED`가 true일 때만 시작.
-   - startup/lifespan에서 background task 실행.
-3. Kakao AlimTalk adapter 구현
-   - 처음에는 fake provider 테스트와 dry-run 로그를 먼저 붙인다.
+1. Kakao AlimTalk provider adapter 구현.
+   - 처음에는 fake provider 테스트를 붙인다.
    - 실제 provider secret이 준비되면 real provider로 전환한다.
+2. Retry 정책 구현.
+   - `failed` delivery를 제한된 횟수만 재시도한다.
+   - provider error와 permanent skip 조건을 분리한다.
+3. 운영 방식 재검토.
+   - MVP 이후에는 cron container, Jenkins scheduled job, 외부 job runner로 대체할 수 있다.
 
-## Test Plan For Next Implementation
+## Test Coverage
 
-- 대상 계산:
-  - D-7 정책만 선택된다.
-  - D-1 정책만 선택된다.
-  - 마감일 없는 정책은 제외된다.
-  - 저장하지 않은 정책은 제외된다.
-  - `deadline_enabled=false` 사용자는 제외된다.
-- 중복 방지:
-  - 같은 user/policy/lead day/deadline/channel은 한 번만 delivery row가 생성된다.
-  - 이미 `sent`인 row는 재발송되지 않는다.
-- 전화번호:
-  - 전화번호 없음 또는 미검증은 `skipped`.
-  - 검증된 전화번호만 provider 호출 대상.
-- provider:
-  - 성공 시 `sent`.
-  - 실패 시 `failed`와 오류 메시지 저장.
-- scheduler:
-  - disabled 환경에서는 시작하지 않는다.
-  - enabled 환경에서는 하루 한 번만 실행한다.
+- target calculation service는 D-7/D-1 후보, skipped 후보, 기존 delivery 중복 방지를 검증한다.
+- scheduler는 disabled 상태, run time 전/후, 같은 날짜 1회 실행, 다음 날짜 재실행, 실패 후 retry 가능성, cancellation, DB misconfig를 검증한다.
 
 ## Assumptions
 
-- 1차 알림 대상은 저장 정책(`user_saved_policies`)만 포함한다.
+- 1차 알림 대상은 저장 정책(`user_saved_policies`)으로 제한한다.
 - 일정에 담긴 정책(`trip_policies`) 기반 알림은 후속 확장으로 둔다.
-- 카카오 알림톡은 실제 운영 계정과 승인 템플릿이 준비된 뒤 real provider로 연결한다.
-- FastAPI 내부 scheduler는 MVP 내부 테스트 기준이며, 운영 확장 시 cron container 또는 외부 job runner로 교체할 수 있다.
-- `docs/requirements.md`는 기존 untracked 파일이므로 이 작업에서 건드리지 않는다.
+- 실제 카카오 알림톡은 비즈니스 채널, 승인 템플릿, provider secret 준비 후 연결한다.
+- 전화번호 실인증/OTP는 이번 범위에 포함하지 않는다.

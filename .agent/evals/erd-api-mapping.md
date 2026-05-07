@@ -52,6 +52,9 @@
 | `NotificationSettings.deadlineEnabled` | `user_notification_settings.deadline_enabled` | Defaults to true when no row exists |
 | `NotificationSettings.deadlineLeadDays` | server constant `[7, 1]` | Not persisted in DB |
 | `NotificationDelivery` duplicate key | `notification_deliveries(user_id, policy_id, channel, lead_day, target_deadline_date)` | Prevents duplicate D-7/D-1 sends |
+| `NotificationDeliveryTarget.policyId` | `user_saved_policies.policy_id` + `policies.id` | Internal service DTO only; public API unchanged |
+| `NotificationDeliveryTarget.targetDeadlineDate` | `policies.end_date` | Candidate when `end_date == today + lead_day` |
+| `NotificationDeliveryTarget.deliveryStatus` | `notification_deliveries.status` | `pending` for verified contact, `skipped` for missing/unverified contact |
 
 ## Non-DB API Values
 
