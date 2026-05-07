@@ -144,3 +144,40 @@ def test_target_calculation_once_opens_and_closes_session(monkeypatch) -> None:
     assert result == ["target"]
     assert calls == [(session, date(2026, 5, 7))]
     assert session.closed is True
+
+
+def test_dispatch_once_opens_session_and_calls_dispatch(monkeypatch) -> None:
+    class FakeSession:
+        def __init__(self) -> None:
+            self.closed = False
+
+        def close(self) -> None:
+            self.closed = True
+
+    session = FakeSession()
+    calls: list[tuple[object, date]] = []
+
+    def dispatch(db, *, today):
+        calls.append((db, today))
+        return notification_scheduler.NotificationDispatchSummary(
+            candidates=1,
+            sent=0,
+            failed=0,
+            skipped=0,
+            providerEnabled=False,
+        )
+
+    monkeypatch.setattr(
+        notification_scheduler,
+        "dispatch_deadline_notifications",
+        dispatch,
+    )
+
+    result = notification_scheduler.run_notification_dispatch_once(
+        today=date(2026, 5, 7),
+        session_factory=lambda: session,
+    )
+
+    assert result.candidates == 1
+    assert calls == [(session, date(2026, 5, 7))]
+    assert session.closed is True

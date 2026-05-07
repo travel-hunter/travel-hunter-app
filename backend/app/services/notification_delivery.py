@@ -21,7 +21,9 @@ RETRY_DEFERRED_STATUSES = {STATUS_FAILED}
 
 @dataclass(frozen=True)
 class NotificationDeliveryTarget:
+    deliveryId: int
     userId: int
+    userName: str
     policyId: int
     policyTitle: str
     policySlug: str | None
@@ -71,7 +73,7 @@ def calculate_deadline_notification_targets(
                 continue
 
             status = _delivery_status_for_user(saved_row.user)
-            delivery_repository.create_delivery(
+            delivery = delivery_repository.create_delivery(
                 db,
                 user_id=saved_row.user_id,
                 policy_id=saved_row.policy_id,
@@ -85,6 +87,7 @@ def calculate_deadline_notification_targets(
             targets.append(
                 _target_from_saved_row(
                     saved_row,
+                    delivery_id=delivery.id,
                     lead_day=lead_day,
                     target_deadline_date=target_deadline_date,
                     channel=channel,
@@ -111,6 +114,7 @@ def _target_from_existing(
         return None
     return _target_from_saved_row(
         saved_row,
+        delivery_id=delivery.id,
         lead_day=delivery.lead_day,
         target_deadline_date=delivery.target_deadline_date,
         channel=channel,
@@ -121,13 +125,16 @@ def _target_from_existing(
 def _target_from_saved_row(
     saved_row: UserSavedPolicy,
     *,
+    delivery_id: int,
     lead_day: int,
     target_deadline_date: date,
     channel: str,
     delivery_status: str,
 ) -> NotificationDeliveryTarget:
     return NotificationDeliveryTarget(
+        deliveryId=delivery_id,
         userId=saved_row.user_id,
+        userName=saved_row.user.nickname,
         policyId=saved_row.policy_id,
         policyTitle=saved_row.policy.title,
         policySlug=saved_row.policy.slug,

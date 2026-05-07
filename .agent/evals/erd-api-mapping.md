@@ -55,6 +55,8 @@
 | `NotificationDeliveryTarget.policyId` | `user_saved_policies.policy_id` + `policies.id` | Internal service DTO only; public API unchanged |
 | `NotificationDeliveryTarget.targetDeadlineDate` | `policies.end_date` | Candidate when `end_date == today + lead_day` |
 | `NotificationDeliveryTarget.deliveryStatus` | `notification_deliveries.status` | `pending` for verified contact, `skipped` for missing/unverified contact |
+| `NotificationDispatch.sent` | `notification_deliveries.status`, `provider_message_id`, `sent_at` | SOLAPI accepted response is recorded as `sent` in MVP |
+| `NotificationDispatch.failed` | `notification_deliveries.status`, `attempt_count`, `error_message`, `failed_at` | SOLAPI failed response, HTTP error, or timeout is recorded as `failed` |
 
 ## Non-DB API Values
 

@@ -67,8 +67,12 @@ Profile endpoints must persist the selected onboarding preferences:
 - Internal target calculation service creates `notification_deliveries` candidates from saved policies whose `policies.end_date` is D-7/D-1.
 - Internal target calculation service excludes `deadline_enabled=false` users, reuses existing `pending` rows, and does not duplicate `sent` or `skipped` rows.
 - Internal target calculation service records `skipped` candidates when a user lacks a verified phone number.
-- Internal notification scheduler is disabled by default, runs only with `NOTIFICATION_SCHEDULER_ENABLED=true`, and invokes target calculation at most once per KST date after `NOTIFICATION_RUN_AT`.
-- Internal notification scheduler must not expose a public endpoint and must not mark provider delivery as `sent` or `failed`.
+- Internal notification scheduler is disabled by default, runs only with `NOTIFICATION_SCHEDULER_ENABLED=true`, and invokes dispatch at most once per KST date after `NOTIFICATION_RUN_AT`.
+- Internal notification scheduler must not expose a public endpoint.
+- With `KAKAO_ALIMTALK_ENABLED=false`, dispatch creates/reuses `pending/skipped` candidates without provider calls.
+- With `KAKAO_ALIMTALK_ENABLED=true`, dispatch sends only `pending` targets through the SOLAPI Kakao AlimTalk adapter.
+- SOLAPI adapter must build HMAC auth headers, `ATA` message payloads, D-7/D-1 template ids, and template variables for user, policy, deadline, remaining days, and policy URL.
+- SOLAPI accepted responses mark deliveries `sent`; `failedMessageList`, HTTP error, timeout, and invalid Korean mobile numbers mark `failed` or `skipped` as documented.
 
 Policy endpoints must preserve the same public response shape:
 

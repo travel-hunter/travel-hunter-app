@@ -30,6 +30,17 @@ services:
       NOTIFICATION_SCHEDULER_ENABLED: "false"
       NOTIFICATION_RUN_AT: "09:00"
       NOTIFICATION_POLL_SECONDS: "60"
+      KAKAO_ALIMTALK_ENABLED: "false"
+      SOLAPI_BASE_URL: https://api.solapi.com
+      SOLAPI_API_KEY: ""
+      SOLAPI_API_SECRET: ""
+      SOLAPI_PF_ID: ""
+      SOLAPI_TEMPLATE_ID_D7: ""
+      SOLAPI_TEMPLATE_ID_D1: ""
+      SOLAPI_FROM_NUMBER: ""
+      SOLAPI_DISABLE_SMS: "true"
+      SOLAPI_TIMEOUT_SECONDS: "5"
+      TRAVEL_HUNTER_PUBLIC_BASE_URL: http://127.0.0.1:4173
     ports:
       - "8000:8000"
     depends_on:

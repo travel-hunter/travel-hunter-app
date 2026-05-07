@@ -4,7 +4,7 @@
 
 Travel Hunter는 국내 여행 정책 탐색, 일정 관리, 정책 저장, 초대 협업, 마감 알림 설정을 제공하는 DB-backed-only MVP다. Runtime mock mode는 제거됐고, 프론트엔드는 항상 FastAPI backend를 호출한다.
 
-현재 작업트리에는 마감 알림 대상 계산 service와 FastAPI 내부 notification scheduler 구현이 포함된다.
+현재 작업트리에는 FastAPI 내부 notification scheduler와 SOLAPI 기반 Kakao AlimTalk provider adapter 구현이 포함된다.
 
 ## 주요 구현 범위
 
@@ -15,7 +15,7 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 관리, 정책 저장, 초�
 - AI 추천: `/ai-results` 추천 항목을 실제 일정 장소로 추가.
 - 초대: 초대 링크 생성, 수락, `viewer/editor` 권한 저장, 장소 편집 권한 enforcement.
 - 알림 설정: 마감 알림 켜기/끄기, 카카오 알림톡 연락처 저장.
-- 알림 발송 기반: `notification_deliveries` 이력 테이블, D-7/D-1 대상 계산 service, FastAPI 내부 scheduler.
+- 알림 발송 기반: `notification_deliveries` 이력 테이블, D-7/D-1 대상 계산 service, FastAPI 내부 scheduler, SOLAPI 알림톡 dispatch.
 
 ## 백엔드 기준
 
@@ -32,8 +32,9 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 관리, 정책 저장, 초�
 - 기본값은 비활성화다.
 - `NOTIFICATION_SCHEDULER_ENABLED=true`일 때만 시작한다.
 - enabled 상태에서 `DATABASE_URL`이 없으면 startup에서 실패한다.
-- KST 기준 `NOTIFICATION_RUN_AT` 이후 하루 한 번 target calculation service를 실행한다.
-- target calculation 실패는 로그로 남기고 다음 polling cycle에서 다시 시도할 수 있다.
+- KST 기준 `NOTIFICATION_RUN_AT` 이후 하루 한 번 dispatch service를 실행한다.
+- dispatch service는 target calculation 후 `pending` 후보를 provider 설정에 따라 SOLAPI로 접수한다.
+- dispatch 실패는 로그로 남기고 다음 polling cycle에서 다시 시도할 수 있다.
 - shutdown 시 background task를 cancel한다.
 - public HTTP endpoint, DB migration, frontend 변경은 없다.
 
@@ -42,6 +43,11 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 관리, 정책 저장, 초�
 - `NOTIFICATION_SCHEDULER_ENABLED=false`
 - `NOTIFICATION_RUN_AT=09:00`
 - `NOTIFICATION_POLL_SECONDS=60`
+- `KAKAO_ALIMTALK_ENABLED=false`
+- `SOLAPI_BASE_URL=https://api.solapi.com`
+- `SOLAPI_API_KEY`, `SOLAPI_API_SECRET`, `SOLAPI_PF_ID`, `SOLAPI_TEMPLATE_ID_D7`, `SOLAPI_TEMPLATE_ID_D1`
+- `SOLAPI_FROM_NUMBER`, `SOLAPI_DISABLE_SMS=true`, `SOLAPI_TIMEOUT_SECONDS=5`
+- `TRAVEL_HUNTER_PUBLIC_BASE_URL`
 
 위 값은 `backend/.env.example`, `compose.yaml`, `compose.vps.yaml`, `compose.tunnel.yaml`, 배포 env example에 반영되어 있다.
 
@@ -60,7 +66,7 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 관리, 정책 저장, 초�
 
 ## 최신 검증
 
-- `cd backend && python -m pytest`: 115 passed.
+- `cd backend && python -m pytest`: 135 passed.
 - `cd backend && alembic upgrade head --sql`: passed.
 - `docker compose -f compose.yaml config`: passed.
 - `docker compose --env-file deploy/.env.staging.example -f compose.vps.yaml config`: passed.
@@ -79,8 +85,8 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 관리, 정책 저장, 초�
 
 ## 미구현 범위
 
-- 카카오 알림톡 provider adapter.
 - 알림 retry 정책.
+- SOLAPI 웹훅 기반 최종 배송 상태 추적.
 - 전화번호 실인증/OTP.
 - 소셜 로그인 실제 연동.
 - 정책 실시간 수집 API.
@@ -92,4 +98,4 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 관리, 정책 저장, 초�
 
 ## 다음 작업
 
-다음 기능 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 Kakao AlimTalk provider adapter 구현이다.
+다음 기능 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 알림 retry 정책 구현이다.

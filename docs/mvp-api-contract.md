@@ -214,6 +214,20 @@ Behavior:
 - 사용자당 하나의 설정 row만 유지한다.
 - 실제 push/email/카카오 알림 발송은 이 endpoint가 수행하지 않는다.
 
+## Internal Notification Delivery
+
+Public HTTP endpoint는 없다. FastAPI 내부 scheduler가 KST 기준 하루 1회 dispatch service를 실행한다.
+
+Internal behavior:
+
+- D-7/D-1 대상은 `user_saved_policies`, `policies.end_date`, `user_notification_settings.deadline_enabled`, `users.phone_number`, `users.phone_verified_at` 기준으로 계산한다.
+- `notification_deliveries(user_id, policy_id, channel, lead_day, target_deadline_date)` unique key로 중복 생성을 방지한다.
+- `KAKAO_ALIMTALK_ENABLED=false`이면 후보 생성만 수행하고 SOLAPI를 호출하지 않는다.
+- `KAKAO_ALIMTALK_ENABLED=true`이면 `pending` 후보만 SOLAPI `POST /messages/v4/send-many/detail`로 접수한다.
+- SOLAPI 접수 성공은 `status=sent`, `provider_message_id`, `sent_at`으로 기록한다.
+- SOLAPI 실패 응답, HTTP error, timeout은 `status=failed`, `attempt_count`, `error_message`, `failed_at`으로 기록한다.
+- 한국 휴대폰 번호로 정규화되지 않는 연락처는 provider 호출 없이 `status=skipped`로 기록한다.
+
 ### `GET /api/profile-options`
 
 Static option response:

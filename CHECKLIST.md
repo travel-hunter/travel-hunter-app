@@ -25,13 +25,14 @@
 - [x] Notification delivery history foundation exists in `notification_deliveries`.
 - [x] Deadline notification target calculation service creates idempotent `pending/skipped` candidates.
 - [x] FastAPI internal notification scheduler is connected through lifespan and gated by env.
+- [x] SOLAPI Kakao AlimTalk provider adapter dispatches pending notification deliveries.
 - [x] Public VPS artifacts exist.
 - [x] Cloudflare Tunnel artifacts exist.
 
 ## 마지막 검증 결과
 
 - Date: 2026-05-07.
-- Backend pytest: 115 passed.
+- Backend pytest: 135 passed.
 - Alembic offline SQL: passed.
 - Local compose config: passed.
 - VPS compose config: passed.
@@ -50,6 +51,7 @@
 - [x] Add phone number storage and notification delivery history migration.
 - [x] Implement deadline notification target calculation service.
 - [x] Implement FastAPI internal notification scheduler.
-- [ ] Implement Kakao AlimTalk provider adapter.
+- [x] Implement Kakao AlimTalk provider adapter.
 - [ ] Implement notification retry policy.
+- [ ] Implement SOLAPI webhook delivery status tracking.
 - [ ] Resume Cloudflare Tunnel staging deployment when the feature pass pauses.

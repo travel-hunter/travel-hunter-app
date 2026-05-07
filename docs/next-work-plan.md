@@ -4,14 +4,14 @@
 
 - 배포, Jenkins, Figma 후속 작업은 기능 우선순위에서 제외한다.
 - MVP는 DB-backed-only 흐름이다.
-- 최근 기능 패스는 장소 편집, 마이페이지 프로필 편집, AI 추천 일정 추가, 초대 권한 저장/enforcement, 마감 알림 설정 저장, 알림 연락처 저장, 마감 알림 대상 계산 service, FastAPI 내부 scheduler까지 완료했다.
+- 최근 기능 패스는 장소 편집, 마이페이지 프로필 편집, AI 추천 일정 추가, 초대 권한 저장/enforcement, 마감 알림 설정 저장, 알림 연락처 저장, 마감 알림 대상 계산 service, FastAPI 내부 scheduler, SOLAPI Kakao AlimTalk provider adapter까지 완료했다.
 
 ## 다음 우선순위
 
 | 우선순위 | 작업 | 성공 기준 |
 |---:|---|---|
-| 1 | Kakao AlimTalk provider adapter | fake provider 테스트 후 provider secret 준비 시 real provider로 전환할 수 있다. |
-| 2 | 알림 retry 정책 | `failed` delivery를 제한된 횟수만 재시도하고 permanent skip 조건과 분리한다. |
+| 1 | 알림 retry 정책 | `failed` delivery를 제한된 횟수만 재시도하고 permanent skip 조건과 분리한다. |
+| 2 | SOLAPI 웹훅 배송 상태 추적 | provider 최종 배송 결과를 `notification_deliveries`에 반영한다. |
 | 3 | 소셜 로그인 OAuth | staging URL과 provider secret 확정 후 Kakao 또는 Google부터 연결한다. |
 | 4 | Cloudflare Tunnel staging 배포 재개 | 기능 패스가 멈추거나 release staging으로 복귀할 때 외부 URL smoke를 진행한다. |
 

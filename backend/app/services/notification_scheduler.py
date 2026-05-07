@@ -12,6 +12,10 @@ from app.services.notification_delivery import (
     NotificationDeliveryTarget,
     calculate_deadline_notification_targets,
 )
+from app.services.notification_dispatch import (
+    NotificationDispatchSummary,
+    dispatch_deadline_notifications,
+)
 
 KST = ZoneInfo("Asia/Seoul")
 logger = logging.getLogger(__name__)
@@ -50,6 +54,20 @@ def run_notification_target_calculation_once(
         db.close()
 
 
+def run_notification_dispatch_once(
+    *,
+    today: date | None = None,
+    session_factory: sessionmaker[Session] | None = None,
+) -> NotificationDispatchSummary:
+    run_date = today or kst_now().date()
+    factory = session_factory or get_session_factory()
+    db = factory()
+    try:
+        return dispatch_deadline_notifications(db, today=run_date)
+    finally:
+        db.close()
+
+
 class NotificationScheduler:
     def __init__(
         self,
@@ -57,7 +75,9 @@ class NotificationScheduler:
         run_at: time,
         poll_seconds: int,
         now_provider: Callable[[], datetime] = kst_now,
-        calculate_targets: Callable[[date], Sequence[NotificationDeliveryTarget]]
+        calculate_targets: Callable[
+            [date], Sequence[NotificationDeliveryTarget] | NotificationDispatchSummary
+        ]
         | None = None,
         sleep: Callable[[float], object] = asyncio.sleep,
     ) -> None:
@@ -65,7 +85,7 @@ class NotificationScheduler:
         self.poll_seconds = poll_seconds
         self.now_provider = now_provider
         self.calculate_targets = calculate_targets or (
-            lambda today: run_notification_target_calculation_once(today=today)
+            lambda today: run_notification_dispatch_once(today=today)
         )
         self.sleep = sleep
         self.last_successful_run_date: date | None = None

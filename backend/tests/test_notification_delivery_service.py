@@ -166,7 +166,9 @@ def test_calculates_d7_pending_candidate_for_verified_contact(fake_repository) -
     )
 
     assert len(targets) == 1
+    assert targets[0].deliveryId == 1
     assert targets[0].userId == 7
+    assert targets[0].userName == "User 7"
     assert targets[0].policyId == 11
     assert targets[0].policySlug == "local-vacation"
     assert targets[0].phoneNumber == "01012345678"
@@ -268,6 +270,7 @@ def test_excludes_completed_delivery_without_duplicate(fake_repository, status: 
     fake_repository.candidates_by_date[target_date] = [saved_policy]
     fake_repository.existing[delivery_key(target_deadline_date=target_date)] = (
         NotificationDelivery(
+            id=91,
             user_id=7,
             policy_id=11,
             channel="kakao_alimtalk",
@@ -295,6 +298,7 @@ def test_reuses_existing_pending_delivery(fake_repository) -> None:
     fake_repository.candidates_by_date[target_date] = [saved_policy]
     fake_repository.existing[delivery_key(target_deadline_date=target_date)] = (
         NotificationDelivery(
+            id=92,
             user_id=7,
             policy_id=11,
             channel="kakao_alimtalk",
@@ -311,6 +315,7 @@ def test_reuses_existing_pending_delivery(fake_repository) -> None:
     )
 
     assert len(targets) == 1
+    assert targets[0].deliveryId == 92
     assert targets[0].deliveryStatus == "pending"
     assert fake_repository.created == []
     assert db.commits == 0
@@ -323,6 +328,7 @@ def test_excludes_failed_delivery_until_retry_policy_exists(fake_repository) -> 
     fake_repository.candidates_by_date[target_date] = [saved_policy]
     fake_repository.existing[delivery_key(target_deadline_date=target_date)] = (
         NotificationDelivery(
+            id=93,
             user_id=7,
             policy_id=11,
             channel="kakao_alimtalk",
