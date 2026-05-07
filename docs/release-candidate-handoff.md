@@ -2,8 +2,8 @@
 
 ## 기준
 
-- 기준일: 2026-05-06
-- RC 기준 커밋: `026336e style: align toast with wanted figma values`
+- 기준일: 2026-05-07
+- RC 기준 커밋: `b75a734 feat: complete button audit auth and UX fixes`
 - 현재 상태: DB-backed-only MVP, runtime mock mode 제거
 - 배포 방향: Docker Compose 기반 내부 테스트용 staging
 - 배포 모드:
@@ -13,10 +13,13 @@
 ## 포함 기능
 
 - 인증: 회원가입, 로그인, refresh, logout, `/api/me`.
+- Password reset: email reset link 요청, token confirm, password hash 갱신, 기존 refresh token revoke.
+- OAuth: Kakao/Google authorization code 시작, callback state 검증, social account 연결/생성.
 - 프로필: 지역, 여행 스타일, 예산 설정 저장.
-- 정책: 목록, 상세, 검색/필터, 저장/삭제, 공식/신청 URL CTA.
-- 일정: 목록, 생성, 상세, 삭제, 정책 담기, 추천 결과 조회.
-- 초대: 초대 링크 생성, 초대 수락, 일정 참여자 추가.
+- 정책: 목록, 상세, 검색/필터, 저장/삭제, 공식/신청 URL CTA, 정책 링크 복사.
+- 일정: 목록, 생성, 상세, 삭제, 정책 담기, 장소 추가/수정/삭제, 추천 결과 일정 추가.
+- 초대: 초대 링크 생성, viewer/editor 권한 저장, 초대 수락, 일정 참여자 추가, 장소 편집 권한 enforcement.
+- 알림: 연락처/설정 저장, 대상 계산, FastAPI scheduler, SOLAPI adapter, retry, webhook 상태 추적.
 - 디자인: Wanted Design System 기준 Button/Toast 보정, 주요 화면 반응형 QA, Figma handoff frame 생성.
 
 ## 실행 모드
@@ -84,8 +87,8 @@ Cloudflare public hostname은 `https://<staging-domain>`에서 tunnel을 통해 
 
 ## 검증 결과
 
-- Backend pytest: 72 passed.
-- Frontend Vitest: 20 passed.
+- Backend pytest: 160 passed.
+- Frontend Vitest: 36 passed.
 - DB-backed Playwright e2e: 5 passed.
 - Frontend build: passed.
 - Alembic offline SQL: passed.
@@ -118,7 +121,8 @@ Cloudflare public hostname은 `https://<staging-domain>`에서 tunnel을 통해 
 
 1. `README.md`에서 읽는 순서를 확인한다.
 2. `docs/current-work-spec.md`로 현재 구현 범위를 확인한다.
-3. `docs/mvp-api-contract.md`로 API shape를 확인한다.
-4. 네트워크 조건에 맞춰 `docs/deployment-vps.md` 또는 `docs/deployment-tunnel.md`를 선택한다.
-5. 외부 staging URL에서 내부 테스트 필수 플로우를 통과시킨다.
-6. 결과를 `CHECKLIST.md`와 이 문서에 기록한다.
+3. `docs/feature-implementation-status.md`로 완료/조건부/미구현 기능을 확인한다.
+4. `docs/mvp-api-contract.md`로 API shape를 확인한다.
+5. 네트워크 조건에 맞춰 `docs/deployment-vps.md` 또는 `docs/deployment-tunnel.md`를 선택한다.
+6. 외부 staging URL에서 내부 테스트 필수 플로우를 통과시킨다.
+7. 결과를 `CHECKLIST.md`와 이 문서에 기록한다.

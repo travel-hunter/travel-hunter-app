@@ -8,7 +8,7 @@
 - Imported reference file key: `6X5t38FCiVoIdRdi3C2olj`
 - Imported reference URL: `https://www.figma.com/design/6X5t38FCiVoIdRdi3C2olj/Wanted-Design-System---Imported-Reference`
 - Local export source: `C:\Users\HP\Downloads\Wanted Design System (Community).fig`
-- App baseline commit: `026336e style: align toast with wanted figma values`
+- App baseline commit: `b75a734 feat: complete button audit auth and UX fixes`
 - 추출 방식: Figma MCP로 원본 Community 파일과 import된 reference 파일의 component set metadata를 읽어 비교한다.
 
 > Source node URL 형식: `https://www.figma.com/design/dob3r6VmG3WjsOZV0Cb8i4/Wanted-Design-System--Community-?node-id=<node-id-with-hyphen>`

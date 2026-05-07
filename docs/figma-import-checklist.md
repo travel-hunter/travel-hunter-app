@@ -16,11 +16,9 @@
 - Imported reference file key: `6X5t38FCiVoIdRdi3C2olj`
 - Travel Hunter handoff file: `https://www.figma.com/design/6qxML42kKtZWIwLUU1YDpX`
 - Travel Hunter handoff file key: `6qxML42kKtZWIwLUU1YDpX`
-- Current app baseline commit: `026336e style: align toast with wanted figma values`
+- Current app baseline commit: `b75a734 feat: complete button audit auth and UX fixes`
 - Current mapping doc: `docs/design-system-map.md`
-- Browser QA doc: `docs/design-qa.md`
 - Component values doc: `docs/figma-component-values.md`
-- Team/project workflow doc: `docs/figma-team-project-workflow.md`
 
 ## Figma Import Steps
 
@@ -44,6 +42,14 @@
 11. `04 Handoff`에는 최종 token/component 결정과 code mapping을 기록한다.
 
 기존 `Travel Hunter Sprint 1 HTML Flow`는 유지할 수 있지만, 디자인 시스템 handoff는 새 파일로 분리하는 것을 기본값으로 한다.
+
+## Team/Handoff 상태
+
+- Figma team plan: `travle-hunter` (`team::1631977620101471167`).
+- Codex는 로컬 `.fig` 파일을 직접 import하지 못하므로 Figma 앱/웹에서 import한다.
+- `Wanted Design System - Imported Reference`와 `Travel Hunter Design System Handoff`는 같은 프로젝트 안에 유지한다.
+- `Travel Hunter Sprint 1 HTML Flow`는 과거 Sprint 1 기준 파일이므로 새 design system handoff와 섞지 않는다.
+- Handoff 파일에는 `00 Wanted Reference`, `01 Token Map`, `02 Current App Screens`, `03 Redesigned Screens`, `04 Handoff` 페이지가 있다.
 
 ## Component Variant 확인표
 
@@ -109,3 +115,11 @@ Recommended viewport:
 - `03 Redesigned Screens`에 8개 route의 `390`/`1440` editable Redesign native frame이 생성됐다.
 - `04 Handoff`에 route별 상태 보드와 코드 반영 파일 힌트가 생성됐다.
 - 필요한 경우 2차 token/component 보정이 적용됐고 Fast Lane 검증이 통과했다.
+
+## Browser QA 요약
+
+- 확인 화면: `/login`, `/signup`, `/home`, `/policies`, `/policies/local-vacation`, `/trips`, `/trips/new`, `/mypage`.
+- 확인 viewport: `390x844`, `1024x900`, `1440x1000`.
+- 주요 CTA, 링크, 버튼의 화면 밖 이탈은 없고 인증 화면 input/CTA는 390px에서도 잘림 없이 렌더링된다.
+- `/home` 390px의 가로 스크롤 카드는 의도된 UX로 유지한다.
+- Button primary, height, radius와 Toast height/radius/padding은 Wanted 기준으로 보정됐다.

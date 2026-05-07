@@ -200,3 +200,12 @@ curl -fsS https://<staging-domain>/api/health
 - Tunnel token, DB password, `AUTH_SECRET_KEY`는 repo에 기록하지 않는다.
 - Caddy는 외부 TLS 종료가 아니라 container 내부 reverse proxy 역할을 한다.
 - 실제 공개 테스트 전에는 개인정보/약관, 로그, 백업, 모니터링 기준을 별도 확정한다.
+
+## 후속 자동화 메모
+
+- Jenkinsfile은 현재 범위에서 구현하지 않는다.
+- Cloudflare Tunnel staging이 수동으로 검증된 뒤 후속 배포 자동화 단계에서 추가한다.
+- 기본 방향은 서버 내부 또는 같은 내부망 Jenkins가 Docker Compose 명령을 직접 실행하는 것이다.
+- NAT 제한 환경에서는 GitHub webhook보다 `Poll SCM`을 우선 검토한다.
+- secret과 실제 env 파일은 Jenkins credentials 또는 서버 로컬 파일로 관리하고 repo에 커밋하지 않는다.
+- AWS/Terraform/EKS/Argo CD 전환은 Docker Compose staging이 검증된 뒤 별도 인프라 단계에서 결정한다.
