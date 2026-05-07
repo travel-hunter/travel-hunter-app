@@ -4,9 +4,10 @@
 
 Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저장, 초대 협업, 마감 알림 기반을 제공하는 DB-backed-only MVP다. Runtime mock mode는 제거됐고, frontend는 항상 FastAPI backend를 호출한다.
 
-- 최신 기준 커밋: `774278d docs: audit project structure`.
+- 최신 기준 커밋: `d85cb29 feat: add web share api fallback`.
 - 브랜치 상태: `feat/prototype-to-react`, origin 대비 ahead 상태.
 - 최근 변경으로 일단체크인 벤치마크 분석, production sourcemap 비공개 명시, PWA manifest/meta 1차 적용, 프로젝트 구조 audit 문서화, Web Share API 공유 fallback을 완료했다.
+- 같은 네트워크에서 개발 서버를 공유하는 LAN runbook은 `docs/local-lan-access.md`에 정리했다.
 
 ## 구현 완료 범위
 
@@ -65,6 +66,7 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 - `cd frontend && npm test`: 36 passed.
 - `cd frontend && npm run typecheck`: passed.
 - `cd frontend && npm run build`: passed, production sourcemap 미생성, PWA manifest/icon 산출물 확인.
+- `frontend/public/manifest.webmanifest`: valid JSON, app name/theme/icon metadata 확인.
 - `cd backend && alembic upgrade head --sql`: passed.
 - `docker compose -f compose.yaml config`: passed.
 - `docker compose --env-file deploy/.env.staging.example -f compose.vps.yaml config`: passed.

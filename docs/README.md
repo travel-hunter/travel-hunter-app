@@ -14,9 +14,11 @@
    - NAT 제한 환경의 Cloudflare Tunnel staging runbook.
 6. `deployment-vps.md`
    - public VPS 직접 노출 staging runbook.
-7. `mvp-api-contract.md`
+7. `local-lan-access.md`
+   - 같은 강의실/사무실 네트워크에서 개발 서버를 공유하는 LAN runbook.
+8. `mvp-api-contract.md`
    - API request/response/error 계약.
-8. `next-work-plan.md`
+9. `next-work-plan.md`
    - 다음 작업 우선순위.
 
 ## 보조 문서

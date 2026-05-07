@@ -25,6 +25,8 @@
 - Production sourcemap 비공개 명시.
 - PWA manifest/meta 1차 적용.
 - 프로젝트 구조 audit 문서화.
+- Web Share API 공유 fallback.
+- 같은 네트워크 개발 서버 공유용 LAN runbook 문서화.
 
 ## 다음 우선순위
 
