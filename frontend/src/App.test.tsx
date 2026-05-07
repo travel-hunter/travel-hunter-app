@@ -1,13 +1,17 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { appDataApi, type ContactInfo, type InviteState, type NotificationSettings, type Policy, type Trip } from "./api";
 import { App } from "./app/App";
 import { AppProviders, AppRoot } from "./app/AppRoot";
 
 const testEmail = "test.user@example.com";
 const testPassword = "password123";
+
+beforeEach(() => {
+  window.localStorage.clear();
+});
 
 function renderRoute(route: string) {
   return render(
@@ -115,6 +119,7 @@ describe("Travel Hunter app", () => {
 
       await user.click(screen.getByRole("button", { name: "4일" }));
       await user.click(screen.getByRole("button", { name: "부산" }));
+      await waitFor(() => expect(window.localStorage.getItem("travel-hunter:draft:trip-create:local-vacation")).toContain("부산"));
       await user.click(screen.getByRole("button", { name: "부산 4일 일정 만들기" }));
 
       await waitFor(() =>
@@ -128,11 +133,28 @@ describe("Travel Hunter app", () => {
           }),
         ),
       );
+      expect(window.localStorage.getItem("travel-hunter:draft:trip-create:local-vacation")).toBeNull();
     } finally {
       createTripSpy.mockRestore();
       addPolicySpy.mockRestore();
       getTripSpy.mockRestore();
     }
+  });
+
+  it("restores the trip creation draft after remounting the page", async () => {
+    await login();
+    cleanup();
+    renderRoute("/trips/new?policySlug=local-vacation");
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "5일" }));
+    await user.click(screen.getByRole("button", { name: "부산" }));
+    await waitFor(() => expect(window.localStorage.getItem("travel-hunter:draft:trip-create:local-vacation")).toContain("부산"));
+
+    cleanup();
+    renderRoute("/trips/new?policySlug=local-vacation");
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "부산 5일 일정 만들기" })).toBeInTheDocument());
   });
 
   it("renders itinerary detail day tabs from trip data", async () => {
@@ -195,6 +217,7 @@ describe("Travel Hunter app", () => {
       await user.type(document.querySelector('input[name="place-time"]') as HTMLInputElement, "14:30");
       await user.type(document.querySelector('input[name="place-label"]') as HTMLInputElement, "Cafe stop");
       await user.type(document.querySelector('textarea[name="place-meta"]') as HTMLTextAreaElement, "Dessert");
+      await waitFor(() => expect(window.localStorage.getItem("travel-hunter:draft:trip-place:55:add:1")).toContain("Cafe stop"));
       await user.click(document.querySelector(".sheet-actions button") as HTMLButtonElement);
 
       await waitFor(() =>
@@ -204,6 +227,7 @@ describe("Travel Hunter app", () => {
           meta: "Dessert",
         }),
       );
+      expect(window.localStorage.getItem("travel-hunter:draft:trip-place:55:add:1")).toBeNull();
       await waitFor(() => expect(document.body).toHaveTextContent("Cafe stop"));
 
       await user.click(document.querySelector(".place-actions .ghost") as HTMLButtonElement);
@@ -228,6 +252,56 @@ describe("Travel Hunter app", () => {
       updatePlaceSpy.mockRestore();
       deletePlaceSpy.mockRestore();
       confirmSpy.mockRestore();
+    }
+  });
+
+  it("restores and clears add-place drafts", async () => {
+    const initialTrip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "55",
+      title: "Jeju editable trip",
+      days: { 1: [] },
+    };
+    const addedTrip: Trip = {
+      ...initialTrip,
+      days: { 1: [{ id: "3", time: "16:00", label: "Tea house", meta: "Reservation" }] },
+    };
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(initialTrip);
+    const addPlaceSpy = vi.spyOn(appDataApi, "addTripPlace").mockResolvedValue(addedTrip);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/trips/55");
+      const user = userEvent.setup();
+
+      await waitFor(() => expect(document.querySelector(".dashed")).toBeTruthy());
+      await user.click(document.querySelector(".dashed") as HTMLButtonElement);
+      await user.type(document.querySelector('input[name="place-time"]') as HTMLInputElement, "16:00");
+      await user.type(document.querySelector('input[name="place-label"]') as HTMLInputElement, "Tea house");
+      await user.type(document.querySelector('textarea[name="place-meta"]') as HTMLTextAreaElement, "Reservation");
+      await waitFor(() => expect(window.localStorage.getItem("travel-hunter:draft:trip-place:55:add:1")).toContain("Tea house"));
+
+      cleanup();
+      renderRoute("/trips/55");
+      await waitFor(() => expect(document.querySelector(".dashed")).toBeTruthy());
+      await user.click(document.querySelector(".dashed") as HTMLButtonElement);
+      expect(document.querySelector('input[name="place-time"]')).toHaveValue("16:00");
+      expect(document.querySelector('input[name="place-label"]')).toHaveValue("Tea house");
+      expect(document.querySelector('textarea[name="place-meta"]')).toHaveValue("Reservation");
+
+      await user.click(document.querySelector(".sheet-actions button") as HTMLButtonElement);
+      await waitFor(() => expect(addPlaceSpy).toHaveBeenCalledWith("55", 1, expect.objectContaining({ label: "Tea house" })));
+      expect(window.localStorage.getItem("travel-hunter:draft:trip-place:55:add:1")).toBeNull();
+
+      await user.click(document.querySelector(".dashed") as HTMLButtonElement);
+      await user.type(document.querySelector('input[name="place-label"]') as HTMLInputElement, "Will cancel");
+      await waitFor(() => expect(window.localStorage.getItem("travel-hunter:draft:trip-place:55:add:1")).toContain("Will cancel"));
+      await user.click(screen.getByRole("button", { name: "닫기" }));
+      expect(window.localStorage.getItem("travel-hunter:draft:trip-place:55:add:1")).toBeNull();
+    } finally {
+      getTripSpy.mockRestore();
+      addPlaceSpy.mockRestore();
     }
   });
 

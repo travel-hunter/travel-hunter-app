@@ -8,19 +8,21 @@
    - MVP RC 범위, 실행 모드, 테스트 계정, 검증 결과, blocker.
 3. `current-work-spec.md`
    - 현재 구현 상태의 단일 요약 명세.
-4. `feature-implementation-status.md`
+4. `implemented-feature-spec.md`
+   - 현재 구현된 사용자 동작과 API/DB 연결을 기능명세 형태로 정리.
+5. `feature-implementation-status.md`
    - 기능군별 완료/조건부 완료/미구현 상태표.
-5. `deployment-tunnel.md`
+6. `deployment-tunnel.md`
    - NAT 제한 환경의 Cloudflare Tunnel staging runbook.
-6. `deployment-vps.md`
+7. `deployment-vps.md`
    - public VPS 직접 노출 staging runbook.
-7. `local-lan-access.md`
+8. `local-lan-access.md`
    - 같은 강의실/사무실 네트워크에서 개발 서버를 공유하는 LAN runbook.
-8. `password-reset-smtp-smoke.md`
+9. `password-reset-smtp-smoke.md`
    - password reset SMTP staging smoke 절차와 현재 blocker.
-9. `mvp-api-contract.md`
+10. `mvp-api-contract.md`
    - API request/response/error 계약.
-10. `next-work-plan.md`
+11. `next-work-plan.md`
    - 다음 작업 우선순위.
 
 ## 보조 문서

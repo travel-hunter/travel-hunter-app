@@ -56,5 +56,9 @@
 
 - Production sourcemap 비공개 명시 완료.
 - PWA manifest/meta 1차 적용 완료.
+- Web Share API 공유 fallback 적용 완료.
+- 작성 중 draft autosave 1차 적용 완료:
+  - `/trips/new` 일정 생성 draft.
+  - `/trips/:id` 장소 추가 draft.
 - 현재 PWA 범위는 manifest, theme color, Apple mobile web app meta, 192/512/maskable icon 제공까지다.
 - Service worker, offline cache, push notification은 후속 작업으로 분리한다.

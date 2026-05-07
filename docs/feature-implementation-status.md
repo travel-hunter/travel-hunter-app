@@ -40,6 +40,7 @@
 | 정책 | 저장/삭제 | `/policies/:slug`, `/mypage` | `GET/POST/DELETE /api/me/saved-policies` | `user_saved_policies` | backend, Vitest, e2e | Complete | 없음 | 유지 |
 | 정책 | 정책 링크 복사 | `/policies/:slug` | Web Share API, clipboard, legacy copy | 없음 | Vitest | Complete | 외부 공유 UI는 브라우저 지원에 의존 | 유지 |
 | 플랫폼 | PWA manifest/meta | HTML shell, `manifest.webmanifest` | Vite static assets | 없음 | build 산출물 확인 | Complete | service worker/offline은 없음 | offline 전략은 후속 검토 |
+| 플랫폼 | Draft autosave 1차 | `/trips/new`, `/trips/:id` 장소 추가 sheet | frontend localStorage utility | localStorage | Vitest | Complete | 서버 동기화가 아닌 임시 입력 보호 | 2차 범위는 후속 검토 |
 | 정책 | 공식/신청 URL CTA | `/policies/:slug` | `officialUrl/applyUrl` DTO | `policies.official_url/apply_url` | backend, Vitest | Complete | 실제 URL 정확도는 seed 데이터 품질에 의존 | 정책 URL 유지보수 |
 | 정책 | 필요 서류 표시 | `/policies/:slug` | static checklist row | `policy_documents` | Vitest | Complete | 없음 | 유지 |
 | 일정 | 일정 목록/생성/상세 | `/trips`, `/trips/new`, `/trips/:id` | `GET/POST/GET /api/trips` | `trips`, `trip_days`, `trip_places` | backend, Vitest, e2e | Complete | 없음 | 유지 |

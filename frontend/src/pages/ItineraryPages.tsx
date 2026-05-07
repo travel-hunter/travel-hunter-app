@@ -6,10 +6,21 @@ import { useAsyncResource } from "../api/useAsyncResource";
 import { useSession } from "../app/session";
 import { ItineraryCard } from "../components/cards";
 import { Button, EmptyState, ErrorState, IconButton, LinkButton, LoadingState, PageHead, Tag, Toast, TopBar } from "../components/ui";
+import { clearDraft, createDraftKey, readDraft, saveDraft } from "../utils/draftStorage";
 import { shareLinkWithFallback } from "../utils/share";
 
 const profileOptions = appDataApi.getProfileOptions();
 const durationOptions = [2, 3, 4, 5] as const;
+type DurationDays = (typeof durationOptions)[number];
+type TripCreateDraft = {
+  region: string;
+  style: string;
+  durationDays: DurationDays;
+  policySlug: string | null;
+};
+type TripPlaceAddDraft = TripPlaceRequest & {
+  dayNumber: number;
+};
 const inviteRoleOptions: Array<{ role: InviteRole; label: string; body: string }> = [
   { role: "viewer", label: "보기만 가능", body: "일정과 연결된 정책을 확인할 수 있어요." },
   { role: "editor", label: "함께 편집", body: "장소 의견과 일정 편집에 참여할 수 있어요." },
@@ -52,6 +63,18 @@ function recommendationPlacePayload(item: Recommendation): TripPlaceRequest {
     label: item.title,
     meta: [item.meta, item.reason].filter(Boolean).join(" · "),
   };
+}
+
+function isDurationOption(value: unknown): value is DurationDays {
+  return durationOptions.includes(value as DurationDays);
+}
+
+function tripCreateDraftKey(policySlug: string | undefined): string {
+  return createDraftKey(`trip-create:${policySlug ?? "none"}`);
+}
+
+function tripPlaceAddDraftKey(tripId: string, dayNumber: number): string {
+  return createDraftKey(`trip-place:${tripId}:add:${dayNumber}`);
 }
 
 export function ItineraryListPage() {
@@ -119,12 +142,35 @@ export function ItineraryCreatePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { profile, updateProfile, addPolicy } = useSession();
+  const policySlug = searchParams.get("policySlug") ?? undefined;
+  const draftKey = tripCreateDraftKey(policySlug);
+  const initialDraft = readDraft<TripCreateDraft>(draftKey);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState("");
-  const [durationDays, setDurationDays] = useState<(typeof durationOptions)[number]>(3);
-  const policySlug = searchParams.get("policySlug") ?? undefined;
+  const [durationDays, setDurationDays] = useState<DurationDays>(isDurationOption(initialDraft?.durationDays) ? initialDraft.durationDays : 3);
+  const [isDraftReady, setIsDraftReady] = useState(false);
   const selectedRegion = profile.region.trim() || "선택한 지역";
   const tripTitle = `${selectedRegion} ${durationDays}일 여행`;
+
+  useEffect(() => {
+    const draft = readDraft<TripCreateDraft>(draftKey);
+    if (draft && draft.policySlug === (policySlug ?? null)) {
+      if (draft.region) updateProfile("region", draft.region);
+      if (draft.style) updateProfile("style", draft.style);
+      if (isDurationOption(draft.durationDays)) setDurationDays(draft.durationDays);
+    }
+    setIsDraftReady(true);
+  }, [draftKey, policySlug]);
+
+  useEffect(() => {
+    if (!isDraftReady) return;
+    saveDraft<TripCreateDraft>(draftKey, {
+      region: profile.region,
+      style: profile.style,
+      durationDays,
+      policySlug: policySlug ?? null,
+    });
+  }, [draftKey, durationDays, isDraftReady, policySlug, profile.region, profile.style]);
 
   const createTrip = async () => {
     setIsCreating(true);
@@ -141,6 +187,7 @@ export function ItineraryCreatePage() {
         await appDataApi.addPolicyToTrip(trip.id, policySlug);
         addPolicy();
       }
+      clearDraft(draftKey);
       navigate(`/trips/${trip.id}`);
     } catch {
       setError("일정을 만들지 못했어요. 선택한 조건을 확인하고 다시 시도해 주세요.");
@@ -193,7 +240,7 @@ function ChoiceGroup({ label, values, selected, onSelect }: { label: string; val
   );
 }
 
-function DurationChoiceGroup({ selected, onSelect }: { selected: (typeof durationOptions)[number]; onSelect: (value: (typeof durationOptions)[number]) => void }) {
+function DurationChoiceGroup({ selected, onSelect }: { selected: DurationDays; onSelect: (value: DurationDays) => void }) {
   return (
     <div>
       <div className="choice-label">기간</div>
@@ -245,8 +292,9 @@ export function ItineraryDetailPage() {
       setPlaceError("이 일정은 보기 권한으로 참여 중이라 편집할 수 없어요.");
       return;
     }
+    const draft = trip ? readDraft<TripPlaceAddDraft>(tripPlaceAddDraftKey(trip.id, visibleDay)) : null;
     setPlaceEditor({ mode: "add", dayNumber: visibleDay });
-    setPlaceForm({ time: "", label: "", meta: "" });
+    setPlaceForm(draft ? { time: draft.time ?? "", label: draft.label, meta: draft.meta ?? "" } : { time: "", label: "", meta: "" });
     setPlaceError("");
   };
 
@@ -283,6 +331,7 @@ export function ItineraryDetailPage() {
         placeEditor.mode === "add"
           ? await appDataApi.addTripPlace(trip.id, placeEditor.dayNumber, payload)
           : await appDataApi.updateTripPlace(trip.id, placeEditor.place.id ?? "", payload);
+      if (placeEditor.mode === "add") clearDraft(tripPlaceAddDraftKey(trip.id, placeEditor.dayNumber));
       setTrip(nextTrip);
       setPlaceEditor(null);
       setNotice(placeEditor.mode === "add" ? "장소를 일정에 추가했어요." : "장소 정보를 수정했어요.");
@@ -313,6 +362,23 @@ export function ItineraryDetailPage() {
     } finally {
       setIsSavingPlace(false);
     }
+  };
+
+  const updatePlaceForm = (nextForm: TripPlaceRequest) => {
+    setPlaceForm(nextForm);
+    if (!trip || placeEditor?.mode !== "add") return;
+    saveDraft<TripPlaceAddDraft>(tripPlaceAddDraftKey(trip.id, placeEditor.dayNumber), {
+      dayNumber: placeEditor.dayNumber,
+      time: nextForm.time ?? "",
+      label: nextForm.label,
+      meta: nextForm.meta ?? "",
+    });
+  };
+
+  const closePlaceEditor = () => {
+    if (isSavingPlace) return;
+    if (trip && placeEditor?.mode === "add") clearDraft(tripPlaceAddDraftKey(trip.id, placeEditor.dayNumber));
+    setPlaceEditor(null);
   };
 
   if (isLoading) {
@@ -426,8 +492,8 @@ export function ItineraryDetailPage() {
           form={placeForm}
           isSaving={isSavingPlace}
           mode={placeEditor.mode}
-          onChange={setPlaceForm}
-          onClose={() => !isSavingPlace && setPlaceEditor(null)}
+          onChange={updatePlaceForm}
+          onClose={closePlaceEditor}
           onSubmit={submitPlaceEditor}
         />
       )}

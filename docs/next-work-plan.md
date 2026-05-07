@@ -28,6 +28,10 @@
 - Web Share API 공유 fallback.
 - 같은 네트워크 개발 서버 공유용 LAN runbook 문서화.
 - Password reset SMTP smoke runbook 문서화와 local preflight 확인.
+- 구현 기능명세서 문서화.
+- 작성 중 draft autosave 1차 구현:
+  - `/trips/new` 일정 생성 draft.
+  - `/trips/:id` 장소 추가 draft.
 
 ## 다음 우선순위
 
@@ -37,7 +41,8 @@
 | 2 | Kakao/Google OAuth staging smoke | provider console redirect URI와 env 값을 맞추고 실제 social login callback/refresh를 확인 |
 | 3 | Cloudflare Tunnel staging smoke | 외부 HTTPS URL에서 `/api/health`, 로그인, 정책/일정 핵심 흐름 확인 |
 | 4 | PWA service worker/offline 전략 검토 | offline 캐싱 도입 여부와 update 전략을 별도 설계로 결정 |
-| 5 | 전화번호 OTP 설계/구현 | Kakao AlimTalk 수신 연락처 실소유 검증 |
+| 5 | Draft autosave 2차 범위 검토 | 장소 수정, 마이페이지 프로필, 연락처 draft를 추가할지 결정 |
+| 6 | 전화번호 OTP 설계/구현 | Kakao AlimTalk 수신 연락처 실소유 검증 |
 
 ## 구조 정리 참고
 
