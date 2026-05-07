@@ -54,6 +54,7 @@
 - Local compose config/build: passed.
 - VPS compose config: passed.
 - Tunnel compose config: passed.
+- Password reset local preflight: unknown email returns `requested=true`; existing email without SMTP env fails with `503`.
 
 ## 다음 우선순위
 
@@ -65,5 +66,6 @@
 - [x] Implement notification retry policy.
 - [x] Implement SOLAPI webhook delivery status tracking.
 - [x] Implement password reset and social login OAuth entry points.
+- [x] Document password reset SMTP smoke runbook and local preflight.
 - [ ] Verify OAuth provider credentials and SMTP delivery in staging.
 - [ ] Resume Cloudflare Tunnel staging deployment when the feature pass pauses.

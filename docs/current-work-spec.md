@@ -8,6 +8,7 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 - 브랜치 상태: `feat/prototype-to-react`, origin 대비 ahead 상태.
 - 최근 변경으로 일단체크인 벤치마크 분석, production sourcemap 비공개 명시, PWA manifest/meta 1차 적용, 프로젝트 구조 audit 문서화, Web Share API 공유 fallback을 완료했다.
 - 같은 네트워크에서 개발 서버를 공유하는 LAN runbook은 `docs/local-lan-access.md`에 정리했다.
+- Password reset SMTP smoke runbook은 `docs/password-reset-smtp-smoke.md`에 정리했다. 현재 세션에서는 SMTP env와 public HTTPS base URL이 없어 실제 이메일 발송 smoke는 미실행 상태다.
 
 ## 구현 완료 범위
 
@@ -76,6 +77,7 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 ## 미구현/조건부 범위
 
 - SMTP 설정 없이는 password reset email 실제 발송이 불가하다.
+- Password reset local preflight는 통과했다. Unknown email은 `{"requested": true}`로 계정 존재 여부를 숨기고, existing email은 SMTP 미설정 상태에서 `503`으로 실패한다.
 - Kakao/Google provider secret과 redirect URI가 없으면 OAuth 실제 로그인이 불가하다.
 - 전화번호 실인증/OTP는 아직 없다.
 - 정책 실시간 수집, 지도/장소 검색, 실제 AI 추천 엔진은 아직 없다.

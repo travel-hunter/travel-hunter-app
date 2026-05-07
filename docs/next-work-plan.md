@@ -27,12 +27,13 @@
 - 프로젝트 구조 audit 문서화.
 - Web Share API 공유 fallback.
 - 같은 네트워크 개발 서버 공유용 LAN runbook 문서화.
+- Password reset SMTP smoke runbook 문서화와 local preflight 확인.
 
 ## 다음 우선순위
 
 | 우선순위 | 작업 | 성공 기준 |
 |---:|---|---|
-| 1 | Password reset SMTP staging smoke | SMTP env를 주입해 reset email 발송, 링크 진입, password confirm을 외부 URL 기준으로 확인 |
+| 1 | Password reset SMTP staging smoke | SMTP env와 public HTTPS base URL을 주입해 reset email 발송, 링크 진입, password confirm을 외부 URL 기준으로 확인 |
 | 2 | Kakao/Google OAuth staging smoke | provider console redirect URI와 env 값을 맞추고 실제 social login callback/refresh를 확인 |
 | 3 | Cloudflare Tunnel staging smoke | 외부 HTTPS URL에서 `/api/health`, 로그인, 정책/일정 핵심 흐름 확인 |
 | 4 | PWA service worker/offline 전략 검토 | offline 캐싱 도입 여부와 update 전략을 별도 설계로 결정 |
