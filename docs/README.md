@@ -2,19 +2,21 @@
 
 ## 먼저 읽을 문서
 
-1. `release-candidate-handoff.md`
+1. `requirements.md`
+   - 제품 요구사항, 사용자 역할, 기능/비기능 요구사항, 조건부/후속 범위.
+2. `release-candidate-handoff.md`
    - MVP RC 범위, 실행 모드, 테스트 계정, 검증 결과, blocker.
-2. `current-work-spec.md`
+3. `current-work-spec.md`
    - 현재 구현 상태의 단일 요약 명세.
-3. `feature-implementation-status.md`
+4. `feature-implementation-status.md`
    - 기능군별 완료/조건부 완료/미구현 상태표.
-4. `deployment-tunnel.md`
+5. `deployment-tunnel.md`
    - NAT 제한 환경의 Cloudflare Tunnel staging runbook.
-5. `deployment-vps.md`
+6. `deployment-vps.md`
    - public VPS 직접 노출 staging runbook.
-6. `mvp-api-contract.md`
+7. `mvp-api-contract.md`
    - API request/response/error 계약.
-7. `next-work-plan.md`
+8. `next-work-plan.md`
    - 다음 작업 우선순위.
 
 ## 보조 문서

@@ -5,7 +5,7 @@
 - 기준 브랜치: `feat/prototype-to-react`.
 - 기준 범위: 현재 worktree 포함. 버튼 audit 기반 auth/OAuth/UX 수정분도 포함한다.
 - 실행 모드: DB-backed-only. Runtime mock mode는 제거된 상태다.
-- 제외 파일: 기존 untracked `docs/requirements.md`는 분석/수정 대상에서 제외한다.
+- 공식 요구사항 문서: `docs/requirements.md`.
 - 분류 기준:
   - `Complete`: UI, API, DB persistence, 테스트가 연결됨.
   - `Conditional`: 구현은 됐지만 외부 secret/env/provider 설정이 있어야 실제 동작.
