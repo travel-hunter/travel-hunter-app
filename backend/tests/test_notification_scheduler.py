@@ -38,6 +38,17 @@ def test_invalid_run_at_is_rejected_when_enabled() -> None:
         notification_scheduler.validate_notification_scheduler_settings(settings)
 
 
+def test_invalid_retry_settings_are_rejected_when_enabled() -> None:
+    settings = Settings(
+        database_url="postgresql+psycopg://example",
+        notification_scheduler_enabled=True,
+        notification_retry_max_attempts=0,
+    )
+
+    with pytest.raises(ValueError, match="NOTIFICATION_RETRY_MAX_ATTEMPTS"):
+        notification_scheduler.validate_notification_scheduler_settings(settings)
+
+
 def test_run_time_before_target_does_not_calculate() -> None:
     calls: list[date] = []
     scheduler = notification_scheduler.NotificationScheduler(
@@ -164,6 +175,8 @@ def test_dispatch_once_opens_session_and_calls_dispatch(monkeypatch) -> None:
             sent=0,
             failed=0,
             skipped=0,
+            retryCandidates=0,
+            deferredRetries=0,
             providerEnabled=False,
         )
 
@@ -181,3 +194,31 @@ def test_dispatch_once_opens_session_and_calls_dispatch(monkeypatch) -> None:
     assert result.candidates == 1
     assert calls == [(session, date(2026, 5, 7))]
     assert session.closed is True
+
+
+def test_scheduler_does_not_mark_date_successful_when_retries_are_deferred() -> None:
+    calls: list[date] = []
+
+    def dispatch(today: date):
+        calls.append(today)
+        return notification_scheduler.NotificationDispatchSummary(
+            candidates=1,
+            sent=0,
+            failed=0,
+            skipped=0,
+            retryCandidates=0,
+            deferredRetries=1,
+            providerEnabled=True,
+        )
+
+    scheduler = notification_scheduler.NotificationScheduler(
+        run_at=time(9, 0),
+        poll_seconds=60,
+        now_provider=lambda: datetime(2026, 5, 7, 9, 0, 0),
+        calculate_targets=dispatch,
+    )
+
+    assert scheduler.run_once_if_due() is False
+    assert scheduler.last_successful_run_date is None
+    assert scheduler.run_once_if_due() is False
+    assert calls == [date(2026, 5, 7), date(2026, 5, 7)]

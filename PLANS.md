@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-The MVP is DB-backed-only and runtime mock mode has been removed. Docker VPS direct staging artifacts and Cloudflare Tunnel staging artifacts exist, but the current working priority is user-facing feature completion. Trip place editing, mypage profile editing, AI recommendation-to-timeline, invite role persistence/enforcement, deadline notification preference persistence, notification contact persistence, notification delivery history foundation, deadline notification target calculation, FastAPI internal notification scheduler, and the SOLAPI Kakao AlimTalk provider adapter are complete. The next functional priority is notification retry policy.
+The MVP is DB-backed-only and runtime mock mode has been removed. Docker VPS direct staging artifacts and Cloudflare Tunnel staging artifacts exist, but the current working priority is user-facing feature completion. Trip place editing, mypage profile editing, AI recommendation-to-timeline, invite role persistence/enforcement, deadline notification preference persistence, notification contact persistence, notification delivery history foundation, deadline notification target calculation, FastAPI internal notification scheduler, the SOLAPI Kakao AlimTalk provider adapter, and notification retry policy are complete. The next functional priority is SOLAPI webhook delivery status tracking.
 
 ## Source Of Truth
 

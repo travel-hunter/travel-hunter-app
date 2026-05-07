@@ -26,13 +26,14 @@
 - [x] Deadline notification target calculation service creates idempotent `pending/skipped` candidates.
 - [x] FastAPI internal notification scheduler is connected through lifespan and gated by env.
 - [x] SOLAPI Kakao AlimTalk provider adapter dispatches pending notification deliveries.
+- [x] Notification retry policy resends retryable `failed` deliveries on later scheduler cycles.
 - [x] Public VPS artifacts exist.
 - [x] Cloudflare Tunnel artifacts exist.
 
 ## 마지막 검증 결과
 
 - Date: 2026-05-07.
-- Backend pytest: 135 passed.
+- Backend pytest: 144 passed.
 - Alembic offline SQL: passed.
 - Local compose config: passed.
 - VPS compose config: passed.
@@ -52,6 +53,6 @@
 - [x] Implement deadline notification target calculation service.
 - [x] Implement FastAPI internal notification scheduler.
 - [x] Implement Kakao AlimTalk provider adapter.
-- [ ] Implement notification retry policy.
+- [x] Implement notification retry policy.
 - [ ] Implement SOLAPI webhook delivery status tracking.
 - [ ] Resume Cloudflare Tunnel staging deployment when the feature pass pauses.

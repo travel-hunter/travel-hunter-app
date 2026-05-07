@@ -104,6 +104,13 @@ class NotificationScheduler:
             logger.exception("Notification target calculation failed.")
             return False
 
+        if getattr(targets, "hasDeferredRetries", False):
+            logger.info(
+                "Notification dispatch for %s has deferred retries and will run again.",
+                today.isoformat(),
+            )
+            return False
+
         self.last_successful_run_date = today
         logger.info(
             "Notification target calculation completed for %s with %s targets.",
@@ -132,6 +139,10 @@ def validate_notification_scheduler_settings(settings_obj: Settings = settings) 
     parse_run_at(settings_obj.notification_run_at)
     if settings_obj.notification_poll_seconds < 1:
         raise ValueError("NOTIFICATION_POLL_SECONDS must be greater than 0.")
+    if settings_obj.notification_retry_max_attempts < 1:
+        raise ValueError("NOTIFICATION_RETRY_MAX_ATTEMPTS must be greater than 0.")
+    if settings_obj.notification_retry_delay_seconds < 0:
+        raise ValueError("NOTIFICATION_RETRY_DELAY_SECONDS must be 0 or greater.")
 
 
 def build_notification_scheduler(

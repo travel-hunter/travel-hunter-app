@@ -146,12 +146,32 @@ def _target_from_saved_row(
     )
 
 
+def target_from_delivery(delivery: NotificationDelivery) -> NotificationDeliveryTarget:
+    return NotificationDeliveryTarget(
+        deliveryId=delivery.id,
+        userId=delivery.user_id,
+        userName=delivery.user.nickname,
+        policyId=delivery.policy_id,
+        policyTitle=delivery.policy.title,
+        policySlug=delivery.policy.slug,
+        phoneNumber=delivery.user.phone_number,
+        leadDay=delivery.lead_day,
+        targetDeadlineDate=delivery.target_deadline_date,
+        channel=delivery.channel,
+        deliveryStatus=delivery.status,
+    )
+
+
 def _deadline_enabled(user: User) -> bool:
     return (
         True
         if user.notification_settings is None
         else user.notification_settings.deadline_enabled
     )
+
+
+def deadline_enabled_for_user(user: User) -> bool:
+    return _deadline_enabled(user)
 
 
 def _delivery_status_for_user(user: User) -> str:

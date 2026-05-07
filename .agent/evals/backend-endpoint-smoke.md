@@ -73,6 +73,8 @@ Profile endpoints must persist the selected onboarding preferences:
 - With `KAKAO_ALIMTALK_ENABLED=true`, dispatch sends only `pending` targets through the SOLAPI Kakao AlimTalk adapter.
 - SOLAPI adapter must build HMAC auth headers, `ATA` message payloads, D-7/D-1 template ids, and template variables for user, policy, deadline, remaining days, and policy URL.
 - SOLAPI accepted responses mark deliveries `sent`; `failedMessageList`, HTTP error, timeout, and invalid Korean mobile numbers mark `failed` or `skipped` as documented.
+- Retry enabled dispatch resends same-lead-day `failed` deliveries only after `NOTIFICATION_RETRY_DELAY_SECONDS` and only while `attempt_count < NOTIFICATION_RETRY_MAX_ATTEMPTS`.
+- Deferred retry rows prevent the scheduler from marking the KST date complete so the next polling cycle can re-check them.
 
 Policy endpoints must preserve the same public response shape:
 

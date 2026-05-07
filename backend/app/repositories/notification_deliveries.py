@@ -44,6 +44,34 @@ def get_delivery(
     return db.scalar(statement)
 
 
+def list_retryable_failed_deliveries(
+    db: Session,
+    *,
+    target_date: date,
+    channel: str,
+    max_attempts: int,
+) -> list[NotificationDelivery]:
+    statement = (
+        select(NotificationDelivery)
+        .join(NotificationDelivery.policy)
+        .join(NotificationDelivery.user)
+        .where(
+            NotificationDelivery.status == "failed",
+            NotificationDelivery.channel == channel,
+            NotificationDelivery.target_deadline_date == target_date,
+            NotificationDelivery.attempt_count < max_attempts,
+        )
+        .options(
+            selectinload(NotificationDelivery.policy),
+            selectinload(NotificationDelivery.user).selectinload(
+                User.notification_settings
+            ),
+        )
+        .order_by(NotificationDelivery.user_id, NotificationDelivery.policy_id)
+    )
+    return list(db.scalars(statement).all())
+
+
 def create_delivery(
     db: Session,
     *,

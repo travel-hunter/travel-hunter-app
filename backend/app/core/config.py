@@ -36,6 +36,15 @@ class Settings:
     notification_poll_seconds: int = int(
         os.getenv("NOTIFICATION_POLL_SECONDS", "60")
     )
+    notification_retry_enabled: bool = os.getenv(
+        "NOTIFICATION_RETRY_ENABLED", "true"
+    ).strip().lower() in {"1", "true", "yes", "on"}
+    notification_retry_max_attempts: int = int(
+        os.getenv("NOTIFICATION_RETRY_MAX_ATTEMPTS", "3")
+    )
+    notification_retry_delay_seconds: int = int(
+        os.getenv("NOTIFICATION_RETRY_DELAY_SECONDS", "600")
+    )
     kakao_alimtalk_enabled: bool = os.getenv(
         "KAKAO_ALIMTALK_ENABLED", "false"
     ).strip().lower() in {"1", "true", "yes", "on"}

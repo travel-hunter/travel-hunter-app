@@ -227,6 +227,8 @@ Internal behavior:
 - SOLAPI 접수 성공은 `status=sent`, `provider_message_id`, `sent_at`으로 기록한다.
 - SOLAPI 실패 응답, HTTP error, timeout은 `status=failed`, `attempt_count`, `error_message`, `failed_at`으로 기록한다.
 - 한국 휴대폰 번호로 정규화되지 않는 연락처는 provider 호출 없이 `status=skipped`로 기록한다.
+- `NOTIFICATION_RETRY_ENABLED=true`이면 같은 lead day 안의 `failed` row 중 `attempt_count < NOTIFICATION_RETRY_MAX_ATTEMPTS`이고 retry delay가 지난 row를 다음 scheduler 실행에서 재전송한다.
+- 최대 시도 횟수를 넘긴 row는 새 status 없이 `failed` 상태로 유지한다.
 
 ### `GET /api/profile-options`
 

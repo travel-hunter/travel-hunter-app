@@ -57,6 +57,7 @@
 | `NotificationDeliveryTarget.deliveryStatus` | `notification_deliveries.status` | `pending` for verified contact, `skipped` for missing/unverified contact |
 | `NotificationDispatch.sent` | `notification_deliveries.status`, `provider_message_id`, `sent_at` | SOLAPI accepted response is recorded as `sent` in MVP |
 | `NotificationDispatch.failed` | `notification_deliveries.status`, `attempt_count`, `error_message`, `failed_at` | SOLAPI failed response, HTTP error, or timeout is recorded as `failed` |
+| `NotificationDispatch.retry` | `notification_deliveries.status`, `attempt_count`, `failed_at` | Retry uses existing failed rows without a new table or status |
 
 ## Non-DB API Values
 
