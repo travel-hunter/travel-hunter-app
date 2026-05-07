@@ -51,3 +51,10 @@
 - 검증 기준:
   - `cd frontend && npm run build`
   - `Get-ChildItem dist -Recurse -Filter *.map` 결과가 없어야 한다.
+
+## 적용 완료
+
+- Production sourcemap 비공개 명시 완료.
+- PWA manifest/meta 1차 적용 완료.
+- 현재 PWA 범위는 manifest, theme color, Apple mobile web app meta, 192/512/maskable icon 제공까지다.
+- Service worker, offline cache, push notification은 후속 작업으로 분리한다.

@@ -22,16 +22,18 @@
   - 친구 초대 링크 활성화 문구.
   - AI 추천 기준 sheet.
 - 일단체크인 벤치마크 분석 문서화.
+- Production sourcemap 비공개 명시.
+- PWA manifest/meta 1차 적용.
 
 ## 다음 우선순위
 
 | 우선순위 | 작업 | 성공 기준 |
 |---:|---|---|
-| 1 | Production sourcemap 비공개 명시 | `npm run build` 후 `frontend/dist`에 `.map` 파일이 생성되지 않음 |
-| 2 | PWA manifest/meta 추가 | 모바일 홈화면 설치용 manifest와 app meta가 제공됨 |
-| 3 | Web Share API 공유 fallback | 정책/초대 링크 공유가 share API, clipboard, legacy copy 순서로 동작 |
-| 4 | Password reset SMTP staging smoke | SMTP env를 주입해 reset email 발송, 링크 진입, password confirm을 외부 URL 기준으로 확인 |
-| 5 | Kakao/Google OAuth staging smoke | provider console redirect URI와 env 값을 맞추고 실제 social login callback/refresh를 확인 |
+| 1 | Web Share API 공유 fallback | 정책/초대 링크 공유가 share API, clipboard, legacy copy 순서로 동작 |
+| 2 | Password reset SMTP staging smoke | SMTP env를 주입해 reset email 발송, 링크 진입, password confirm을 외부 URL 기준으로 확인 |
+| 3 | Kakao/Google OAuth staging smoke | provider console redirect URI와 env 값을 맞추고 실제 social login callback/refresh를 확인 |
+| 4 | Cloudflare Tunnel staging smoke | 외부 HTTPS URL에서 `/api/health`, 로그인, 정책/일정 핵심 흐름 확인 |
+| 5 | PWA service worker/offline 전략 검토 | offline 캐싱 도입 여부와 update 전략을 별도 설계로 결정 |
 
 ## Fast Lane
 

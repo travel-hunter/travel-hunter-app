@@ -17,7 +17,7 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 - AI recommendations: 추천 결과를 실제 `trip_places`에 추가, 추천 기준 sheet.
 - Invites: 링크 생성, viewer/editor role 저장, 수락, 일정 멤버십 저장, 장소 편집 권한 enforcement.
 - Notifications: deadline 설정 저장, contact 저장, delivery history, target calculation, FastAPI scheduler, SOLAPI AlimTalk adapter, retry, SOLAPI webhook 상태 추적.
-- Design/deployment: Wanted Design System 1차 적용, Figma handoff 문서, Docker VPS/Tunnel 배포 산출물.
+- Design/deployment: Wanted Design System 1차 적용, Figma handoff 문서, PWA manifest/meta 1차 적용, Docker VPS/Tunnel 배포 산출물.
 
 ## Backend 기준
 
@@ -62,7 +62,7 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 - `cd backend && python -m pytest`: 160 passed.
 - `cd frontend && npm test`: 36 passed.
 - `cd frontend && npm run typecheck`: passed.
-- `cd frontend && npm run build`: passed.
+- `cd frontend && npm run build`: passed, production sourcemap 미생성, PWA manifest/icon 산출물 확인.
 - `cd backend && alembic upgrade head --sql`: passed.
 - `docker compose -f compose.yaml config`: passed.
 - `docker compose --env-file deploy/.env.staging.example -f compose.vps.yaml config`: passed.
