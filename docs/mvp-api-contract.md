@@ -136,6 +136,46 @@ Behavior:
 - `budget` -> `users.travel_budget`
 - save marks `users.onboarding_completed=true`
 
+### `GET /api/me/contact`
+
+Bearer token 필요.
+
+Response `200`:
+
+```json
+{
+  "phoneNumber": "01012345678",
+  "phoneVerified": false
+}
+```
+
+Behavior:
+
+- `phoneNumber` -> `users.phone_number`
+- `phoneVerified` -> `users.phone_verified_at != null`
+- 전화번호가 없으면 `phoneNumber=null`, `phoneVerified=false`를 반환한다.
+
+### `PATCH /api/me/contact`
+
+Bearer token 필요.
+
+Request:
+
+```json
+{
+  "phoneNumber": "010 1234 5678"
+}
+```
+
+Response `200`: `ContactInfo`
+
+Behavior:
+
+- 요청 전화번호의 공백을 제거해 `users.phone_number`에 저장한다.
+- 빈 문자열 또는 `null`은 `users.phone_number=null`로 저장한다.
+- 전화번호가 변경되면 `users.phone_verified_at`은 초기화한다.
+- 실제 전화번호 인증/OTP는 이번 endpoint가 수행하지 않는다.
+
 ### `GET /api/me/notification-settings`
 
 Bearer token 필요.

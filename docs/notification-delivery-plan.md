@@ -2,7 +2,7 @@
 
 ## Summary
 
-- 오늘 범위는 설계 확정이다. 실제 카카오 알림톡 발송 구현, DB migration, API 구현은 다음 단계로 둔다.
+- 이 문서는 마감 알림 발송 설계 기준이다. 현재 1차 기반으로 전화번호 저장과 발송 이력 테이블은 추가됐고, 실제 카카오 알림톡 발송과 scheduler 구현은 다음 단계로 둔다.
 - 1차 발송 채널은 카카오 알림톡으로 고정한다.
 - 스케줄러는 FastAPI 내부 background task 방식으로 설계한다.
 - 현재 저장된 사용자 설정은 `user_notification_settings.deadline_enabled`이며, D-7/D-1 기준은 기존 API의 `deadlineLeadDays = [7, 1]`을 따른다.
@@ -20,7 +20,7 @@
 
 ## Data Model Direction
 
-다음 구현 단계에서 DB migration을 추가한다.
+1차 기반 구현에서 다음 DB 기준을 추가했다.
 
 - `users.phone_number`: 카카오 알림톡 수신 전화번호.
 - `users.phone_verified_at`: MVP에서는 수동 검증 또는 테스트 seed 기준으로 채울 수 있는 nullable timestamp.
@@ -94,19 +94,13 @@
 
 ## Next Implementation Order
 
-1. 연락처 저장 방식 구현
-   - `users.phone_number`, `users.phone_verified_at` migration.
-   - 테스트 계정 seed에 명확한 테스트 전화번호를 넣는다.
-2. 발송 이력 테이블 구현
-   - `notification_deliveries` model, migration, repository.
-   - unique key로 중복 발송 방지.
-3. 대상 계산 service 구현
+1. 대상 계산 service 구현
    - D-7/D-1 저장 정책 조회.
    - 사용자 알림 설정과 전화번호 검증 필터.
-4. FastAPI 내부 scheduler 구현
+2. FastAPI 내부 scheduler 구현
    - `NOTIFICATION_SCHEDULER_ENABLED`가 true일 때만 시작.
    - startup/lifespan에서 background task 실행.
-5. Kakao AlimTalk adapter 구현
+3. Kakao AlimTalk adapter 구현
    - 처음에는 fake provider 테스트와 dry-run 로그를 먼저 붙인다.
    - 실제 provider secret이 준비되면 real provider로 전환한다.
 

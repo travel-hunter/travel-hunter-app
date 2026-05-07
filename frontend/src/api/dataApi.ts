@@ -1,4 +1,4 @@
-import { InviteRole, InviteState, NotificationSettings, OnboardingSlide, Policy, Profile, ProfileOptions, Recommendation, Trip, User } from "./types";
+import { ContactInfo, InviteRole, InviteState, NotificationSettings, OnboardingSlide, Policy, Profile, ProfileOptions, Recommendation, Trip, User } from "./types";
 
 export type LoginRequest = {
   email: string;
@@ -53,6 +53,10 @@ export type TripPlaceRequest = {
 
 export type TripPlaceUpdateRequest = Partial<TripPlaceRequest>;
 
+export type ContactUpdateRequest = {
+  phoneNumber: string | null;
+};
+
 export type AppDataApi = {
   getPreviewUser: () => User;
   getOnboardingSlides: () => readonly OnboardingSlide[];
@@ -65,6 +69,8 @@ export type AppDataApi = {
   getCurrentUser: () => Promise<User>;
   getProfile: () => Promise<Profile>;
   updateProfile: (profile: Partial<Profile>) => Promise<Profile>;
+  getContact: () => Promise<ContactInfo>;
+  updateContact: (contact: ContactUpdateRequest) => Promise<ContactInfo>;
   getNotificationSettings: () => Promise<NotificationSettings>;
   updateNotificationSettings: (settings: Pick<NotificationSettings, "deadlineEnabled">) => Promise<NotificationSettings>;
   listPolicies: () => Promise<Policy[]>;

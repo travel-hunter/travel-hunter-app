@@ -15,8 +15,10 @@
 - `users.gender` exists.
 - `users.preferred_regions` stores user interest regions.
 - `users.travel_style` and `users.travel_budget` are v0.3.1 profile persistence extension fields.
+- `users.phone_number` and `users.phone_verified_at` are notification-delivery contact extension fields.
 - `user_saved_policies` is the v0.3.2 standalone saved policy persistence extension table.
 - `user_notification_settings` is the standalone per-user notification preference table.
+- `notification_deliveries` is the delivery history and duplicate-prevention table for deadline notifications.
 - Trip child tables use the `trip_*` singular prefix, such as `trip_days`, `trip_members`, `trip_policies`, `trip_places`, and `trip_invites`.
 
 ## API Mapping Checks
@@ -45,8 +47,11 @@
 | `Profile.region` | `users.region` | Onboarding/profile preference |
 | `Profile.style` | `users.travel_style` | v0.3.1 extension |
 | `Profile.budget` | `users.travel_budget` | v0.3.1 extension |
+| `ContactInfo.phoneNumber` | `users.phone_number` | Kakao AlimTalk destination contact, nullable |
+| `ContactInfo.phoneVerified` | `users.phone_verified_at != null` | Read-only verification state for this phase |
 | `NotificationSettings.deadlineEnabled` | `user_notification_settings.deadline_enabled` | Defaults to true when no row exists |
 | `NotificationSettings.deadlineLeadDays` | server constant `[7, 1]` | Not persisted in DB |
+| `NotificationDelivery` duplicate key | `notification_deliveries(user_id, policy_id, channel, lead_day, target_deadline_date)` | Prevents duplicate D-7/D-1 sends |
 
 ## Non-DB API Values
 

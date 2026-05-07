@@ -1239,6 +1239,17 @@
   border-bottom: 0;
 }
 
+.contact-panel {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.contact-field {
+  max-width: 360px;
+}
+
 .notification-toggle {
   min-width: 74px;
   min-height: 36px;

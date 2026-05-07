@@ -60,3 +60,18 @@ def update_user_profile(
     db.add(user)
     db.flush()
     return user
+
+
+def update_user_contact(
+    db: Session,
+    user: User,
+    *,
+    phone_number: str | None,
+) -> User:
+    if user.phone_number != phone_number:
+        user.phone_verified_at = None
+    user.phone_number = phone_number
+    user.updated_at = security.utc_now_naive()
+    db.add(user)
+    db.flush()
+    return user

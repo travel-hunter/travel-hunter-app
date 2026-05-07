@@ -34,6 +34,11 @@ export type NotificationSettings = {
   deadlineLeadDays: number[];
 };
 
+export type ContactInfo = {
+  phoneNumber: string | null;
+  phoneVerified: boolean;
+};
+
 export type OnboardingSlide = {
   eyebrow: string;
   title: string;

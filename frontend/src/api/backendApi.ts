@@ -10,6 +10,7 @@ import { apiClient } from "./client";
 import {
   AppDataApi,
   AuthResponse,
+  ContactUpdateRequest,
   CreateTripRequest,
   DeleteTripResponse,
   LoginRequest,
@@ -20,7 +21,7 @@ import {
   TripPlaceUpdateRequest,
   TripPolicyResponse,
 } from "./dataApi";
-import { InviteRole, InviteState, NotificationSettings, Policy, Profile, ProfileOptions, Recommendation, Trip, User } from "./types";
+import { ContactInfo, InviteRole, InviteState, NotificationSettings, Policy, Profile, ProfileOptions, Recommendation, Trip, User } from "./types";
 
 const defaultLogin: LoginRequest = {
   email: user.email,
@@ -45,6 +46,8 @@ export const backendApi: AppDataApi = {
   getCurrentUser: (): Promise<User> => apiClient.get<User>("/api/me"),
   getProfile: (): Promise<Profile> => apiClient.get<Profile>("/api/me/profile"),
   updateProfile: (profile: Partial<Profile>): Promise<Profile> => apiClient.patch<Profile>("/api/me/profile", profile),
+  getContact: (): Promise<ContactInfo> => apiClient.get<ContactInfo>("/api/me/contact"),
+  updateContact: (contact: ContactUpdateRequest): Promise<ContactInfo> => apiClient.patch<ContactInfo>("/api/me/contact", contact),
   getNotificationSettings: (): Promise<NotificationSettings> => apiClient.get<NotificationSettings>("/api/me/notification-settings"),
   updateNotificationSettings: (settings: Pick<NotificationSettings, "deadlineEnabled">): Promise<NotificationSettings> => apiClient.patch<NotificationSettings>("/api/me/notification-settings", settings),
   listPolicies: (): Promise<Policy[]> => apiClient.get<Policy[]>("/api/policies"),

@@ -18,6 +18,8 @@
 | `GET /api/me` | 200 | `homeRegion`, `onboardingCompleted` | P0 |
 | `GET /api/me/profile` | 200 | `region`, `style`, `budget` | P1 |
 | `PATCH /api/me/profile` | 200 | patched profile fields returned and DB mode marks onboarding complete | P1 |
+| `GET /api/me/contact` | 200 | `phoneNumber`, `phoneVerified` | P1 |
+| `PATCH /api/me/contact` | 200 | persists normalized phone number and clears verification on change | P1 |
 | `GET /api/me/notification-settings` | 200 | `deadlineEnabled`, `deadlineLeadDays` | P1 |
 | `PATCH /api/me/notification-settings` | 200 | persists `deadlineEnabled` per user | P1 |
 | `GET /api/profile-options` | 200 | `regions`, `travelStyles`, `budgets` | P1 |
@@ -57,6 +59,8 @@ Profile endpoints must persist the selected onboarding preferences:
 - `GET /api/me/profile` returns `region`, `style`, and `budget`.
 - `PATCH /api/me/profile` stores `region` in `users.region`, `style` in `users.travel_style`, and `budget` in `users.travel_budget`.
 - PATCH marks `users.onboarding_completed` true and updates `users.updated_at`.
+- `GET /api/me/contact` returns the current user's notification phone number and verification state.
+- `PATCH /api/me/contact` strips whitespace, stores `users.phone_number`, clears `users.phone_verified_at` when the number changes, and treats blank/null as no phone number.
 - `GET /api/me/notification-settings` returns `deadlineEnabled` and fixed `deadlineLeadDays` `[7, 1]`.
 - `PATCH /api/me/notification-settings` upserts one `user_notification_settings` row per user.
 - Notification settings persist only user preference; actual push/email delivery is out of scope for this endpoint.

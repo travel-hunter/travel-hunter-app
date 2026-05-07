@@ -2,7 +2,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
-import { appDataApi, type InviteState, type NotificationSettings, type Policy, type Trip } from "./api";
+import { appDataApi, type ContactInfo, type InviteState, type NotificationSettings, type Policy, type Trip } from "./api";
 import { App } from "./app/App";
 import { AppProviders, AppRoot } from "./app/AppRoot";
 
@@ -536,6 +536,65 @@ describe("Travel Hunter app", () => {
     } finally {
       getSettingsSpy.mockRestore();
       updateSettingsSpy.mockRestore();
+    }
+  });
+
+  it("saves a notification contact phone number from my page", async () => {
+    const emptyContact: ContactInfo = {
+      phoneNumber: null,
+      phoneVerified: false,
+    };
+    const savedContact: ContactInfo = {
+      phoneNumber: "01012345678",
+      phoneVerified: false,
+    };
+    const getContactSpy = vi.spyOn(appDataApi, "getContact").mockResolvedValue(emptyContact);
+    const updateContactSpy = vi.spyOn(appDataApi, "updateContact").mockResolvedValue(savedContact);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/mypage");
+      const user = userEvent.setup();
+
+      const phoneInput = await screen.findByRole("textbox", { name: "전화번호" });
+      await user.type(phoneInput, "010 1234 5678");
+      await user.click(screen.getByRole("button", { name: "연락처 저장" }));
+
+      await waitFor(() => expect(updateContactSpy).toHaveBeenCalledWith({ phoneNumber: "010 1234 5678" }));
+      await waitFor(() => expect(phoneInput).toHaveValue("01012345678"));
+      expect(document.body).toHaveTextContent("검증 전 연락처입니다");
+    } finally {
+      getContactSpy.mockRestore();
+      updateContactSpy.mockRestore();
+    }
+  });
+
+  it("keeps the notification contact form open when saving fails", async () => {
+    const contact: ContactInfo = {
+      phoneNumber: "01012345678",
+      phoneVerified: false,
+    };
+    const getContactSpy = vi.spyOn(appDataApi, "getContact").mockResolvedValue(contact);
+    const updateContactSpy = vi
+      .spyOn(appDataApi, "updateContact")
+      .mockRejectedValue(new Error("save failed"));
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/mypage");
+      const user = userEvent.setup();
+
+      const phoneInput = await screen.findByRole("textbox", { name: "전화번호" });
+      await user.clear(phoneInput);
+      await user.click(screen.getByRole("button", { name: "연락처 저장" }));
+
+      await waitFor(() => expect(updateContactSpy).toHaveBeenCalledWith({ phoneNumber: null }));
+      await waitFor(() => expect(document.body).toHaveTextContent("연락처를 저장하지 못했어요."));
+    } finally {
+      getContactSpy.mockRestore();
+      updateContactSpy.mockRestore();
     }
   });
 

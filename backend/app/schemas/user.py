@@ -53,6 +53,15 @@ class NotificationSettingsUpdate(BaseModel):
     deadlineEnabled: bool
 
 
+class ContactInfo(BaseModel):
+    phoneNumber: str | None = None
+    phoneVerified: bool
+
+
+class ContactUpdate(BaseModel):
+    phoneNumber: str | None = Field(default=None, max_length=30)
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1)

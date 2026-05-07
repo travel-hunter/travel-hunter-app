@@ -6,6 +6,8 @@ from app.db.session import get_optional_db
 from app.data import seed
 from app.models import User as UserModel
 from app.schemas.user import (
+    ContactInfo,
+    ContactUpdate,
     NotificationSettings,
     NotificationSettingsUpdate,
     Profile,
@@ -14,6 +16,7 @@ from app.schemas.user import (
     User,
 )
 from app.services import auth as auth_service
+from app.services import contact as contact_service
 from app.services import notifications as notification_service
 from app.services import profile as profile_service
 
@@ -53,6 +56,26 @@ def update_profile(
             _require_db(db),
             _require_user(current_user),
             profile,
+        )
+    )
+
+
+@router.get("/me/contact", response_model=ContactInfo)
+def get_contact(current_user: UserModel | None = Depends(get_current_user)) -> ContactInfo:
+    return ContactInfo(**contact_service.get_contact(_require_user(current_user)))
+
+
+@router.patch("/me/contact", response_model=ContactInfo)
+def update_contact(
+    contact: ContactUpdate,
+    db: Session | None = Depends(get_optional_db),
+    current_user: UserModel | None = Depends(get_current_user),
+) -> ContactInfo:
+    return ContactInfo(
+        **contact_service.update_contact(
+            _require_db(db),
+            _require_user(current_user),
+            contact,
         )
     )
 

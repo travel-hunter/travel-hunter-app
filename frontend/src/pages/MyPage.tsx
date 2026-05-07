@@ -1,7 +1,7 @@
 import { LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { appDataApi, type NotificationSettings, type Policy, type Profile } from "../api";
+import { appDataApi, type ContactInfo, type NotificationSettings, type Policy, type Profile } from "../api";
 import { useSession } from "../app/session";
 import { Button, Tag } from "../components/ui";
 import { money } from "../utils";
@@ -26,6 +26,11 @@ export function MyPage() {
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(true);
   const [isSavingNotifications, setIsSavingNotifications] = useState(false);
   const [notificationError, setNotificationError] = useState("");
+  const [contact, setContact] = useState<ContactInfo | null>(null);
+  const [contactDraft, setContactDraft] = useState("");
+  const [isLoadingContact, setIsLoadingContact] = useState(true);
+  const [isSavingContact, setIsSavingContact] = useState(false);
+  const [contactError, setContactError] = useState("");
 
   useEffect(() => {
     let isCurrent = true;
@@ -68,6 +73,31 @@ export function MyPage() {
       })
       .finally(() => {
         if (isCurrent) setIsLoadingNotifications(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isCurrent = true;
+    setIsLoadingContact(true);
+    setContactError("");
+
+    appDataApi
+      .getContact()
+      .then((nextContact) => {
+        if (!isCurrent) return;
+        setContact(nextContact);
+        setContactDraft(nextContact.phoneNumber ?? "");
+      })
+      .catch(() => {
+        if (!isCurrent) return;
+        setContactError("알림 연락처를 불러오지 못했어요.");
+      })
+      .finally(() => {
+        if (isCurrent) setIsLoadingContact(false);
       });
 
     return () => {
@@ -136,6 +166,22 @@ export function MyPage() {
     }
   };
 
+  const saveContact = async () => {
+    setIsSavingContact(true);
+    setContactError("");
+    try {
+      const savedContact = await appDataApi.updateContact({
+        phoneNumber: contactDraft.trim() ? contactDraft : null,
+      });
+      setContact(savedContact);
+      setContactDraft(savedContact.phoneNumber ?? "");
+    } catch {
+      setContactError("연락처를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setIsSavingContact(false);
+    }
+  };
+
   const savedPolicyCountLabel = isLoadingSavedPolicies
     ? "불러오는 중"
     : savedPolicies.length > 0
@@ -184,6 +230,36 @@ export function MyPage() {
         </div>
         <div className="card">
           <div className="card-body">
+            <div className="contact-panel">
+              <div>
+                <strong>카카오 알림톡 연락처</strong>
+                <div className="meta">
+                  {isLoadingContact
+                    ? "연락처를 불러오는 중"
+                    : contact?.phoneNumber
+                      ? contact.phoneVerified
+                        ? "검증된 연락처입니다"
+                        : "검증 전 연락처입니다"
+                      : "마감 알림을 받을 전화번호를 입력하세요"}
+                </div>
+              </div>
+              <label className="field contact-field">
+                전화번호
+                <input
+                  disabled={isLoadingContact || isSavingContact}
+                  inputMode="tel"
+                  name="notification-phone"
+                  onChange={(event) => setContactDraft(event.target.value)}
+                  placeholder="01012345678"
+                  type="tel"
+                  value={contactDraft}
+                />
+              </label>
+              <Button disabled={isLoadingContact || isSavingContact} onClick={saveContact} variant="line">
+                {isSavingContact ? "저장 중" : "연락처 저장"}
+              </Button>
+              {contactError && <div className="warning-text">{contactError}</div>}
+            </div>
             <Link className="setting-row" to="/policies">
               <div>
                 <strong>저장한 정책</strong>

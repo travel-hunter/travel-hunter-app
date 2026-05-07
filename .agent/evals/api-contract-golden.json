@@ -148,6 +148,33 @@
     },
     {
       "method": "GET",
+      "path": "/api/me/contact",
+      "status": 200,
+      "requiredFields": {
+        "phoneNumber": "string|null",
+        "phoneVerified": "boolean"
+      },
+      "dbFields": {
+        "phoneNumber": "users.phone_number",
+        "phoneVerified": "users.phone_verified_at != null"
+      },
+      "dbModeBehavior": "Requires bearer auth and returns null/false when no phone number is stored."
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/me/contact",
+      "status": 200,
+      "request": {
+        "phoneNumber": "010 1234 5678"
+      },
+      "requiredFields": {
+        "phoneNumber": "string|null",
+        "phoneVerified": "boolean"
+      },
+      "dbModeBehavior": "Requires bearer auth, strips whitespace, stores users.phone_number, clears users.phone_verified_at when the phone number changes, and treats blank/null as no phone number."
+    },
+    {
+      "method": "GET",
       "path": "/api/me/notification-settings",
       "status": 200,
       "requiredFields": {

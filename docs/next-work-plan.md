@@ -4,7 +4,7 @@
 
 - 배포, Jenkins, Figma 후속 작업은 기능 우선순위에서 제외한다.
 - 현재 MVP는 DB-backed-only 흐름이다.
-- 최근 기능 패스는 장소 편집, 마이페이지 프로필 편집, AI 추천 일정 추가, 초대 권한 저장/enforcement, 마감 알림 설정 저장까지 완료했다.
+- 최근 기능 패스는 장소 편집, 마이페이지 프로필 편집, AI 추천 일정 추가, 초대 권한 저장/enforcement, 마감 알림 설정 저장, 알림 연락처 저장 기반까지 완료했다.
 
 ## 완료된 최근 기능
 
@@ -22,17 +22,19 @@
    - `/mypage`에서 정책 마감 알림 전체 켜기/끄기를 저장한다.
 6. 마감 알림 발송 기반 설계
    - `docs/notification-delivery-plan.md`에 카카오 알림톡, FastAPI 내부 scheduler, D-7/D-1 대상 계산, 발송 이력 저장 방향을 확정했다.
+7. 마감 알림 발송 구현 준비
+   - `/mypage`에서 카카오 알림톡 연락처를 저장한다.
+   - `users.phone_number`, `users.phone_verified_at`, `notification_deliveries` 기반을 추가한다.
 
 ## 다음 우선순위
 
 | 우선순위 | 작업 | 성공 기준 |
 |---:|---|---|
-| 1 | 마감 알림 발송 구현 준비 | 전화번호 저장 방식과 `notification_deliveries` migration 계획을 구현 가능한 수준으로 확정한다. |
-| 2 | 마감 알림 대상 계산 service | 저장 정책 기준 D-7/D-1 대상과 사용자 알림 설정 필터를 DB-backed service로 구현한다. |
-| 3 | FastAPI 내부 scheduler 구현 | `NOTIFICATION_SCHEDULER_ENABLED=true`일 때 하루 한 번 대상 계산과 dry-run 발송을 실행한다. |
-| 4 | 카카오 알림톡 provider 연결 | 승인된 템플릿과 secret이 준비되면 real provider adapter를 연결한다. |
-| 5 | 소셜 로그인 OAuth | staging URL과 provider secret이 확정되면 Kakao 또는 Google부터 연결한다. |
-| 6 | Cloudflare Tunnel staging 배포 재개 | 기능 패스가 멈추거나 release staging으로 복귀할 때 실제 외부 URL smoke를 진행한다. |
+| 1 | 마감 알림 대상 계산 service | 저장 정책 기준 D-7/D-1 대상, 사용자 알림 설정, 연락처 보유 여부를 DB-backed service로 계산한다. |
+| 2 | FastAPI 내부 scheduler 구현 | `NOTIFICATION_SCHEDULER_ENABLED=true`일 때 하루 한 번 대상 계산과 dry-run 발송 이력 생성을 실행한다. |
+| 3 | 카카오 알림톡 provider 연결 | 승인된 템플릿과 secret이 준비되면 real provider adapter를 연결한다. |
+| 4 | 소셜 로그인 OAuth | staging URL과 provider secret이 확정되면 Kakao 또는 Google부터 연결한다. |
+| 5 | Cloudflare Tunnel staging 배포 재개 | 기능 패스가 멈추거나 release staging으로 복귀할 때 실제 외부 URL smoke를 진행한다. |
 
 ## Fast Lane
 

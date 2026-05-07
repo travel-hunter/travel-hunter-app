@@ -4,7 +4,7 @@
 
 Travel Hunter는 국내 여행 정책 탐색과 여행 일정 관리를 위한 DB-backed MVP다. Runtime mock mode는 제거됐고, 프론트엔드는 항상 FastAPI 백엔드를 호출하며 주요 데이터는 PostgreSQL 기준으로 저장된다.
 
-현재 기준 커밋은 `963ab3a feat: enforce trip invite edit roles`다. 이 커밋 이후 작업트리에는 마감 알림 발송 기반 설계 문서 변경분이 포함되어 있으며, 기능 코드 변경은 없다.
+현재 기준 커밋은 `1c41327 docs: plan notification delivery foundation`다. 이 커밋 이후 작업트리에는 마감 알림 발송 기반 1차 구현 변경분이 포함되어 있다.
 
 ## 주요 위치
 
@@ -27,7 +27,7 @@ Travel Hunter는 국내 여행 정책 탐색과 여행 일정 관리를 위한 D
 - 일정: 목록, 생성, 상세, 삭제, 정책 담기, 장소 추가/수정/삭제.
 - AI 추천: 추천 결과 조회, 추천 항목을 실제 일정 타임라인 장소로 추가.
 - 초대: 초대 링크 생성, 초대 수락, 일정 참여자 추가, `viewer/editor` 권한 저장과 장소 편집 권한 enforcement.
-- 알림 설정: 마이페이지에서 정책 마감 알림 전체 켜기/끄기 저장.
+- 알림 설정: 마이페이지에서 정책 마감 알림 전체 켜기/끄기와 카카오 알림톡 연락처를 저장.
 - 테스트 계정: `test.user@example.com / password123`, 표시명 `테스트 사용자`.
 
 ## 프론트엔드 기준
@@ -40,7 +40,7 @@ Travel Hunter는 국내 여행 정책 탐색과 여행 일정 관리를 위한 D
 - `/ai-results`는 추천 항목을 기존 장소 추가 API로 저장하고 성공 시 `/trips/{tripId}`로 이동한다.
 - `/friend-invite?tripId=...`는 `viewer/editor` 권한 선택 UI를 제공하고 선택 권한을 invite에 저장한다.
 - `/invites/:inviteToken/accept`는 로그인 복귀 후 초대 수락 API를 호출한다.
-- `/mypage`는 `GET/PATCH /api/me/notification-settings`로 마감 알림 설정을 조회하고 저장한다.
+- `/mypage`는 `GET/PATCH /api/me/contact`로 카카오 알림톡 연락처를 조회/저장하고, `GET/PATCH /api/me/notification-settings`로 마감 알림 설정을 조회/저장한다.
 
 ## 백엔드 기준
 
@@ -60,8 +60,10 @@ Travel Hunter는 국내 여행 정책 탐색과 여행 일정 관리를 위한 D
 - `trip_invites.role`은 `viewer` 또는 `editor`이며, 초대 수락 시 신규 `trip_members.role`에 반영된다.
 - `Trip.currentUserRole`은 현재 사용자의 일정 권한(`owner`, `editor`, `viewer`)을 반환한다.
 - 장소 추가/수정/삭제는 `owner` 또는 `editor`만 가능하며, 접근 가능한 `viewer`의 편집 요청은 `403 {"detail": "Trip edit permission required"}`를 반환한다.
+- `users.phone_number`와 `users.phone_verified_at`은 알림톡 수신 연락처와 검증 상태다.
 - `user_notification_settings.deadline_enabled`는 사용자별 정책 마감 알림 전체 켜기/끄기 값이다.
 - `NotificationSettings.deadlineLeadDays`는 `[7, 1]` 서버 상수이며 DB에 저장하지 않는다.
+- `notification_deliveries`는 사용자/정책/channel/lead day/마감일 조합의 발송 이력과 중복 방지 기준이다.
 - 실제 마감 알림 발송은 아직 구현 전이며, `docs/notification-delivery-plan.md`에 카카오 알림톡 + FastAPI 내부 scheduler 방향으로 설계가 확정됐다.
 
 ## 디자인/Figma 상태
@@ -89,13 +91,14 @@ Tunnel mode에서는 host `80/443` 포트를 열지 않는다. Cloudflare가 외
 
 ## 최신 검증
 
-- `cd backend && python -m pytest`: 90 passed.
+- `cd backend && python -m pytest`: 97 passed.
 - `cd backend && alembic upgrade head --sql`: passed.
 - `cd frontend && npm run typecheck`: passed.
-- `cd frontend && npm test`: DB-backed Vitest 28 passed.
 - `cd frontend && npm run build`: passed.
+- `cd frontend && npm test`: Docker Desktop daemon 미실행으로 compose PostgreSQL 시작 단계에서 blocked.
 - `git diff --check`: passed.
 - 이전 release gate 기준:
+  - DB-backed Vitest: 28 passed.
   - DB-backed Playwright e2e: 5 passed.
   - Local compose config/build: passed.
   - VPS compose config: passed.
@@ -104,7 +107,7 @@ Tunnel mode에서는 host `80/443` 포트를 열지 않는다. Cloudflare가 외
 ## 미구현 범위
 
 - 카카오 알림톡 실제 발송.
-- 알림 발송 이력 테이블과 scheduler 구현.
+- 알림 대상 계산 service와 scheduler 구현.
 - 소셜 로그인 실제 연동.
 - 정책 실시간 수집 API.
 - 지도, 장소 검색, 이동 시간 계산.
@@ -116,4 +119,4 @@ Tunnel mode에서는 host `80/443` 포트를 열지 않는다. Cloudflare가 외
 
 ## 다음 작업
 
-다음 우선순위는 `docs/next-work-plan.md`를 따른다. 기능 구현 관점에서는 마감 알림 발송 구현 준비가 1순위다. 배포 관점의 Cloudflare Tunnel staging 실행과 Jenkinsfile은 기능 패스가 멈추거나 release staging으로 복귀할 때 재개한다.
+다음 우선순위는 `docs/next-work-plan.md`를 따른다. 기능 구현 관점에서는 마감 알림 대상 계산 service가 1순위다. 배포 관점의 Cloudflare Tunnel staging 실행과 Jenkinsfile은 기능 패스가 멈추거나 release staging으로 복귀할 때 재개한다.
