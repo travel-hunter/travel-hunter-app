@@ -23,6 +23,7 @@
 
 - `vps-staging-inputs.md`: VPS staging 입력값과 secret 처리 기준.
 - `notification-delivery-plan.md`: 마감 알림 발송 기반 설계. 카카오 알림톡, FastAPI 내부 scheduler, D-7/D-1 대상 계산 기준.
+- `benchmark-ildan-checkin.md`: 일단체크인 벤치마크 분석과 Travel Hunter 적용 후보.
 - `design-system-map.md`: Wanted Design System과 코드 토큰/컴포넌트 매핑.
 - `figma-import-checklist.md`: Wanted `.fig` import와 component 확인표.
 - `figma-component-values.md`: Figma component 수치 원본.

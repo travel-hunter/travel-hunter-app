@@ -21,16 +21,17 @@
   - 필요 서류 static checklist.
   - 친구 초대 링크 활성화 문구.
   - AI 추천 기준 sheet.
+- 일단체크인 벤치마크 분석 문서화.
 
 ## 다음 우선순위
 
 | 우선순위 | 작업 | 성공 기준 |
 |---:|---|---|
-| 1 | 현재 미커밋 기능/문서 변경분 기준점 고정 | Fast lane과 e2e 검증 결과를 포함해 커밋 |
-| 2 | Password reset SMTP staging smoke | SMTP env를 주입해 reset email 발송, 링크 진입, password confirm을 외부 URL 기준으로 확인 |
-| 3 | Kakao/Google OAuth staging smoke | provider console redirect URI와 env 값을 맞추고 실제 social login callback/refresh를 확인 |
-| 4 | Cloudflare Tunnel staging 배포 | 외부 HTTPS URL에서 로그인, 정책, 일정, 초대, reset/OAuth 주요 smoke 확인 |
-| 5 | 전화번호 실인증/OTP 설계 | Kakao AlimTalk 수신 연락처의 실제 소유 여부를 검증하는 흐름 확정 |
+| 1 | Production sourcemap 비공개 명시 | `npm run build` 후 `frontend/dist`에 `.map` 파일이 생성되지 않음 |
+| 2 | PWA manifest/meta 추가 | 모바일 홈화면 설치용 manifest와 app meta가 제공됨 |
+| 3 | Web Share API 공유 fallback | 정책/초대 링크 공유가 share API, clipboard, legacy copy 순서로 동작 |
+| 4 | Password reset SMTP staging smoke | SMTP env를 주입해 reset email 발송, 링크 진입, password confirm을 외부 URL 기준으로 확인 |
+| 5 | Kakao/Google OAuth staging smoke | provider console redirect URI와 env 값을 맞추고 실제 social login callback/refresh를 확인 |
 
 ## Fast Lane
 
