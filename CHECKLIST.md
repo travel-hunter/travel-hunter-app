@@ -31,6 +31,10 @@
 - [x] Password reset request/confirm flow is connected to SMTP-backed reset links.
 - [x] Kakao/Google OAuth authorization code flow is connected to login buttons.
 - [x] Button audit fixes are applied for policy share, static policy documents, invite wording, and AI criteria sheet.
+- [x] Web Share API sharing fallback is implemented for policy and invite links.
+- [x] Production sourcemap is explicitly disabled and build output has no `.map` files.
+- [x] PWA manifest/meta and app icons are provided.
+- [x] Project structure audit is documented in `docs/project-structure-audit.md`.
 - [x] Public VPS artifacts exist.
 - [x] Cloudflare Tunnel artifacts exist.
 
@@ -44,6 +48,7 @@
 - Tunnel compose config: passed.
 - `git diff --check`: passed.
 - Frontend typecheck/build: passed.
+- Frontend build output includes PWA manifest/icons and no sourcemap files.
 - Frontend DB-backed Vitest: 36 passed.
 - Previous DB-backed Playwright e2e: 5 passed.
 - Local compose config/build: passed.

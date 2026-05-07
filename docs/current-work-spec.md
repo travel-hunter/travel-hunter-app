@@ -4,7 +4,9 @@
 
 Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저장, 초대 협업, 마감 알림 기반을 제공하는 DB-backed-only MVP다. Runtime mock mode는 제거됐고, frontend는 항상 FastAPI backend를 호출한다.
 
-이번 변경으로 버튼 audit에서 확인된 인증/공유/placeholder 항목을 실제 흐름으로 정리했다.
+- 최신 기준 커밋: `774278d docs: audit project structure`.
+- 브랜치 상태: `feat/prototype-to-react`, origin 대비 ahead 상태.
+- 최근 변경으로 일단체크인 벤치마크 분석, production sourcemap 비공개 명시, PWA manifest/meta 1차 적용, 프로젝트 구조 audit 문서화, Web Share API 공유 fallback을 완료했다.
 
 ## 구현 완료 범위
 
@@ -12,7 +14,7 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 - Password reset: email reset link 요청, token confirm, password hash 갱신, 기존 refresh token revoke.
 - OAuth: Kakao/Google authorization code 시작, callback state 검증, social account 연결/생성, refresh cookie 기반 frontend callback.
 - Profile: onboarding, mypage profile edit, notification contact 저장.
-- Policies: 목록, 상세, 검색/필터, 저장/삭제, official/apply URL CTA, 정책 링크 복사.
+- Policies: 목록, 상세, 검색/필터, 저장/삭제, official/apply URL CTA, 정책 링크 복사, Web Share API 공유 fallback.
 - Trips: 목록, 생성, 상세, 삭제, 정책 담기, 장소 추가/수정/삭제.
 - AI recommendations: 추천 결과를 실제 `trip_places`에 추가, 추천 기준 sheet.
 - Invites: 링크 생성, viewer/editor role 저장, 수락, 일정 멤버십 저장, 장소 편집 권한 enforcement.
@@ -80,4 +82,4 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 
 ## 다음 작업
 
-다음 기능 우선순위는 `docs/next-work-plan.md`를 따른다. 현재는 버튼 audit 수정분 검증/커밋 후 OAuth provider 실환경 연결 점검 또는 Cloudflare Tunnel staging 배포로 이어갈 수 있다.
+다음 기능 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 SMTP staging smoke다.

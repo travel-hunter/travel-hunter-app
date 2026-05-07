@@ -787,15 +787,29 @@ describe("Travel Hunter app", () => {
     }
   });
 
-  it("copies the current policy URL instead of routing to friend invite", async () => {
-    await login();
-    cleanup();
-    renderRoute("/policies/local-vacation");
+  it("shares the current policy URL through Web Share API", async () => {
+    const shareSpy = vi.fn().mockResolvedValue(undefined);
+    const navigatorPrototype = Object.getPrototypeOf(window.navigator) as Navigator & { share?: typeof shareSpy };
+    const originalShareDescriptor = Object.getOwnPropertyDescriptor(navigatorPrototype, "share");
+    Object.defineProperty(navigatorPrototype, "share", { configurable: true, value: shareSpy });
 
-    await userEvent.setup().click(await screen.findByRole("button", { name: "공유" }));
+    try {
+      await login();
+      cleanup();
+      renderRoute("/policies/local-vacation");
 
-    expect(screen.queryByRole("link", { name: /친구 초대/ })).not.toBeInTheDocument();
-    await waitFor(() => expect(document.body).toHaveTextContent("정책 링크를 복사했어요"));
+      await userEvent.setup().click(await screen.findByRole("button", { name: "공유" }));
+
+      expect(screen.queryByRole("link", { name: /친구 초대/ })).not.toBeInTheDocument();
+      await waitFor(() => expect(shareSpy).toHaveBeenCalled());
+      await waitFor(() => expect(document.body).toHaveTextContent("정책 링크를 공유했어요"));
+    } finally {
+      if (originalShareDescriptor) {
+        Object.defineProperty(navigatorPrototype, "share", originalShareDescriptor);
+      } else {
+        Reflect.deleteProperty(navigatorPrototype, "share");
+      }
+    }
   });
 
   it("renders policy documents as static checklist rows", async () => {
@@ -829,6 +843,43 @@ describe("Travel Hunter app", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: "회원가입" })).toBeInTheDocument());
     const loginLink = screen.getByRole("link", { name: "로그인" });
     expect(decodeURIComponent(loginLink.getAttribute("href") ?? "")).toBe("/login?redirect=/invites/jeju-3d/accept");
+  });
+
+  it("shares the invite link from the friend invite page", async () => {
+    const trip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "55",
+      title: "Invite share trip",
+    };
+    const inviteState: InviteState = {
+      id: "9",
+      tripId: "55",
+      inviteToken: "abc",
+      inviteUrl: "travelhunter.app/i/abc",
+      expiresAt: "2026-06-30T00:00:00Z",
+      createdAt: "2026-05-04T00:00:00Z",
+      acceptedAt: null,
+      invited: false,
+      copied: false,
+      role: "editor",
+    };
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(trip);
+    const getInviteSpy = vi.spyOn(appDataApi, "getInviteState").mockResolvedValue(inviteState);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/friend-invite?tripId=55");
+
+      await waitFor(() => expect(getInviteSpy).toHaveBeenCalledWith("55"));
+      await userEvent.setup().click(await screen.findByRole("button", { name: "링크 복사" }));
+
+      await waitFor(() => expect(screen.getByRole("button", { name: "복사됨" })).toBeInTheDocument());
+      await waitFor(() => expect(document.querySelector(".toast")).toBeTruthy());
+    } finally {
+      getTripSpy.mockRestore();
+      getInviteSpy.mockRestore();
+    }
   });
 
   it("accepts a valid invite after login and links to the joined trip", async () => {

@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-The MVP is DB-backed-only and runtime mock mode has been removed. Docker VPS direct staging artifacts and Cloudflare Tunnel staging artifacts exist, but the current working priority is user-facing feature completion. Trip place editing, mypage profile editing, AI recommendation-to-timeline, invite role persistence/enforcement, deadline notification preference/contact/delivery foundation, notification scheduler/provider/retry/webhook tracking, password reset, Kakao/Google OAuth entry points, and button-audit UX fixes are complete. The next priority is staging credential smoke for SMTP/OAuth, then Cloudflare Tunnel staging deployment.
+The MVP is DB-backed-only and runtime mock mode has been removed. Docker VPS direct staging artifacts and Cloudflare Tunnel staging artifacts exist. Trip place editing, mypage profile editing, AI recommendation-to-timeline, invite role persistence/enforcement, deadline notification preference/contact/delivery foundation, notification scheduler/provider/retry/webhook tracking, password reset, Kakao/Google OAuth entry points, button-audit UX fixes, production sourcemap hardening, PWA manifest/meta, project structure audit, and Web Share API sharing fallback are complete. The next implementation priority is SMTP/OAuth staging smoke, followed by Cloudflare Tunnel staging deployment.
 
 ## Source Of Truth
 
@@ -10,6 +10,7 @@ The MVP is DB-backed-only and runtime mock mode has been removed. Docker VPS dir
 - Notification delivery design: `docs/notification-delivery-plan.md`
 - API contract: `docs/mvp-api-contract.md`
 - Next priority: `docs/next-work-plan.md`
+- Project structure audit: `docs/project-structure-audit.md`
 - Release candidate handoff: `docs/release-candidate-handoff.md`
 - Public VPS runbook: `docs/deployment-vps.md`
 - Cloudflare Tunnel runbook: `docs/deployment-tunnel.md`

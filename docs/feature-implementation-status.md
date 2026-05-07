@@ -3,7 +3,7 @@
 ## 기준
 
 - 기준 브랜치: `feat/prototype-to-react`.
-- 기준 범위: 현재 worktree 포함. 버튼 audit 기반 auth/OAuth/UX 수정분도 포함한다.
+- 기준 범위: 최신 커밋 `774278d docs: audit project structure`까지 포함한다.
 - 실행 모드: DB-backed-only. Runtime mock mode는 제거된 상태다.
 - 공식 요구사항 문서: `docs/requirements.md`.
 - 분류 기준:
@@ -38,7 +38,8 @@
 | 정책 | 정책 목록/상세 | `/policies`, `/policies/:slug` | `GET /api/policies`, `GET /api/policies/{slug}` | `policies`, `policy_documents` | backend, Vitest, e2e | Complete | 없음 | 유지 |
 | 정책 | 검색/지역/카테고리 필터 | `/policies` | client-side filtering | 없음 | Vitest, e2e | Complete | 데이터 증가 시 서버 검색 필요 가능 | 후속 확장 |
 | 정책 | 저장/삭제 | `/policies/:slug`, `/mypage` | `GET/POST/DELETE /api/me/saved-policies` | `user_saved_policies` | backend, Vitest, e2e | Complete | 없음 | 유지 |
-| 정책 | 정책 링크 복사 | `/policies/:slug` | frontend clipboard | 없음 | Vitest | Complete | Web Share API는 미구현 | 필요 시 후속 |
+| 정책 | 정책 링크 복사 | `/policies/:slug` | Web Share API, clipboard, legacy copy | 없음 | Vitest | Complete | 외부 공유 UI는 브라우저 지원에 의존 | 유지 |
+| 플랫폼 | PWA manifest/meta | HTML shell, `manifest.webmanifest` | Vite static assets | 없음 | build 산출물 확인 | Complete | service worker/offline은 없음 | offline 전략은 후속 검토 |
 | 정책 | 공식/신청 URL CTA | `/policies/:slug` | `officialUrl/applyUrl` DTO | `policies.official_url/apply_url` | backend, Vitest | Complete | 실제 URL 정확도는 seed 데이터 품질에 의존 | 정책 URL 유지보수 |
 | 정책 | 필요 서류 표시 | `/policies/:slug` | static checklist row | `policy_documents` | Vitest | Complete | 없음 | 유지 |
 | 일정 | 일정 목록/생성/상세 | `/trips`, `/trips/new`, `/trips/:id` | `GET/POST/GET /api/trips` | `trips`, `trip_days`, `trip_places` | backend, Vitest, e2e | Complete | 없음 | 유지 |
@@ -81,7 +82,7 @@
 - `cd backend && alembic upgrade head --sql`: passed.
 - `cd frontend && npm run typecheck`: passed.
 - `cd frontend && npm test`: 36 passed.
-- `cd frontend && npm run build`: passed.
+- `cd frontend && npm run build`: passed, sourcemap 미생성, PWA manifest/icon 산출물 확인.
 - `cd frontend && npm run test:e2e`: 5 passed.
 - `docker compose -f compose.yaml config`: passed.
 - `docker compose --env-file deploy/.env.staging.example -f compose.vps.yaml config`: passed.

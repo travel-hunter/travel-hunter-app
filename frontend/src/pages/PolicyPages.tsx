@@ -7,6 +7,7 @@ import { useSession } from "../app/session";
 import { PolicyListCard } from "../components/cards";
 import { Button, EmptyState, ErrorState, IconButton, LoadingState, Tag, Toast, TopBar } from "../components/ui";
 import { dday } from "../utils";
+import { shareLinkWithFallback } from "../utils/share";
 
 type TripSheetStatus = "closed" | "loading" | "empty" | "ready" | "submitting" | "error" | "success";
 
@@ -196,14 +197,18 @@ export function PolicyDetailPage() {
     }
   };
 
-  const copyPolicyLink = async () => {
+  const sharePolicyLink = async () => {
     if (!policy) return;
     const policyUrl = `${window.location.origin}/policies/${policy.slug}`;
     try {
-      if (window.navigator.clipboard) await window.navigator.clipboard.writeText(policyUrl);
-      setNotice("정책 링크를 복사했어요.");
+      const method = await shareLinkWithFallback({
+        title: policy.title,
+        text: `${policy.title} 정책을 Travel Hunter에서 확인해 보세요.`,
+        url: policyUrl,
+      });
+      setNotice(method === "share" ? "정책 링크를 공유했어요." : "정책 링크를 복사했어요.");
     } catch {
-      setNotice("정책 링크를 복사하지 못했어요. 주소창의 URL을 직접 복사해 주세요.");
+      setNotice("정책 링크를 공유하지 못했어요. 잠시 후 다시 시도해 주세요.");
     }
   };
 
@@ -240,7 +245,7 @@ export function PolicyDetailPage() {
             <button className="icon-btn" disabled={isSavingPolicy} onClick={saveStandalonePolicy} type="button" aria-label="저장">
               <Heart size={18} fill={likedPolicy ? "currentColor" : "none"} />
             </button>
-            <IconButton label="공유" onClick={copyPolicyLink}>
+            <IconButton label="공유" onClick={sharePolicyLink}>
               <Share2 size={18} />
             </IconButton>
           </div>

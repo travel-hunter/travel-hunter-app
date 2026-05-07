@@ -6,6 +6,7 @@ import { useAsyncResource } from "../api/useAsyncResource";
 import { useSession } from "../app/session";
 import { ItineraryCard } from "../components/cards";
 import { Button, EmptyState, ErrorState, IconButton, LinkButton, LoadingState, PageHead, Tag, Toast, TopBar } from "../components/ui";
+import { shareLinkWithFallback } from "../utils/share";
 
 const profileOptions = appDataApi.getProfileOptions();
 const durationOptions = [2, 3, 4, 5] as const;
@@ -618,15 +619,21 @@ export function FriendInvitePage() {
     if (effectiveInviteState?.role) setSelectedRole(effectiveInviteState.role);
   }, [effectiveInviteState?.role]);
 
-  const copyInviteLink = async () => {
+  const shareInviteLink = async () => {
     const inviteUrl = effectiveInviteState?.inviteUrl ?? "";
+    if (!inviteUrl) return;
     try {
-      if (navigator.clipboard && inviteUrl) await navigator.clipboard.writeText(inviteUrl);
+      const method = await shareLinkWithFallback({
+        title: `${title} 초대 링크`,
+        text: `${title} 일정을 친구에게 공유해 보세요.`,
+        url: inviteUrl,
+      });
+      setCopied(true);
+      setNotice(method === "share" ? "초대 링크를 공유했어요." : "초대 링크를 복사했어요.");
     } catch {
-      // Clipboard permission can be unavailable in some browsers; the UI still confirms the copy action.
+      setCopied(true);
+      setNotice("초대 링크를 공유하지 못했어요. 잠시 후 다시 시도해 주세요.");
     }
-    setCopied(true);
-    setNotice("초대 링크를 복사했어요.");
   };
 
   const sendFriendInvite = async () => {
@@ -660,7 +667,7 @@ export function FriendInvitePage() {
             <PageHead eyebrow="공유 권한" title={`${title} 초대 링크를 준비하세요`} body="초대 링크를 활성화한 뒤 복사해서 친구에게 직접 공유할 수 있어요." />
             <div className="invite-link">
               <span>{inviteUrl}</span>
-              <button className="btn sm ghost" onClick={copyInviteLink} type="button">
+              <button className="btn sm ghost" onClick={shareInviteLink} type="button">
                 {copied ? "복사됨" : "링크 복사"}
               </button>
             </div>
