@@ -3,10 +3,10 @@
 ## Summary
 
 - 마감 알림은 카카오 알림톡을 1차 발송 채널로 둔다.
-- 현재 구현 완료 범위는 알림 설정 저장, 연락처 저장, 발송 이력 테이블, D-7/D-1 대상 계산 service, FastAPI 내부 scheduler, SOLAPI 기반 Kakao AlimTalk provider adapter, 실패 알림 retry 정책이다.
+- 현재 구현 완료 범위는 알림 설정 저장, 연락처 저장, 발송 이력 테이블, D-7/D-1 대상 계산 service, FastAPI 내부 scheduler, SOLAPI 기반 Kakao AlimTalk provider adapter, 실패 알림 retry 정책, SOLAPI webhook 배송 상태 추적이다.
 - scheduler는 기본 비활성화이며 `NOTIFICATION_SCHEDULER_ENABLED=true`일 때 하루 1회 dispatch service를 실행한다.
 - `KAKAO_ALIMTALK_ENABLED=false`이면 후보 생성만 수행하고, `true`이면 pending 후보를 SOLAPI 알림톡으로 접수한다.
-- 웹훅 기반 최종 배송 상태 추적은 다음 단계다.
+- SOLAPI webhook은 provider의 최종 배송 리포트를 받아 `notification_deliveries` 상태를 보정한다.
 
 ## Current Implementation
 
@@ -18,6 +18,7 @@
 - `backend/app/services/notification_dispatch.py`: pending 후보 발송 dispatch service.
 - `backend/app/services/kakao_alimtalk.py`: SOLAPI Kakao AlimTalk provider adapter.
 - `backend/app/services/notification_scheduler.py`: FastAPI 내부 scheduler.
+- `backend/app/services/solapi_webhook.py`: SOLAPI webhook 배송 상태 추적 service.
 
 ## Target Calculation
 
@@ -79,6 +80,7 @@
 - `SOLAPI_DISABLE_SMS`
 - `SOLAPI_TIMEOUT_SECONDS`
 - `TRAVEL_HUNTER_PUBLIC_BASE_URL`
+- `SOLAPI_WEBHOOK_SECRET`
 
 ## Failure And Retry Rules
 
@@ -93,10 +95,22 @@
 - `attempt_count >= NOTIFICATION_RETRY_MAX_ATTEMPTS`인 row는 최종 실패로 간주하지만 새 status를 만들지 않고 `failed`로 둔다.
 - 같은 사용자/정책/channel/lead day/마감일 조합이 이미 `sent` 또는 `skipped`이면 다시 발송하지 않는다.
 
+## SOLAPI Webhook Tracking
+
+- endpoint는 provider-facing `POST /api/webhooks/solapi`다.
+- SOLAPI webhook secret이 설정된 경우 요청 header `X-Solapi-Secret`은 설정 secret의 SHA1 hash와 일치해야 한다.
+- payload는 SOLAPI event object 배열로 받는다.
+- `messageId`를 `notification_deliveries.provider_message_id`와 매칭한다.
+- `statusCode=4000`은 최종 성공으로 보고 `status=sent`, `sent_at`을 갱신한다.
+- `statusCode=2000` 또는 `3000`은 접수/처리 중 상태로 보고 기존 delivery 상태를 바꾸지 않는다.
+- `statusCode`가 실패 범위이면 `status=failed`, `attempt_count + 1`, `failed_at`, `error_message`를 갱신한다.
+- 모르는 `messageId`나 필수 field가 부족한 event는 무시하고 200 response의 `ignored` 카운트에 포함한다.
+- webhook은 public user auth를 요구하지 않지만 provider secret으로 보호한다.
+
 ## Next Implementation Order
 
-1. SOLAPI webhook 배송 상태 추적.
-   - provider의 최종 배송 결과를 `notification_deliveries`에 반영한다.
+1. 전화번호 실인증/OTP.
+   - 카카오 알림톡 수신 연락처가 실제 사용자 소유인지 검증한다.
 2. 운영 방식 재검토.
    - MVP 이후에는 cron container, Jenkins scheduled job, 외부 job runner로 대체할 수 있다.
 
@@ -106,6 +120,7 @@
 - scheduler는 disabled 상태, run time 전/후, 같은 날짜 1회 실행, 다음 날짜 재실행, 실패 후 retry 가능성, cancellation, DB misconfig를 검증한다.
 - SOLAPI provider adapter는 HMAC auth header, D-7/D-1 template 선택, ATA payload, 접수 성공/실패/timeout 처리를 검증한다.
 - dispatch service는 provider disabled, invalid phone skipped, sent/failed 상태 갱신, retry delay, max attempts, retry 성공/실패를 검증한다.
+- SOLAPI webhook route/service는 secret 검증, success/failure/in-progress status 처리, unknown event 무시를 검증한다.
 
 ## Assumptions
 

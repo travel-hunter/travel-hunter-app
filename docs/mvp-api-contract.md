@@ -230,6 +230,50 @@ Internal behavior:
 - `NOTIFICATION_RETRY_ENABLED=true`이면 같은 lead day 안의 `failed` row 중 `attempt_count < NOTIFICATION_RETRY_MAX_ATTEMPTS`이고 retry delay가 지난 row를 다음 scheduler 실행에서 재전송한다.
 - 최대 시도 횟수를 넘긴 row는 새 status 없이 `failed` 상태로 유지한다.
 
+### `POST /api/webhooks/solapi`
+
+SOLAPI provider-facing webhook endpoint다. 사용자 bearer token은 받지 않는다.
+
+Headers:
+
+- `X-Solapi-Secret`: `SOLAPI_WEBHOOK_SECRET`이 설정된 경우 필수. 값은 설정 secret의 SHA1 hash여야 한다.
+
+Request:
+
+```json
+[
+  {
+    "messageId": "M4V202605071200000001",
+    "statusCode": "4000",
+    "statusMessage": "Delivered",
+    "dateReported": "2026-05-07T12:03:00+09:00"
+  }
+]
+```
+
+Response `200`:
+
+```json
+{
+  "received": 1,
+  "updated": 1,
+  "ignored": 0,
+  "failed": 0
+}
+```
+
+Behavior:
+
+- `messageId` -> `notification_deliveries.provider_message_id`로 기존 delivery를 찾는다.
+- `statusCode=4000`은 최종 성공으로 보고 `status=sent`, `sent_at`을 갱신한다.
+- `statusCode=2000` 또는 `3000`은 접수/처리 중 상태로 보고 기존 delivery 상태를 변경하지 않는다.
+- 실패 status code는 `status=failed`, `attempt_count + 1`, `failed_at`, `error_message`로 반영한다.
+- 알 수 없는 `messageId` 또는 필수 field가 부족한 event는 무시하고 `ignored` 카운트에 포함한다.
+
+Errors:
+
+- invalid webhook secret: `401 {"detail": "Invalid SOLAPI webhook secret"}`
+
 ### `GET /api/profile-options`
 
 Static option response:

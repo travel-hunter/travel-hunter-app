@@ -101,6 +101,17 @@ def get_delivery_by_id(db: Session, *, delivery_id: int) -> NotificationDelivery
     return db.get(NotificationDelivery, delivery_id)
 
 
+def get_delivery_by_provider_message_id(
+    db: Session,
+    *,
+    provider_message_id: str,
+) -> NotificationDelivery | None:
+    statement = select(NotificationDelivery).where(
+        NotificationDelivery.provider_message_id == provider_message_id
+    )
+    return db.scalar(statement)
+
+
 def mark_delivery_sent(
     db: Session,
     *,
@@ -114,6 +125,25 @@ def mark_delivery_sent(
     now = sent_at or security.utc_now_naive()
     delivery.status = "sent"
     delivery.provider_message_id = provider_message_id
+    delivery.sent_at = now
+    delivery.error_message = None
+    delivery.updated_at = now
+    db.add(delivery)
+    db.flush()
+    return delivery
+
+
+def mark_delivery_sent_by_webhook(
+    db: Session,
+    *,
+    delivery_id: int,
+    sent_at: datetime | None = None,
+) -> NotificationDelivery | None:
+    delivery = get_delivery_by_id(db, delivery_id=delivery_id)
+    if delivery is None:
+        return None
+    now = sent_at or security.utc_now_naive()
+    delivery.status = "sent"
     delivery.sent_at = now
     delivery.error_message = None
     delivery.updated_at = now

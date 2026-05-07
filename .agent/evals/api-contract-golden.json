@@ -200,6 +200,29 @@
       "dbModeBehavior": "Requires bearer auth and upserts one user_notification_settings row per user."
     },
     {
+      "method": "POST",
+      "path": "/api/webhooks/solapi",
+      "status": 200,
+      "request": [
+        {
+          "messageId": "M4V202605071200000001",
+          "statusCode": "4000",
+          "statusMessage": "Delivered",
+          "dateReported": "2026-05-07T12:03:00+09:00"
+        }
+      ],
+      "headers": {
+        "X-Solapi-Secret": "sha1(SOLAPI_WEBHOOK_SECRET) when configured"
+      },
+      "requiredFields": {
+        "received": "number",
+        "updated": "number",
+        "ignored": "number",
+        "failed": "number"
+      },
+      "dbModeBehavior": "Provider-facing webhook; matches messageId to notification_deliveries.provider_message_id, maps statusCode 4000 to sent, ignores 2000/3000, and maps failure status codes to failed."
+    },
+    {
       "method": "GET",
       "path": "/api/policies",
       "status": 200,

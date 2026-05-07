@@ -43,6 +43,7 @@ services:
       SOLAPI_FROM_NUMBER: ""
       SOLAPI_DISABLE_SMS: "true"
       SOLAPI_TIMEOUT_SECONDS: "5"
+      SOLAPI_WEBHOOK_SECRET: ""
       TRAVEL_HUNTER_PUBLIC_BASE_URL: http://127.0.0.1:4173
     ports:
       - "8000:8000"

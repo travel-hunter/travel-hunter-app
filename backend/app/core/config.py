@@ -59,6 +59,7 @@ class Settings:
         "SOLAPI_DISABLE_SMS", "true"
     ).strip().lower() in {"1", "true", "yes", "on"}
     solapi_timeout_seconds: float = float(os.getenv("SOLAPI_TIMEOUT_SECONDS", "5"))
+    solapi_webhook_secret: str = os.getenv("SOLAPI_WEBHOOK_SECRET", "")
     travel_hunter_public_base_url: str = os.getenv(
         "TRAVEL_HUNTER_PUBLIC_BASE_URL", ""
     )

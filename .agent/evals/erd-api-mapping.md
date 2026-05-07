@@ -58,6 +58,9 @@
 | `NotificationDispatch.sent` | `notification_deliveries.status`, `provider_message_id`, `sent_at` | SOLAPI accepted response is recorded as `sent` in MVP |
 | `NotificationDispatch.failed` | `notification_deliveries.status`, `attempt_count`, `error_message`, `failed_at` | SOLAPI failed response, HTTP error, or timeout is recorded as `failed` |
 | `NotificationDispatch.retry` | `notification_deliveries.status`, `attempt_count`, `failed_at` | Retry uses existing failed rows without a new table or status |
+| `SolapiWebhook.messageId` | `notification_deliveries.provider_message_id` | Provider-facing webhook lookup key |
+| `SolapiWebhook.success` | `notification_deliveries.status`, `sent_at` | SOLAPI final success status `4000` marks the matched delivery `sent` |
+| `SolapiWebhook.failure` | `notification_deliveries.status`, `attempt_count`, `error_message`, `failed_at` | SOLAPI final failure statuses mark the matched delivery `failed` |
 
 ## Non-DB API Values
 

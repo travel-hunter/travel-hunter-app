@@ -22,6 +22,7 @@
 | `PATCH /api/me/contact` | 200 | persists normalized phone number and clears verification on change | P1 |
 | `GET /api/me/notification-settings` | 200 | `deadlineEnabled`, `deadlineLeadDays` | P1 |
 | `PATCH /api/me/notification-settings` | 200 | persists `deadlineEnabled` per user | P1 |
+| `POST /api/webhooks/solapi` | 200 | provider report updates `notification_deliveries` and returns `received`, `updated`, `ignored`, `failed` | P1 |
 | `GET /api/profile-options` | 200 | `regions`, `travelStyles`, `budgets` | P1 |
 | `GET /api/policies` | 200 | first item has `id` and `slug` | P0 |
 | `GET /api/policies/local-vacation` | 200 | `amount`, `officialUrl`, `applyUrl`, policy detail shape | P0 |
@@ -75,6 +76,9 @@ Profile endpoints must persist the selected onboarding preferences:
 - SOLAPI accepted responses mark deliveries `sent`; `failedMessageList`, HTTP error, timeout, and invalid Korean mobile numbers mark `failed` or `skipped` as documented.
 - Retry enabled dispatch resends same-lead-day `failed` deliveries only after `NOTIFICATION_RETRY_DELAY_SECONDS` and only while `attempt_count < NOTIFICATION_RETRY_MAX_ATTEMPTS`.
 - Deferred retry rows prevent the scheduler from marking the KST date complete so the next polling cycle can re-check them.
+- `POST /api/webhooks/solapi` accepts provider event arrays and, when `SOLAPI_WEBHOOK_SECRET` is configured, requires `X-Solapi-Secret` to match the SHA1 hash of that secret.
+- SOLAPI webhook status `4000` marks a matched delivery `sent`; `2000` and `3000` are ignored as accepted/in-progress states; failure status codes mark matched deliveries `failed`.
+- Unknown webhook `messageId` values and malformed events are ignored without failing the whole webhook request.
 
 Policy endpoints must preserve the same public response shape:
 

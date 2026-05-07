@@ -27,13 +27,14 @@
 - [x] FastAPI internal notification scheduler is connected through lifespan and gated by env.
 - [x] SOLAPI Kakao AlimTalk provider adapter dispatches pending notification deliveries.
 - [x] Notification retry policy resends retryable `failed` deliveries on later scheduler cycles.
+- [x] SOLAPI webhook delivery status tracking reflects final provider reports in `notification_deliveries`.
 - [x] Public VPS artifacts exist.
 - [x] Cloudflare Tunnel artifacts exist.
 
 ## 마지막 검증 결과
 
 - Date: 2026-05-07.
-- Backend pytest: 144 passed.
+- Backend pytest: 153 passed.
 - Alembic offline SQL: passed.
 - Local compose config: passed.
 - VPS compose config: passed.
@@ -54,5 +55,6 @@
 - [x] Implement FastAPI internal notification scheduler.
 - [x] Implement Kakao AlimTalk provider adapter.
 - [x] Implement notification retry policy.
-- [ ] Implement SOLAPI webhook delivery status tracking.
+- [x] Implement SOLAPI webhook delivery status tracking.
+- [ ] Plan social login OAuth.
 - [ ] Resume Cloudflare Tunnel staging deployment when the feature pass pauses.
