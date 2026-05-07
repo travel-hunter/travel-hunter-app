@@ -24,6 +24,7 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 - Invites: 링크 생성, viewer/editor role 저장, 수락, 일정 멤버십 저장, 장소 편집 권한 enforcement.
 - Notifications: deadline 설정 저장, contact 저장, delivery history, target calculation, FastAPI scheduler, SOLAPI AlimTalk adapter, retry, SOLAPI webhook 상태 추적.
 - Design/deployment: Wanted Design System 1차 적용, Figma handoff 문서, PWA manifest/meta 1차 적용, Docker VPS/Tunnel 배포 산출물.
+- PWA offline: service worker는 아직 추가하지 않고, 안전한 캐싱 기준은 `docs/pwa-offline-strategy.md`에 정리했다.
 
 ## Backend 기준
 
@@ -85,6 +86,7 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 - 전화번호 실인증/OTP는 아직 없다.
 - 정책 실시간 수집, 지도/장소 검색, 실제 AI 추천 엔진은 아직 없다.
 - 친구 초대 email/SMS/Kakao 외부 발송은 아직 없다.
+- PWA service worker/offline runtime은 아직 없다. 현재는 install metadata만 제공한다.
 - 실제 staging 외부 URL smoke는 배포 입력값 확보 후 진행한다.
 
 ## 다음 작업

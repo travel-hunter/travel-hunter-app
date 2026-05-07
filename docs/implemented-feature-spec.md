@@ -78,7 +78,7 @@
 
 | 기능 | 설명 |
 |---|---|
-| PWA manifest/meta | 앱 이름, theme color, Apple mobile meta, 192/512/maskable icon을 제공한다. Service worker는 없다. |
+| PWA manifest/meta | 앱 이름, theme color, Apple mobile meta, 192/512/maskable icon을 제공한다. Service worker는 아직 추가하지 않는다. |
 | Production sourcemap | Vite production sourcemap은 명시적으로 비활성화되어 있다. |
 | LAN 개발 공유 | 같은 네트워크에서 `0.0.0.0` dev server와 LAN IP로 접근하는 절차를 문서화했다. |
 | VPS/Tunnel staging | public VPS direct mode와 Cloudflare Tunnel mode 산출물을 모두 제공한다. |

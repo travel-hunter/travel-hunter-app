@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-The MVP is DB-backed-only and runtime mock mode has been removed. Docker VPS direct staging artifacts and Cloudflare Tunnel staging artifacts exist. Trip place editing, mypage profile editing, AI recommendation-to-timeline, invite role persistence/enforcement, deadline notification preference/contact/delivery foundation, notification scheduler/provider/retry/webhook tracking, password reset, Kakao/Google OAuth entry points, button-audit UX fixes, production sourcemap hardening, PWA manifest/meta, project structure audit, Web Share API sharing fallback, implemented feature spec, and draft autosave first pass are complete. The next implementation priority is SMTP/OAuth staging smoke, followed by Cloudflare Tunnel staging deployment.
+The MVP is DB-backed-only and runtime mock mode has been removed. Docker VPS direct staging artifacts and Cloudflare Tunnel staging artifacts exist. Trip place editing, mypage profile editing, AI recommendation-to-timeline, invite role persistence/enforcement, deadline notification preference/contact/delivery foundation, notification scheduler/provider/retry/webhook tracking, password reset, Kakao/Google OAuth entry points, button-audit UX fixes, production sourcemap hardening, PWA manifest/meta, project structure audit, Web Share API sharing fallback, implemented feature spec, draft autosave first pass, and PWA offline strategy are complete. The next implementation priority is SMTP/OAuth staging smoke, followed by Cloudflare Tunnel staging deployment.
 
 ## Source Of Truth
 

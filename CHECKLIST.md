@@ -35,6 +35,7 @@
 - [x] Draft autosave is implemented for trip creation and add-place sheets.
 - [x] Production sourcemap is explicitly disabled and build output has no `.map` files.
 - [x] PWA manifest/meta and app icons are provided.
+- [x] PWA service worker/offline caching strategy is documented without enabling runtime caching.
 - [x] Project structure audit is documented in `docs/project-structure-audit.md`.
 - [x] Public VPS artifacts exist.
 - [x] Cloudflare Tunnel artifacts exist.
