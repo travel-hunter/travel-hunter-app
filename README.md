@@ -6,11 +6,12 @@ Travel Hunter is a React/Vite frontend plus FastAPI/PostgreSQL backend for a dom
 
 1. `docs/release-candidate-handoff.md`: RC scope, run modes, test account, validation evidence, blockers.
 2. `docs/current-work-spec.md`: current implementation status.
-3. `docs/deployment-tunnel.md`: Cloudflare Tunnel staging for NAT-restricted networks.
-4. `docs/deployment-vps.md`: public VPS direct staging.
-5. `docs/mvp-api-contract.md`: API contract.
-6. `docs/next-work-plan.md`: next priority.
-7. `CONTRIBUTING.md`: branch, PR, validation, and secret rules.
+3. `docs/notification-delivery-plan.md`: deadline notification delivery design.
+4. `docs/deployment-tunnel.md`: Cloudflare Tunnel staging for NAT-restricted networks.
+5. `docs/deployment-vps.md`: public VPS direct staging.
+6. `docs/mvp-api-contract.md`: API contract.
+7. `docs/next-work-plan.md`: next priority.
+8. `CONTRIBUTING.md`: branch, PR, validation, and secret rules.
 
 ## Local Development
 

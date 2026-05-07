@@ -3,13 +3,13 @@
 ## 기준 문서
 
 - [x] `docs/current-work-spec.md` is the current implementation summary.
+- [x] `docs/notification-delivery-plan.md` is the deadline notification delivery design.
 - [x] `docs/release-candidate-handoff.md` is the MVP release-candidate handoff guide.
 - [x] `docs/deployment-vps.md` is the public VPS staging runbook.
 - [x] `docs/deployment-tunnel.md` is the Cloudflare Tunnel staging runbook.
 - [x] `docs/mvp-api-contract.md` is the API contract.
 - [x] `docs/next-work-plan.md` is the next-priority plan.
 - [x] `docs/db-schema-v0.3.sql` is the ERD v0.3 SQL baseline.
-- [x] `docs/future-deployment.md` preserves later deployment expansion notes.
 - [x] `CONTRIBUTING.md` documents collaboration rules.
 
 ## 현재 구현 체크
@@ -22,6 +22,7 @@
 - [x] Invite role settings persist `viewer/editor` to `trip_invites.role` and invite acceptance writes the role to `trip_members.role`.
 - [x] `viewer/editor` permissions are enforced for trip place editing.
 - [x] Deadline notification preference persists to `user_notification_settings.deadline_enabled`.
+- [x] Deadline notification delivery design is documented for Kakao AlimTalk and FastAPI internal scheduler.
 - [x] Wanted Design System import, component values, Button correction, and Toast correction documented.
 - [x] Figma editable Current/Redesign frames exist for first-pass MVP routes.
 - [x] Public VPS artifacts exist: `compose.vps.yaml`, `deploy/Caddyfile`, `deploy/.env.staging.example`.
@@ -42,5 +43,7 @@
 
 ## 다음 우선순위
 
-- [ ] Design notification delivery scheduler for saved deadline settings.
+- [ ] Prepare deadline notification delivery implementation.
+- [ ] Add phone number storage and notification delivery history migration.
+- [ ] Implement deadline notification target calculation service.
 - [ ] Resume Cloudflare Tunnel staging deployment when the feature pass pauses.

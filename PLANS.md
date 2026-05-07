@@ -2,17 +2,17 @@
 
 ## Current Phase
 
-The MVP is DB-backed-only and runtime mock mode has been removed. Docker VPS direct staging artifacts and Cloudflare Tunnel staging artifacts exist, but the current working priority is user-facing feature completion. Trip place editing, mypage profile editing, adding AI recommendation items to a trip timeline, persisting invite role settings for `viewer/editor`, persisting deadline notification preferences, and enforcing `viewer/editor` permissions on trip editing are implemented. The next functional priority is designing the notification delivery foundation. Deployment and Jenkins automation are deferred until the feature pass pauses or release staging resumes.
+The MVP is DB-backed-only and runtime mock mode has been removed. Docker VPS direct staging artifacts and Cloudflare Tunnel staging artifacts exist, but the current working priority is user-facing feature completion. Trip place editing, mypage profile editing, AI recommendation-to-timeline, invite role persistence/enforcement, deadline notification preference persistence, and notification delivery design are complete. The next functional priority is preparing the deadline notification delivery implementation.
 
 ## Source Of Truth
 
 - Current implementation spec: `docs/current-work-spec.md`
+- Notification delivery design: `docs/notification-delivery-plan.md`
+- API contract: `docs/mvp-api-contract.md`
+- Next priority: `docs/next-work-plan.md`
 - Release candidate handoff: `docs/release-candidate-handoff.md`
 - Public VPS runbook: `docs/deployment-vps.md`
 - Cloudflare Tunnel runbook: `docs/deployment-tunnel.md`
-- API contract: `docs/mvp-api-contract.md`
-- Next priority: `docs/next-work-plan.md`
-- Future deployment notes: `docs/future-deployment.md`
 
 ## Guardrails
 
@@ -23,7 +23,7 @@ The MVP is DB-backed-only and runtime mock mode has been removed. Docker VPS dir
 - Keep frontend pages behind the `AppDataApi` boundary.
 - Keep backend routes thin and push business behavior into services.
 - Do not reintroduce runtime mock mode.
-- Do not commit real `.env` files, tunnel tokens, DB passwords, or auth secrets.
+- Do not commit real `.env` files, tunnel tokens, DB passwords, Kakao secrets, or auth secrets.
 
 ## Fast Lane Verification
 
