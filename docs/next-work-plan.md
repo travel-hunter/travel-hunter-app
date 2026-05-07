@@ -30,7 +30,7 @@
 
 | 우선순위 | 작업 | 성공 기준 |
 |---:|---|---|
-| 1 | 마감 알림 대상 계산 service | 저장 정책 기준 D-7/D-1 대상, 사용자 알림 설정, 연락처 보유 여부를 DB-backed service로 계산한다. |
+| 1 | 마감 알림 대상 계산 service | 저장 정책 기준 D-7/D-1 대상, 사용자 알림 설정, 연락처 검증 여부, 기존 delivery 중복 여부를 DB-backed service로 계산한다. |
 | 2 | FastAPI 내부 scheduler 구현 | `NOTIFICATION_SCHEDULER_ENABLED=true`일 때 하루 한 번 대상 계산과 dry-run 발송 이력 생성을 실행한다. |
 | 3 | 카카오 알림톡 provider 연결 | 승인된 템플릿과 secret이 준비되면 real provider adapter를 연결한다. |
 | 4 | 소셜 로그인 OAuth | staging URL과 provider secret이 확정되면 Kakao 또는 Google부터 연결한다. |

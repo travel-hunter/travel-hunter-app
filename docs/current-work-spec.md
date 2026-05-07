@@ -4,7 +4,7 @@
 
 Travel Hunter는 국내 여행 정책 탐색과 여행 일정 관리를 위한 DB-backed MVP다. Runtime mock mode는 제거됐고, 프론트엔드는 항상 FastAPI 백엔드를 호출하며 주요 데이터는 PostgreSQL 기준으로 저장된다.
 
-현재 기준 커밋은 `1c41327 docs: plan notification delivery foundation`다. 이 커밋 이후 작업트리에는 마감 알림 발송 기반 1차 구현 변경분이 포함되어 있다.
+현재 기준 커밋은 `08221d8 feat: add notification contact foundation`다. 이 커밋에는 마감 알림 연락처 저장과 `notification_deliveries` 발송 이력 기반이 포함되어 있다.
 
 ## 주요 위치
 

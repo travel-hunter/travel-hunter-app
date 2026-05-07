@@ -50,4 +50,7 @@
 - [x] Prepare deadline notification delivery implementation.
 - [x] Add phone number storage and notification delivery history migration.
 - [ ] Implement deadline notification target calculation service.
+  - [ ] Calculate D-7/D-1 targets from `user_saved_policies` and `policies.end_date`.
+  - [ ] Filter by `deadline_enabled`, `phone_number`, and `phone_verified_at`.
+  - [ ] Reuse `notification_deliveries` unique key to avoid duplicate candidates.
 - [ ] Resume Cloudflare Tunnel staging deployment when the feature pass pauses.

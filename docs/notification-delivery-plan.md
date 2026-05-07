@@ -18,6 +18,44 @@
 - `deadline_enabled=false`인 사용자는 제외한다.
 - 카카오 알림톡 수신에 필요한 전화번호가 없거나 검증되지 않은 사용자는 `skipped`로 기록하고 발송하지 않는다.
 
+## Target Calculation Service
+
+다음 구현 단계의 핵심은 HTTP API가 아니라 내부 service다.
+
+- 권장 위치: `backend/app/services/notification_delivery.py`
+- 권장 repository: `backend/app/repositories/notification_deliveries.py`
+- 입력값:
+  - `today`: KST 기준 실행일.
+  - `lead_days`: 기본값 `[7, 1]`.
+  - `channel`: 기본값 `kakao_alimtalk`.
+- 조회 기준:
+  - `user_saved_policies`로 저장된 정책만 조회한다.
+  - `policies.end_date == today + lead_day`인 정책만 조회한다.
+  - `policies.end_date is null`인 정책은 제외한다.
+  - `user_notification_settings` row가 없으면 `deadline_enabled=true`로 취급한다.
+  - `deadline_enabled=false`인 사용자는 제외한다.
+- 연락처 기준:
+  - `users.phone_number is null`이면 provider 발송 대상이 아니다.
+  - `users.phone_verified_at is null`이면 provider 발송 대상이 아니다.
+  - 전화번호가 없거나 미검증인 경우에는 `notification_deliveries.status=skipped` 후보로 기록한다.
+- 중복 방지:
+  - `(user_id, policy_id, channel, lead_day, target_deadline_date)` unique key를 기준으로 한다.
+  - 이미 `sent` 또는 `skipped`인 row가 있으면 새 대상에서 제외한다.
+  - 이미 `pending`인 row가 있으면 새로 만들지 않고 기존 row를 재사용한다.
+  - `failed` retry는 scheduler/provider 단계에서 별도로 다룬다.
+- 내부 DTO:
+  - `user_id`
+  - `policy_id`
+  - `policy_title`
+  - `policy_slug`
+  - `phone_number`
+  - `lead_day`
+  - `target_deadline_date`
+  - `channel`
+  - `delivery_status_candidate`: `pending` 또는 `skipped`
+
+이 DTO는 scheduler와 Kakao provider adapter가 함께 쓰는 내부 값이며, public API response로 노출하지 않는다.
+
 ## Data Model Direction
 
 1차 기반 구현에서 다음 DB 기준을 추가했다.
@@ -97,6 +135,7 @@
 1. 대상 계산 service 구현
    - D-7/D-1 저장 정책 조회.
    - 사용자 알림 설정과 전화번호 검증 필터.
+   - `notification_deliveries` unique key 기준으로 pending/skipped 후보를 중복 없이 만든다.
 2. FastAPI 내부 scheduler 구현
    - `NOTIFICATION_SCHEDULER_ENABLED`가 true일 때만 시작.
    - startup/lifespan에서 background task 실행.
