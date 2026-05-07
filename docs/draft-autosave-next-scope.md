@@ -4,7 +4,7 @@
 
 - 1차 autosave는 `/trips/new` 일정 생성 draft와 `/trips/:id` 장소 추가 draft에 적용됐다.
 - 2차 범위는 무조건 확대하지 않고, 입력 손실 위험과 개인정보 저장 위험을 나눠 판단한다.
-- 결론은 **장소 수정 draft만 다음 구현 후보로 둔다**.
+- 결론은 **장소 수정 draft만 2차 구현 대상으로 둔다**.
 - 마이페이지 프로필 draft는 보류하고, 연락처 draft는 localStorage 저장 대상에서 제외한다.
 
 ## 현재 구현
@@ -13,6 +13,7 @@
 |---|---|---|---|
 | `/trips/new` | `region`, `style`, `durationDays`, `policySlug` | `travel-hunter:draft:trip-create:*` | 일정 생성 성공 |
 | `/trips/:id` 장소 추가 sheet | `dayNumber`, `time`, `label`, `meta` | `travel-hunter:draft:trip-place:{tripId}:add:{dayNumber}` | 저장 성공 또는 sheet 닫기 |
+| `/trips/:id` 장소 수정 sheet | `placeId`, `time`, `label`, `meta` | `travel-hunter:draft:trip-place:{tripId}:edit:{placeId}` | 저장 성공, sheet 닫기, 장소 삭제 |
 
 공통 유틸은 `frontend/src/utils/draftStorage.ts`를 사용한다.
 
@@ -27,7 +28,7 @@
 | 정책 검색/필터 | autosave 대상 아님 | 검색 상태 보존이 필요하면 localStorage보다 URL query parameter가 적합하다. |
 | auth/password reset/OAuth/OTP | 제외 | 비밀번호, reset token, OAuth state, OTP 관련 값은 localStorage에 저장하지 않는다. |
 
-## 다음 구현 후보: 장소 수정 draft
+## 구현 완료: 장소 수정 draft
 
 ### 범위
 
@@ -69,5 +70,5 @@
 
 ## Decision
 
-- 2차 autosave 구현이 필요하면 **장소 수정 draft**부터 진행한다.
+- 2차 autosave 구현은 **장소 수정 draft**로 제한해 완료했다.
 - 마이페이지 프로필과 연락처는 이번 autosave 확장 범위에서 제외한다.

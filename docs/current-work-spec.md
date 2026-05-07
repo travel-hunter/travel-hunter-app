@@ -4,7 +4,7 @@
 
 Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저장, 초대 협업, 마감 알림 기반을 제공하는 DB-backed-only MVP다. Runtime mock mode는 제거됐고, frontend는 항상 FastAPI backend를 호출한다.
 
-- 최신 기준 커밋: `20a7eb8 docs: record password reset smtp smoke preflight`.
+- 기준: 현재 브랜치 `feat/prototype-to-react`의 최신 HEAD.
 - 브랜치 상태: `feat/prototype-to-react`, origin 대비 ahead 상태.
 - 최근 변경으로 일단체크인 벤치마크 분석, production sourcemap 비공개 명시, PWA manifest/meta 1차 적용, 프로젝트 구조 audit 문서화, Web Share API 공유 fallback을 완료했다.
 - 같은 네트워크에서 개발 서버를 공유하는 LAN runbook은 `docs/local-lan-access.md`에 정리했다.
@@ -19,7 +19,7 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 - Profile: onboarding, mypage profile edit, notification contact 저장.
 - Policies: 목록, 상세, 검색/필터, 저장/삭제, official/apply URL CTA, 정책 링크 복사, Web Share API 공유 fallback.
 - Trips: 목록, 생성, 상세, 삭제, 정책 담기, 장소 추가/수정/삭제.
-- Draft autosave: `/trips/new` 일정 생성 draft와 `/trips/:id` 장소 추가 draft를 24시간 localStorage에 임시 저장한다.
+- Draft autosave: `/trips/new` 일정 생성 draft와 `/trips/:id` 장소 추가/수정 draft를 24시간 localStorage에 임시 저장한다.
 - AI recommendations: 추천 결과를 실제 `trip_places`에 추가, 추천 기준 sheet.
 - Invites: 링크 생성, viewer/editor role 저장, 수락, 일정 멤버십 저장, 장소 편집 권한 enforcement.
 - Notifications: deadline 설정 저장, contact 저장, delivery history, target calculation, FastAPI scheduler, SOLAPI AlimTalk adapter, retry, SOLAPI webhook 상태 추적.
@@ -67,7 +67,7 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 ## 최신 검증
 
 - `cd backend && python -m pytest`: 160 passed.
-- `cd frontend && npm test`: 36 passed.
+- `cd frontend && npm test`: 45 passed.
 - `cd frontend && npm run typecheck`: passed.
 - `cd frontend && npm run build`: passed, production sourcemap 미생성, PWA manifest/icon 산출물 확인.
 - `frontend/public/manifest.webmanifest`: valid JSON, app name/theme/icon metadata 확인.

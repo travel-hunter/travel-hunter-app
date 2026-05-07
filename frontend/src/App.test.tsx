@@ -237,9 +237,11 @@ describe("Travel Hunter app", () => {
       await user.type(document.querySelector('input[name="place-label"]') as HTMLInputElement, "Updated peak");
       await user.clear(document.querySelector('textarea[name="place-meta"]') as HTMLTextAreaElement);
       await user.type(document.querySelector('textarea[name="place-meta"]') as HTMLTextAreaElement, "New memo");
+      await waitFor(() => expect(window.localStorage.getItem("travel-hunter:draft:trip-place:55:edit:1")).toContain("Updated peak"));
       await user.click(document.querySelector(".sheet-actions button") as HTMLButtonElement);
 
       await waitFor(() => expect(updatePlaceSpy).toHaveBeenCalledWith("55", "1", expect.objectContaining({ label: "Updated peak" })));
+      expect(window.localStorage.getItem("travel-hunter:draft:trip-place:55:edit:1")).toBeNull();
       await waitFor(() => expect(document.body).toHaveTextContent("Updated peak"));
 
       await user.click(document.querySelector(".place-actions .line") as HTMLButtonElement);
@@ -252,6 +254,46 @@ describe("Travel Hunter app", () => {
       updatePlaceSpy.mockRestore();
       deletePlaceSpy.mockRestore();
       confirmSpy.mockRestore();
+    }
+  });
+
+  it("restores and clears edit-place drafts", async () => {
+    const initialTrip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "55",
+      title: "Jeju editable trip",
+      days: { 1: [{ id: "1", time: "09:00", label: "Sunrise peak", meta: "Nature" }] },
+    };
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(initialTrip);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/trips/55");
+      const user = userEvent.setup();
+
+      await waitFor(() => expect(document.body).toHaveTextContent("Sunrise peak"));
+      await user.click(document.querySelector(".place-actions .ghost") as HTMLButtonElement);
+      await user.clear(document.querySelector('input[name="place-time"]') as HTMLInputElement);
+      await user.type(document.querySelector('input[name="place-time"]') as HTMLInputElement, "11:20");
+      await user.clear(document.querySelector('input[name="place-label"]') as HTMLInputElement);
+      await user.type(document.querySelector('input[name="place-label"]') as HTMLInputElement, "Draft peak");
+      await user.clear(document.querySelector('textarea[name="place-meta"]') as HTMLTextAreaElement);
+      await user.type(document.querySelector('textarea[name="place-meta"]') as HTMLTextAreaElement, "Draft memo");
+      await waitFor(() => expect(window.localStorage.getItem("travel-hunter:draft:trip-place:55:edit:1")).toContain("Draft peak"));
+
+      cleanup();
+      renderRoute("/trips/55");
+      await waitFor(() => expect(document.body).toHaveTextContent("Sunrise peak"));
+      await user.click(document.querySelector(".place-actions .ghost") as HTMLButtonElement);
+      expect(document.querySelector('input[name="place-time"]')).toHaveValue("11:20");
+      expect(document.querySelector('input[name="place-label"]')).toHaveValue("Draft peak");
+      expect(document.querySelector('textarea[name="place-meta"]')).toHaveValue("Draft memo");
+
+      await user.click(screen.getByRole("button", { name: "닫기" }));
+      expect(window.localStorage.getItem("travel-hunter:draft:trip-place:55:edit:1")).toBeNull();
+    } finally {
+      getTripSpy.mockRestore();
     }
   });
 

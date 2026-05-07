@@ -21,6 +21,9 @@ type TripCreateDraft = {
 type TripPlaceAddDraft = TripPlaceRequest & {
   dayNumber: number;
 };
+type TripPlaceEditDraft = TripPlaceRequest & {
+  placeId: string;
+};
 const inviteRoleOptions: Array<{ role: InviteRole; label: string; body: string }> = [
   { role: "viewer", label: "보기만 가능", body: "일정과 연결된 정책을 확인할 수 있어요." },
   { role: "editor", label: "함께 편집", body: "장소 의견과 일정 편집에 참여할 수 있어요." },
@@ -65,6 +68,10 @@ function recommendationPlacePayload(item: Recommendation): TripPlaceRequest {
   };
 }
 
+function recommendationKey(item: Recommendation, index: number): string {
+  return `${item.title}:${item.meta}:${index}`;
+}
+
 function isDurationOption(value: unknown): value is DurationDays {
   return durationOptions.includes(value as DurationDays);
 }
@@ -75,6 +82,10 @@ function tripCreateDraftKey(policySlug: string | undefined): string {
 
 function tripPlaceAddDraftKey(tripId: string, dayNumber: number): string {
   return createDraftKey(`trip-place:${tripId}:add:${dayNumber}`);
+}
+
+function tripPlaceEditDraftKey(tripId: string, placeId: string): string {
+  return createDraftKey(`trip-place:${tripId}:edit:${placeId}`);
 }
 
 export function ItineraryListPage() {
@@ -303,8 +314,9 @@ export function ItineraryDetailPage() {
       setPlaceError("이 일정은 보기 권한으로 참여 중이라 편집할 수 없어요.");
       return;
     }
+    const draft = trip && place.id ? readDraft<TripPlaceEditDraft>(tripPlaceEditDraftKey(trip.id, place.id)) : null;
     setPlaceEditor({ mode: "edit", dayNumber: visibleDay, place });
-    setPlaceForm({ time: place.time, label: place.label, meta: place.meta });
+    setPlaceForm(draft ? { time: draft.time ?? "", label: draft.label, meta: draft.meta ?? "" } : { time: place.time, label: place.label, meta: place.meta });
     setPlaceError("");
   };
 
@@ -332,6 +344,7 @@ export function ItineraryDetailPage() {
           ? await appDataApi.addTripPlace(trip.id, placeEditor.dayNumber, payload)
           : await appDataApi.updateTripPlace(trip.id, placeEditor.place.id ?? "", payload);
       if (placeEditor.mode === "add") clearDraft(tripPlaceAddDraftKey(trip.id, placeEditor.dayNumber));
+      if (placeEditor.mode === "edit" && placeEditor.place.id) clearDraft(tripPlaceEditDraftKey(trip.id, placeEditor.place.id));
       setTrip(nextTrip);
       setPlaceEditor(null);
       setNotice(placeEditor.mode === "add" ? "장소를 일정에 추가했어요." : "장소 정보를 수정했어요.");
@@ -354,6 +367,7 @@ export function ItineraryDetailPage() {
     setPlaceError("");
     try {
       const nextTrip = await appDataApi.deleteTripPlace(trip.id, place.id);
+      clearDraft(tripPlaceEditDraftKey(trip.id, place.id));
       setTrip(nextTrip);
       setNotice("장소를 일정에서 삭제했어요.");
       window.setTimeout(() => setNotice(null), 1800);
@@ -366,18 +380,29 @@ export function ItineraryDetailPage() {
 
   const updatePlaceForm = (nextForm: TripPlaceRequest) => {
     setPlaceForm(nextForm);
-    if (!trip || placeEditor?.mode !== "add") return;
-    saveDraft<TripPlaceAddDraft>(tripPlaceAddDraftKey(trip.id, placeEditor.dayNumber), {
-      dayNumber: placeEditor.dayNumber,
-      time: nextForm.time ?? "",
-      label: nextForm.label,
-      meta: nextForm.meta ?? "",
-    });
+    if (!trip || !placeEditor) return;
+    if (placeEditor.mode === "add") {
+      saveDraft<TripPlaceAddDraft>(tripPlaceAddDraftKey(trip.id, placeEditor.dayNumber), {
+        dayNumber: placeEditor.dayNumber,
+        time: nextForm.time ?? "",
+        label: nextForm.label,
+        meta: nextForm.meta ?? "",
+      });
+    }
+    if (placeEditor.mode === "edit" && placeEditor.place.id) {
+      saveDraft<TripPlaceEditDraft>(tripPlaceEditDraftKey(trip.id, placeEditor.place.id), {
+        placeId: placeEditor.place.id,
+        time: nextForm.time ?? "",
+        label: nextForm.label,
+        meta: nextForm.meta ?? "",
+      });
+    }
   };
 
   const closePlaceEditor = () => {
     if (isSavingPlace) return;
     if (trip && placeEditor?.mode === "add") clearDraft(tripPlaceAddDraftKey(trip.id, placeEditor.dayNumber));
+    if (trip && placeEditor?.mode === "edit" && placeEditor.place.id) clearDraft(tripPlaceEditDraftKey(trip.id, placeEditor.place.id));
     setPlaceEditor(null);
   };
 
@@ -577,7 +602,7 @@ export function AiResultsPage() {
   const [activeTripId, setActiveTripId] = useState(requestedTripId ?? "");
   const [notice, setNotice] = useState<string | null>(null);
   const [addError, setAddError] = useState("");
-  const [addingRecommendation, setAddingRecommendation] = useState<string | null>(null);
+  const [addingRecommendationKey, setAddingRecommendationKey] = useState<string | null>(null);
   const [isCriteriaOpen, setIsCriteriaOpen] = useState(false);
   const detailPath = activeTripId ? `/trips/${activeTripId}` : "/trips";
   const { data: recommendations, error, isLoading } = useAsyncResource(async () => {
@@ -587,11 +612,11 @@ export function AiResultsPage() {
     return appDataApi.listRecommendations(resolvedTripId);
   }, [requestedTripId]);
 
-  const addRecommendationToTrip = async (item: Recommendation) => {
-    if (!activeTripId || addingRecommendation) return;
+  const addRecommendationToTrip = async (item: Recommendation, itemKey: string) => {
+    if (!activeTripId || addingRecommendationKey) return;
     setAddError("");
     setNotice(null);
-    setAddingRecommendation(item.title);
+    setAddingRecommendationKey(itemKey);
     try {
       await appDataApi.addTripPlace(activeTripId, recommendationDayNumber(item.meta), recommendationPlacePayload(item));
       setNotice(`${item.title}을 일정에 추가했어요.`);
@@ -599,7 +624,7 @@ export function AiResultsPage() {
     } catch {
       setAddError("추천 장소를 일정에 추가하지 못했어요. 잠시 후 다시 시도해 주세요.");
     } finally {
-      setAddingRecommendation(null);
+      setAddingRecommendationKey(null);
     }
   };
 
@@ -632,25 +657,28 @@ export function AiResultsPage() {
         {!isLoading && !error && (recommendations?.length ?? 0) === 0 && (
           <EmptyState title="추천 후보가 아직 없어요" body="일정 조건을 다시 조정하면 더 알맞은 장소를 찾을 수 있어요." action={<Button onClick={() => navigate("/trips/new")}>일정 조건 바꾸기</Button>} />
         )}
-        {(recommendations ?? []).map((item) => (
-          <article className="result-card card" key={item.title}>
-            <div className="result-photo">{item.label}</div>
-            <div className="stack tight">
-              <div>
-                <h3>{item.title}</h3>
-                <div className="meta">{item.meta}</div>
+        {(recommendations ?? []).map((item, index) => {
+          const itemKey = recommendationKey(item, index);
+          return (
+            <article className="result-card card" key={itemKey}>
+              <div className="result-photo">{item.label}</div>
+              <div className="stack tight">
+                <div>
+                  <h3>{item.title}</h3>
+                  <div className="meta">{item.meta}</div>
+                </div>
+                <p className="meta">{item.reason}</p>
+                <Button
+                  variant="secondary"
+                  disabled={addingRecommendationKey === itemKey}
+                  onClick={() => void addRecommendationToTrip(item, itemKey)}
+                >
+                  {addingRecommendationKey === itemKey ? "추가 중" : "일정에 추가"}
+                </Button>
               </div>
-              <p className="meta">{item.reason}</p>
-              <Button
-                variant="secondary"
-                disabled={addingRecommendation === item.title}
-                onClick={() => void addRecommendationToTrip(item)}
-              >
-                {addingRecommendation === item.title ? "추가 중" : "일정에 추가"}
-              </Button>
-            </div>
-          </article>
-        ))}
+            </article>
+          );
+        })}
         {notice && <Toast>{notice}</Toast>}
       </div>
       {isCriteriaOpen && <RecommendationCriteriaSheet onClose={() => setIsCriteriaOpen(false)} />}

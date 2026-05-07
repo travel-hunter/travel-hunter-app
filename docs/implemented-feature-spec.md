@@ -47,6 +47,7 @@
 | 상세/삭제 | `/trips/:id`에서 상세를 보고 owner는 목록에서 일정을 삭제한다. | `GET/DELETE /api/trips/{tripId}` |
 | 장소 추가/수정/삭제 | owner/editor는 장소를 추가, 수정, 삭제한다. viewer는 편집할 수 없다. | `trip_places` CRUD endpoints |
 | 장소 추가 draft autosave | 장소 추가 sheet의 시간, 장소명, 메모, dayNumber draft를 24시간 localStorage에 저장한다. 저장 성공 또는 닫기 시 삭제한다. | `frontend/src/utils/draftStorage.ts` |
+| 장소 수정 draft autosave | 장소 수정 sheet의 시간, 장소명, 메모 draft를 `placeId` 기준으로 24시간 localStorage에 저장한다. 저장 성공, 닫기, 장소 삭제 시 삭제한다. | `frontend/src/utils/draftStorage.ts` |
 | 정책 연결 | 정책 상세에서 선택한 정책을 일정에 연결한다. | `trip_policies` |
 
 ## AI 추천
