@@ -1,6 +1,5 @@
 export type User = {
   id: string;
-  name: string;
   nickname: string;
   email: string;
   birthDate: string | null;
@@ -77,6 +76,7 @@ export type ItineraryPlace = {
 export type Trip = {
   id: string;
   title: string;
+  status: "draft" | "confirmed";
   dates: string;
   people: string[];
   expectedSaving: string;

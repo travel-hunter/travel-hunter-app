@@ -11,6 +11,7 @@
 
 - 일정 장소 추가/수정/삭제.
 - 일정 장소 드래그앤드롭 순서/날짜 이동.
+- `/trips` 일정 확정 상태 저장: `draft -> confirmed` 저장 버튼과 `trips.status` persistence.
 - 마이페이지 프로필 편집.
 - AI 추천 결과를 일정 타임라인에 추가.
 - 초대 role 저장과 viewer/editor 편집 권한 enforcement.
@@ -58,6 +59,16 @@
 - 구조 점검 결과는 `docs/project-structure-audit.md`를 따른다.
 - route/page 파일 분리는 현재 우선순위에서 제외한다.
 - 로컬 산출물 정리는 기능 작업과 분리해서 진행한다.
+
+## Current Priority Override
+
+| Priority | Work | Success criteria |
+|---:|---|---|
+| 1 | Commit and push current pending changes | Fix one clean baseline for signup/nickname flow, Codex model workflow scripts, and matching docs/evals |
+| 2 | Password reset SMTP staging smoke | Inject SMTP env and public HTTPS base URL, then verify reset email, link entry, and password confirm |
+| 3 | Kakao/Google OAuth staging smoke | Align provider redirect URI/env values and verify real social login callback/refresh |
+| 4 | Cloudflare Tunnel staging smoke | Verify `/api/health`, login, policies, and trips through the external HTTPS URL |
+| 5 | Phone OTP design/implementation | Verify ownership of the Kakao AlimTalk destination contact |
 
 ## Fast Lane
 

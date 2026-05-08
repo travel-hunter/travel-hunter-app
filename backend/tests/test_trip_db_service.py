@@ -2,7 +2,13 @@ from datetime import date, datetime, time, timedelta
 
 from app.models import Policy, Recommendation, Trip, TripDay, TripInvite, TripMember, TripPlace, TripPolicy
 from app.models import User as UserModel
-from app.schemas.trip import CreateTripPlaceRequest, CreateTripRequest, MoveTripPlaceRequest, UpdateTripPlaceRequest
+from app.schemas.trip import (
+    CreateTripPlaceRequest,
+    CreateTripRequest,
+    MoveTripPlaceRequest,
+    UpdateTripPlaceRequest,
+    UpdateTripStatusRequest,
+)
 from app.services import trips as trip_service
 
 
@@ -24,6 +30,7 @@ def make_trip() -> Trip:
         id=7,
         owner_id=1,
         title="Jeju 3-day trip",
+        status="confirmed",
         start_date=date(2026, 6, 15),
         end_date=date(2026, 6, 17),
         region="Jeju",
@@ -66,6 +73,7 @@ def test_trip_to_api_returns_numeric_string_id_and_contract_shape() -> None:
 
     assert payload["id"] == "7"
     assert payload["title"] == "Jeju 3-day trip"
+    assert payload["status"] == "confirmed"
     assert payload["dates"] == "2026.06.15 - 06.17"
     assert payload["people"] == ["Test User", "Minseo"]
     assert payload["expectedSaving"] == "30만원"
@@ -209,6 +217,58 @@ def test_delete_trip_returns_none_for_missing_or_unowned_trip(monkeypatch) -> No
     assert trip_service.delete_trip("001", fake_db, user) is None
     assert trip_service.delete_trip("7", fake_db, user) is None
     assert lookup_calls == [7]
+    assert fake_db.commits == 0
+
+
+def test_update_trip_status_persists_confirmed_status(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    trip.status = "draft"
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda *_args, **_kwargs: trip,
+    )
+
+    payload = trip_service.update_trip_status(
+        fake_db,
+        user,
+        "7",
+        UpdateTripStatusRequest(status="confirmed"),
+    )
+
+    assert trip.status == "confirmed"
+    assert payload["status"] == "confirmed"
+    assert fake_db.commits == 1
+
+
+def test_viewer_member_cannot_update_trip_status(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user(2)
+    trip = make_trip()
+    trip.status = "draft"
+    trip.members[0].role = "viewer"
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda *_args, **_kwargs: trip,
+    )
+
+    try:
+        trip_service.update_trip_status(
+            fake_db,
+            user,
+            "7",
+            UpdateTripStatusRequest(status="confirmed"),
+        )
+    except trip_service.TripServiceError as error:
+        assert error.status_code == 403
+        assert error.detail == "Trip edit permission required"
+    else:
+        raise AssertionError("expected TripServiceError")
+
+    assert trip.status == "draft"
     assert fake_db.commits == 0
 
 
@@ -572,6 +632,7 @@ def install_create_trip_stubs(monkeypatch, *, policy: Policy | None = None):
 
     def create_trip_stub(db, **kwargs):
         captured["create_trip"] = kwargs
+        created_trip.status = kwargs["status"]
         return created_trip
 
     def add_trip_day_stub(_db, *, trip_id, day_number, date_value):
@@ -616,6 +677,8 @@ def test_create_trip_uses_region_and_style_payload(monkeypatch) -> None:
     )
 
     assert result["id"] == "11"
+    assert result["status"] == "draft"
+    assert captured["create_trip"]["status"] == "draft"
     assert captured["create_trip"]["title"] == "Busan 3일 여행"
     assert captured["create_trip"]["region"] == "Busan"
     assert captured["create_trip"]["description"] == "Food"

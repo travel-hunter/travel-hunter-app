@@ -6,9 +6,24 @@ export type LoginRequest = {
 };
 
 export type SignupRequest = {
-  name: string;
   email: string;
   password: string;
+};
+
+export type EmailAvailabilityRequest = {
+  email: string;
+};
+
+export type EmailAvailabilityResponse = {
+  available: boolean;
+};
+
+export type NicknameSuggestionResponse = {
+  nickname: string;
+};
+
+export type NicknameUpdateRequest = {
+  nickname: string;
 };
 
 export type AuthResponse = {
@@ -77,6 +92,10 @@ export type TripPlaceMoveRequest = {
   position: number;
 };
 
+export type TripStatusUpdateRequest = {
+  status: "draft" | "confirmed";
+};
+
 export type ContactUpdateRequest = {
   phoneNumber: string | null;
 };
@@ -88,6 +107,9 @@ export type AppDataApi = {
   getPreviewTrip: () => Trip;
   login: (request?: LoginRequest) => Promise<AuthResponse>;
   signup: (request?: SignupRequest) => Promise<AuthResponse>;
+  checkEmailAvailability: (request: EmailAvailabilityRequest) => Promise<EmailAvailabilityResponse>;
+  getNicknameSuggestion: () => Promise<NicknameSuggestionResponse>;
+  updateNickname: (request: NicknameUpdateRequest) => Promise<User>;
   refreshSession: () => Promise<AuthResponse>;
   logout: () => Promise<LogoutResponse>;
   requestPasswordReset: (request: PasswordResetRequest) => Promise<PasswordResetResponse>;
@@ -109,6 +131,7 @@ export type AppDataApi = {
   createTrip: (trip?: CreateTripRequest) => Promise<Trip>;
   deleteTrip: (tripId: string) => Promise<DeleteTripResponse>;
   getTrip: (tripId?: string) => Promise<Trip>;
+  updateTripStatus: (tripId: string, status: TripStatusUpdateRequest) => Promise<Trip>;
   addTripPlace: (tripId: string, dayNumber: number, place: TripPlaceRequest) => Promise<Trip>;
   updateTripPlace: (tripId: string, placeId: string, place: TripPlaceUpdateRequest) => Promise<Trip>;
   moveTripPlace: (tripId: string, placeId: string, move: TripPlaceMoveRequest) => Promise<Trip>;

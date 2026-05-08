@@ -11,8 +11,9 @@ from app.models import User as UserModel
 from app.repositories import auth_tokens as token_repository
 from app.repositories import password_resets as password_reset_repository
 from app.repositories import users as user_repository
-from app.schemas.user import LoginRequest, PasswordResetConfirm, PasswordResetRequest, SignupRequest
+from app.schemas.user import EmailAvailabilityRequest, LoginRequest, PasswordResetConfirm, PasswordResetRequest, SignupRequest
 from app.services.email import EmailDeliveryError, send_password_reset_email
+from app.services import nicknames
 
 
 class AuthServiceError(Exception):
@@ -50,7 +51,6 @@ def user_to_api(user: UserModel) -> dict[str, object]:
 
     return {
         "id": str(user.id),
-        "name": user.nickname,
         "nickname": user.nickname,
         "email": user.email,
         "birthDate": user.birth_date.isoformat() if user.birth_date else None,
@@ -92,12 +92,17 @@ def signup(db: Session, request: SignupRequest) -> AuthResult:
     user = user_repository.create_user(
         db,
         email=email,
-        nickname=request.name.strip(),
+        nickname=nicknames.generate_random_nickname(),
         password_hash=security.hash_password(request.password),
     )
     result = _issue_tokens(db, user)
     db.commit()
     return result
+
+
+def check_email_availability(db: Session, request: EmailAvailabilityRequest) -> dict[str, bool]:
+    email = normalize_email(str(request.email))
+    return {"available": user_repository.get_user_by_email(db, email) is None}
 
 
 def login(db: Session, request: LoginRequest) -> AuthResult:

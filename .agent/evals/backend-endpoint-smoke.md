@@ -11,8 +11,9 @@
 |---|---:|---|---|
 | `GET /health` | 200 | service health response is available | P1 |
 | `GET /api/health` | 200 | `status`, `service`, `environment`, `database` | P0 |
-| `POST /api/auth/login` | 200 | `accessToken`, `user.name`, `user.preferredRegions` | P0 |
-| `POST /api/auth/signup` | 200 | `AuthResponse` shape matches login | P1 |
+| `POST /api/auth/login` | 200 | `accessToken`, `user.nickname`, `user.preferredRegions` | P0 |
+| `POST /api/auth/email-check` | 200 | `{ "available": boolean }` based on existing user email | P1 |
+| `POST /api/auth/signup` | 200 | accepts email/password only and returns `AuthResponse` shape matching login | P1 |
 | `POST /api/auth/refresh` | 200 | DB mode rotates refresh token and returns `AuthResponse` | P1 |
 | `POST /api/auth/logout` | 200 | `{ "loggedOut": true }` and refresh cookie clear | P1 |
 | `POST /api/auth/password-reset/request` | 200 | valid email-shaped request returns `{ "requested": true }` without exposing account existence | P1 |
@@ -21,6 +22,8 @@
 | `GET /api/auth/oauth/google/start` | 302 | configured Google provider redirects to OpenID Connect authorization URL and sets state cookie | P1 |
 | `GET /api/auth/oauth/{provider}/callback` | 302 | validates state, links/creates user by social account or email, sets refresh cookie, redirects to frontend callback | P1 |
 | `GET /api/me` | 200 | `homeRegion`, `onboardingCompleted` | P0 |
+| `GET /api/me/nickname-suggestion` | 200 | returns a random non-persisted nickname suggestion | P1 |
+| `PATCH /api/me/nickname` | 200 | persists trimmed nickname to `users.nickname` | P1 |
 | `GET /api/me/profile` | 200 | `region`, `style`, `budget` | P1 |
 | `PATCH /api/me/profile` | 200 | patched profile fields returned and DB mode marks onboarding complete | P1 |
 | `GET /api/me/contact` | 200 | `phoneNumber`, `phoneVerified` | P1 |
@@ -40,6 +43,7 @@
 | `GET /api/trips/001` | 404 | noncanonical numeric-like handle is not id `1` | P1 |
 | `GET /api/trips/0` | 404 | zero is not a canonical numeric handle | P1 |
 | `POST /api/trips/{tripId}/policies/local-vacation` | 200 | `added` is true | P1 |
+| `PATCH /api/trips/{tripId}/status` | 200 | owner/editor persists `confirmed` in `trips.status` and response includes updated `Trip.status` | P1 |
 | `PATCH /api/trips/{tripId}/places/{placeId}/move` | 200 | owner/editor can move a place within a day or to another day and affected `order_num` values are normalized | P1 |
 | `GET /api/trips/{tripId}/recommendations` | 200 | first recommendation `title` | P1 |
 | `GET /api/trips/{tripId}/invite` | 200 | `inviteUrl`, `inviteToken`, `role` | P1 |
@@ -114,6 +118,7 @@ Trip endpoints must preserve the existing public DTO shape:
 - `GET /api/trips` returns only trips owned by or shared with the current bearer-token user.
 - `GET /api/trips/{numericId}` returns `id`, `title`, `dates`, `people`, `expectedSaving`, `days`, and `currentUserRole`.
 - `GET /api/trips/jeju-3-days` remains a legacy seed alias and returns a numeric string `id`.
+- `Trip.status` is `draft` or `confirmed`; new trips default to `draft`, and `/trips` can persist `confirmed` through `PATCH /api/trips/{tripId}/status`.
 - Canonical numeric handles must match `^[1-9][0-9]*$`; values like `0`, `001`, and `1.0` are unknown handles.
 - The legacy alias resolves only when the seed owner email, title, and date range match exactly one accessible trip.
 - Unknown, inaccessible, or unsupported trip handles return `404 {"detail": "Trip not found"}`.

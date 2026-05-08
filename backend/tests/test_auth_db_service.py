@@ -63,6 +63,7 @@ def test_signup_creates_hashed_user_and_refresh_token(monkeypatch) -> None:
 
     monkeypatch.setattr(auth_service.user_repository, "get_user_by_email", lambda _db, email: None)
     monkeypatch.setattr(auth_service.user_repository, "create_user", create_user)
+    monkeypatch.setattr(auth_service.nicknames, "generate_random_nickname", lambda: "알뜰한여행자482")
     monkeypatch.setattr(
         auth_service.token_repository,
         "create_refresh_token",
@@ -71,7 +72,7 @@ def test_signup_creates_hashed_user_and_refresh_token(monkeypatch) -> None:
 
     result = auth_service.signup(
         db,
-        SignupRequest(name="Test User", email="TEST.USER@EXAMPLE.COM", password="password123"),
+        SignupRequest(email="TEST.USER@EXAMPLE.COM", password="password123"),
     )
 
     assert db.committed is True
@@ -79,7 +80,7 @@ def test_signup_creates_hashed_user_and_refresh_token(monkeypatch) -> None:
     assert result.refresh_token
     assert result.user["email"] == "test.user@example.com"
     assert captured["email"] == "test.user@example.com"
-    assert captured["nickname"] == "Test User"
+    assert captured["nickname"] == "알뜰한여행자482"
     assert captured["password_hash"] != "password123"
     assert security.verify_password("password123", str(captured["password_hash"]))
     assert captured["refresh_user_id"] == 1
@@ -96,11 +97,23 @@ def test_signup_rejects_duplicate_email(monkeypatch) -> None:
     with pytest.raises(auth_service.AuthServiceError) as error:
         auth_service.signup(
             FakeDb(),
-            SignupRequest(name="Test User", email="test.user@example.com", password="password123"),
+            SignupRequest(email="test.user@example.com", password="password123"),
         )
 
     assert error.value.status_code == 409
     assert error.value.detail == "Email already registered"
+
+
+def test_email_availability_checks_duplicate_email(monkeypatch) -> None:
+    monkeypatch.setattr(auth_service.user_repository, "get_user_by_email", lambda _db, email: None)
+    assert auth_service.check_email_availability(FakeDb(), auth_service.EmailAvailabilityRequest(email="NEW@EXAMPLE.COM")) == {"available": True}
+
+    monkeypatch.setattr(
+        auth_service.user_repository,
+        "get_user_by_email",
+        lambda _db, email: make_user(email=email),
+    )
+    assert auth_service.check_email_availability(FakeDb(), auth_service.EmailAvailabilityRequest(email="test.user@example.com")) == {"available": False}
 
 
 def test_login_issues_tokens_for_valid_credentials(monkeypatch) -> None:

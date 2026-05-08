@@ -1,16 +1,16 @@
-# Travel Hunter MVP API 계약 v0.3
+﻿# Travel Hunter MVP API 怨꾩빟 v0.3
 
-API prefix는 `/api`다. API DTO는 `camelCase`, DB/SQL 필드는 `snake_case`를 사용한다. 런타임 mock mode는 제거됐고 모든 사용자-facing 데이터 흐름은 FastAPI + PostgreSQL 기준으로 동작한다.
+API prefix??`/api`?? API DTO??`camelCase`, DB/SQL ?꾨뱶??`snake_case`瑜??ъ슜?쒕떎. ?고???mock mode???쒓굅?먭퀬 紐⑤뱺 ?ъ슜??facing ?곗씠???먮쫫? FastAPI + PostgreSQL 湲곗??쇰줈 ?숈옉?쒕떎.
 
-## 공통 규칙
+## 怨듯넻 洹쒖튃
 
-- 정책 상세는 `policies.slug` 기준이다.
-- 일정은 public slug를 만들지 않고 string `tripId` handle로 조회한다.
-- 정상 DB 응답의 `Trip.id`는 numeric `trips.id`를 string으로 반환한다.
-- `/api/trips/jeju-3-days`는 seed 호환 legacy alias다. DB 컬럼이나 public slug가 아니다.
-- legacy alias도 인증과 owner/member 접근 권한 검사를 우회하지 않는다.
-- 보호 endpoint는 Bearer access token이 필요하다.
-- 보안/internal 필드는 응답하지 않는다: `password_hash`, `provider_id`, `refresh_token_hash`.
+- ?뺤콉 ?곸꽭??`policies.slug` 湲곗??대떎.
+- ?쇱젙? public slug瑜?留뚮뱾吏 ?딄퀬 string `tripId` handle濡?議고쉶?쒕떎.
+- ?뺤긽 DB ?묐떟??`Trip.id`??numeric `trips.id`瑜?string?쇰줈 諛섑솚?쒕떎.
+- `/api/trips/jeju-3-days`??seed ?명솚 legacy alias?? DB 而щ읆?대굹 public slug媛 ?꾨땲??
+- legacy alias???몄쬆怨?owner/member ?묎렐 沅뚰븳 寃?щ? ?고쉶?섏? ?딅뒗??
+- 蹂댄샇 endpoint??Bearer access token???꾩슂?섎떎.
+- 蹂댁븞/internal ?꾨뱶???묐떟?섏? ?딅뒗?? `password_hash`, `provider_id`, `refresh_token_hash`.
 
 ## Auth
 
@@ -21,8 +21,7 @@ Request:
 ```json
 {
   "email": "new.user@example.com",
-  "password": "password123",
-  "name": "테스트 신규 사용자"
+  "password": "password123"
 }
 ```
 
@@ -33,16 +32,15 @@ Response `200`: `AuthResponse`
   "accessToken": "jwt-access-token",
   "user": {
     "id": "1",
-    "name": "테스트 사용자",
-    "nickname": "테스트 사용자",
+    "nickname": "?뚯뒪???ъ슜??,
     "email": "test.user@example.com",
     "birthDate": "1997-04-12",
     "gender": null,
-    "region": "제주",
-    "homeRegion": "서울 마포",
-    "residenceArea": "서울 마포",
-    "preferredRegions": "제주,부산,강원",
-    "persona": "Travel Hunter 사용자",
+    "region": "?쒖＜",
+    "homeRegion": "?쒖슱 留덊룷",
+    "residenceArea": "?쒖슱 留덊룷",
+    "preferredRegions": "?쒖＜,遺??媛뺤썝",
+    "persona": "Travel Hunter ?ъ슜??,
     "savedAmount": 0,
     "onboardingCompleted": true,
     "socialAccounts": [],
@@ -55,6 +53,35 @@ Response `200`: `AuthResponse`
 Errors:
 
 - duplicate email: `409 {"detail": "Email already registered"}`
+
+Behavior:
+
+- Signup accepts only email and password.
+- A temporary nickname is generated server-side with the pattern `{adjective}{noun}{3 digits}`.
+- The frontend then routes the user to `/nickname-setup`, where the nickname can be edited or regenerated.
+
+### `POST /api/auth/email-check`
+
+Request:
+
+```json
+{
+  "email": "new.user@example.com"
+}
+```
+
+Response `200`:
+
+```json
+{
+  "available": true
+}
+```
+
+Behavior:
+
+- Returns `available=false` when the email is already registered.
+- The signup UI requires a successful availability check before calling `/api/auth/signup`.
 
 ### `POST /api/auth/login`
 
@@ -75,7 +102,7 @@ Errors:
 
 ### `POST /api/auth/refresh`
 
-Request body 없음. `travel_hunter_refresh` HttpOnly cookie를 읽는다.
+Request body ?놁쓬. `travel_hunter_refresh` HttpOnly cookie瑜??쎈뒗??
 
 Response `200`: `AuthResponse`
 
@@ -194,7 +221,7 @@ Errors:
 
 ### `GET /api/me`
 
-Bearer token 필요.
+Bearer token ?꾩슂.
 
 Response `200`: `User`
 
@@ -202,15 +229,56 @@ Errors:
 
 - missing, invalid, expired access token: `401 {"detail": "Not authenticated"}`
 
+### `GET /api/me/nickname-suggestion`
+
+Bearer token ?꾩슂.
+
+Response `200`:
+
+```json
+{
+  "nickname": "?뚮쑑?쒖뿬?됱옄482"
+}
+```
+
+Behavior:
+
+- Generates a random nickname suggestion with the pattern `{adjective}{noun}{3 digits}`.
+- The suggestion is not persisted until `PATCH /api/me/nickname` succeeds.
+
+### `PATCH /api/me/nickname`
+
+Bearer token ?꾩슂.
+
+Request:
+
+```json
+{
+  "nickname": "諛섏쭩?대뒗?ы뻾??23"
+}
+```
+
+Response `200`: `User`
+
+Behavior:
+
+- Trims whitespace.
+- Requires 2 to 20 characters.
+- Stores the value in `users.nickname`.
+
+Errors:
+
+- invalid nickname length: `422`
+
 ### `GET /api/me/profile`
 
 Response `200`:
 
 ```json
 {
-  "region": "부산",
-  "style": "맛집",
-  "budget": "1인 30만원 이하"
+  "region": "遺??,
+  "style": "留쏆쭛",
+  "budget": "1??30留뚯썝 ?댄븯"
 }
 ```
 
@@ -220,9 +288,9 @@ Request fields are optional:
 
 ```json
 {
-  "region": "부산",
-  "style": "맛집",
-  "budget": "1인 30만원 이하"
+  "region": "遺??,
+  "style": "留쏆쭛",
+  "budget": "1??30留뚯썝 ?댄븯"
 }
 ```
 
@@ -237,7 +305,7 @@ Behavior:
 
 ### `GET /api/me/contact`
 
-Bearer token 필요.
+Bearer token ?꾩슂.
 
 Response `200`:
 
@@ -252,11 +320,11 @@ Behavior:
 
 - `phoneNumber` -> `users.phone_number`
 - `phoneVerified` -> `users.phone_verified_at != null`
-- 전화번호가 없으면 `phoneNumber=null`, `phoneVerified=false`를 반환한다.
+- ?꾪솕踰덊샇媛 ?놁쑝硫?`phoneNumber=null`, `phoneVerified=false`瑜?諛섑솚?쒕떎.
 
 ### `PATCH /api/me/contact`
 
-Bearer token 필요.
+Bearer token ?꾩슂.
 
 Request:
 
@@ -270,14 +338,14 @@ Response `200`: `ContactInfo`
 
 Behavior:
 
-- 요청 전화번호의 공백을 제거해 `users.phone_number`에 저장한다.
-- 빈 문자열 또는 `null`은 `users.phone_number=null`로 저장한다.
-- 전화번호가 변경되면 `users.phone_verified_at`은 초기화한다.
-- 실제 전화번호 인증/OTP는 이번 endpoint가 수행하지 않는다.
+- ?붿껌 ?꾪솕踰덊샇??怨듬갚???쒓굅??`users.phone_number`????ν븳??
+- 鍮?臾몄옄???먮뒗 `null`? `users.phone_number=null`濡???ν븳??
+- ?꾪솕踰덊샇媛 蹂寃쎈릺硫?`users.phone_verified_at`? 珥덇린?뷀븳??
+- ?ㅼ젣 ?꾪솕踰덊샇 ?몄쬆/OTP???대쾲 endpoint媛 ?섑뻾?섏? ?딅뒗??
 
 ### `GET /api/me/notification-settings`
 
-Bearer token 필요.
+Bearer token ?꾩슂.
 
 Response `200`:
 
@@ -290,12 +358,12 @@ Response `200`:
 
 Behavior:
 
-- 설정 row가 없으면 `deadlineEnabled=true`를 기본값으로 반환한다.
-- `deadlineLeadDays`는 정책 마감 알림 기준인 D-7, D-1을 나타내는 서버 상수이며 DB에 저장하지 않는다.
+- ?ㅼ젙 row媛 ?놁쑝硫?`deadlineEnabled=true`瑜?湲곕낯媛믪쑝濡?諛섑솚?쒕떎.
+- `deadlineLeadDays`???뺤콉 留덇컧 ?뚮┝ 湲곗???D-7, D-1???섑??대뒗 ?쒕쾭 ?곸닔?대ŉ DB????ν븯吏 ?딅뒗??
 
 ### `PATCH /api/me/notification-settings`
 
-Bearer token 필요.
+Bearer token ?꾩슂.
 
 Request:
 
@@ -310,32 +378,32 @@ Response `200`: `NotificationSettings`
 Behavior:
 
 - `deadlineEnabled` -> `user_notification_settings.deadline_enabled`
-- 사용자당 하나의 설정 row만 유지한다.
-- 실제 push/email/카카오 알림 발송은 이 endpoint가 수행하지 않는다.
+- ?ъ슜?먮떦 ?섎굹???ㅼ젙 row留??좎??쒕떎.
+- ?ㅼ젣 push/email/移댁뭅???뚮┝ 諛쒖넚? ??endpoint媛 ?섑뻾?섏? ?딅뒗??
 
 ## Internal Notification Delivery
 
-Public HTTP endpoint는 없다. FastAPI 내부 scheduler가 KST 기준 하루 1회 dispatch service를 실행한다.
+Public HTTP endpoint???녿떎. FastAPI ?대? scheduler媛 KST 湲곗? ?섎（ 1??dispatch service瑜??ㅽ뻾?쒕떎.
 
 Internal behavior:
 
-- D-7/D-1 대상은 `user_saved_policies`, `policies.end_date`, `user_notification_settings.deadline_enabled`, `users.phone_number`, `users.phone_verified_at` 기준으로 계산한다.
-- `notification_deliveries(user_id, policy_id, channel, lead_day, target_deadline_date)` unique key로 중복 생성을 방지한다.
-- `KAKAO_ALIMTALK_ENABLED=false`이면 후보 생성만 수행하고 SOLAPI를 호출하지 않는다.
-- `KAKAO_ALIMTALK_ENABLED=true`이면 `pending` 후보만 SOLAPI `POST /messages/v4/send-many/detail`로 접수한다.
-- SOLAPI 접수 성공은 `status=sent`, `provider_message_id`, `sent_at`으로 기록한다.
-- SOLAPI 실패 응답, HTTP error, timeout은 `status=failed`, `attempt_count`, `error_message`, `failed_at`으로 기록한다.
-- 한국 휴대폰 번호로 정규화되지 않는 연락처는 provider 호출 없이 `status=skipped`로 기록한다.
-- `NOTIFICATION_RETRY_ENABLED=true`이면 같은 lead day 안의 `failed` row 중 `attempt_count < NOTIFICATION_RETRY_MAX_ATTEMPTS`이고 retry delay가 지난 row를 다음 scheduler 실행에서 재전송한다.
-- 최대 시도 횟수를 넘긴 row는 새 status 없이 `failed` 상태로 유지한다.
+- D-7/D-1 ??곸? `user_saved_policies`, `policies.end_date`, `user_notification_settings.deadline_enabled`, `users.phone_number`, `users.phone_verified_at` 湲곗??쇰줈 怨꾩궛?쒕떎.
+- `notification_deliveries(user_id, policy_id, channel, lead_day, target_deadline_date)` unique key濡?以묐났 ?앹꽦??諛⑹??쒕떎.
+- `KAKAO_ALIMTALK_ENABLED=false`?대㈃ ?꾨낫 ?앹꽦留??섑뻾?섍퀬 SOLAPI瑜??몄텧?섏? ?딅뒗??
+- `KAKAO_ALIMTALK_ENABLED=true`?대㈃ `pending` ?꾨낫留?SOLAPI `POST /messages/v4/send-many/detail`濡??묒닔?쒕떎.
+- SOLAPI ?묒닔 ?깃났? `status=sent`, `provider_message_id`, `sent_at`?쇰줈 湲곕줉?쒕떎.
+- SOLAPI ?ㅽ뙣 ?묐떟, HTTP error, timeout? `status=failed`, `attempt_count`, `error_message`, `failed_at`?쇰줈 湲곕줉?쒕떎.
+- ?쒓뎅 ?대???踰덊샇濡??뺢퇋?붾릺吏 ?딅뒗 ?곕씫泥섎뒗 provider ?몄텧 ?놁씠 `status=skipped`濡?湲곕줉?쒕떎.
+- `NOTIFICATION_RETRY_ENABLED=true`?대㈃ 媛숈? lead day ?덉쓽 `failed` row 以?`attempt_count < NOTIFICATION_RETRY_MAX_ATTEMPTS`?닿퀬 retry delay媛 吏??row瑜??ㅼ쓬 scheduler ?ㅽ뻾?먯꽌 ?ъ쟾?≫븳??
+- 理쒕? ?쒕룄 ?잛닔瑜??섍릿 row????status ?놁씠 `failed` ?곹깭濡??좎??쒕떎.
 
 ### `POST /api/webhooks/solapi`
 
-SOLAPI provider-facing webhook endpoint다. 사용자 bearer token은 받지 않는다.
+SOLAPI provider-facing webhook endpoint?? ?ъ슜??bearer token? 諛쏆? ?딅뒗??
 
 Headers:
 
-- `X-Solapi-Secret`: `SOLAPI_WEBHOOK_SECRET`이 설정된 경우 필수. 값은 설정 secret의 SHA1 hash여야 한다.
+- `X-Solapi-Secret`: `SOLAPI_WEBHOOK_SECRET`???ㅼ젙??寃쎌슦 ?꾩닔. 媛믪? ?ㅼ젙 secret??SHA1 hash?ъ빞 ?쒕떎.
 
 Request:
 
@@ -363,11 +431,11 @@ Response `200`:
 
 Behavior:
 
-- `messageId` -> `notification_deliveries.provider_message_id`로 기존 delivery를 찾는다.
-- `statusCode=4000`은 최종 성공으로 보고 `status=sent`, `sent_at`을 갱신한다.
-- `statusCode=2000` 또는 `3000`은 접수/처리 중 상태로 보고 기존 delivery 상태를 변경하지 않는다.
-- 실패 status code는 `status=failed`, `attempt_count + 1`, `failed_at`, `error_message`로 반영한다.
-- 알 수 없는 `messageId` 또는 필수 field가 부족한 event는 무시하고 `ignored` 카운트에 포함한다.
+- `messageId` -> `notification_deliveries.provider_message_id`濡?湲곗〈 delivery瑜?李얜뒗??
+- `statusCode=4000`? 理쒖쥌 ?깃났?쇰줈 蹂닿퀬 `status=sent`, `sent_at`??媛깆떊?쒕떎.
+- `statusCode=2000` ?먮뒗 `3000`? ?묒닔/泥섎━ 以??곹깭濡?蹂닿퀬 湲곗〈 delivery ?곹깭瑜?蹂寃쏀븯吏 ?딅뒗??
+- ?ㅽ뙣 status code??`status=failed`, `attempt_count + 1`, `failed_at`, `error_message`濡?諛섏쁺?쒕떎.
+- ?????녿뒗 `messageId` ?먮뒗 ?꾩닔 field媛 遺議깊븳 event??臾댁떆?섍퀬 `ignored` 移댁슫?몄뿉 ?ы븿?쒕떎.
 
 Errors:
 
@@ -379,9 +447,9 @@ Static option response:
 
 ```json
 {
-  "regions": ["제주", "부산", "강원", "전국"],
-  "travelStyles": ["휴식", "맛집", "자연", "사진"],
-  "budgets": ["1인 30만원 이하", "1인 40만원 이하", "1인 60만원 이하", "상관없음"]
+  "regions": ["?쒖＜", "遺??, "媛뺤썝", "?꾧뎅"],
+  "travelStyles": ["?댁떇", "留쏆쭛", "?먯뿰", "?ъ쭊"],
+  "budgets": ["1??30留뚯썝 ?댄븯", "1??40留뚯썝 ?댄븯", "1??60留뚯썝 ?댄븯", "?곴??놁쓬"]
 }
 ```
 
@@ -398,17 +466,17 @@ Policy shape:
   "id": "local-vacation",
   "slug": "local-vacation",
   "label": "TH",
-  "tag": "최대 30만원",
-  "title": "지역사랑 휴가지원",
-  "org": "한국관광공사",
-  "region": "전국",
+  "tag": "理쒕? 30留뚯썝",
+  "title": "吏??궗???닿?吏??,
+  "org": "?쒓뎅愿愿묎났??,
+  "region": "?꾧뎅",
   "deadline": "2026-10-31",
-  "amount": "최대 30만원 환급",
-  "summary": "국내 1박 이상 여행 시 숙박, 교통, 체험비 일부를 환급해주는 지원 정책입니다.",
+  "amount": "理쒕? 30留뚯썝 ?섍툒",
+  "summary": "援?궡 1諛??댁긽 ?ы뻾 ???숇컯, 援먰넻, 泥댄뿕鍮??쇰?瑜??섍툒?댁＜??吏???뺤콉?낅땲??",
   "match": 98,
-  "category": "환급",
-  "requirements": ["국내 거주자", "숙박 1박 이상", "영수증 제출"],
-  "documents": ["신분증 사본", "숙박 영수증", "교통비 증빙"],
+  "category": "?섍툒",
+  "requirements": ["援?궡 嫄곗＜??, "?숇컯 1諛??댁긽", "?곸닔利??쒖텧"],
+  "documents": ["?좊텇利??щ낯", "?숇컯 ?곸닔利?, "援먰넻鍮?利앸튃"],
   "officialUrl": "https://www.mcst.go.kr/site/s_notice/press/pressView.jsp?pMenuCD=0302000000&pSeq=22267",
   "applyUrl": null
 }
@@ -416,10 +484,10 @@ Policy shape:
 
 Link semantics:
 
-- `officialUrl`: 공식 안내/상세 페이지.
-- `applyUrl`: 실제 신청/접수/deep link.
-- 정확한 신청 링크가 확인되지 않으면 `applyUrl=null`.
-- 프론트 CTA는 `applyUrl` -> `officialUrl` -> 준비 안내 순서로 처리한다.
+- `officialUrl`: 怨듭떇 ?덈궡/?곸꽭 ?섏씠吏.
+- `applyUrl`: ?ㅼ젣 ?좎껌/?묒닔/deep link.
+- ?뺥솗???좎껌 留곹겕媛 ?뺤씤?섏? ?딆쑝硫?`applyUrl=null`.
+- ?꾨줎??CTA??`applyUrl` -> `officialUrl` -> 以鍮??덈궡 ?쒖꽌濡?泥섎━?쒕떎.
 
 ### `GET /api/policies/{policySlug}`
 
@@ -431,11 +499,11 @@ Errors:
 
 ### `GET /api/me/saved-policies`
 
-Bearer token 필요. Response `200`: `Policy[]`
+Bearer token ?꾩슂. Response `200`: `Policy[]`
 
 ### `POST /api/me/saved-policies/{policySlug}`
 
-Bearer token 필요.
+Bearer token ?꾩슂.
 
 Response `200`:
 
@@ -452,7 +520,7 @@ Errors:
 
 ### `DELETE /api/me/saved-policies/{policySlug}`
 
-Bearer token 필요.
+Bearer token ?꾩슂.
 
 Response `200`:
 
@@ -467,35 +535,37 @@ Response `200`:
 
 ### Trip handle rules
 
-- `tripId`는 opaque string handle이다.
-- Canonical numeric handle은 `^[1-9][0-9]*$`만 허용한다.
-- `0`, `001`, `1.0`은 numeric id로 해석하지 않는다.
-- `jeju-3-days`는 seed owner email `test.user@example.com`, seed title, `2026-06-15`~`2026-06-17`이 정확히 하나 매칭될 때만 해석한다.
-- unknown, inaccessible, unsupported handle은 `404 {"detail": "Trip not found"}`다.
+- `tripId`??opaque string handle?대떎.
+- Canonical numeric handle? `^[1-9][0-9]*$`留??덉슜?쒕떎.
+- `0`, `001`, `1.0`? numeric id濡??댁꽍?섏? ?딅뒗??
+- `jeju-3-days`??seed owner email `test.user@example.com`, seed title, `2026-06-15`~`2026-06-17`???뺥솗???섎굹 留ㅼ묶???뚮쭔 ?댁꽍?쒕떎.
+- unknown, inaccessible, unsupported handle? `404 {"detail": "Trip not found"}`??
 
 Trip shape:
 
 ```json
 {
   "id": "1",
-  "title": "제주 3일 여행",
+  "title": "?쒖＜ 3???ы뻾",
+  "status": "confirmed",
   "dates": "2026.06.15 - 06.17",
-  "people": ["테스트 사용자"],
-  "expectedSaving": "30만원",
+  "people": ["?뚯뒪???ъ슜??],
+  "expectedSaving": "30留뚯썝",
   "currentUserRole": "owner",
   "days": {
     "1": [
-      { "time": "09:00", "label": "성산 일출봉", "meta": "자연 · 관광지" }
+      { "time": "09:00", "label": "?깆궛 ?쇱텧遊?, "meta": "?먯뿰 쨌 愿愿묒?" }
     ]
   }
 }
 ```
 
+`status` is `draft` or `confirmed`; new trips default to `draft`, while existing migrated trips are `confirmed`.
 `currentUserRole` is the requesting user's role for that trip: `owner`, `editor`, or `viewer`.
 
 ### `GET /api/trips`
 
-Bearer token 필요. Response `200`: `Trip[]`
+Bearer token ?꾩슂. Response `200`: `Trip[]`
 
 ### `POST /api/trips`
 
@@ -503,10 +573,10 @@ Request body optional:
 
 ```json
 {
-  "title": "제주 3일 여행",
-  "region": "제주",
-  "style": "휴식",
-  "description": "휴식",
+  "title": "?쒖＜ 3???ы뻾",
+  "region": "?쒖＜",
+  "style": "?댁떇",
+  "description": "?댁떇",
   "policySlug": "local-vacation",
   "durationDays": 3
 }
@@ -521,6 +591,7 @@ Rules:
 - if `description` is absent and `style` exists, `style` is stored in `trips.description`
 - if `policySlug` exists, generated trip is connected through `trip_policies`
 - `durationDays` is optional, defaults to `3`, and must be between `2` and `5`
+- created trips have `status=draft`
 - `durationDays` controls `trips.end_date` and the number of generated `trip_days`
 
 Errors:
@@ -536,9 +607,34 @@ Errors:
 
 - unknown or inaccessible trip: `404 {"detail": "Trip not found"}`
 
+### `PATCH /api/trips/{tripId}/status`
+
+Bearer token required. The requester must be able to access the trip as `owner` or `editor`.
+
+Request:
+
+```json
+{ "status": "confirmed" }
+```
+
+Response `200`: updated `Trip`.
+
+Rules:
+
+- allowed values are `draft` and `confirmed`
+- the `/trips` UI exposes only `draft -> confirmed` with an explicit save action
+- accessible `viewer` members cannot update trip status
+
+Errors:
+
+- unauthenticated: `401 {"detail": "Not authenticated"}`
+- unknown or inaccessible trip: `404 {"detail": "Trip not found"}`
+- accessible `viewer` member: `403 {"detail": "Trip edit permission required"}`
+- invalid status: `422`
+
 ### `DELETE /api/trips/{tripId}`
 
-Bearer token 필요. 현재 사용자가 owner인 일정만 삭제할 수 있다.
+Bearer token ?꾩슂. ?꾩옱 ?ъ슜?먭? owner???쇱젙留???젣?????덈떎.
 
 Response `200`:
 
@@ -551,9 +647,9 @@ Response `200`:
 
 Rules:
 
-- `tripId`는 canonical numeric handle만 삭제 대상으로 허용한다.
-- 연결된 `recommendations.trip_id`는 삭제 전에 `null`로 분리한다.
-- `trip_days`, `trip_places`, `trip_members`, `trip_policies`, `trip_invites`는 DB cascade 기준으로 삭제된다.
+- `tripId`??canonical numeric handle留???젣 ??곸쑝濡??덉슜?쒕떎.
+- ?곌껐??`recommendations.trip_id`????젣 ?꾩뿉 `null`濡?遺꾨━?쒕떎.
+- `trip_days`, `trip_places`, `trip_members`, `trip_policies`, `trip_invites`??DB cascade 湲곗??쇰줈 ??젣?쒕떎.
 
 Errors:
 
@@ -713,7 +809,7 @@ Same request and response semantics as `POST /api/trips/{tripId}/invite`.
 
 ### `POST /api/invites/{inviteToken}/accept`
 
-Bearer token 필요.
+Bearer token ?꾩슂.
 
 Response `200`: `InviteState` with `acceptedAt`
 

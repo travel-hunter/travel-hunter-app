@@ -38,7 +38,8 @@ Travel Hunter는 국내 여행자가 여행 혜택 정책을 찾고, 여행 일�
 
 | ID | 요구사항 | Acceptance |
 |---|---|---|
-| FR-AUTH-001 | 사용자는 이메일/비밀번호로 회원가입할 수 있다. | 성공 시 access token과 user를 받고 refresh token은 HttpOnly cookie로 설정된다. 중복 email은 실패한다. |
+| FR-AUTH-001 | 사용자는 email 중복 확인 후 이메일/비밀번호로 회원가입할 수 있다. | 이름은 받지 않고 성공 시 access token과 user를 받고 refresh token은 HttpOnly cookie로 설정된다. 중복 email은 실패한다. |
+| FR-AUTH-001A | 신규 사용자는 가입 직후 닉네임을 설정할 수 있다. | 서버는 임시 닉네임을 자동 생성하고, 사용자는 `/nickname-setup`에서 직접 입력하거나 주사위 버튼으로 새 추천 닉네임을 받아 저장할 수 있다. |
 | FR-AUTH-002 | 사용자는 이메일/비밀번호로 로그인할 수 있다. | 성공 시 `/home` 또는 안전한 `redirect` 경로로 이동한다. 실패 시 사용자용 오류 문구가 표시된다. |
 | FR-AUTH-003 | 앱은 refresh/logout 세션 흐름을 제공한다. | refresh cookie로 access token을 재발급하고, logout은 refresh token을 revoke하고 로컬 세션을 제거한다. |
 | FR-AUTH-004 | 보호 경로는 인증을 요구한다. | 비로그인 사용자가 보호 경로에 접근하면 `/login?redirect=...`로 이동하고 로그인 후 원래 경로로 복귀한다. |

@@ -38,7 +38,6 @@
         "accessToken": "string",
         "user": {
           "id": "string",
-          "name": "string",
           "nickname": "string",
           "email": "string",
           "birthDate": "string|null",
@@ -61,7 +60,6 @@
       "path": "/api/auth/signup",
       "status": 200,
       "request": {
-        "name": "Test New User",
         "email": "new-user@travel.kr",
         "password": "password123"
       },
@@ -69,13 +67,24 @@
         "accessToken": "string",
         "user": {
           "id": "string",
-          "name": "string",
           "nickname": "string",
           "email": "string",
           "onboardingCompleted": "boolean",
           "socialAccounts": "array"
         }
       }
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/email-check",
+      "status": 200,
+      "request": {
+        "email": "new-user@travel.kr"
+      },
+      "requiredFields": {
+        "available": "boolean"
+      },
+      "dbModeBehavior": "Returns available=false when a user with the same email already exists."
     },
     {
       "method": "POST",
@@ -156,13 +165,35 @@
       "status": 200,
       "requiredFields": {
         "id": "string",
-        "name": "string",
         "nickname": "string",
         "email": "string",
         "homeRegion": "string",
         "onboardingCompleted": "boolean",
         "socialAccounts": "array"
       }
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/nickname-suggestion",
+      "status": 200,
+      "requiredFields": {
+        "nickname": "string"
+      },
+      "dbModeBehavior": "Requires bearer auth and returns a non-persisted random nickname suggestion."
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/me/nickname",
+      "status": 200,
+      "request": {
+        "nickname": "반짝이는여행자123"
+      },
+      "requiredFields": {
+        "id": "string",
+        "nickname": "string",
+        "email": "string"
+      },
+      "dbModeBehavior": "Requires bearer auth, trims the nickname, validates length 2-20, and updates users.nickname."
     },
     {
       "method": "GET",
@@ -348,6 +379,7 @@
       "requiredArrayItemFields": {
         "id": "string",
         "title": "string",
+        "status": "string enum(draft|confirmed)",
         "dates": "string",
         "people": "array",
         "expectedSaving": "string",
@@ -375,6 +407,7 @@
       "requiredFields": {
         "id": "string",
         "title": "string",
+        "status": "string enum(draft|confirmed)",
         "dates": "string",
         "people": "array",
         "expectedSaving": "string",
@@ -391,6 +424,7 @@
       "requiredFields": {
         "id": "string",
         "title": "string",
+        "status": "string enum(draft|confirmed)",
         "dates": "string",
         "people": "array",
         "expectedSaving": "string",
@@ -424,6 +458,22 @@
         "policyId": "string",
         "added": "boolean"
       }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/trips/1/status",
+      "status": 200,
+      "request": {
+        "status": "confirmed"
+      },
+      "requiredFields": {
+        "id": "string",
+        "title": "string",
+        "status": "string enum(draft|confirmed)",
+        "days": "object",
+        "currentUserRole": "string enum(owner|editor|viewer)"
+      },
+      "dbModeBehavior": "Requires owner/editor access, stores trips.status, and returns the updated Trip. Viewer access returns 403 Trip edit permission required."
     },
     {
       "method": "PATCH",

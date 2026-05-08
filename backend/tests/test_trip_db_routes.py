@@ -26,6 +26,7 @@ def trip_payload(trip_id: str = "7") -> dict[str, object]:
     return {
         "id": trip_id,
         "title": "Jeju 3-day trip",
+        "status": "confirmed",
         "dates": "2026.06.15 - 06.17",
         "people": ["Test User"],
         "expectedSaving": "30留뚯썝",
@@ -255,6 +256,60 @@ def test_db_add_policy_maps_service_errors(monkeypatch) -> None:
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Policy not found"}
+
+
+def test_db_trip_status_update_route_returns_updated_trip(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    install_db_route_dependencies(monkeypatch, fake_db, user)
+
+    def update_status(db, current_user, trip_id, payload):
+        if db is fake_db and current_user is user and trip_id == "7" and payload.status == "confirmed":
+            return {**trip_payload(trip_id), "status": "confirmed"}
+        return None
+
+    monkeypatch.setattr(trip_routes.trip_service, "update_trip_status", update_status)
+
+    try:
+        response = client.patch("/api/trips/7/status", json={"status": "confirmed"})
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    assert response.json()["id"] == "7"
+    assert response.json()["status"] == "confirmed"
+
+
+def test_db_trip_status_update_route_maps_permission_error(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    install_db_route_dependencies(monkeypatch, fake_db, user)
+
+    def reject(*_args):
+        raise trip_service.TripServiceError(403, "Trip edit permission required")
+
+    monkeypatch.setattr(trip_routes.trip_service, "update_trip_status", reject)
+
+    try:
+        response = client.patch("/api/trips/7/status", json={"status": "confirmed"})
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Trip edit permission required"}
+
+
+def test_db_trip_status_update_route_rejects_invalid_status(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    install_db_route_dependencies(monkeypatch, fake_db, user)
+
+    try:
+        response = client.patch("/api/trips/7/status", json={"status": "done"})
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 422
 
 
 def test_db_trip_place_crud_routes_return_updated_trip(monkeypatch) -> None:

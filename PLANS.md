@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-The MVP is DB-backed-only and runtime mock mode has been removed. Docker VPS direct staging artifacts and Cloudflare Tunnel staging artifacts exist. Trip place editing and drag-and-drop movement, mypage profile editing, AI recommendation-to-timeline, invite role persistence/enforcement, deadline notification preference/contact/delivery foundation, notification scheduler/provider/retry/webhook tracking, password reset, Kakao/Google OAuth entry points, button-audit UX fixes, production sourcemap hardening, PWA manifest/meta, project structure audit, Web Share API sharing fallback, implemented feature spec, draft autosave for trip creation/add-place/edit-place, draft autosave second-scope review, and PWA offline strategy are complete. The next implementation priority is SMTP/OAuth staging smoke, followed by Cloudflare Tunnel staging deployment.
+The MVP is DB-backed-only and runtime mock mode has been removed. Docker VPS direct staging artifacts and Cloudflare Tunnel staging artifacts exist. Trip status confirmation, trip place editing and drag-and-drop movement, mypage profile editing, AI recommendation-to-timeline, invite role persistence/enforcement, deadline notification preference/contact/delivery foundation, notification scheduler/provider/retry/webhook tracking, password reset, Kakao/Google OAuth entry points, button-audit UX fixes, production sourcemap hardening, PWA manifest/meta, project structure audit, Web Share API sharing fallback, implemented feature spec, draft autosave for trip creation/add-place/edit-place, draft autosave second-scope review, PWA offline strategy, signup email-check/nickname setup, and Codex model split workflow scripts are complete. The next priority is committing and pushing the current pending changes, followed by SMTP/OAuth staging smoke and Cloudflare Tunnel staging deployment.
 
 ## Source Of Truth
 
@@ -16,6 +16,7 @@ The MVP is DB-backed-only and runtime mock mode has been removed. Docker VPS dir
 - Release candidate handoff: `docs/release-candidate-handoff.md`
 - Public VPS runbook: `docs/deployment-vps.md`
 - Cloudflare Tunnel runbook: `docs/deployment-tunnel.md`
+- Codex model workflow: `docs/codex-model-workflow.md`
 
 ## Guardrails
 

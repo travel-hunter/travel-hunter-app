@@ -75,6 +75,28 @@ def test_db_login_route_returns_invalid_credentials(monkeypatch) -> None:
     assert response.json() == {"detail": "Invalid email or password"}
 
 
+def test_email_check_route_returns_availability(monkeypatch) -> None:
+    fake_db = object()
+
+    monkeypatch.setattr(
+        auth_routes.auth_service,
+        "check_email_availability",
+        lambda db, request: {"available": request.email != "taken@example.com"},
+    )
+    app.dependency_overrides[auth_routes.get_optional_db] = lambda: fake_db
+
+    try:
+        response = client.post("/api/auth/email-check", json={"email": "new@example.com"})
+        duplicate_response = client.post("/api/auth/email-check", json={"email": "taken@example.com"})
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    assert response.json() == {"available": True}
+    assert duplicate_response.status_code == 200
+    assert duplicate_response.json() == {"available": False}
+
+
 def test_db_me_requires_bearer_token(monkeypatch) -> None:
 
     response = client.get("/api/me")

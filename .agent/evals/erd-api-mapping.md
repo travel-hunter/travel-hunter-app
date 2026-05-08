@@ -39,6 +39,7 @@
 | `SavePolicyResponse.policyId` | `policies.slug` through `user_saved_policies.policy_id` | Standalone saved policy |
 | `SavePolicyResponse.saved` | `user_saved_policies` row existence | Idempotent save response |
 | `Trip.id` | `trips.id` | API returns numeric DB id as string |
+| `Trip.status` | `trips.status` | `draft` or `confirmed`; `/trips` persists confirmation through the status endpoint |
 | `Trip.dates` | `trips.start_date` + `trips.end_date` | Display string |
 | `Trip.people` | `trip_members` + `users.nickname` | Joined list |
 | `Trip.days` | `trip_days` + `trip_places` | Nested display shape |
@@ -50,6 +51,8 @@
 | `Profile.region` | `users.region` | Onboarding/profile preference |
 | `Profile.style` | `users.travel_style` | v0.3.1 extension |
 | `Profile.budget` | `users.travel_budget` | v0.3.1 extension |
+| `User.nickname` | `users.nickname` | Signup generates a temporary nickname and `/api/me/nickname` updates it |
+| `EmailAvailabilityResponse.available` | `users.email` uniqueness | `/api/auth/email-check` returns false when the email exists |
 | `PasswordResetToken.tokenHash` | `password_reset_tokens.token_hash` | Raw token is never stored; API confirm matches by SHA-256 hash |
 | `PasswordResetToken.usedAt` | `password_reset_tokens.used_at` | Set after successful reset to prevent reuse |
 | `OAuth provider link` | `social_accounts.provider`, `social_accounts.provider_id` | Callback logs in an existing social account or links/creates a user |

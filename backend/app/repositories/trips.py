@@ -90,6 +90,7 @@ def create_trip(
     title: str,
     start_date: date,
     end_date: date,
+    status: str,
     region: str | None,
     description: str | None,
 ) -> Trip:
@@ -98,6 +99,7 @@ def create_trip(
         title=title,
         start_date=start_date,
         end_date=end_date,
+        status=status,
         region=region,
         description=description,
     )

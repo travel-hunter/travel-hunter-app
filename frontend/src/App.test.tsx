@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+﻿import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -723,6 +723,93 @@ describe("Travel Hunter app", () => {
     }
   });
 
+  it("saves a draft trip confirmation from the trips list", async () => {
+    const trip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "91",
+      title: "Draft trip",
+      status: "draft",
+      currentUserRole: "owner",
+    };
+    const listTripsSpy = vi.spyOn(appDataApi, "listTrips").mockResolvedValue([trip]);
+    const updateStatusSpy = vi.spyOn(appDataApi, "updateTripStatus").mockResolvedValue({ ...trip, status: "confirmed" });
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/trips");
+      await screen.findByText("Draft trip");
+      const user = userEvent.setup();
+      const saveButton = document.querySelector(".trip-confirm-panel button") as HTMLButtonElement;
+      expect(saveButton).toBeDisabled();
+
+      await user.click(document.querySelector(".trip-confirm-check input") as HTMLInputElement);
+      expect(updateStatusSpy).not.toHaveBeenCalled();
+      expect(saveButton).not.toBeDisabled();
+
+      await user.click(saveButton);
+      await waitFor(() => expect(updateStatusSpy).toHaveBeenCalledWith("91", { status: "confirmed" }));
+      await waitFor(() => expect(document.querySelector(".trip-confirm-panel")).not.toBeInTheDocument());
+      expect(document.body).toHaveTextContent("확정됨");
+    } finally {
+      listTripsSpy.mockRestore();
+      updateStatusSpy.mockRestore();
+    }
+  });
+
+  it("keeps draft status visible when trip confirmation saving fails", async () => {
+    const trip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "92",
+      title: "Draft trip with error",
+      status: "draft",
+      currentUserRole: "owner",
+    };
+    const listTripsSpy = vi.spyOn(appDataApi, "listTrips").mockResolvedValue([trip]);
+    const updateStatusSpy = vi.spyOn(appDataApi, "updateTripStatus").mockRejectedValue(new Error("save failed"));
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/trips");
+      await screen.findByText("Draft trip with error");
+      const user = userEvent.setup();
+      await user.click(document.querySelector(".trip-confirm-check input") as HTMLInputElement);
+      await user.click(document.querySelector(".trip-confirm-panel button") as HTMLButtonElement);
+
+      await waitFor(() => expect(updateStatusSpy).toHaveBeenCalledWith("92", { status: "confirmed" }));
+      expect(document.querySelector(".trip-confirm-panel")).toBeInTheDocument();
+      expect(document.querySelector(".warning-text.full-row")?.textContent).toContain("일정 확정 상태");
+    } finally {
+      listTripsSpy.mockRestore();
+      updateStatusSpy.mockRestore();
+    }
+  });
+
+  it("hides trip confirmation controls for viewer trips", async () => {
+    const trip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "93",
+      title: "Viewer trip",
+      status: "draft",
+      currentUserRole: "viewer",
+    };
+    const listTripsSpy = vi.spyOn(appDataApi, "listTrips").mockResolvedValue([trip]);
+    const updateStatusSpy = vi.spyOn(appDataApi, "updateTripStatus").mockResolvedValue({ ...trip, status: "confirmed" });
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/trips");
+      await screen.findByText("Viewer trip");
+      expect(document.querySelector(".trip-confirm-panel")).not.toBeInTheDocument();
+      expect(updateStatusSpy).not.toHaveBeenCalled();
+    } finally {
+      listTripsSpy.mockRestore();
+      updateStatusSpy.mockRestore();
+    }
+  });
+
   it("filters policies by search, region, and category", async () => {
     await login();
     cleanup();
@@ -1286,13 +1373,26 @@ describe("Travel Hunter app", () => {
     renderRoute("/signup?redirect=/invites/jeju-3d/accept");
 
     const user = userEvent.setup();
-    await user.type(document.querySelector('input[name="name"]') as HTMLInputElement, "초대 테스트 사용자");
+    const email = `invite-${Date.now()}@example.com`;
     await user.type(
       document.querySelector('input[name="email"]') as HTMLInputElement,
-      `invite-${Date.now()}@example.com`,
+      email,
     );
+    const emailCheckButton = document.querySelector(".input-action-row button[type='button']");
+    expect(emailCheckButton).toBeTruthy();
+    await user.click(emailCheckButton as HTMLButtonElement);
+    await waitFor(() => expect(document.body).toHaveTextContent("사용할 수 있는 이메일입니다."));
     await user.type(document.querySelector('input[name="password"]') as HTMLInputElement, "password123");
-    await user.click(screen.getByRole("button", { name: "가입하고 맞춤 설정하기" }));
+    await user.click(document.querySelector('button[type="submit"]') as HTMLButtonElement);
+
+    const nicknameInput = await waitFor(() => {
+      const input = document.querySelector('input[name="nickname"]');
+      expect(input).toBeTruthy();
+      return input as HTMLInputElement;
+    });
+    await user.clear(nicknameInput);
+    await user.type(nicknameInput, "초대테스트");
+    await user.click(document.querySelector('button[type="submit"]') as HTMLButtonElement);
 
     await waitFor(() => expect(document.body).toHaveTextContent("초대를 수락했어요"));
     const tripLink = await waitFor(() => {

@@ -19,6 +19,7 @@ type SessionContextValue = {
   signup: (request?: SignupRequest) => Promise<void>;
   completeOAuthSession: () => Promise<void>;
   logout: () => Promise<void>;
+  saveNickname: (nickname: string) => Promise<User>;
   updateProfile: (key: keyof Profile, value: string) => void;
   saveProfile: (profile?: Partial<Profile>) => Promise<Profile>;
   addPolicy: () => void;
@@ -143,6 +144,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         persistAuth(auth);
         setCurrentUser(auth.user);
         setProfile(await readRemoteProfile());
+      },
+      saveNickname: async (nickname) => {
+        const user = await appDataApi.updateNickname({ nickname });
+        const stored = readStoredAuth();
+        if (stored) persistAuth({ accessToken: stored.accessToken, user });
+        setCurrentUser(user);
+        return user;
       },
       logout: async () => {
         try {

@@ -13,6 +13,7 @@ Travel Hunter is a React/Vite frontend plus FastAPI/PostgreSQL backend for a dom
 7. `docs/mvp-api-contract.md`: API contract.
 8. `docs/next-work-plan.md`: next priority.
 9. `CONTRIBUTING.md`: branch, PR, validation, and secret rules.
+10. `docs/codex-model-workflow.md`: Codex planning/implementation model split and CLI workflow.
 
 ## Local Development
 
@@ -107,3 +108,14 @@ docker compose --env-file deploy/.env.tunnel.example -f compose.tunnel.yaml conf
 ```
 
 `npm test` and `npm run test:e2e` run against FastAPI and PostgreSQL. Runtime mock mode has been removed.
+
+## Codex Model Workflow
+
+Use `gpt-5.5/xhigh` for planning and `gpt-5.3-codex/high` for implementation through the Codex CLI helper scripts:
+
+```powershell
+.\scripts\codex-plan.ps1 -Prompt "요청 내용을 분석하고 구현 계획만 작성해줘."
+.\scripts\codex-implement.ps1 -PlanFile .\.codex-runs\latest-plan.md
+```
+
+See `docs/codex-model-workflow.md` for the full workflow and Docker/server permission option.

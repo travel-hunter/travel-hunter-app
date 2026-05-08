@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 InviteRole = Literal["viewer", "editor"]
 TripRole = Literal["owner", "editor", "viewer"]
+TripStatus = Literal["draft", "confirmed"]
 
 
 class ItineraryPlace(BaseModel):
@@ -26,6 +27,7 @@ class CreateTripRequest(BaseModel):
 class Trip(BaseModel):
     id: str
     title: str
+    status: TripStatus
     dates: str
     people: list[str]
     expectedSaving: str
@@ -83,3 +85,7 @@ class UpdateTripPlaceRequest(BaseModel):
 class MoveTripPlaceRequest(BaseModel):
     dayNumber: int = Field(ge=1)
     position: int = Field(ge=1)
+
+
+class UpdateTripStatusRequest(BaseModel):
+    status: TripStatus

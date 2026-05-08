@@ -11,7 +11,8 @@
 
 | 기능 | 사용자 동작 | 연결 |
 |---|---|---|
-| 회원가입 | `/signup`에서 이름, email, password로 가입한다. 성공 후 인증 세션이 생성된다. | `POST /api/auth/signup`, `users`, refresh cookie |
+| 회원가입 | `/signup`에서 email 중복 확인 후 email/password로 가입한다. 성공 후 인증 세션이 생성되고 닉네임 설정으로 이어진다. | `POST /api/auth/email-check`, `POST /api/auth/signup`, `users`, refresh cookie |
+| 닉네임 설정 | `/nickname-setup`에서 자동 생성된 임시 닉네임을 수정하거나 주사위 버튼으로 새 추천 닉네임을 받아 저장한다. | `GET /api/me/nickname-suggestion`, `PATCH /api/me/nickname`, `users.nickname` |
 | 로그인 | `/login`에서 email/password로 로그인한다. 실패 시 사용자용 오류를 표시한다. | `POST /api/auth/login`, `auth_refresh_tokens` |
 | 세션 유지/로그아웃 | refresh cookie로 access token을 갱신하고, 로그아웃 시 refresh token을 revoke한다. | `POST /api/auth/refresh`, `POST /api/auth/logout` |
 | 비밀번호 재설정 | `/forgot-password` 요청 후 email link로 `/reset-password?token=...`에서 새 비밀번호를 설정한다. | `password_reset_tokens`, SMTP 설정 필요 |
@@ -43,6 +44,7 @@
 | 기능 | 사용자 동작 | 연결 |
 |---|---|---|
 | 일정 목록/생성 | `/trips`에서 목록을 보고 `/trips/new`에서 지역, 스타일, 기간으로 일정을 만든다. | `GET/POST /api/trips` |
+| 일정 확정 저장 | `/trips` 카드에서 draft 일정을 확정 선택 후 저장해 DB 상태를 `confirmed`로 바꾼다. | `trips.status`, `PATCH /api/trips/{tripId}/status` |
 | 생성 draft autosave | `/trips/new`의 지역, 스타일, 기간, policySlug draft를 24시간 localStorage에 저장한다. 생성 성공 시 삭제한다. | `frontend/src/utils/draftStorage.ts` |
 | 상세/삭제 | `/trips/:id`에서 상세를 보고 owner는 목록에서 일정을 삭제한다. | `GET/DELETE /api/trips/{tripId}` |
 | 장소 추가/수정/삭제/이동 | owner/editor는 장소를 추가, 수정, 삭제하고 드래그앤드롭으로 같은 Day 순서 변경 또는 다른 Day 이동을 수행한다. viewer는 편집할 수 없다. | `trip_places` CRUD/move endpoints |

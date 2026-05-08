@@ -437,6 +437,23 @@
   outline: 0;
 }
 
+.input-action-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.input-action-row .btn {
+  min-height: 48px;
+  white-space: nowrap;
+}
+
+.nickname-row .icon-btn {
+  width: 48px;
+  height: 48px;
+}
+
 .field:focus-within input,
 .field:focus-within textarea,
 .search-field:focus-within {
@@ -815,6 +832,37 @@
 .trip-delete-btn:disabled {
   cursor: default;
   opacity: 0.72;
+}
+
+.trip-confirm-panel {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  padding: 8px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-xs);
+  background: var(--gray-50);
+}
+
+.trip-confirm-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--gray-800);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.trip-confirm-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary-500);
+}
+
+.full-row {
+  grid-column: 1 / -1;
 }
 
 .card-arrow {
@@ -1259,47 +1307,41 @@
 }
 
 .place-time-picker {
-  gap: 9px;
+  gap: 8px;
 }
 
 .time-picker-control {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   border: 1px solid var(--gray-200);
   border-radius: var(--radius-sm);
-  padding: 13px;
+  padding: 12px;
   background: #fff;
 }
 
 .time-picker-display {
   display: grid;
-  gap: 3px;
+  gap: 0;
   text-align: center;
 }
 
 .time-picker-display strong {
   color: var(--ink);
-  font-size: 24px;
+  font-size: 21px;
   font-weight: 900;
   line-height: 1.2;
-}
-
-.time-picker-display span {
-  color: var(--gray-500);
-  font-size: 12px;
-  font-weight: 800;
 }
 
 .time-picker-spinners {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .time-stepper {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 7px;
+  gap: 6px;
   justify-items: stretch;
 }
 
@@ -1311,23 +1353,23 @@
 }
 
 .time-stepper strong {
-  min-height: 34px;
+  min-height: 32px;
   display: grid;
   place-items: center;
   border-radius: var(--radius-sm);
   background: var(--gray-50);
   color: var(--ink);
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 900;
 }
 
 .time-stepper-button {
-  min-height: 44px;
+  min-height: 42px;
   border: 1px solid var(--gray-200);
   border-radius: var(--radius-sm);
   background: var(--gray-50);
   color: var(--ink);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 900;
 }
 
@@ -1340,7 +1382,7 @@
   display: flex;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 7px;
 }
 
 .dashed {

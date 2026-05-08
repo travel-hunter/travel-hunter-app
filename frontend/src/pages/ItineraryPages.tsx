@@ -144,13 +144,15 @@ export function ItineraryListPage() {
   const [deletingTripId, setDeletingTripId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState("");
   const [deleteCandidateTrip, setDeleteCandidateTrip] = useState<Trip | null>(null);
+  const [confirmingStatusTripId, setConfirmingStatusTripId] = useState<string | null>(null);
+  const [statusErrors, setStatusErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (loadedTrips) setTrips(loadedTrips);
   }, [loadedTrips]);
 
   const requestDeleteTrip = (trip: Trip) => {
-    if (deletingTripId) return;
+    if (deletingTripId || confirmingStatusTripId) return;
     setDeleteCandidateTrip(trip);
     setDeleteError("");
   };
@@ -177,6 +179,23 @@ export function ItineraryListPage() {
     }
   };
 
+  const confirmTripStatus = async (trip: Trip) => {
+    if (deletingTripId || confirmingStatusTripId) return;
+    setConfirmingStatusTripId(trip.id);
+    setStatusErrors((current) => ({ ...current, [trip.id]: "" }));
+    try {
+      const nextTrip = await appDataApi.updateTripStatus(trip.id, { status: "confirmed" });
+      setTrips((current) => current.map((item) => (item.id === trip.id ? nextTrip : item)));
+    } catch {
+      setStatusErrors((current) => ({
+        ...current,
+        [trip.id]: "일정 확정 상태를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.",
+      }));
+    } finally {
+      setConfirmingStatusTripId(null);
+    }
+  };
+
   return (
     <section className="screen with-tabs">
       <TopBar
@@ -194,7 +213,16 @@ export function ItineraryListPage() {
           <EmptyState title="아직 등록된 일정이 없어요" body="첫 여행을 만들고 받을 수 있는 혜택을 함께 확인해보세요." action={<LinkButton to="/trips/new">일정 만들기</LinkButton>} />
         )}
         {trips.map((trip) => (
-          <ItineraryCard key={trip.id} trip={trip} addedPolicy={addedPolicy} isDeleting={deletingTripId === trip.id} onDelete={requestDeleteTrip} />
+          <ItineraryCard
+            key={trip.id}
+            trip={trip}
+            addedPolicy={addedPolicy}
+            confirmStatusError={statusErrors[trip.id]}
+            isConfirmingStatus={confirmingStatusTripId === trip.id}
+            isDeleting={deletingTripId === trip.id}
+            onConfirmStatus={confirmTripStatus}
+            onDelete={requestDeleteTrip}
+          />
         ))}
         <Link className="list-card card" to="/trips/new">
           <div className="between">
@@ -505,7 +533,7 @@ export function ItineraryDetailPage() {
     setPlaceError("");
     try {
       const payload = {
-        time: time || undefined,
+        time,
         label,
         meta: placeForm.meta?.trim() || undefined,
       };
@@ -934,7 +962,6 @@ function PlaceTimePicker({
       <div className="time-picker-control" role="group" aria-label="방문 시간 선택">
         <div className="time-picker-display" aria-live="polite">
           <strong>{displayValue}</strong>
-          <span>{isTimeSet ? "10분 단위로 조절할 수 있어요" : `기본 ${defaultPlaceTime}부터 설정할 수 있어요`}</span>
         </div>
         <div className="time-picker-spinners">
           <div className="time-stepper" aria-label="방문 시 조절">

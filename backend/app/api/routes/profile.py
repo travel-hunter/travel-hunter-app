@@ -8,6 +8,8 @@ from app.models import User as UserModel
 from app.schemas.user import (
     ContactInfo,
     ContactUpdate,
+    NicknameSuggestion,
+    NicknameUpdate,
     NotificationSettings,
     NotificationSettingsUpdate,
     Profile,
@@ -17,6 +19,7 @@ from app.schemas.user import (
 )
 from app.services import auth as auth_service
 from app.services import contact as contact_service
+from app.services import nicknames as nickname_service
 from app.services import notifications as notification_service
 from app.services import profile as profile_service
 
@@ -58,6 +61,29 @@ def update_profile(
             profile,
         )
     )
+
+
+@router.get("/me/nickname-suggestion", response_model=NicknameSuggestion)
+def get_nickname_suggestion(current_user: UserModel | None = Depends(get_current_user)) -> NicknameSuggestion:
+    _require_user(current_user)
+    return NicknameSuggestion(nickname=nickname_service.generate_random_nickname())
+
+
+@router.patch("/me/nickname", response_model=User)
+def update_nickname(
+    nickname: NicknameUpdate,
+    db: Session | None = Depends(get_optional_db),
+    current_user: UserModel | None = Depends(get_current_user),
+) -> User:
+    try:
+        user = nickname_service.update_nickname(
+            _require_db(db),
+            _require_user(current_user),
+            nickname.nickname,
+        )
+    except nickname_service.NicknameServiceError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
+    return User(**auth_service.user_to_api(user))
 
 
 @router.get("/me/contact", response_model=ContactInfo)

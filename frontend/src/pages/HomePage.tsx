@@ -12,7 +12,7 @@ export function HomePage() {
   const previewUser = appDataApi.getPreviewUser();
   const { data: policies, error: policiesError, isLoading: policiesLoading } = useAsyncResource(() => appDataApi.listPolicies(), []);
   const { data: trips, error: tripsError, isLoading: tripsLoading } = useAsyncResource(() => appDataApi.listTrips(), []);
-  const name = currentUser?.name ?? previewUser.name;
+  const name = currentUser?.nickname ?? previewUser.nickname;
   const featuredPolicy = policies?.[0];
   const featuredTrip = trips?.[0];
 

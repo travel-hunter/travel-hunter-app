@@ -13,8 +13,12 @@ import {
   ContactUpdateRequest,
   CreateTripRequest,
   DeleteTripResponse,
+  EmailAvailabilityRequest,
+  EmailAvailabilityResponse,
   LoginRequest,
   LogoutResponse,
+  NicknameSuggestionResponse,
+  NicknameUpdateRequest,
   OAuthProvider,
   PasswordResetConfirmRequest,
   PasswordResetConfirmResponse,
@@ -26,6 +30,7 @@ import {
   TripPlaceRequest,
   TripPlaceUpdateRequest,
   TripPolicyResponse,
+  TripStatusUpdateRequest,
 } from "./dataApi";
 import { ContactInfo, InviteRole, InviteState, NotificationSettings, Policy, Profile, ProfileOptions, Recommendation, Trip, User } from "./types";
 
@@ -35,7 +40,6 @@ const defaultLogin: LoginRequest = {
 };
 
 const defaultSignup: SignupRequest = {
-  name: user.name,
   email: user.email,
   password: "password123",
 };
@@ -47,6 +51,9 @@ export const backendApi: AppDataApi = {
   getPreviewTrip: (): Trip => itinerary,
   login: (request = defaultLogin): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/login", request),
   signup: (request = defaultSignup): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/signup", request),
+  checkEmailAvailability: (request: EmailAvailabilityRequest): Promise<EmailAvailabilityResponse> => apiClient.post<EmailAvailabilityResponse>("/api/auth/email-check", request),
+  getNicknameSuggestion: (): Promise<NicknameSuggestionResponse> => apiClient.get<NicknameSuggestionResponse>("/api/me/nickname-suggestion"),
+  updateNickname: (request: NicknameUpdateRequest): Promise<User> => apiClient.patch<User>("/api/me/nickname", request),
   refreshSession: (): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/refresh"),
   logout: (): Promise<LogoutResponse> => apiClient.post<LogoutResponse>("/api/auth/logout"),
   requestPasswordReset: (request: PasswordResetRequest): Promise<PasswordResetResponse> => apiClient.post<PasswordResetResponse>("/api/auth/password-reset/request", request),
@@ -71,6 +78,7 @@ export const backendApi: AppDataApi = {
   createTrip: (trip?: CreateTripRequest): Promise<Trip> => apiClient.post<Trip>("/api/trips", trip),
   deleteTrip: (tripId: string): Promise<DeleteTripResponse> => apiClient.delete<DeleteTripResponse>(`/api/trips/${tripId}`),
   getTrip: (tripId = itinerary.id): Promise<Trip> => apiClient.get<Trip>(`/api/trips/${tripId}`),
+  updateTripStatus: (tripId: string, status: TripStatusUpdateRequest): Promise<Trip> => apiClient.patch<Trip>(`/api/trips/${tripId}/status`, status),
   addTripPlace: (tripId: string, dayNumber: number, place: TripPlaceRequest): Promise<Trip> => apiClient.post<Trip>(`/api/trips/${tripId}/days/${dayNumber}/places`, place),
   updateTripPlace: (tripId: string, placeId: string, place: TripPlaceUpdateRequest): Promise<Trip> => apiClient.patch<Trip>(`/api/trips/${tripId}/places/${placeId}`, place),
   moveTripPlace: (tripId: string, placeId: string, move: TripPlaceMoveRequest): Promise<Trip> => apiClient.patch<Trip>(`/api/trips/${tripId}/places/${placeId}/move`, move),

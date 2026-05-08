@@ -7,6 +7,8 @@ from app.core.config import settings
 from app.db.session import get_optional_db
 from app.schemas.user import (
     AuthResponse,
+    EmailAvailabilityRequest,
+    EmailAvailabilityResponse,
     LoginRequest,
     LogoutResponse,
     PasswordResetConfirm,
@@ -60,6 +62,14 @@ def signup(
     except auth_service.AuthServiceError as error:
         _raise_auth_error(error)
     return _to_auth_response(result, response)
+
+
+@router.post("/email-check", response_model=EmailAvailabilityResponse)
+def check_email_availability(
+    request: EmailAvailabilityRequest,
+    db: Session | None = Depends(get_optional_db),
+) -> EmailAvailabilityResponse:
+    return EmailAvailabilityResponse(**auth_service.check_email_availability(_require_db(db), request))
 
 
 @router.post("/refresh", response_model=AuthResponse)

@@ -2,7 +2,6 @@ import { ItineraryPlace, Policy, Recommendation, Trip, User } from "../api/types
 
 export const user: User = {
   id: "1",
-  name: "테스트 사용자",
   nickname: "테스트 사용자",
   email: "test.user@example.com",
   birthDate: "1997-04-12",
@@ -99,6 +98,7 @@ export const policies: Policy[] = [
 
 export const itinerary: Trip = {
   id: "jeju-3-days",
+  status: "confirmed",
   title: "제주 3일 여행",
   dates: "2026.06.15 - 06.17",
   people: ["테스트 사용자", "민서", "현우"],

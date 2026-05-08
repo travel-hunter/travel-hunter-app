@@ -56,7 +56,7 @@ export function ProfileSetupPage() {
   };
 
   const back = () => {
-    if (stepIndex === 0) navigate("/signup");
+    if (stepIndex === 0) navigate("/nickname-setup");
     else setStepIndex((current) => current - 1);
   };
 

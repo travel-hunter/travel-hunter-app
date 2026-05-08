@@ -46,3 +46,4 @@
 - 학교/온프레미스 NAT 제한 환경이면 `deployment-tunnel.md`를 사용한다.
 - 실제 secret, DB password, tunnel token, staging env 파일은 repo에 커밋하지 않는다.
 - 협업 규칙은 루트 `CONTRIBUTING.md`를 기준으로 한다.
+Codex model workflow: `codex-model-workflow.md` documents the CLI split between planning `gpt-5.5/xhigh` and implementation `gpt-5.3-codex/high`.

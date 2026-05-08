@@ -24,7 +24,8 @@
 
 | 기능군 | 기능 | 화면/Route | API/Service | DB 저장 | 테스트 | 상태 | 남은 조건/리스크 | 다음 조치 |
 |---|---|---|---|---|---|---|---|---|
-| 인증 | 회원가입 | `/signup` | `POST /api/auth/signup` | `users`, refresh token | backend, Vitest, e2e | Complete | 없음 | 유지 |
+| 인증 | 회원가입 | `/signup` | `POST /api/auth/email-check`, `POST /api/auth/signup` | `users`, refresh token | backend, Vitest, e2e | Complete | 이름 입력 없이 email/password만 받음 | 유지 |
+| 인증 | 닉네임 설정 | `/nickname-setup` | `GET /api/me/nickname-suggestion`, `PATCH /api/me/nickname` | `users.nickname` | backend, Vitest | Complete | 임시 닉네임은 서버가 자동 생성 | 유지 |
 | 인증 | 로그인/실패 처리 | `/login` | `POST /api/auth/login` | refresh token | backend, Vitest, e2e | Complete | 없음 | 유지 |
 | 인증 | 세션 refresh/logout | app session | `POST /api/auth/refresh`, `POST /api/auth/logout` | `auth_refresh_tokens` | backend, Vitest, e2e | Complete | 없음 | 유지 |
 | 인증 | 비밀번호 재설정 요청 | `/forgot-password` | `POST /api/auth/password-reset/request` | `password_reset_tokens` hash | backend, Vitest | Conditional | SMTP env가 없으면 실제 계정 email 발송은 503 | staging SMTP smoke |

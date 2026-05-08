@@ -1,7 +1,7 @@
 import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { PublicLayout, ServiceLayout } from "../components/AppLayout";
 import { AiResultsPage, FriendInvitePage, ItineraryCreatePage, ItineraryDetailPage, ItineraryListPage } from "../pages/ItineraryPages";
-import { ForgotPasswordPage, LoginPage, OAuthCallbackPage, ResetPasswordPage, SignupPage } from "../pages/AuthPages";
+import { ForgotPasswordPage, LoginPage, NicknameSetupPage, OAuthCallbackPage, ResetPasswordPage, SignupPage } from "../pages/AuthPages";
 import { HomePage } from "../pages/HomePage";
 import { InviteAcceptPage } from "../pages/InviteAcceptPage";
 import { MyPage } from "../pages/MyPage";
@@ -24,6 +24,7 @@ export function App() {
       </Route>
       <Route element={<ProtectedRoute />}>
         <Route element={<PublicLayout />}>
+          <Route path="/nickname-setup" element={<NicknameSetupPage />} />
           <Route path="/profile-setup" element={<ProfileSetupPage />} />
         </Route>
         <Route element={<ServiceLayout />}>

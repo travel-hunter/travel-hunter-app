@@ -12,7 +12,7 @@ export function MyPage() {
   const navigate = useNavigate();
   const { currentUser, likedPolicy, logout, profile, saveProfile } = useSession();
   const previewUser = appDataApi.getPreviewUser();
-  const name = currentUser?.name ?? previewUser.name;
+  const name = currentUser?.nickname ?? previewUser.nickname;
   const [savedPolicies, setSavedPolicies] = useState<Policy[]>([]);
   const [isLoadingSavedPolicies, setIsLoadingSavedPolicies] = useState(true);
   const [savedPolicyError, setSavedPolicyError] = useState("");

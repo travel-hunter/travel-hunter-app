@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Dice5 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { appDataApi } from "../api";
 import { useSession } from "../app/session";
@@ -104,29 +104,60 @@ export function SignupPage() {
   const [searchParams] = useSearchParams();
   const { signup } = useSession();
   const [error, setError] = useState("");
+  const [email, setEmail] = useState("");
+  const [emailStatus, setEmailStatus] = useState<"idle" | "checking" | "available" | "unavailable" | "error">("idle");
+  const [checkedEmail, setCheckedEmail] = useState("");
   const redirect = getSafeRedirect(searchParams);
+  const emailAvailable = emailStatus === "available" && checkedEmail === email.trim().toLowerCase();
+
+  const checkEmail = async () => {
+    const normalizedEmail = email.trim().toLowerCase();
+    setError("");
+    if (!normalizedEmail) {
+      setError("이메일을 입력해 주세요.");
+      return;
+    }
+    setEmailStatus("checking");
+    try {
+      const result = await appDataApi.checkEmailAvailability({ email: normalizedEmail });
+      setCheckedEmail(normalizedEmail);
+      setEmailStatus(result.available ? "available" : "unavailable");
+    } catch {
+      setEmailStatus("error");
+      setError("이메일 중복 확인을 하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    }
+  };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     setError("");
-    const name = String(formData.get("name") || "").trim();
-    const email = String(formData.get("email") || "").trim();
+    const normalizedEmail = email.trim().toLowerCase();
     const password = String(formData.get("password") || "");
 
-    if (!name || !email || password.length < 8) {
-      setError("이름, 이메일, 8자 이상 비밀번호를 입력해 주세요.");
+    if (!normalizedEmail || password.length < 8) {
+      setError("이메일과 8자 이상 비밀번호를 입력해 주세요.");
+      return;
+    }
+    if (!emailAvailable) {
+      setError("이메일 중복 확인을 해주세요.");
       return;
     }
 
     try {
       await signup({
-        name,
-        email,
+        email: normalizedEmail,
         password,
       });
-      navigate(redirect ?? "/profile-setup");
-    } catch {
+      navigate(withRedirect("/nickname-setup", redirect));
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "";
+      if (detail === "Email already registered") {
+        setEmailStatus("unavailable");
+        setCheckedEmail(normalizedEmail);
+        setError("이미 가입된 이메일입니다.");
+        return;
+      }
       setError("회원가입에 실패했습니다. 입력한 정보를 다시 확인해주세요.");
     }
   };
@@ -147,13 +178,27 @@ export function SignupPage() {
       </div>
       <form className="form" onSubmit={submit}>
         <label className="field">
-          <span>이름</span>
-          <input name="name" type="text" placeholder="예: 홍길동" autoComplete="name" />
-        </label>
-        <label className="field">
           <span>이메일</span>
-          <input name="email" type="email" placeholder="user@example.com" autoComplete="email" />
+          <div className="input-action-row">
+            <input
+              name="email"
+              type="email"
+              placeholder="user@example.com"
+              autoComplete="email"
+              value={email}
+              onChange={(event) => {
+                setEmail(event.target.value);
+                setEmailStatus("idle");
+                setCheckedEmail("");
+              }}
+            />
+            <button className="btn sm line" type="button" onClick={checkEmail} disabled={emailStatus === "checking"}>
+              {emailStatus === "checking" ? "확인 중" : "중복 확인"}
+            </button>
+          </div>
         </label>
+        {emailStatus === "available" && <p className="form-success">사용할 수 있는 이메일입니다.</p>}
+        {emailStatus === "unavailable" && <p className="form-error">이미 가입된 이메일입니다.</p>}
         <label className="field">
           <span>비밀번호</span>
           <input name="password" type="password" placeholder="8자 이상 입력" autoComplete="new-password" />
@@ -164,7 +209,7 @@ export function SignupPage() {
           </p>
         )}
         <Button full type="submit">
-          가입하고 맞춤 설정하기
+          가입하고 닉네임 정하기
         </Button>
       </form>
       <div className="auth-links">
@@ -173,6 +218,90 @@ export function SignupPage() {
           로그인
         </LinkButton>
       </div>
+    </section>
+  );
+}
+
+export function NicknameSetupPage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { currentUser, saveNickname } = useSession();
+  const redirect = getSafeRedirect(searchParams);
+  const [nickname, setNickname] = useState(currentUser?.nickname ?? "");
+  const [error, setError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSuggesting, setIsSuggesting] = useState(false);
+
+  useEffect(() => {
+    setNickname(currentUser?.nickname ?? "");
+  }, [currentUser?.nickname]);
+
+  const suggestNickname = async () => {
+    setError("");
+    setIsSuggesting(true);
+    try {
+      const suggestion = await appDataApi.getNicknameSuggestion();
+      setNickname(suggestion.nickname);
+    } catch {
+      setError("닉네임을 추천하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setIsSuggesting(false);
+    }
+  };
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmed = nickname.trim();
+    setError("");
+    if (trimmed.length < 2 || trimmed.length > 20) {
+      setError("닉네임은 2자 이상 20자 이하로 입력해 주세요.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await saveNickname(trimmed);
+      navigate(redirect ?? "/profile-setup");
+    } catch {
+      setError("닉네임을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <section className="screen white">
+      <div className="top-bar">
+        <IconButton label="뒤로" to={withRedirect("/signup", redirect)}>
+          <ChevronLeft size={20} />
+        </IconButton>
+        <h1>닉네임 설정</h1>
+        <span />
+      </div>
+      <div className="auth-hero compact">
+        <div className="logo-mark">TH</div>
+        <h2>Travel Hunter에서 사용할 닉네임을 정해 주세요</h2>
+        <p>추천 닉네임을 그대로 쓰거나 원하는 이름으로 바꿀 수 있어요.</p>
+      </div>
+      <form className="form" onSubmit={submit}>
+        <label className="field">
+          <span>닉네임</span>
+          <div className="input-action-row nickname-row">
+            <input name="nickname" type="text" value={nickname} onChange={(event) => setNickname(event.target.value)} maxLength={20} autoComplete="nickname" />
+            <button className="icon-btn" type="button" aria-label="랜덤 닉네임 추천" onClick={suggestNickname} disabled={isSaving || isSuggesting}>
+              <Dice5 size={18} />
+            </button>
+          </div>
+        </label>
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
+        <Button full type="submit" disabled={isSaving}>
+          {isSaving ? "저장 중" : "이 닉네임으로 시작하기"}
+        </Button>
+      </form>
     </section>
   );
 }

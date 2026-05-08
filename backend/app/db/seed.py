@@ -136,6 +136,7 @@ def get_or_create_trip(db: Session, owner: User) -> Trip:
         db.add(trip)
 
     trip.end_date = date(2026, 6, 17)
+    trip.status = "confirmed"
     trip.region = "제주"
     trip.description = "휴식 중심 여행"
     db.flush()

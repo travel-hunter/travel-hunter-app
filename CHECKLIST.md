@@ -18,6 +18,7 @@
 - [x] MVP user flows implemented against FastAPI/PostgreSQL.
 - [x] Itinerary detail place add/edit/delete is connected to `trip_places`.
 - [x] Itinerary detail place drag-and-drop reordering and cross-day movement is connected to `trip_places.order_num` and `trip_day_id`.
+- [x] `/trips` itinerary cards persist draft-to-confirmed status through `trips.status`.
 - [x] Mypage profile editing is connected to `PATCH /api/me/profile`.
 - [x] AI recommendation items can be added to a trip timeline through the place add API.
 - [x] Invite role settings persist `viewer/editor` and place editing permissions are enforced.
@@ -39,13 +40,16 @@
 - [x] PWA manifest/meta and app icons are provided.
 - [x] PWA service worker/offline caching strategy is documented without enabling runtime caching.
 - [x] Project structure audit is documented in `docs/project-structure-audit.md`.
+- [x] Signup now uses email/password plus email availability check, then `/nickname-setup`.
+- [x] Nickname setup supports server-generated temporary nicknames and dice-button suggestions.
+- [x] Codex model split workflow is documented and scripted for planning `gpt-5.5/xhigh` and implementation `gpt-5.3-codex/high`.
 - [x] Public VPS artifacts exist.
 - [x] Cloudflare Tunnel artifacts exist.
 
 ## 마지막 검증 결과
 
-- Date: 2026-05-07.
-- Backend pytest: 164 passed.
+- Date: 2026-05-08.
+- Backend pytest: 169 passed.
 - Alembic offline SQL: passed.
 - Local compose config: passed.
 - VPS compose config: passed.
@@ -53,7 +57,8 @@
 - `git diff --check`: passed.
 - Frontend typecheck/build: passed.
 - Frontend build output includes PWA manifest/icons and no sourcemap files.
-- Frontend DB-backed Vitest: 51 passed.
+- Frontend DB-backed Vitest: 54 passed.
+- Docker backend/frontend rebuild: passed.
 - Previous DB-backed Playwright e2e: 5 passed.
 - Local compose config/build: passed.
 - VPS compose config: passed.
@@ -72,5 +77,7 @@
 - [x] Implement password reset and social login OAuth entry points.
 - [x] Document password reset SMTP smoke runbook and local preflight.
 - [x] Implement draft autosave for trip creation, add-place, and edit-place forms.
-- [ ] Verify OAuth provider credentials and SMTP delivery in staging.
+- [ ] Commit and push the current signup/nickname plus Codex workflow changes.
+- [ ] Verify SMTP delivery in staging.
+- [ ] Verify OAuth provider credentials in staging.
 - [ ] Resume Cloudflare Tunnel staging deployment when the feature pass pauses.

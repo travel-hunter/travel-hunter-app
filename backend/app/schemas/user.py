@@ -9,7 +9,6 @@ class SocialAccount(BaseModel):
 
 class User(BaseModel):
     id: str
-    name: str
     nickname: str
     email: str
     birthDate: str | None = None
@@ -68,9 +67,24 @@ class LoginRequest(BaseModel):
 
 
 class SignupRequest(BaseModel):
-    name: str = Field(min_length=1, max_length=50)
     email: EmailStr
     password: str = Field(min_length=8)
+
+
+class EmailAvailabilityRequest(BaseModel):
+    email: EmailStr
+
+
+class EmailAvailabilityResponse(BaseModel):
+    available: bool
+
+
+class NicknameSuggestion(BaseModel):
+    nickname: str
+
+
+class NicknameUpdate(BaseModel):
+    nickname: str = Field(min_length=1, max_length=20)
 
 
 class AuthResponse(BaseModel):

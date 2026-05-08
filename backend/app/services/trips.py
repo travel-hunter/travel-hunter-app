@@ -12,7 +12,13 @@ from app.data import seed
 from app.models import Trip, TripDay, TripInvite, TripPlace, User
 from app.repositories import policies as policy_repository
 from app.repositories import trips as trip_repository
-from app.schemas.trip import CreateTripPlaceRequest, CreateTripRequest, MoveTripPlaceRequest, UpdateTripPlaceRequest
+from app.schemas.trip import (
+    CreateTripPlaceRequest,
+    CreateTripRequest,
+    MoveTripPlaceRequest,
+    UpdateTripPlaceRequest,
+    UpdateTripStatusRequest,
+)
 
 
 LEGACY_TRIP_ALIAS = str(seed.TRIP["id"])
@@ -125,6 +131,7 @@ def trip_to_api(trip: Trip, user: User | None = None) -> dict[str, object]:
     return {
         "id": str(trip.id),
         "title": trip.title,
+        "status": trip.status or "confirmed",
         "dates": _format_dates(trip.start_date, trip.end_date),
         "people": people,
         "expectedSaving": _format_saving(_policy_saving(trip)),
@@ -241,6 +248,7 @@ def create_trip(
         title=title,
         start_date=start_date,
         end_date=end_date,
+        status="draft",
         region=region,
         description=str(payload.get("description") or seed.PROFILE["style"]),
     )
@@ -303,6 +311,19 @@ def add_policy_to_trip(
         db.commit()
 
     return {"tripId": str(trip.id), "policyId": policy_slug, "added": True}
+
+
+def update_trip_status(
+    db: Session,
+    user: User,
+    trip_handle: str,
+    payload: UpdateTripStatusRequest,
+) -> dict[str, object]:
+    trip = _resolve_required_trip(db, trip_handle, user)
+    _require_trip_editor(trip, user)
+    trip.status = payload.status
+    db.commit()
+    return _refresh_trip_payload(db, trip.id, user)
 
 
 def add_place_to_trip_day(

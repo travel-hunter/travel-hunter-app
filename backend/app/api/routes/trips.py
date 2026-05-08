@@ -15,6 +15,7 @@ from app.schemas.trip import (
     Trip,
     TripPolicyResponse,
     UpdateTripPlaceRequest,
+    UpdateTripStatusRequest,
 )
 from app.services import trips as trip_service
 
@@ -106,6 +107,25 @@ def add_policy_to_trip(
     except trip_service.TripServiceError as error:
         _raise_trip_error(error)
     return TripPolicyResponse(**result)
+
+
+@router.patch("/{trip_id}/status", response_model=Trip)
+def update_trip_status(
+    trip_id: str,
+    payload: UpdateTripStatusRequest,
+    db: Session | None = Depends(get_optional_db),
+    current_user: User | None = Depends(get_current_user),
+) -> Trip:
+    try:
+        trip = trip_service.update_trip_status(
+            _require_db(db),
+            _require_user(current_user),
+            trip_id,
+            payload,
+        )
+    except trip_service.TripServiceError as error:
+        _raise_trip_error(error)
+    return Trip(**trip)
 
 
 @router.post("/{trip_id}/days/{day_number}/places", response_model=Trip)
