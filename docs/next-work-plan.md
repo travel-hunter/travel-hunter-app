@@ -64,6 +64,7 @@
 ## 구조 정리 참고
 
 - 구조 점검 결과는 `docs/project-structure-audit.md`를 따른다.
+- 프론트 기능 추가 후보는 `docs/frontend-feature-work-plan.md`를 따른다.
 - route/page 파일 분리는 현재 우선순위에서 제외한다.
 - 로컬 산출물 정리는 기능 작업과 분리해서 진행한다.
 

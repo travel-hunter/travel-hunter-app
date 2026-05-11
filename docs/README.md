@@ -30,6 +30,7 @@
 ## 기능/설계 보조 문서
 
 - `notification-delivery-plan.md`: 마감 알림 발송 기반 설계(대상 계산, scheduler, SOLAPI).
+- `frontend-feature-work-plan.md`: 배포 smoke 이후 진행할 frontend 기능 추가 후보와 첫 구현 순서.
 - `pwa-offline-strategy.md`: service worker/offline cache 도입 안전 기준.
 - `draft-autosave-next-scope.md`: draft autosave 2차 범위와 개인정보 저장 제외 기준.
 - `benchmark-ildan-checkin.md`: 벤치마크 분석과 적용 후보.
