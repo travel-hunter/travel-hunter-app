@@ -71,6 +71,9 @@ services:
       context: ./frontend
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:?set VITE_API_BASE_URL}
+    environment:
+      STAGING_DOMAIN: ${STAGING_DOMAIN:-}
+      __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS: ${STAGING_DOMAIN:-}
     depends_on:
       backend:
         condition: service_healthy
