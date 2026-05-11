@@ -6,6 +6,8 @@
 - Runtime mock mode는 다시 추가하지 않는다.
 - 기능 변경 시 API 계약, frontend type, backend schema/test를 함께 갱신한다.
 - 실제 secret/env 값은 repo에 기록하지 않는다.
+- 기준 스냅샷: `a174f12` (feat: consolidate current implementation updates).
+- 브랜치 상태: `feat/prototype-to-react`와 `origin/feat/prototype-to-react` 커밋 동기화 + 로컬 문서/스크립트 미커밋 변경 존재.
 
 ## 완료된 최근 작업
 
@@ -48,11 +50,11 @@
 
 | 우선순위 | 작업 | 성공 기준 |
 |---:|---|---|
-| 1 | Password reset SMTP staging smoke | SMTP env와 public HTTPS base URL을 주입해 reset email 발송, 링크 진입, password confirm을 외부 URL 기준으로 확인 |
-| 2 | Kakao/Google OAuth staging smoke | provider console redirect URI와 env 값을 맞추고 실제 social login callback/refresh를 확인 |
-| 3 | Cloudflare Tunnel staging smoke | 외부 HTTPS URL에서 `/api/health`, 로그인, 정책/일정 핵심 흐름 확인 |
-| 4 | 전화번호 OTP 설계/구현 | Kakao AlimTalk 수신 연락처 실소유 검증 |
-| 5 | PWA service worker 1차 구현 | staging smoke 이후 static shell/assets only 정책으로 구현 여부 결정 |
+| 1 | 현재 미커밋 문서/스크립트 기준점 고정 | 문서/스크립트 변경을 하나의 기준점으로 커밋하고 작업 기준을 고정 |
+| 2 | Password reset SMTP staging smoke | SMTP env와 public HTTPS base URL을 주입해 reset email 발송, 링크 진입, password confirm을 외부 URL 기준으로 확인 |
+| 3 | Kakao/Google OAuth staging smoke | provider console redirect URI와 env 값을 맞추고 실제 social login callback/refresh를 확인 |
+| 4 | Cloudflare Tunnel staging smoke | 외부 HTTPS URL에서 `/api/health`, 로그인, 정책/일정 핵심 흐름 확인 |
+| 5 | 전화번호 OTP 설계/구현 | Kakao AlimTalk 수신 연락처 실소유 검증 |
 
 ## 구조 정리 참고
 
@@ -60,15 +62,12 @@
 - route/page 파일 분리는 현재 우선순위에서 제외한다.
 - 로컬 산출물 정리는 기능 작업과 분리해서 진행한다.
 
-## Current Priority Override
+## 후순위 후보
 
-| Priority | Work | Success criteria |
-|---:|---|---|
-| 1 | Commit and push current pending changes | Fix one clean baseline for signup/nickname flow, Codex model workflow scripts, and matching docs/evals |
-| 2 | Password reset SMTP staging smoke | Inject SMTP env and public HTTPS base URL, then verify reset email, link entry, and password confirm |
-| 3 | Kakao/Google OAuth staging smoke | Align provider redirect URI/env values and verify real social login callback/refresh |
-| 4 | Cloudflare Tunnel staging smoke | Verify `/api/health`, login, policies, and trips through the external HTTPS URL |
-| 5 | Phone OTP design/implementation | Verify ownership of the Kakao AlimTalk destination contact |
+- PWA service worker 1차 구현 여부 확정 및 적용.
+- 정책 실시간 수집/검색 API 확장 여부 검토.
+- 실제 AI 추천 엔진 연동 범위 정리.
+- 친구 초대 외부 발송(email/SMS/Kakao) 확장 범위 정리.
 
 ## Fast Lane
 

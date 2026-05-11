@@ -39,11 +39,17 @@ $planText
 "@
 
 $configValue = "model_reasoning_effort=`"$Reasoning`""
+Write-Host "Codex implementation execution"
+Write-Host "Model: $Model"
+Write-Host "Reasoning: $Reasoning"
+Write-Host "Sandbox: $Sandbox"
+Write-Host "RepoRoot: $resolvedRepo"
+Write-Host "OutputFile: $OutputFile"
+
 $instructions | codex exec `
   --model $Model `
   -c $configValue `
   --sandbox $Sandbox `
-  --ask-for-approval never `
   -C $resolvedRepo `
   --output-last-message $OutputFile `
   -

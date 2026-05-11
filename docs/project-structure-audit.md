@@ -2,12 +2,18 @@
 
 ## 기준
 
-- 점검일: 2026-05-07
+- 점검일: 2026-05-11
 - 기준 브랜치: `feat/prototype-to-react`
 - 현재 route/page 구조는 유지한다.
 - 이번 문서는 분석 결과이며, 파일 이동/삭제/리팩터링 실행 계획이 아니다.
 
-현재 미커밋 변경분은 PWA manifest/meta 작업이다. 구조 점검은 이 변경분과 분리해서 판단한다.
+현재 미커밋 변경분은 문서/스크립트 정리다.
+- `docs/codex-model-workflow.md`
+- `docs/current-work-spec.md`
+- `docs/next-work-plan.md`
+- `scripts/codex-plan.ps1`
+- `scripts/codex-implement.ps1`
+구조 점검은 위 변경분을 되돌리지 않고 분리해서 판단한다.
 
 ## 전체 구조 판단
 
@@ -18,6 +24,7 @@ backend/   FastAPI, SQLAlchemy, Alembic, backend tests
 frontend/  Vite React app, frontend tests, e2e harness
 docs/      requirements, implementation status, API contract, deployment/design docs
 deploy/    Caddy and environment examples
+scripts/   Codex CLI plan/implement/workflow wrappers
 .agent/    eval and acceptance references
 .github/   issue/PR/workflow collaboration assets
 ```
@@ -119,11 +126,14 @@ FastAPI route, schema, service, repository, model이 분리되어 있어 기본 
 
 ```text
 frontend/dist
+.pytest_cache
 backend/.pytest_cache
 backend/**/__pycache__
+.codex-runs
 ```
 
 `frontend/node_modules`는 유지한다. 삭제하면 재설치 비용이 크고 구조 정리 목적과 직접 관련이 없다.
+`.codex-runs`는 로컬 실행 로그/산출물 보관 목적이면 유지하고, 공간 정리 목적이면 삭제 가능하다.
 
 ## Do Not Change Now
 

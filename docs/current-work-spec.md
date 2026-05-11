@@ -4,8 +4,8 @@
 
 Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저장, 초대 협업, 마감 알림 기반을 제공하는 DB-backed-only MVP다. Runtime mock mode는 제거됐고, frontend는 항상 FastAPI backend를 호출한다.
 
-- 기준: 현재 브랜치 `feat/prototype-to-react`의 최신 HEAD.
-- 브랜치 상태: `feat/prototype-to-react`, origin 대비 ahead 상태.
+- 기준: 커밋 `a174f12`(feat: consolidate current implementation updates) 기준 스냅샷.
+- 브랜치 상태: `feat/prototype-to-react`, `origin/feat/prototype-to-react`와 커밋은 동기화되어 있고 로컬에 문서/스크립트 미커밋 변경이 존재한다.
 - 최근 변경으로 일단체크인 벤치마크 분석, production sourcemap 비공개 명시, PWA manifest/meta 1차 적용, 프로젝트 구조 audit 문서화, Web Share API 공유 fallback을 완료했다.
 - 같은 네트워크에서 개발 서버를 공유하는 LAN runbook은 `docs/local-lan-access.md`에 정리했다.
 - Password reset SMTP smoke runbook은 `docs/password-reset-smtp-smoke.md`에 정리했다. 현재 세션에서는 SMTP env와 public HTTPS base URL이 없어 실제 이메일 발송 smoke는 미실행 상태다.
@@ -67,8 +67,8 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 
 ## 최신 검증
 
-- `cd backend && python -m pytest`: 169 passed.
-- `cd frontend && npm test`: 54 passed.
+- `cd backend && python -m pytest`: 174 passed.
+- `cd frontend && npm test`: 55 passed.
 - `cd frontend && npm run typecheck`: passed.
 - `cd frontend && npm run build`: passed, production sourcemap 미생성, PWA manifest/icon 산출물 확인.
 - `frontend/public/manifest.webmanifest`: valid JSON, app name/theme/icon metadata 확인.
@@ -93,4 +93,5 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 
 ## 다음 작업
 
-다음 기능 우선순위는 `docs/next-work-plan.md`를 따른다. 현재 1순위는 미커밋 변경분 커밋 및 push 준비이고, 이후 SMTP/OAuth staging smoke로 이동한다.
+다음 기능 우선순위는 `docs/next-work-plan.md`를 따른다.
+현재 진행 순서는 `현재 미커밋 문서/스크립트 기준점 고정 -> Password reset SMTP staging smoke -> Kakao/Google OAuth staging smoke -> Cloudflare Tunnel staging smoke -> Phone OTP 설계/구현`이다.

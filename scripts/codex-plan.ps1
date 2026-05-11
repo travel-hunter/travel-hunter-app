@@ -36,11 +36,17 @@ $promptText
 "@
 
 $configValue = "model_reasoning_effort=`"$Reasoning`""
+Write-Host "Codex planning execution"
+Write-Host "Model: $Model"
+Write-Host "Reasoning: $Reasoning"
+Write-Host "Sandbox: read-only"
+Write-Host "RepoRoot: $resolvedRepo"
+Write-Host "OutputFile: $OutputFile"
+
 $instructions | codex exec `
   --model $Model `
   -c $configValue `
   --sandbox read-only `
-  --ask-for-approval never `
   -C $resolvedRepo `
   --output-last-message $OutputFile `
   -
