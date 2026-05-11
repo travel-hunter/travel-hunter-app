@@ -3,7 +3,7 @@
 ## 기준
 
 - 기준 브랜치: `feat/prototype-to-react`.
-- 기준 범위: 최신 커밋 `774278d docs: audit project structure`까지 포함한다.
+- 기준 범위: 최신 커밋 `c856a06 fix: allow tunnel and staging preview hosts`까지 포함한다.
 - 실행 모드: DB-backed-only. Runtime mock mode는 제거된 상태다.
 - 공식 요구사항 문서: `docs/requirements.md`.
 - 분류 기준:
@@ -18,7 +18,7 @@
 
 현재 MVP의 핵심 사용자 흐름은 대부분 `Complete`다. 회원가입/로그인, 프로필, 정책 탐색/저장, 일정 생성/삭제/편집, 정책 담기, AI 추천 결과 일정 추가, 초대 수락/권한, 마이페이지 알림 설정은 프론트 UI에서 백엔드 API와 PostgreSQL 저장까지 연결되어 있다.
 
-외부 서비스가 필요한 기능은 `Conditional`이다. 비밀번호 재설정은 SMTP 설정이 있어야 실제 email 발송이 가능하고, Kakao/Google OAuth는 provider client id/secret/redirect URI가 있어야 실제 로그인이 가능하다. SOLAPI 알림톡도 SOLAPI/Kakao 채널/템플릿 env가 있어야 실제 발송된다.
+외부 서비스가 필요한 기능은 `Conditional`이다. 비밀번호 재설정은 local SMTP capture E2E까지 통과했지만 실제 staging email 발송에는 SMTP provider와 HTTPS domain이 필요하다. Kakao/Google OAuth는 local preflight를 통과했지만 provider client id/secret/redirect URI가 있어야 실제 로그인이 가능하다. SOLAPI 알림톡도 SOLAPI/Kakao 채널/템플릿 env가 있어야 실제 발송된다. Cloudflare Tunnel은 Quick Tunnel `/login` 200까지 확인했고, named tunnel full-up은 실제 token/env 값이 필요하다.
 
 ## 기능별 상태표
 
@@ -28,10 +28,10 @@
 | 인증 | 닉네임 설정 | `/nickname-setup` | `GET /api/me/nickname-suggestion`, `PATCH /api/me/nickname` | `users.nickname` | backend, Vitest | Complete | 임시 닉네임은 서버가 자동 생성 | 유지 |
 | 인증 | 로그인/실패 처리 | `/login` | `POST /api/auth/login` | refresh token | backend, Vitest, e2e | Complete | 없음 | 유지 |
 | 인증 | 세션 refresh/logout | app session | `POST /api/auth/refresh`, `POST /api/auth/logout` | `auth_refresh_tokens` | backend, Vitest, e2e | Complete | 없음 | 유지 |
-| 인증 | 비밀번호 재설정 요청 | `/forgot-password` | `POST /api/auth/password-reset/request` | `password_reset_tokens` hash | backend, Vitest | Conditional | SMTP env가 없으면 실제 계정 email 발송은 503 | staging SMTP smoke |
-| 인증 | 비밀번호 재설정 확정 | `/reset-password?token=...` | `POST /api/auth/password-reset/confirm` | password hash 갱신, refresh revoke | backend, Vitest | Complete | 실제 email 링크 end-to-end는 SMTP 필요 | SMTP smoke와 함께 확인 |
-| 인증 | Kakao OAuth | `/login`, `/oauth/callback` | OAuth start/callback service | `social_accounts`, `users` | backend, Vitest | Conditional | Kakao app key/secret/redirect URI 필요 | Kakao developer console 설정 후 smoke |
-| 인증 | Google OAuth | `/login`, `/oauth/callback` | OAuth start/callback service | `social_accounts`, `users` | backend, Vitest | Conditional | Google client id/secret/redirect URI 필요 | Google console 설정 후 smoke |
+| 인증 | 비밀번호 재설정 요청 | `/forgot-password` | `POST /api/auth/password-reset/request` | `password_reset_tokens` hash | backend, Vitest, local SMTP capture smoke | Conditional | 실제 staging 발송은 SMTP provider와 HTTPS base URL 필요 | 실제 SMTP provider smoke |
+| 인증 | 비밀번호 재설정 확정 | `/reset-password?token=...` | `POST /api/auth/password-reset/confirm` | password hash 갱신, refresh revoke | backend, Vitest, local SMTP capture smoke | Complete | local E2E는 통과, 외부 staging 링크는 provider env 필요 | 실제 SMTP provider smoke |
+| 인증 | Kakao OAuth | `/login`, `/oauth/callback` | OAuth start/callback service | `social_accounts`, `users` | backend, Vitest, local preflight | Conditional | Kakao app key/secret/redirect URI 필요 | Kakao developer console 설정 후 smoke |
+| 인증 | Google OAuth | `/login`, `/oauth/callback` | OAuth start/callback service | `social_accounts`, `users` | backend, Vitest, local preflight | Conditional | Google client id/secret/redirect URI 필요 | Google console 설정 후 smoke |
 | 사용자 | 프로필 설정 | `/profile-setup` | `PATCH /api/me/profile` | `users.region/style/budget` | backend, Vitest, e2e | Complete | 없음 | 유지 |
 | 사용자 | 마이페이지 프로필 편집 | `/mypage` | `PATCH /api/me/profile` | `users` | backend, Vitest | Complete | 없음 | 유지 |
 | 사용자 | 알림 연락처 저장 | `/mypage` | `GET/PATCH /api/me/contact` | `users.phone_number` | backend, Vitest | Complete | 전화번호 실인증 없음 | OTP 설계 |
@@ -62,11 +62,11 @@
 
 ## 조건부 완료 기능
 
-- Password reset email: SMTP host/account/from address가 있어야 실제 email 발송 가능.
+- Password reset email: local SMTP capture E2E는 통과했고, 실제 staging email 발송에는 SMTP host/account/from address와 HTTPS base URL이 필요하다.
 - Kakao OAuth: Kakao developer app 설정, redirect URI, client id/secret 필요.
 - Google OAuth: Google OAuth consent/client 설정, redirect URI, client id/secret 필요.
 - SOLAPI AlimTalk: SOLAPI key/secret, Kakao channel `pfId`, D-7/D-1 승인 템플릿 필요.
-- Cloudflare Tunnel staging: domain, tunnel token, server runtime env 필요.
+- Cloudflare Tunnel staging: Quick Tunnel frontend `/login`은 200 확인했고, named tunnel full-up에는 domain, tunnel token, server runtime env가 필요하다.
 
 ## 미구현 또는 제품 범위 밖 기능
 
@@ -80,21 +80,25 @@
 
 ## 검증 결과
 
-- `cd backend && python -m pytest`: 160 passed.
+- `cd backend && python -m pytest`: 174 passed.
 - `cd backend && alembic upgrade head --sql`: passed.
 - `cd frontend && npm run typecheck`: passed.
-- `cd frontend && npm test`: 36 passed.
+- `cd frontend && npm test`: 55 passed.
 - `cd frontend && npm run build`: passed, sourcemap 미생성, PWA manifest/icon 산출물 확인.
 - `cd frontend && npm run test:e2e`: 5 passed.
 - `docker compose -f compose.yaml config`: passed.
 - `docker compose --env-file deploy/.env.staging.example -f compose.vps.yaml config`: passed.
 - `docker compose --env-file deploy/.env.tunnel.example -f compose.tunnel.yaml config`: passed.
 - `git diff --check`: passed.
+- Local SMTP capture password reset E2E: passed.
+- OAuth local/preflight: passed.
+- Cloudflare Quick Tunnel frontend `/login`: 200 after preview host allowlist fix.
 
 ## 다음 기능 우선순위
 
-1. SMTP staging smoke: reset email 발송, 링크 진입, password confirm까지 외부 URL 기준으로 확인.
-2. Kakao/Google OAuth staging smoke: provider redirect URI와 cookie/refresh callback 확인.
-3. Cloudflare Tunnel staging 배포: HTTPS URL에서 핵심 사용자 흐름 smoke.
-4. 전화번호 OTP 설계/구현: Kakao AlimTalk 수신 연락처 실소유 검증.
-5. 실제 AI/지도 연동 기획: 현재 seed 기반 추천을 실제 추천/검색 기반으로 전환.
+1. `deploy/.env.tunnel` 실제값 확보 + Cloudflare Tunnel full-up.
+2. 외부 HTTPS URL 기준 `/api/health`, `/login`, `/policies`, `/trips` 핵심 smoke.
+3. 실제 SMTP provider password reset staging smoke.
+4. Kakao/Google OAuth provider console smoke.
+5. 전화번호 OTP 설계/구현.
+6. PWA service worker 1차 구현 여부 결정.

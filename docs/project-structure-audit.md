@@ -7,13 +7,7 @@
 - 현재 route/page 구조는 유지한다.
 - 이번 문서는 분석 결과이며, 파일 이동/삭제/리팩터링 실행 계획이 아니다.
 
-현재 미커밋 변경분은 문서/스크립트 정리다.
-- `docs/codex-model-workflow.md`
-- `docs/current-work-spec.md`
-- `docs/next-work-plan.md`
-- `scripts/codex-plan.ps1`
-- `scripts/codex-implement.ps1`
-구조 점검은 위 변경분을 되돌리지 않고 분리해서 판단한다.
+현재 분석 기준은 최신 커밋 `c856a06 fix: allow tunnel and staging preview hosts`다. 브랜치는 `origin/feat/prototype-to-react` 대비 `ahead 2`이며, 이번 문서 최신화 시작 시 tracked worktree는 clean 상태였다.
 
 ## 전체 구조 판단
 
@@ -145,8 +139,8 @@ backend/**/__pycache__
 
 ## 추천 다음 순서
 
-1. 현재 PWA 변경분을 별도 커밋으로 고정한다.
-2. 이 audit 문서를 별도 커밋으로 고정한다.
-3. 로컬 산출물만 삭제한다.
-4. 문서 중복 축소가 필요하면 `docs/README.md` 기준으로 읽는 순서와 역할만 보강한다.
-5. 코드 리팩터링은 기능 작업과 분리해서 `ItineraryPages.tsx`, `MyPage.tsx`, `trips.py` 순서로 작게 진행한다.
+1. 현재 구조는 유지하고, `docs/README.md`를 문서 인덱스의 단일 기준으로 사용한다.
+2. 로컬 산출물 정리가 필요하면 `frontend/dist`, pytest cache, `__pycache__`, 필요 시 `.codex-runs`만 삭제한다.
+3. 문서 중복 축소가 필요하면 삭제보다 `docs/README.md`의 읽는 순서와 각 문서 역할을 먼저 보강한다.
+4. 코드 리팩터링은 기능 작업과 분리해서 `ItineraryPages.tsx`, `App.test.tsx`, `backend/app/services/trips.py`, `backend/app/models/tables.py` 순서로 작게 진행한다.
+5. 지금 당장은 Cloudflare Tunnel full smoke와 외부 env 기반 검증이 구조 리팩터링보다 우선이다.

@@ -6,8 +6,8 @@
 - Runtime mock mode는 다시 추가하지 않는다.
 - 기능 변경 시 API 계약, frontend type, backend schema/test를 함께 갱신한다.
 - 실제 secret/env 값은 repo에 기록하지 않는다.
-- 기준 스냅샷: `a174f12` (feat: consolidate current implementation updates).
-- 브랜치 상태: `feat/prototype-to-react`와 `origin/feat/prototype-to-react` 커밋 동기화 + 로컬 문서/스크립트 미커밋 변경 존재.
+- 기준 스냅샷: `c856a06` (fix: allow tunnel and staging preview hosts).
+- 브랜치 상태: `feat/prototype-to-react`가 `origin/feat/prototype-to-react` 대비 `ahead 2`이며, 이번 분석 시작 시 tracked worktree는 clean 상태였다.
 
 ## 완료된 최근 작업
 
@@ -31,8 +31,12 @@
 - 프로젝트 구조 audit 문서화.
 - Web Share API 공유 fallback.
 - 같은 네트워크 개발 서버 공유용 LAN runbook 문서화.
-- Password reset SMTP smoke runbook 문서화와 local preflight 확인.
+- Password reset SMTP smoke runbook 문서화와 local SMTP capture E2E 확인.
 - 구현 기능명세서 문서화.
+- Codex 모델 실행 스크립트 호환성 수정과 기준점 커밋.
+- `vite preview` tunnel/staging host allowlist 수정.
+- OAuth start/callback local preflight 확인.
+- Cloudflare Quick Tunnel frontend `/login` 200 확인.
 - 작성 중 draft autosave 1차 구현:
   - `/trips/new` 일정 생성 draft.
   - `/trips/:id` 장소 추가 draft.
@@ -50,11 +54,12 @@
 
 | 우선순위 | 작업 | 성공 기준 |
 |---:|---|---|
-| 1 | 현재 미커밋 문서/스크립트 기준점 고정 | 문서/스크립트 변경을 하나의 기준점으로 커밋하고 작업 기준을 고정 |
-| 2 | Password reset SMTP staging smoke | SMTP env와 public HTTPS base URL을 주입해 reset email 발송, 링크 진입, password confirm을 외부 URL 기준으로 확인 |
-| 3 | Kakao/Google OAuth staging smoke | provider console redirect URI와 env 값을 맞추고 실제 social login callback/refresh를 확인 |
-| 4 | Cloudflare Tunnel staging smoke | 외부 HTTPS URL에서 `/api/health`, 로그인, 정책/일정 핵심 흐름 확인 |
+| 1 | `deploy/.env.tunnel` 실제값 확보 + Cloudflare Tunnel full-up | 실제 `CLOUDFLARE_TUNNEL_TOKEN`, DB password, `DATABASE_URL`, staging domain으로 compose tunnel migration/seed/up 성공 |
+| 2 | 외부 HTTPS 핵심 smoke | staging URL에서 `/api/health`, `/login`, `/policies`, `/trips` 접근과 테스트 계정 로그인을 확인 |
+| 3 | 실제 SMTP provider password reset staging smoke | SMTP env와 public HTTPS base URL을 주입해 reset email 발송, 링크 진입, password confirm을 외부 URL 기준으로 확인 |
+| 4 | Kakao/Google OAuth provider console smoke | provider console redirect URI와 env 값을 맞추고 실제 social login callback/refresh를 확인 |
 | 5 | 전화번호 OTP 설계/구현 | Kakao AlimTalk 수신 연락처 실소유 검증 |
+| 6 | PWA service worker 1차 구현 여부 결정 | 인증/API 데이터를 캐시하지 않는 static shell/assets 전용 service worker 도입 여부 확정 |
 
 ## 구조 정리 참고
 

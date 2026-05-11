@@ -62,6 +62,7 @@ Reason: stale authenticated API responses can show the wrong user state, outdate
 
 Keep service worker implementation deferred until an external staging smoke is complete. The current next priority remains:
 
-1. Password reset SMTP staging smoke.
-2. Kakao/Google OAuth staging smoke.
-3. Cloudflare Tunnel staging smoke.
+1. Cloudflare Tunnel full-up with real `deploy/.env.tunnel` values.
+2. External HTTPS smoke for `/api/health`, `/login`, `/policies`, and `/trips`.
+3. Real SMTP provider password reset staging smoke.
+4. Kakao/Google OAuth provider console smoke.

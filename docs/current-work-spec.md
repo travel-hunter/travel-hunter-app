@@ -4,11 +4,11 @@
 
 Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저장, 초대 협업, 마감 알림 기반을 제공하는 DB-backed-only MVP다. Runtime mock mode는 제거됐고, frontend는 항상 FastAPI backend를 호출한다.
 
-- 기준: 커밋 `a174f12`(feat: consolidate current implementation updates) 기준 스냅샷.
-- 브랜치 상태: `feat/prototype-to-react`, `origin/feat/prototype-to-react`와 커밋은 동기화되어 있고 로컬에 문서/스크립트 미커밋 변경이 존재한다.
-- 최근 변경으로 일단체크인 벤치마크 분석, production sourcemap 비공개 명시, PWA manifest/meta 1차 적용, 프로젝트 구조 audit 문서화, Web Share API 공유 fallback을 완료했다.
+- 기준: 커밋 `c856a06`(fix: allow tunnel and staging preview hosts) 기준 스냅샷.
+- 브랜치 상태: `feat/prototype-to-react`, `origin/feat/prototype-to-react` 대비 `ahead 2`이며 이번 분석 시작 시 tracked worktree는 clean 상태였다.
+- 최근 변경으로 일단체크인 벤치마크 분석, production sourcemap 비공개 명시, PWA manifest/meta 1차 적용, 프로젝트 구조 audit 문서화, Web Share API 공유 fallback, Codex 모델 실행 스크립트 호환성 수정, tunnel/staging preview host allowlist 보정을 완료했다.
 - 같은 네트워크에서 개발 서버를 공유하는 LAN runbook은 `docs/local-lan-access.md`에 정리했다.
-- Password reset SMTP smoke runbook은 `docs/password-reset-smtp-smoke.md`에 정리했다. 현재 세션에서는 SMTP env와 public HTTPS base URL이 없어 실제 이메일 발송 smoke는 미실행 상태다.
+- Password reset SMTP smoke runbook은 `docs/password-reset-smtp-smoke.md`에 정리했다. Local SMTP capture 기반 E2E는 통과했고, 실제 SMTP provider와 public HTTPS staging domain 기반 smoke는 아직 입력값 대기 상태다.
 - 구현 기능명세서는 `docs/implemented-feature-spec.md`에 정리했다.
 
 ## 구현 완료 범위
@@ -79,12 +79,17 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 - `docker compose --env-file deploy/.env.tunnel.example -f compose.tunnel.yaml config`: passed.
 - `git diff --check`: passed.
 - Docker backend/frontend rebuild: passed.
+- Local SMTP capture password reset E2E: passed. Reset email 수신, token confirm, 기존 비밀번호 실패, 새 비밀번호 로그인 성공을 확인했다.
+- OAuth local/preflight: passed. 미설정 env의 503, state mismatch 400, dummy provider env의 authorization redirect/state cookie 흐름을 확인했다.
+- Cloudflare Quick Tunnel: frontend preview `/login` 200 확인. `vite preview` host allowlist 보정 후 `.trycloudflare.com` 요청이 통과한다.
 
 ## 미구현/조건부 범위
 
 - SMTP 설정 없이는 password reset email 실제 발송이 불가하다.
-- Password reset local preflight는 통과했다. Unknown email은 `{"requested": true}`로 계정 존재 여부를 숨기고, existing email은 SMTP 미설정 상태에서 `503`으로 실패한다.
+- Password reset local SMTP capture E2E는 통과했다. Unknown email은 `{"requested": true}`로 계정 존재 여부를 숨기고, existing email은 SMTP 미설정 상태에서 `503`으로 실패한다.
 - Kakao/Google provider secret과 redirect URI가 없으면 OAuth 실제 로그인이 불가하다.
+- Cloudflare named tunnel은 실제 `CLOUDFLARE_TUNNEL_TOKEN`이 필요하다. 현재 placeholder token은 유효하지 않다.
+- Tunnel full-up의 DB migration/seed는 실제 `POSTGRES_PASSWORD`와 `DATABASE_URL` 값이 맞아야 한다. placeholder env로는 기존 Docker volume의 DB 비밀번호와 충돌할 수 있다.
 - 전화번호 실인증/OTP는 아직 없다.
 - 정책 실시간 수집, 지도/장소 검색, 실제 AI 추천 엔진은 아직 없다.
 - 친구 초대 email/SMS/Kakao 외부 발송은 아직 없다.
@@ -94,4 +99,4 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 ## 다음 작업
 
 다음 기능 우선순위는 `docs/next-work-plan.md`를 따른다.
-현재 진행 순서는 `현재 미커밋 문서/스크립트 기준점 고정 -> Password reset SMTP staging smoke -> Kakao/Google OAuth staging smoke -> Cloudflare Tunnel staging smoke -> Phone OTP 설계/구현`이다.
+현재 진행 순서는 `deploy/.env.tunnel 실제값 확보 및 Cloudflare Tunnel full-up -> 외부 HTTPS 핵심 smoke -> 실제 SMTP provider password reset staging smoke -> Kakao/Google OAuth provider console smoke -> Phone OTP 설계/구현 -> PWA service worker 1차 구현 여부 결정`이다.

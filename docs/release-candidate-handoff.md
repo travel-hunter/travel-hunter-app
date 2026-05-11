@@ -87,14 +87,17 @@ Cloudflare public hostname은 `https://<staging-domain>`에서 tunnel을 통해 
 
 ## 검증 결과
 
-- Backend pytest: 160 passed.
-- Frontend Vitest: 36 passed.
+- Backend pytest: 174 passed.
+- Frontend Vitest: 55 passed.
 - DB-backed Playwright e2e: 5 passed.
 - Frontend build: passed.
 - Alembic offline SQL: passed.
 - Local compose config/build: passed.
 - VPS compose config: passed.
 - Tunnel compose config: passed.
+- Local SMTP capture password reset E2E: passed.
+- OAuth local/preflight: passed.
+- Cloudflare Quick Tunnel frontend `/login`: 200 after preview host allowlist fix.
 
 ## 내부 테스트 필수 플로우
 
