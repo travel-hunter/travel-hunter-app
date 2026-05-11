@@ -2,7 +2,7 @@ import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, ty
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Bot, ChevronLeft, GripVertical, Plus, Send, Share2 } from "lucide-react";
-import { useEffect, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { appDataApi, type InviteRole, type InviteState, type ItineraryPlace, type Recommendation, type Trip, type TripPlaceRequest } from "../api";
 import { useAsyncResource } from "../api/useAsyncResource";
@@ -30,6 +30,10 @@ type TripPlaceAddDraft = TripPlaceRequest & {
 };
 type TripPlaceEditDraft = TripPlaceRequest & {
   placeId: string;
+};
+type DraftRestoreNoticeProps = {
+  message: string;
+  onDiscard: () => void;
 };
 const inviteRoleOptions: Array<{ role: InviteRole; label: string; body: string }> = [
   { role: "viewer", label: "보기만 가능", body: "일정과 연결된 정책을 확인할 수 있어요." },
@@ -101,6 +105,15 @@ function placeDragId(placeId: string): string {
 
 function dayDropId(dayNumber: number): string {
   return `day:${dayNumber}`;
+}
+
+function draggingPlaceLabel(trip: Trip | null, placeId: string | null): string {
+  if (!trip || !placeId) return "장소";
+  for (const places of Object.values(trip.days)) {
+    const place = places.find((item) => item.id === placeId);
+    if (place) return place.label;
+  }
+  return "장소";
 }
 
 function parsePlaceDragId(id: unknown): string | null {
@@ -208,9 +221,9 @@ export function ItineraryListPage() {
       />
       <div className="content stack padded">
         {isLoading && <LoadingState label="일정을 불러오는 중입니다" />}
-        {error && <ErrorState message={error} />}
+        {error && <ErrorState message={error} action={<LinkButton to="/trips/new" variant="line">새 일정 만들기</LinkButton>} />}
         {!isLoading && !error && trips.length === 0 && (
-          <EmptyState title="아직 등록된 일정이 없어요" body="첫 여행을 만들고 받을 수 있는 혜택을 함께 확인해보세요." action={<LinkButton to="/trips/new">일정 만들기</LinkButton>} />
+          <EmptyState eyebrow="내 일정" title="아직 등록된 일정이 없어요" body="첫 여행을 만들고 받을 수 있는 혜택을 함께 확인해보세요." action={<LinkButton to="/trips/new">일정 만들기</LinkButton>} />
         )}
         {trips.map((trip) => (
           <ItineraryCard
@@ -256,10 +269,13 @@ export function ItineraryCreatePage() {
   const policySlug = searchParams.get("policySlug") ?? undefined;
   const draftKey = tripCreateDraftKey(policySlug);
   const initialDraft = readDraft<TripCreateDraft>(draftKey);
+  const initialProfileRef = useRef({ region: profile.region, style: profile.style });
+  const skipNextTripDraftSaveRef = useRef(false);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState("");
   const [durationDays, setDurationDays] = useState<DurationDays>(isDurationOption(initialDraft?.durationDays) ? initialDraft.durationDays : 3);
   const [isDraftReady, setIsDraftReady] = useState(false);
+  const [isTripDraftNoticeVisible, setIsTripDraftNoticeVisible] = useState(false);
   const [isTripNameDialogOpen, setIsTripNameDialogOpen] = useState(false);
   const [tripNameDraft, setTripNameDraft] = useState("");
   const [tripNameError, setTripNameError] = useState("");
@@ -269,15 +285,26 @@ export function ItineraryCreatePage() {
   useEffect(() => {
     const draft = readDraft<TripCreateDraft>(draftKey);
     if (draft && draft.policySlug === (policySlug ?? null)) {
+      let appliedDraft = false;
       if (draft.region) updateProfile("region", draft.region);
       if (draft.style) updateProfile("style", draft.style);
-      if (isDurationOption(draft.durationDays)) setDurationDays(draft.durationDays);
+      if (draft.region && draft.region !== initialProfileRef.current.region) appliedDraft = true;
+      if (draft.style && draft.style !== initialProfileRef.current.style) appliedDraft = true;
+      if (isDurationOption(draft.durationDays)) {
+        setDurationDays(draft.durationDays);
+        if (draft.durationDays !== 3) appliedDraft = true;
+      }
+      setIsTripDraftNoticeVisible(appliedDraft);
     }
     setIsDraftReady(true);
   }, [draftKey, policySlug]);
 
   useEffect(() => {
     if (!isDraftReady) return;
+    if (skipNextTripDraftSaveRef.current) {
+      skipNextTripDraftSaveRef.current = false;
+      return;
+    }
     saveDraft<TripCreateDraft>(draftKey, {
       region: profile.region,
       style: profile.style,
@@ -285,6 +312,15 @@ export function ItineraryCreatePage() {
       policySlug: policySlug ?? null,
     });
   }, [draftKey, durationDays, isDraftReady, policySlug, profile.region, profile.style]);
+
+  const discardTripCreateDraft = () => {
+    skipNextTripDraftSaveRef.current = true;
+    clearDraft(draftKey);
+    updateProfile("region", initialProfileRef.current.region);
+    updateProfile("style", initialProfileRef.current.style);
+    setDurationDays(3);
+    setIsTripDraftNoticeVisible(false);
+  };
 
   const openTripNameDialog = () => {
     setTripNameDraft(tripTitle);
@@ -352,6 +388,7 @@ export function ItineraryCreatePage() {
             <DurationChoiceGroup selected={durationDays} onSelect={setDurationDays} />
           </div>
         </div>
+        {isTripDraftNoticeVisible && <DraftRestoreNotice message="작성 중이던 일정 조건을 불러왔어요." onDiscard={discardTripCreateDraft} />}
         {error && <ErrorState message={error} />}
         <Button full disabled={isCreating} onClick={openTripNameDialog}>
           {isCreating ? "일정을 만드는 중입니다" : `${selectedRegion} ${durationDays}일 일정 만들기`}
@@ -465,12 +502,14 @@ export function ItineraryDetailPage() {
   const [moveError, setMoveError] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [deleteCandidatePlace, setDeleteCandidatePlace] = useState<ItineraryPlace | null>(null);
+  const [placeDraftNotice, setPlaceDraftNotice] = useState("");
   const dayNumbers = trip ? tripDayNumbers(trip.days) : [];
   const visibleDay = dayNumbers.includes(activeDay) ? activeDay : (dayNumbers[0] ?? 1);
   const dayPlaces = trip?.days[visibleDay] ?? [];
   const sortablePlaceIds = dayPlaces.flatMap((place) => (place.id ? [placeDragId(place.id)] : []));
   const stayLabel = formatStayLabel(dayNumbers.length || 3);
   const canEditTrip = trip?.currentUserRole === "owner" || trip?.currentUserRole === "editor";
+  const activeDraggingPlaceLabel = draggingPlaceLabel(trip, draggingPlaceId);
   const dragSensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 8 } }),
@@ -499,6 +538,7 @@ export function ItineraryDetailPage() {
     const draft = trip ? readDraft<TripPlaceAddDraft>(tripPlaceAddDraftKey(trip.id, visibleDay)) : null;
     setPlaceEditor({ mode: "add", dayNumber: visibleDay });
     setPlaceForm(draft ? { time: draft.time ?? "", label: draft.label, meta: draft.meta ?? "" } : { time: "", label: "", meta: "" });
+    setPlaceDraftNotice(draft ? "작성 중이던 장소 내용을 불러왔어요." : "");
     setPlaceError("");
   };
 
@@ -510,6 +550,7 @@ export function ItineraryDetailPage() {
     const draft = trip && place.id ? readDraft<TripPlaceEditDraft>(tripPlaceEditDraftKey(trip.id, place.id)) : null;
     setPlaceEditor({ mode: "edit", dayNumber: visibleDay, place });
     setPlaceForm(draft ? { time: draft.time ?? "", label: draft.label, meta: draft.meta ?? "" } : { time: place.time, label: place.label, meta: place.meta });
+    setPlaceDraftNotice(draft ? "수정 중이던 장소 내용을 불러왔어요." : "");
     setPlaceError("");
   };
 
@@ -545,6 +586,7 @@ export function ItineraryDetailPage() {
       if (placeEditor.mode === "edit" && placeEditor.place.id) clearDraft(tripPlaceEditDraftKey(trip.id, placeEditor.place.id));
       setTrip(nextTrip);
       setPlaceEditor(null);
+      setPlaceDraftNotice("");
       setNotice(placeEditor.mode === "add" ? "장소를 일정에 추가했어요." : "장소 정보를 수정했어요.");
       window.setTimeout(() => setNotice(null), 1800);
     } catch {
@@ -628,6 +670,7 @@ export function ItineraryDetailPage() {
       clearDraft(tripPlaceEditDraftKey(trip.id, place.id));
       setTrip(nextTrip);
       setDeleteCandidatePlace(null);
+      setPlaceDraftNotice("");
       setNotice("장소를 일정에서 삭제했어요.");
       window.setTimeout(() => setNotice(null), 1800);
     } catch {
@@ -662,7 +705,21 @@ export function ItineraryDetailPage() {
     if (isSavingPlace) return;
     if (trip && placeEditor?.mode === "add") clearDraft(tripPlaceAddDraftKey(trip.id, placeEditor.dayNumber));
     if (trip && placeEditor?.mode === "edit" && placeEditor.place.id) clearDraft(tripPlaceEditDraftKey(trip.id, placeEditor.place.id));
+    setPlaceDraftNotice("");
     setPlaceEditor(null);
+  };
+
+  const discardPlaceDraft = () => {
+    if (!trip || !placeEditor) return;
+    if (placeEditor.mode === "add") {
+      clearDraft(tripPlaceAddDraftKey(trip.id, placeEditor.dayNumber));
+      setPlaceForm({ time: "", label: "", meta: "" });
+    }
+    if (placeEditor.mode === "edit" && placeEditor.place.id) {
+      clearDraft(tripPlaceEditDraftKey(trip.id, placeEditor.place.id));
+      setPlaceForm({ time: placeEditor.place.time, label: placeEditor.place.label, meta: placeEditor.place.meta });
+    }
+    setPlaceDraftNotice("");
   };
 
   if (isLoading) {
@@ -676,7 +733,7 @@ export function ItineraryDetailPage() {
   if (error || !trip) {
     return (
       <section className="screen with-tabs">
-        <ErrorState message={error ?? "일정 정보를 찾지 못했어요."} />
+        <ErrorState message={error ?? "일정 정보를 찾지 못했어요."} action={<LinkButton to="/trips" variant="line">일정 목록으로</LinkButton>} />
       </section>
     );
   }
@@ -740,6 +797,7 @@ export function ItineraryDetailPage() {
               isActive={visibleDay === day}
               key={day}
               onSelect={setActiveDay}
+              placeLabel={activeDraggingPlaceLabel}
             />
           ))}
         </div>
@@ -751,8 +809,21 @@ export function ItineraryDetailPage() {
           </div>
         </div>
       )}
-        <div className="timeline">
-          {dayPlaces.length === 0 && <EmptyState title="아직 추가된 장소가 없어요" body="장소 추가 버튼으로 방문지를 일정에 저장해 보세요." />}
+        {canEditTrip && dayPlaces.length > 0 && (
+          <div className={draggingPlaceId ? "dnd-affordance active" : "dnd-affordance"} role="status">
+            <GripVertical size={16} />
+            <span>{draggingPlaceId ? `${activeDraggingPlaceLabel} 이동 중` : "장소 카드의 이동 핸들로 순서를 조정할 수 있어요"}</span>
+          </div>
+        )}
+        <div className={draggingPlaceId ? "timeline dnd-active" : "timeline"}>
+          {dayPlaces.length === 0 && (
+            <EmptyState
+              compact
+              eyebrow={`Day ${visibleDay}`}
+              title="아직 추가된 장소가 없어요"
+              body={canEditTrip ? "장소 추가 버튼으로 방문지를 일정에 저장해 보세요." : "아직 이 날짜에 등록된 장소가 없어요."}
+            />
+          )}
           <SortableContext items={sortablePlaceIds} strategy={verticalListSortingStrategy}>
             {dayPlaces.map((place) => (
               <SortablePlaceItem
@@ -790,7 +861,9 @@ export function ItineraryDetailPage() {
           mode={placeEditor.mode}
           onChange={updatePlaceForm}
           onClose={closePlaceEditor}
+          onDiscardDraft={discardPlaceDraft}
           onSubmit={submitPlaceEditor}
+          restoredDraftMessage={placeDraftNotice}
         />
       )}
       <ConfirmDialog
@@ -807,26 +880,50 @@ export function ItineraryDetailPage() {
   );
 }
 
+function DraftRestoreNotice({ message, onDiscard }: DraftRestoreNoticeProps) {
+  return (
+    <div className="draft-restore-notice" role="status">
+      <div>
+        <strong>{message}</strong>
+        <p>원하지 않으면 임시 저장 내용을 버릴 수 있어요.</p>
+      </div>
+      <button className="btn sm line" type="button" onClick={onDiscard}>
+        버리기
+      </button>
+    </div>
+  );
+}
+
 function DroppableDayTab({
   canDrop,
   dateLabel,
   day,
   isActive,
   onSelect,
+  placeLabel,
 }: {
   canDrop: boolean;
   dateLabel: string;
   day: number;
   isActive: boolean;
   onSelect: (day: number) => void;
+  placeLabel: string;
 }) {
   const { isOver, setNodeRef } = useDroppable({ id: dayDropId(day), disabled: !canDrop });
   const className = ["day-tab", isActive ? "active" : "", canDrop ? "drop-target" : "", isOver ? "over" : ""].filter(Boolean).join(" ");
 
   return (
-    <button className={className} key={day} onClick={() => onSelect(day)} ref={setNodeRef} type="button">
+    <button
+      aria-label={canDrop ? `Day ${day} ${dateLabel}에 ${placeLabel} 놓기` : `Day ${day} ${dateLabel}`}
+      className={className}
+      key={day}
+      onClick={() => onSelect(day)}
+      ref={setNodeRef}
+      type="button"
+    >
       <strong>Day {day}</strong>
       <span>{dateLabel}</span>
+      {canDrop && <em>{isOver ? "놓기" : "이동 가능"}</em>}
     </button>
   );
 }
@@ -865,7 +962,7 @@ function SortablePlaceItem({
     transform: CSS.Transform.toString(transform),
     transition,
   };
-  const className = ["timeline-item", isDragging ? "dragging" : ""].filter(Boolean).join(" ");
+  const className = ["timeline-item", isDragging ? "dragging" : "", isMoving ? "moving" : ""].filter(Boolean).join(" ");
   const sortableListeners = listeners ?? {};
   const moveWithKeyboard = (event: KeyboardEvent<HTMLButtonElement>): boolean => {
     if (!place.id || disabled) return false;
@@ -911,12 +1008,14 @@ function SortablePlaceItem({
             }}
           >
             <GripVertical size={16} />
+            <span>이동</span>
           </button>
         )}
         <div className="place-copy">
           <h4>{place.label}</h4>
           <div className="meta">{place.meta}</div>
         </div>
+        {isMoving && <span className="place-moving-badge">이동 중</span>}
         <div className="place-actions" hidden={!canEditTrip}>
           <button className="btn sm ghost" type="button" onClick={() => onEdit(place)} disabled={!place.id || disabled}>
             수정
@@ -1007,7 +1106,9 @@ function PlaceEditorSheet({
   mode,
   onChange,
   onClose,
+  onDiscardDraft,
   onSubmit,
+  restoredDraftMessage,
 }: {
   error: string;
   form: TripPlaceRequest;
@@ -1015,7 +1116,9 @@ function PlaceEditorSheet({
   mode: "add" | "edit";
   onChange: (form: TripPlaceRequest) => void;
   onClose: () => void;
+  onDiscardDraft: () => void;
   onSubmit: () => void;
+  restoredDraftMessage: string;
 }) {
   return (
     <div className="sheet-backdrop" role="presentation" onMouseDown={onClose}>
@@ -1030,6 +1133,7 @@ function PlaceEditorSheet({
           </button>
         </div>
         <div className="form place-editor-form">
+          {restoredDraftMessage && <DraftRestoreNotice message={restoredDraftMessage} onDiscard={onDiscardDraft} />}
           <PlaceTimePicker disabled={isSaving} value={form.time ?? ""} onChange={(time) => onChange({ ...form, time })} />
           <input type="hidden" name="place-time" value={form.time ?? ""} readOnly />
           <label className="field">

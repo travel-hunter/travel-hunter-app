@@ -48,7 +48,7 @@
 
 ## 마지막 검증 결과
 
-- Date: 2026-05-08.
+- Date: 2026-05-11.
 - Backend pytest: 169 passed.
 - Alembic offline SQL: passed.
 - Local compose config: passed.
@@ -57,7 +57,7 @@
 - `git diff --check`: passed.
 - Frontend typecheck/build: passed.
 - Frontend build output includes PWA manifest/icons and no sourcemap files.
-- Frontend DB-backed Vitest: 54 passed.
+- Frontend DB-backed Vitest: 63 passed.
 - Docker backend/frontend rebuild: passed.
 - Previous DB-backed Playwright e2e: 5 passed.
 - Local compose config/build: passed.

@@ -91,30 +91,55 @@ export function IconButton({ children, to, label, onClick }: { children: ReactNo
   );
 }
 
-export function EmptyState({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
+export function EmptyState({
+  title,
+  body,
+  action,
+  compact = false,
+  eyebrow,
+}: {
+  title: string;
+  body: string;
+  action?: ReactNode;
+  compact?: boolean;
+  eyebrow?: string;
+}) {
   return (
-    <section className="empty-state">
+    <section className={compact ? "empty-state compact" : "empty-state"}>
+      {eyebrow && <span className="state-eyebrow">{eyebrow}</span>}
       <h1>{title}</h1>
       <p>{body}</p>
-      {action}
+      {action && <div className="state-actions">{action}</div>}
     </section>
   );
 }
 
-export function LoadingState({ label = "정보를 불러오는 중입니다" }: { label?: string }) {
+export function LoadingState({ label = "정보를 불러오는 중입니다", body, compact = false }: { label?: string; body?: string; compact?: boolean }) {
   return (
-    <div className="state-panel" role="status">
+    <div className={compact ? "state-panel compact" : "state-panel"} role="status">
       <span className="spinner" />
       <strong>{label}</strong>
+      {body && <p>{body}</p>}
     </div>
   );
 }
 
-export function ErrorState({ message }: { message: string }) {
+export function ErrorState({
+  message,
+  action,
+  compact = false,
+  title = "잠깐 문제가 생겼어요",
+}: {
+  message: string;
+  action?: ReactNode;
+  compact?: boolean;
+  title?: string;
+}) {
   return (
-    <div className="state-panel error" role="alert">
-      <strong>잠깐 문제가 생겼어요</strong>
+    <div className={compact ? "state-panel error compact" : "state-panel error"} role="alert">
+      <strong>{title}</strong>
       <p>{message}</p>
+      {action && <div className="state-actions">{action}</div>}
     </div>
   );
 }

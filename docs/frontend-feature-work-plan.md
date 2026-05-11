@@ -39,10 +39,11 @@ frontend/src/utils       share, draft storage utilities
 
 | 우선순위 | 작업 | 대상 화면 | 이유 | 성공 기준 |
 |---:|---|---|---|---|
-| P1 | Draft 복원 안내/폐기 UX | `/trips/new`, `/trips/:id` 장소 sheet | 현재 draft는 자동 복원되지만 사용자가 복원 여부를 명시적으로 알기 어렵다. | 유효 draft가 있으면 "작성 중이던 내용을 불러왔어요" 안내와 "버리기" 액션을 제공한다. |
-| P1 | 일정 상세 DnD affordance 보강 | `/trips/:id` | 드래그앤드롭 기능은 있으나 모바일 사용자가 드래그 가능성을 더 쉽게 알아야 한다. | 드래그 핸들, 드롭 가능 Day 탭, 이동 중 상태가 명확히 보인다. |
-| P1 | Loading/empty/error state 통일 | `/policies`, `/trips`, `/mypage` | 데이터 로딩과 빈 상태 표현이 화면별로 다를 수 있다. | 공통 empty/error 패턴을 적용하고 주요 CTA를 함께 제공한다. |
-| P2 | 정책 목록 카테고리 인터리빙 | `/home`, `/policies` | 벤치마크에서 얻은 개선 후보로, 정책 탐색 피로도를 줄일 수 있다. | 카테고리별 추천/최근/마감 임박 블록을 섞어 보여준다. |
+| Done | 정책 상세 조건 확인 요약/FAQ | `/policies/:slug` | `Travel-Hunter.zip`의 정책 상세 A/B 프로토타입에서 가져온 적용 후보. | 신청 가능 확정 표현 없이 조건 요약과 FAQ accordion을 제공한다. |
+| Done | Draft 복원 안내/폐기 UX | `/trips/new`, `/trips/:id` 장소 sheet | 현재 draft는 자동 복원되지만 사용자가 복원 여부를 명시적으로 알기 어렵다. | 유효 draft가 있으면 "작성 중이던 내용을 불러왔어요" 안내와 "버리기" 액션을 제공한다. |
+| Done | 일정 상세 DnD affordance 보강 | `/trips/:id` | 드래그앤드롭 기능은 있으나 모바일 사용자가 드래그 가능성을 더 쉽게 알아야 한다. | 드래그 핸들, 드롭 가능 Day 탭, 이동 중 상태가 명확히 보인다. |
+| Done | Loading/empty/error state 통일 | `/policies`, `/trips`, `/mypage` | 데이터 로딩과 빈 상태 표현이 화면별로 다를 수 있다. | 공통 empty/error 패턴을 적용하고 주요 CTA를 함께 제공한다. |
+| Done | 정책 목록 카테고리 인터리빙 | `/home`, `/policies` | 벤치마크에서 얻은 개선 후보로, 정책 탐색 피로도를 줄일 수 있다. | 추천/마감/유형별 탐색 블록과 홈 정책 레일을 제공한다. |
 | P2 | PWA service worker 1차 | app shell | 설치 메타데이터는 완료됐고, offline shell은 후속 후보로 남아 있다. | `/api/*`, auth/reset/OAuth 데이터는 캐시하지 않고 static shell/assets만 캐시한다. |
 
 ## 기존 API 재사용 후보
@@ -65,21 +66,21 @@ frontend/src/utils       share, draft storage utilities
 
 ## 권장 첫 Frontend 구현
 
-Cloudflare Tunnel full smoke가 끝난 뒤 첫 frontend-only 구현은 `Draft 복원 안내/폐기 UX`로 둔다.
+Cloudflare Tunnel full smoke가 끝난 뒤 다음 frontend-only 구현 후보는 `PWA service worker 1차 여부 결정`으로 둔다.
 
 이유:
 
 - 새 API가 필요 없다.
-- 이미 구현된 `draftStorage`를 재사용한다.
-- `/trips/new`와 장소 sheet의 실제 사용자 입력 손실 방지 경험을 개선한다.
+- 이미 PWA manifest/meta는 적용되어 있어 app shell offline 전략만 남아 있다.
+- 인증/API 데이터를 캐시하지 않는 조건을 지키면 범위를 작게 유지할 수 있다.
 - 테스트 범위가 frontend Vitest/typecheck/build로 제한된다.
 
 예상 변경:
 
-- `frontend/src/utils/draftStorage.ts`: 기존 API 유지.
-- `frontend/src/pages/ItineraryPages.tsx`: draft 복원 안내 state와 discard action 추가.
-- `frontend/src/styles/app.css`: compact notice/action 스타일 추가.
-- `frontend/src/App.test.tsx`: draft 복원 안내, 폐기, 저장 성공 후 삭제 테스트 추가.
+- service worker 등록 여부와 캐시 제외 기준 확정.
+- `/api/*`, auth/reset/OAuth route/data를 캐시하지 않는 static asset-only 캐시 구현.
+- manifest/meta와 충돌하지 않는 update 전략 문서화.
+- frontend build 산출물에서 service worker 파일 확인.
 
 검증:
 

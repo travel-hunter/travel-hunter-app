@@ -1,11 +1,24 @@
 import { Plus, Search } from "lucide-react";
 import { Link } from "react-router-dom";
-import { appDataApi } from "../api";
+import { appDataApi, type Policy } from "../api";
 import { useAsyncResource } from "../api/useAsyncResource";
 import { useSession } from "../app/session";
 import { ItineraryCard, PlaceCard, PolicyMiniCard } from "../components/cards";
 import { ErrorState, LoadingState } from "../components/ui";
 import { dday } from "../utils";
+
+function policyDeadlineTime(policy: Policy) {
+  const time = new Date(policy.deadline).getTime();
+  return Number.isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
+}
+
+function getDeadlinePolicies(policies: Policy[] | null | undefined) {
+  return [...(policies ?? [])].sort((left, right) => policyDeadlineTime(left) - policyDeadlineTime(right)).slice(0, 3);
+}
+
+function getRecommendedPolicies(policies: Policy[] | null | undefined) {
+  return [...(policies ?? [])].sort((left, right) => right.match - left.match).slice(0, 3);
+}
 
 export function HomePage() {
   const { currentUser, profile, addedPolicy } = useSession();
@@ -15,6 +28,8 @@ export function HomePage() {
   const name = currentUser?.nickname ?? previewUser.nickname;
   const featuredPolicy = policies?.[0];
   const featuredTrip = trips?.[0];
+  const deadlinePolicies = getDeadlinePolicies(policies);
+  const recommendedPolicies = getRecommendedPolicies(policies);
 
   return (
     <section className="screen with-tabs">
@@ -48,11 +63,20 @@ export function HomePage() {
         </Link>
       )}
       <div className="section-title">
-        <h3>받을 수 있는 혜택</h3>
+        <h3>마감 임박 혜택</h3>
         <Link to="/policies">전체 보기</Link>
       </div>
+      <div className="h-scroll" aria-label="마감 임박 정책 목록">
+        {deadlinePolicies.map((policy) => (
+          <PolicyMiniCard key={policy.id} policy={policy} />
+        ))}
+      </div>
+      <div className="section-title">
+        <h3>추천 혜택</h3>
+        <Link to="/policies">맞춤 정책 보기</Link>
+      </div>
       <div className="h-scroll" aria-label="추천 정책 목록">
-        {(policies ?? []).map((policy) => (
+        {recommendedPolicies.map((policy) => (
           <PolicyMiniCard key={policy.id} policy={policy} />
         ))}
       </div>

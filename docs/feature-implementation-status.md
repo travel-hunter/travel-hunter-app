@@ -38,15 +38,18 @@
 | 사용자 | 마감 알림 설정 | `/mypage` | `GET/PATCH /api/me/notification-settings` | `user_notification_settings` | backend, Vitest | Complete | 실제 발송은 별도 scheduler/provider 설정 필요 | 유지 |
 | 정책 | 정책 목록/상세 | `/policies`, `/policies/:slug` | `GET /api/policies`, `GET /api/policies/{slug}` | `policies`, `policy_documents` | backend, Vitest, e2e | Complete | 없음 | 유지 |
 | 정책 | 검색/지역/카테고리 필터 | `/policies` | client-side filtering | 없음 | Vitest, e2e | Complete | 데이터 증가 시 서버 검색 필요 가능 | 후속 확장 |
+| 정책 | 정책 탐색 바로가기 | `/home`, `/policies` | frontend grouping | 없음 | Vitest | Complete | 최근 등록 정렬은 현재 API 순서 기준이며 별도 createdAt 없음 | 데이터 증가 시 서버 추천/정렬 검토 |
+| 정책 | 조건 확인 요약/FAQ | `/policies/:slug` | frontend-generated display | 없음 | Vitest | Complete | 실제 자격 판정 엔진은 아님 | 유지 |
 | 정책 | 저장/삭제 | `/policies/:slug`, `/mypage` | `GET/POST/DELETE /api/me/saved-policies` | `user_saved_policies` | backend, Vitest, e2e | Complete | 없음 | 유지 |
 | 정책 | 정책 링크 복사 | `/policies/:slug` | Web Share API, clipboard, legacy copy | 없음 | Vitest | Complete | 외부 공유 UI는 브라우저 지원에 의존 | 유지 |
 | 플랫폼 | PWA manifest/meta | HTML shell, `manifest.webmanifest` | Vite static assets | 없음 | build 산출물 확인 | Complete | service worker/offline은 없음 | offline 전략은 후속 검토 |
-| 플랫폼 | Draft autosave 1차 | `/trips/new`, `/trips/:id` 장소 추가 sheet | frontend localStorage utility | localStorage | Vitest | Complete | 서버 동기화가 아닌 임시 입력 보호 | 2차 범위는 후속 검토 |
+| 플랫폼 | Draft autosave 1차 | `/trips/new`, `/trips/:id` 장소 추가/수정 sheet | frontend localStorage utility | localStorage | Vitest | Complete | 서버 동기화가 아닌 임시 입력 보호이며 복원 안내/버리기를 제공 | 유지 |
+| 플랫폼 | 공통 상태 UX | `/policies`, `/trips`, `/mypage` | frontend state components | 없음 | Vitest | Complete | loading/empty/error 상태에 다음 행동 CTA 제공 | 유지 |
 | 정책 | 공식/신청 URL CTA | `/policies/:slug` | `officialUrl/applyUrl` DTO | `policies.official_url/apply_url` | backend, Vitest | Complete | 실제 URL 정확도는 seed 데이터 품질에 의존 | 정책 URL 유지보수 |
 | 정책 | 필요 서류 표시 | `/policies/:slug` | static checklist row | `policy_documents` | Vitest | Complete | 없음 | 유지 |
 | 일정 | 일정 목록/생성/상세 | `/trips`, `/trips/new`, `/trips/:id` | `GET/POST/GET /api/trips` | `trips`, `trip_days`, `trip_places` | backend, Vitest, e2e | Complete | 없음 | 유지 |
 | 일정 | 일정 삭제 | `/trips` | `DELETE /api/trips/{tripId}` | cascade delete | backend, Vitest | Complete | owner 전용 삭제 | 유지 |
-| 일정 | 장소 추가/수정/삭제 | `/trips/:id` | place CRUD endpoints | `trip_places` | backend, Vitest, e2e | Complete | 지도/장소 검색 없음 | 지도 연동은 후속 |
+| 일정 | 장소 추가/수정/삭제/이동 | `/trips/:id` | place CRUD/move endpoints | `trip_places` | backend, Vitest, e2e | Complete | 지도/장소 검색 없음. 드래그 핸들, Day drop target, 이동 중 상태 제공 | 지도 연동은 후속 |
 | 일정 | 정책 담기 | `/policies/:slug` sheet | `POST /api/trips/{tripId}/policies/{slug}` | `trip_policies` | backend, Vitest, e2e | Complete | 없음 | 유지 |
 | AI 추천 | 추천 조회 | `/ai-results?tripId=...` | `GET /api/trips/{tripId}/recommendations` | `recommendations` seed/result | backend, Vitest, e2e | Complete | 실제 AI 엔진 아님 | 실제 AI는 후속 |
 | AI 추천 | 추천 항목 일정 추가 | `/ai-results` | `POST /api/trips/{tripId}/days/{day}/places` 재사용 | `trip_places` | Vitest, e2e | Complete | 추천 시간 구조화 없음 | 필요 시 recommendation schema 확장 |
@@ -83,7 +86,7 @@
 - `cd backend && python -m pytest`: 174 passed.
 - `cd backend && alembic upgrade head --sql`: passed.
 - `cd frontend && npm run typecheck`: passed.
-- `cd frontend && npm test`: 55 passed.
+- `cd frontend && npm test`: 63 passed.
 - `cd frontend && npm run build`: passed, sourcemap 미생성, PWA manifest/icon 산출물 확인.
 - `cd frontend && npm run test:e2e`: 5 passed.
 - `docker compose -f compose.yaml config`: passed.

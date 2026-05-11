@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { appDataApi, type ContactInfo, type NotificationSettings, type Policy, type Profile, type Trip } from "../api";
 import { useSession } from "../app/session";
-import { Button, Tag } from "../components/ui";
+import { Button, EmptyState, ErrorState, LoadingState, Tag } from "../components/ui";
 import { money } from "../utils";
 
 const profileOptions = appDataApi.getProfileOptions();
@@ -340,15 +340,32 @@ export function MyPage() {
                 정책 찾기
               </Link>
             </div>
-            {savedPolicyError && <div className="warning-text">{savedPolicyError}</div>}
-            {isLoadingSavedPolicies && <div className="meta">저장한 정책을 불러오는 중입니다</div>}
-            {!isLoadingSavedPolicies && savedPolicies.length === 0 && (
-              <div className="state-panel">
-                <strong>저장한 정책이 없어요</strong>
-                <p>정책 상세에서 저장을 누르면 이곳에 모아볼 수 있어요.</p>
-              </div>
+            {isLoadingSavedPolicies && <LoadingState compact label="저장한 정책을 불러오는 중입니다" />}
+            {!isLoadingSavedPolicies && savedPolicyError && (
+              <ErrorState
+                compact
+                message={savedPolicyError}
+                action={
+                  <Link className="btn line" to="/policies">
+                    정책 찾기
+                  </Link>
+                }
+              />
             )}
-            {!isLoadingSavedPolicies && savedPolicies.length > 0 && (
+            {!isLoadingSavedPolicies && !savedPolicyError && savedPolicies.length === 0 && (
+              <EmptyState
+                compact
+                eyebrow="저장 정책"
+                title="저장한 정책이 없어요"
+                body="정책 상세에서 저장을 누르면 이곳에 모아볼 수 있어요."
+                action={
+                  <Link className="btn line" to="/policies">
+                    정책 찾기
+                  </Link>
+                }
+              />
+            )}
+            {!isLoadingSavedPolicies && !savedPolicyError && savedPolicies.length > 0 && (
               <div className="list compact">
                 {savedPolicies.map((policy) => (
                   <div className="setting-row" key={policy.slug}>

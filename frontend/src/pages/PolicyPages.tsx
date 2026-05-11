@@ -1,11 +1,11 @@
 import { ChevronLeft, Heart, Search, Share2, SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { appDataApi, type Trip } from "../api";
+import { appDataApi, type Policy, type PolicyCategory, type Profile, type Trip } from "../api";
 import { useAsyncResource } from "../api/useAsyncResource";
 import { useSession } from "../app/session";
 import { PolicyListCard } from "../components/cards";
-import { Button, EmptyState, ErrorState, IconButton, LoadingState, Tag, Toast, TopBar } from "../components/ui";
+import { Button, EmptyState, ErrorState, IconButton, LinkButton, LoadingState, Tag, Toast, TopBar } from "../components/ui";
 import { dday } from "../utils";
 import { shareLinkWithFallback } from "../utils/share";
 
@@ -20,9 +20,71 @@ function policyTripErrorMessage(error: unknown): string {
 
 const allFilter = "전체";
 const categoryFilters = [allFilter, "환급", "숙박", "캐시백"] as const;
+type DiscoveryPolicyCategory = Exclude<PolicyCategory, "추천">;
+const discoveryCategoryFilters: DiscoveryPolicyCategory[] = ["환급", "숙박", "캐시백"];
 
 function normalizeSearch(value: string) {
   return value.trim().toLocaleLowerCase("ko-KR");
+}
+
+function isNationwidePolicy(region: string) {
+  return region === "전국" || region.includes("전국");
+}
+
+function isRegionAligned(policyRegion: string, profileRegion: string | null) {
+  if (isNationwidePolicy(policyRegion)) return true;
+  if (!profileRegion) return false;
+  return policyRegion === profileRegion || policyRegion.includes(profileRegion) || profileRegion.includes(policyRegion);
+}
+
+function policyDeadlineTime(policy: Policy) {
+  const time = new Date(policy.deadline).getTime();
+  return Number.isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
+}
+
+function getRecommendedPolicies(policies: Policy[]) {
+  return [...policies].sort((left, right) => right.match - left.match).slice(0, 3);
+}
+
+function getDeadlinePolicies(policies: Policy[]) {
+  return [...policies].sort((left, right) => policyDeadlineTime(left) - policyDeadlineTime(right)).slice(0, 3);
+}
+
+function getCategoryHighlights(policies: Policy[]) {
+  return discoveryCategoryFilters
+    .map((category) => ({
+      category,
+      policy: policies.filter((policy) => policy.category === category).sort((left, right) => right.match - left.match)[0],
+    }))
+    .filter((item): item is { category: DiscoveryPolicyCategory; policy: Policy } => Boolean(item.policy));
+}
+
+function buildPolicyFaqs(policy: Policy) {
+  const requirements = policy.requirements.length > 0 ? policy.requirements.join(", ") : "공식 안내의 신청 대상 조건";
+  const documents = policy.documents.length > 0 ? policy.documents.join(", ") : "공식 안내에서 요구하는 제출 서류";
+
+  return [
+    {
+      id: "target",
+      question: "누가 신청할 수 있나요?",
+      answer: `${requirements} 조건을 먼저 확인해 주세요. 실제 신청 가능 여부는 공식 안내에서 최종 확인이 필요해요.`,
+    },
+    {
+      id: "deadline",
+      question: "언제까지 신청해야 하나요?",
+      answer: `신청 마감일은 ${policy.deadline}이고 현재 기준 ${dday(policy.deadline)} 상태입니다. 마감 전 예산 소진 여부도 함께 확인해 주세요.`,
+    },
+    {
+      id: "documents",
+      question: "어떤 서류가 필요한가요?",
+      answer: `${documents} 준비가 필요할 수 있어요. 정책별 접수처에서 원본, 사본, 파일 형식을 다시 확인해 주세요.`,
+    },
+    {
+      id: "trip",
+      question: "일정에 담으면 무엇이 좋아지나요?",
+      answer: "여행 일정에서 연결된 혜택과 예상 절감액을 함께 확인하고, 마감 알림 기준으로 다시 챙길 수 있어요.",
+    },
+  ];
 }
 
 export function PolicyListPage() {
@@ -103,12 +165,23 @@ export function PolicyListPage() {
         )}
       </div>
       {isLoading && <LoadingState label="정책을 불러오는 중입니다" />}
-      {error && <ErrorState message={error} />}
+      {error && <ErrorState message={error} action={<LinkButton to="/home" variant="line">홈으로 가기</LinkButton>} />}
+      {!isLoading && !error && policies && policies.length > 0 && !hasActiveFilters && (
+        <PolicyDiscoveryBlocks
+          onSelectCategory={(category) => {
+            setSelectedCategory(category);
+            setQuery("");
+            setSelectedRegion(allFilter);
+          }}
+          policies={policies}
+        />
+      )}
       {!isLoading && !error && visiblePolicies.length === 0 && (
         <EmptyState
+          eyebrow="정책 탐색"
           title={hasActiveFilters ? "검색 조건에 맞는 정책이 없어요" : "등록된 정책이 아직 없어요"}
           body={hasActiveFilters ? "검색어를 줄이거나 지역과 카테고리를 다시 선택해보세요." : "새로운 여행 혜택이 등록되면 이곳에서 확인할 수 있어요."}
-          action={<Button onClick={resetFilters}>전체 보기</Button>}
+          action={hasActiveFilters ? <Button onClick={resetFilters}>전체 보기</Button> : <LinkButton to="/home" variant="line">홈으로 가기</LinkButton>}
         />
       )}
       {!isLoading && !error && visiblePolicies.length > 0 && (
@@ -125,10 +198,72 @@ export function PolicyListPage() {
   );
 }
 
+function PolicyPreviewList({ policies }: { policies: Policy[] }) {
+  return (
+    <div className="policy-preview-list">
+      {policies.map((policy) => (
+        <Link className="policy-preview-row" key={policy.id} to={`/policies/${policy.slug}`}>
+          <div>
+            <strong>{policy.title}</strong>
+            <span className="meta">
+              {policy.region} · {policy.amount}
+            </span>
+          </div>
+          <Tag tone="warning">{dday(policy.deadline)}</Tag>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function PolicyDiscoveryBlocks({ policies, onSelectCategory }: { policies: Policy[]; onSelectCategory: (category: DiscoveryPolicyCategory) => void }) {
+  const recommendedPolicies = getRecommendedPolicies(policies);
+  const deadlinePolicies = getDeadlinePolicies(policies);
+  const categoryHighlights = getCategoryHighlights(policies);
+
+  return (
+    <section className="policy-discovery" aria-labelledby="policy-discovery-title">
+      <div className="section-title-row">
+        <div>
+          <p className="state-eyebrow">빠른 탐색</p>
+          <h3 id="policy-discovery-title">정책 탐색 바로가기</h3>
+        </div>
+        <span className="meta">추천, 마감, 유형별로 먼저 살펴보세요</span>
+      </div>
+      <div className="policy-discovery-grid">
+        <article className="policy-discovery-panel">
+          <Tag tone="primary">추천</Tag>
+          <h4>매칭 높은 정책</h4>
+          <PolicyPreviewList policies={recommendedPolicies} />
+        </article>
+        <article className="policy-discovery-panel">
+          <Tag tone="warning">마감</Tag>
+          <h4>마감 임박</h4>
+          <PolicyPreviewList policies={deadlinePolicies} />
+        </article>
+        <article className="policy-discovery-panel">
+          <Tag tone="gray">유형</Tag>
+          <h4>혜택 유형별 보기</h4>
+          <div className="policy-category-grid">
+            {categoryHighlights.map(({ category, policy }) => (
+              <button className="policy-category-button" key={category} onClick={() => onSelectCategory(category)} type="button">
+                <span>{category} 모아보기</span>
+                <small>
+                  {policy.title} · 매칭 {policy.match}%
+                </small>
+              </button>
+            ))}
+          </div>
+        </article>
+      </div>
+    </section>
+  );
+}
+
 export function PolicyDetailPage() {
   const { policyId } = useParams();
   const navigate = useNavigate();
-  const { addedPolicy, addPolicy, likedPolicy, togglePolicyLike } = useSession();
+  const { addedPolicy, addPolicy, likedPolicy, profile, togglePolicyLike } = useSession();
   const { data: policy, error, isLoading } = useAsyncResource(() => appDataApi.getPolicy(policyId), [policyId]);
   const [notice, setNotice] = useState<string | null>(null);
   const [sheetStatus, setSheetStatus] = useState<TripSheetStatus>("closed");
@@ -226,7 +361,7 @@ export function PolicyDetailPage() {
     return (
       <section className="screen detail">
         <div className="detail-body">
-          <ErrorState message={error ?? "정책 정보를 찾지 못했어요."} />
+          <ErrorState message={error ?? "정책 정보를 찾지 못했어요."} action={<LinkButton to="/policies" variant="line">정책 목록으로</LinkButton>} />
         </div>
       </section>
     );
@@ -275,6 +410,7 @@ export function PolicyDetailPage() {
           <div>2026.05.01 - 2026.10.31</div>
           <div className="warning-text">{dday(policy.deadline)} · 서둘러 신청하세요</div>
         </section>
+        <PolicyFitSummary policy={policy} profile={profile} />
         <section className="section-block">
           <h3>신청 대상</h3>
           <ul className="bullet-list">
@@ -309,6 +445,7 @@ export function PolicyDetailPage() {
             </Button>
           )}
         </section>
+        <PolicyFaqAccordion policy={policy} />
         {notice && <Toast>{notice}</Toast>}
       </div>
       <div className="sticky-cta">
@@ -333,6 +470,84 @@ export function PolicyDetailPage() {
         status={sheetStatus}
         trips={trips}
       />
+    </section>
+  );
+}
+
+function PolicyFitSummary({ policy, profile }: { policy: Policy; profile: Profile }) {
+  const profileRegion = profile.region || null;
+  const regionAligned = isRegionAligned(policy.region, profileRegion);
+  const requirementPreview = policy.requirements.slice(0, 3);
+  const documentPreview = policy.documents.slice(0, 2);
+
+  return (
+    <section className="section-block policy-fit-summary" aria-labelledby="policy-fit-title">
+      <div className="section-title-row">
+        <h3 id="policy-fit-title">조건 확인 요약</h3>
+        <Tag tone="warning">신청 전 확인해 주세요</Tag>
+      </div>
+      <p className="meta">내 정보와 정책 조건을 빠르게 대조해요. 실제 신청 가능 여부는 공식 안내에서 최종 확인이 필요해요.</p>
+      <div className="policy-fit-grid">
+        <article className={regionAligned ? "policy-fit-card aligned" : "policy-fit-card warning"}>
+          <Tag tone={regionAligned ? "primary" : "warning"}>지역</Tag>
+          <strong>{regionAligned ? "지역 조건 일치" : "지역 조건 확인 필요"}</strong>
+          <span className="meta">
+            {regionAligned
+              ? `${profileRegion ?? "내 관심 지역"} 기준으로 ${policy.region} 정책 범위와 맞습니다.`
+              : `내 관심 지역은 ${profileRegion ?? "미설정"}, 정책 지역은 ${policy.region}입니다.`}
+          </span>
+        </article>
+        <article className="policy-fit-card">
+          <Tag tone="gray">대상</Tag>
+          <strong>핵심 조건 {policy.requirements.length}개</strong>
+          <ul>
+            {requirementPreview.map((requirement) => (
+              <li key={requirement}>{requirement}</li>
+            ))}
+          </ul>
+        </article>
+        <article className="policy-fit-card">
+          <Tag tone={policy.documents.length > 0 ? "warning" : "gray"}>서류</Tag>
+          <strong>{policy.documents.length > 0 ? "서류 준비 필요" : "서류 확인 필요"}</strong>
+          <span className="meta">{documentPreview.length > 0 ? documentPreview.join(", ") : "공식 안내에서 제출 서류를 확인해 주세요."}</span>
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function PolicyFaqAccordion({ policy }: { policy: Policy }) {
+  const [openFaqId, setOpenFaqId] = useState<string | null>(null);
+  const faqItems = buildPolicyFaqs(policy);
+
+  return (
+    <section className="section-block faq-accordion" aria-labelledby="policy-faq-title">
+      <h3 id="policy-faq-title">자주 묻는 질문</h3>
+      <div className="faq-list">
+        {faqItems.map((item) => {
+          const isOpen = openFaqId === item.id;
+          const panelId = `policy-faq-${item.id}`;
+          return (
+            <div className="faq-item" key={item.id}>
+              <button
+                aria-controls={panelId}
+                aria-expanded={isOpen}
+                className="faq-question"
+                onClick={() => setOpenFaqId(isOpen ? null : item.id)}
+                type="button"
+              >
+                <span>{item.question}</span>
+                <span aria-hidden="true">{isOpen ? "−" : "+"}</span>
+              </button>
+              {isOpen && (
+                <p className="faq-answer" id={panelId}>
+                  {item.answer}
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </section>
   );
 }
