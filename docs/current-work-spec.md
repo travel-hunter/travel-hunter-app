@@ -4,9 +4,9 @@
 
 Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저장, 초대 협업, 마감 알림 기반을 제공하는 DB-backed-only MVP다. Runtime mock mode는 제거됐고, frontend는 항상 FastAPI backend를 호출한다.
 
-- 기준: 커밋 `c856a06`(fix: allow tunnel and staging preview hosts) 기준 스냅샷.
-- 브랜치 상태: `feat/prototype-to-react`, `origin/feat/prototype-to-react` 대비 `ahead 2`이며 이번 분석 시작 시 tracked worktree는 clean 상태였다.
-- 최근 변경으로 일단체크인 벤치마크 분석, production sourcemap 비공개 명시, PWA manifest/meta 1차 적용, 프로젝트 구조 audit 문서화, Web Share API 공유 fallback, Codex 모델 실행 스크립트 호환성 수정, tunnel/staging preview host allowlist 보정을 완료했다.
+- 기준: 커밋 `a927ac4`(docs: analyze prototype UX flow) 이후 현재 worktree의 프로토타입 기반 frontend UX 개편까지 포함한 스냅샷.
+- 브랜치 상태: `feat/prototype-to-react`, `origin/feat/prototype-to-react` 대비 `ahead 6`이며 현재 frontend UX 개편 변경분이 커밋 전 상태로 남아 있다.
+- 최근 변경으로 일단체크인 벤치마크 분석, 업로드 HTML 프로토타입 UX 분석, production sourcemap 비공개 명시, PWA manifest/meta 1차 적용, 프로젝트 구조 audit 문서화, Web Share API 공유 fallback, Codex 모델 실행 스크립트 호환성 수정, tunnel/staging preview host allowlist 보정, 프로토타입 기반 frontend UX 개편을 완료했다.
 - 같은 네트워크에서 개발 서버를 공유하는 LAN runbook은 `docs/local-lan-access.md`에 정리했다.
 - Password reset SMTP smoke runbook은 `docs/password-reset-smtp-smoke.md`에 정리했다. Local SMTP capture 기반 E2E는 통과했고, 실제 SMTP provider와 public HTTPS staging domain 기반 smoke는 아직 입력값 대기 상태다.
 - 구현 기능명세서는 `docs/implemented-feature-spec.md`에 정리했다.
@@ -20,6 +20,7 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 - Profile: onboarding, mypage profile edit, notification contact 저장.
 - Policies: 목록, 상세, 검색/필터, 정책 탐색 바로가기(추천/마감/유형), 조건 확인 요약/FAQ, 저장/삭제, official/apply URL CTA, 정책 링크 복사, Web Share API 공유 fallback.
 - Trips: 목록, 생성, 상세, 삭제, 정책 담기, 일정 확정 상태 저장, 장소 추가/수정/삭제, 장소 드래그앤드롭 순서/날짜 이동과 이동 affordance.
+- Frontend UX: HTML 프로토타입의 모바일 앱형 흐름을 현재 React 앱에 반영했다. 하단 탭/desktop header는 유지하고, 홈 대표 혜택 hero, 정책 카드/태그, 정책 상세 혜택 패키지, 일정 상세 혜택 묶음, 공통 배경/카드 톤을 프로토타입 기준으로 정리했다.
 - Draft autosave: `/trips/new` 일정 생성 draft와 `/trips/:id` 장소 추가/수정 draft를 24시간 localStorage에 임시 저장하고, 복원 시 안내와 버리기 액션을 제공한다.
 - State UX: `/policies`, `/trips`, `/mypage`의 loading/empty/error 상태에 공통 상태 패널과 다음 행동 CTA를 적용했다.
 - AI recommendations: 추천 결과를 실제 `trip_places`에 추가, 추천 기준 sheet.
@@ -83,6 +84,8 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 - Local SMTP capture password reset E2E: passed. Reset email 수신, token confirm, 기존 비밀번호 실패, 새 비밀번호 로그인 성공을 확인했다.
 - OAuth local/preflight: passed. 미설정 env의 503, state mismatch 400, dummy provider env의 authorization redirect/state cookie 흐름을 확인했다.
 - Cloudflare Quick Tunnel: frontend preview `/login` 200 확인. `vite preview` host allowlist 보정 후 `.trycloudflare.com` 요청이 통과한다.
+- Prototype UX refresh verification(2026-05-13): `cd frontend && npm run typecheck` passed, `cd frontend && npm run build` passed, `git diff --check` passed.
+- Prototype UX refresh test note: `cd frontend && npm test`는 Docker Desktop 미실행으로 Docker API 연결 단계에서 중단됐다. 직접 `npx vitest run`은 backend test wrapper/env를 거치지 않아 로그인 API가 실제 `127.0.0.1:8000`으로 나가므로 이번 변경의 유효한 회귀 결과로 보지 않는다.
 
 ## 미구현/조건부 범위
 
@@ -100,4 +103,4 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 ## 다음 작업
 
 다음 기능 우선순위는 `docs/next-work-plan.md`를 따른다.
-현재 진행 순서는 `deploy/.env.tunnel 실제값 확보 및 Cloudflare Tunnel full-up -> 외부 HTTPS 핵심 smoke -> 실제 SMTP provider password reset staging smoke -> Kakao/Google OAuth provider console smoke -> Phone OTP 설계/구현 -> PWA service worker 1차 구현 여부 결정`이다.
+현재 진행 순서는 `프로토타입 기반 frontend UX 개편 변경분 커밋 -> deploy/.env.tunnel 실제값 확보 및 Cloudflare Tunnel full-up -> 외부 HTTPS 핵심 smoke -> 실제 SMTP provider password reset staging smoke -> Kakao/Google OAuth provider console smoke -> Phone OTP 설계/구현 -> PWA service worker 1차 구현 여부 결정`이다.

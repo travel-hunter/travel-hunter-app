@@ -40,6 +40,7 @@
 | 공식/신청 URL | `applyUrl` 우선, 없으면 `officialUrl`, 둘 다 없으면 준비 안내를 표시한다. | `policies.apply_url`, `policies.official_url` |
 | 공유 | Web Share API, clipboard, legacy copy 순서로 현재 정책 URL을 공유한다. | frontend utility |
 | 일정 담기 | 정책 상세 sheet에서 일정을 선택해 정책을 담는다. | `POST /api/trips/{tripId}/policies/{policySlug}` |
+| 혜택 패키지 요약 | 정책 상세에서 대표 지원, 교통 혜택 후보, 지역 할인 후보를 한 화면에 묶어 보여준다. 확정 자격 판정이 아니라 공식 확인 전 안내 UI로 제공한다. | frontend display |
 
 ## 일정
 
@@ -85,6 +86,7 @@
 | 기능 | 설명 |
 |---|---|
 | 공통 상태 UX | `/policies`, `/trips`, `/mypage`의 loading/empty/error 상태는 공통 상태 패널과 다음 행동 CTA를 사용한다. |
+| 프로토타입 기반 앱 UX | 업로드 HTML 프로토타입의 모바일 앱형 흐름을 현재 React 화면에 반영했다. 홈 대표 혜택 hero, 정책 카드/태그, 정책 상세 혜택 패키지, 일정 상세 혜택 묶음, 공통 배경/카드 톤을 정리하되 실제 DB-backed 기능은 유지한다. |
 | PWA manifest/meta | 앱 이름, theme color, Apple mobile meta, 192/512/maskable icon을 제공한다. Service worker는 아직 추가하지 않는다. |
 | Production sourcemap | Vite production sourcemap은 명시적으로 비활성화되어 있다. |
 | LAN 개발 공유 | 같은 네트워크에서 `0.0.0.0` dev server와 LAN IP로 접근하는 절차를 문서화했다. |

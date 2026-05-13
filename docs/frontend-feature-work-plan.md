@@ -2,8 +2,8 @@
 
 ## 기준
 
-- 기준 커밋: `6c24a7d docs: update current work status and priorities`.
-- 현재 브랜치: `feat/prototype-to-react`, `origin/feat/prototype-to-react` 대비 `ahead 3`.
+- 기준 커밋: `a927ac4 docs: analyze prototype UX flow` 이후 현재 worktree의 프로토타입 기반 frontend UX 개편까지 포함한다.
+- 현재 브랜치: `feat/prototype-to-react`, `origin/feat/prototype-to-react` 대비 `ahead 6`.
 - 목적: 배포 smoke 이후 이어서 진행할 frontend 기능 추가 후보를 정리한다.
 - API, DB schema, route 구조는 이 문서 작성 단계에서 변경하지 않는다.
 - `frontend/src/pages`의 현재 기능군 단위 파일 구조는 유지한다.
@@ -44,6 +44,7 @@ frontend/src/utils       share, draft storage utilities
 | Done | 일정 상세 DnD affordance 보강 | `/trips/:id` | 드래그앤드롭 기능은 있으나 모바일 사용자가 드래그 가능성을 더 쉽게 알아야 한다. | 드래그 핸들, 드롭 가능 Day 탭, 이동 중 상태가 명확히 보인다. |
 | Done | Loading/empty/error state 통일 | `/policies`, `/trips`, `/mypage` | 데이터 로딩과 빈 상태 표현이 화면별로 다를 수 있다. | 공통 empty/error 패턴을 적용하고 주요 CTA를 함께 제공한다. |
 | Done | 정책 목록 카테고리 인터리빙 | `/home`, `/policies` | 벤치마크에서 얻은 개선 후보로, 정책 탐색 피로도를 줄일 수 있다. | 추천/마감/유형별 탐색 블록과 홈 정책 레일을 제공한다. |
+| Done | 프로토타입 기반 앱 UX 개편 | `/home`, `/policies/:slug`, `/trips/:id`, app shell | 업로드 HTML 프로토타입의 모바일 앱형 흐름을 실제 DB-backed React 앱에 반영한다. | 홈 대표 혜택 hero, 정책 상세 혜택 패키지, 일정 상세 혜택 묶음, 공통 카드/태그 톤을 적용하고 기존 기능을 유지한다. |
 | P2 | PWA service worker 1차 | app shell | 설치 메타데이터는 완료됐고, offline shell은 후속 후보로 남아 있다. | `/api/*`, auth/reset/OAuth 데이터는 캐시하지 않고 static shell/assets만 캐시한다. |
 
 ## 기존 API 재사용 후보
@@ -66,7 +67,7 @@ frontend/src/utils       share, draft storage utilities
 
 ## 권장 첫 Frontend 구현
 
-Cloudflare Tunnel full smoke가 끝난 뒤 다음 frontend-only 구현 후보는 `PWA service worker 1차 여부 결정`으로 둔다.
+프로토타입 기반 frontend UX 개편 변경분을 커밋한 뒤 다음 frontend-only 구현 후보는 `PWA service worker 1차 여부 결정`으로 둔다. 단, 정식 Cloudflare Tunnel full smoke와 visual QA가 끝나기 전에는 service worker를 추가하지 않는다.
 
 이유:
 

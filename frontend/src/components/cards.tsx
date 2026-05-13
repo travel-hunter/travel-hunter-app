@@ -1,4 +1,4 @@
-﻿import { ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Policy, Trip } from "../api/types";
@@ -9,10 +9,13 @@ export function PolicyMiniCard({ policy }: { policy: Policy }) {
   return (
     <Link className="policy-mini card" to={`/policies/${policy.slug}`}>
       <div className="visual-tile">{policy.label}</div>
-      <Tag>{policy.tag}</Tag>
+      <div className="policy-mini-top">
+        <Tag>{policy.tag}</Tag>
+        <Tag tone="warning">{dday(policy.deadline)}</Tag>
+      </div>
       <h4>{policy.title}</h4>
       <div className="meta">
-        {policy.region} 쨌 {dday(policy.deadline)} 쨌 留ㅼ묶 {policy.match}%
+        {policy.region} · 매칭 {policy.match}%
       </div>
     </Link>
   );
@@ -30,7 +33,7 @@ export function PolicyListCard({ policy }: { policy: Policy }) {
           </div>
           <h3>{policy.title}</h3>
           <div className="meta">
-            {policy.org} 쨌 {policy.region} 쨌 留ㅼ묶 {policy.match}%
+            {policy.org} · {policy.region} · 매칭 {policy.match}%
           </div>
         </div>
       </div>
@@ -71,7 +74,7 @@ export function ItineraryCard({
 
   return (
     <article className="itinerary-card card">
-      <Link className="map-thumb" to={detailPath} aria-label={`${trip.title} ?곸꽭 蹂닿린`} />
+      <Link className="map-thumb" to={detailPath} aria-label={`${trip.title} 상세 보기`} />
       <div className="itinerary-body">
         <div className="itinerary-head">
           <Link className="itinerary-title-link" to={detailPath}>
@@ -79,7 +82,7 @@ export function ItineraryCard({
           </Link>
           <div className="itinerary-actions">
             <Tag tone={trip.status === "confirmed" ? "primary" : "warning"}>{trip.status === "confirmed" ? "\uD655\uC815\uB428" : "\uC791\uC131 \uC911"}</Tag>
-            <Tag tone="warning">?덉긽 ?덇컧 {trip.expectedSaving}</Tag>
+            <Tag tone="warning">예상 절감 {trip.expectedSaving}</Tag>
             {onDelete && (
               <button className="trip-delete-btn" disabled={isDeleting} onClick={() => onDelete(trip)} type="button">
                 {isDeleting ? "\uC0AD\uC81C \uC911" : "\uC0AD\uC81C"}
@@ -89,7 +92,7 @@ export function ItineraryCard({
         </div>
         <Link to={detailPath}>
           <div className="meta">
-            {trip.people.length} people · policy {addedPolicy ? "connected" : "2 candidates"}
+            {trip.people.length}명 참여 · {addedPolicy ? "정책 연결됨" : "정책 후보 2건"}
           </div>
         </Link>
         {canConfirm && (
@@ -105,7 +108,7 @@ export function ItineraryCard({
           </div>
         )}
       </div>
-      <Link className="card-arrow" to={detailPath} aria-label={`${trip.title} ?곸꽭 蹂닿린`}>
+      <Link className="card-arrow" to={detailPath} aria-label={`${trip.title} 상세 보기`}>
         <ChevronRight size={18} />
       </Link>
     </article>

@@ -3,7 +3,7 @@
 ## 기준
 
 - 기준 브랜치: `feat/prototype-to-react`.
-- 기준 범위: 최신 커밋 `c856a06 fix: allow tunnel and staging preview hosts`까지 포함한다.
+- 기준 범위: 최신 커밋 `a927ac4 docs: analyze prototype UX flow` 이후 현재 worktree의 프로토타입 기반 frontend UX 개편까지 포함한다.
 - 실행 모드: DB-backed-only. Runtime mock mode는 제거된 상태다.
 - 공식 요구사항 문서: `docs/requirements.md`.
 - 분류 기준:
@@ -16,7 +16,7 @@
 
 ## 전체 요약
 
-현재 MVP의 핵심 사용자 흐름은 대부분 `Complete`다. 회원가입/로그인, 프로필, 정책 탐색/저장, 일정 생성/삭제/편집, 정책 담기, AI 추천 결과 일정 추가, 초대 수락/권한, 마이페이지 알림 설정은 프론트 UI에서 백엔드 API와 PostgreSQL 저장까지 연결되어 있다.
+현재 MVP의 핵심 사용자 흐름은 대부분 `Complete`다. 회원가입/로그인, 프로필, 정책 탐색/저장, 일정 생성/삭제/편집, 정책 담기, AI 추천 결과 일정 추가, 초대 수락/권한, 마이페이지 알림 설정은 프론트 UI에서 백엔드 API와 PostgreSQL 저장까지 연결되어 있다. 프론트는 업로드 HTML 프로토타입의 모바일 앱형 흐름을 반영해 홈, 정책 상세, 일정 상세의 혜택 탐색 구조를 강화했다.
 
 외부 서비스가 필요한 기능은 `Conditional`이다. 비밀번호 재설정은 local SMTP capture E2E까지 통과했지만 실제 staging email 발송에는 SMTP provider와 HTTPS domain이 필요하다. Kakao/Google OAuth는 local preflight를 통과했지만 provider client id/secret/redirect URI가 있어야 실제 로그인이 가능하다. SOLAPI 알림톡도 SOLAPI/Kakao 채널/템플릿 env가 있어야 실제 발송된다. Cloudflare Tunnel은 Quick Tunnel `/login` 200까지 확인했고, named tunnel full-up은 실제 token/env 값이 필요하다.
 
@@ -40,11 +40,13 @@
 | 정책 | 검색/지역/카테고리 필터 | `/policies` | client-side filtering | 없음 | Vitest, e2e | Complete | 데이터 증가 시 서버 검색 필요 가능 | 후속 확장 |
 | 정책 | 정책 탐색 바로가기 | `/home`, `/policies` | frontend grouping | 없음 | Vitest | Complete | 최근 등록 정렬은 현재 API 순서 기준이며 별도 createdAt 없음 | 데이터 증가 시 서버 추천/정렬 검토 |
 | 정책 | 조건 확인 요약/FAQ | `/policies/:slug` | frontend-generated display | 없음 | Vitest | Complete | 실제 자격 판정 엔진은 아님 | 유지 |
+| 정책 | 혜택 패키지 요약 | `/policies/:slug`, `/trips/:id` | frontend-generated display | 없음 | typecheck/build | Complete | 교통/지역 할인은 후보 안내이며 실제 패키지 계산 엔진은 아님 | 지역사랑/교통/지역 할인 데이터 모델은 별도 계획 |
 | 정책 | 저장/삭제 | `/policies/:slug`, `/mypage` | `GET/POST/DELETE /api/me/saved-policies` | `user_saved_policies` | backend, Vitest, e2e | Complete | 없음 | 유지 |
 | 정책 | 정책 링크 복사 | `/policies/:slug` | Web Share API, clipboard, legacy copy | 없음 | Vitest | Complete | 외부 공유 UI는 브라우저 지원에 의존 | 유지 |
 | 플랫폼 | PWA manifest/meta | HTML shell, `manifest.webmanifest` | Vite static assets | 없음 | build 산출물 확인 | Complete | service worker/offline은 없음 | offline 전략은 후속 검토 |
 | 플랫폼 | Draft autosave 1차 | `/trips/new`, `/trips/:id` 장소 추가/수정 sheet | frontend localStorage utility | localStorage | Vitest | Complete | 서버 동기화가 아닌 임시 입력 보호이며 복원 안내/버리기를 제공 | 유지 |
 | 플랫폼 | 공통 상태 UX | `/policies`, `/trips`, `/mypage` | frontend state components | 없음 | Vitest | Complete | loading/empty/error 상태에 다음 행동 CTA 제공 | 유지 |
+| 플랫폼 | 프로토타입 기반 앱 UX | `/home`, `/policies/:slug`, `/trips/:id`, app shell | frontend layout/styles | 없음 | typecheck/build | Complete | 390/1024/1440 수동 시각 QA는 후속 확인 필요 | smoke 환경에서 visual QA |
 | 정책 | 공식/신청 URL CTA | `/policies/:slug` | `officialUrl/applyUrl` DTO | `policies.official_url/apply_url` | backend, Vitest | Complete | 실제 URL 정확도는 seed 데이터 품질에 의존 | 정책 URL 유지보수 |
 | 정책 | 필요 서류 표시 | `/policies/:slug` | static checklist row | `policy_documents` | Vitest | Complete | 없음 | 유지 |
 | 일정 | 일정 목록/생성/상세 | `/trips`, `/trips/new`, `/trips/:id` | `GET/POST/GET /api/trips` | `trips`, `trip_days`, `trip_places` | backend, Vitest, e2e | Complete | 없음 | 유지 |
@@ -96,12 +98,14 @@
 - Local SMTP capture password reset E2E: passed.
 - OAuth local/preflight: passed.
 - Cloudflare Quick Tunnel frontend `/login`: 200 after preview host allowlist fix.
+- Prototype UX refresh(2026-05-13): frontend typecheck/build passed and `git diff --check` passed. Docker Desktop 미실행으로 Docker 기반 `npm test`는 이번 실행에서 완료하지 못했다.
 
 ## 다음 기능 우선순위
 
-1. `deploy/.env.tunnel` 실제값 확보 + Cloudflare Tunnel full-up.
-2. 외부 HTTPS URL 기준 `/api/health`, `/login`, `/policies`, `/trips` 핵심 smoke.
-3. 실제 SMTP provider password reset staging smoke.
-4. Kakao/Google OAuth provider console smoke.
-5. 전화번호 OTP 설계/구현.
-6. PWA service worker 1차 구현 여부 결정.
+1. 프로토타입 기반 frontend UX 개편 변경분 커밋.
+2. `deploy/.env.tunnel` 실제값 확보 + Cloudflare Tunnel full-up.
+3. 외부 HTTPS URL 기준 `/api/health`, `/login`, `/policies`, `/trips` 핵심 smoke와 visual QA.
+4. 실제 SMTP provider password reset staging smoke.
+5. Kakao/Google OAuth provider console smoke.
+6. 전화번호 OTP 설계/구현.
+7. PWA service worker 1차 구현 여부 결정.

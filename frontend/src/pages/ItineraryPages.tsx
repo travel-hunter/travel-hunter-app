@@ -776,6 +776,23 @@ export function ItineraryDetailPage() {
         <strong>{addedPolicy ? "지역사랑 휴가지원이 연결되었어요" : "받을 수 있는 혜택 2건"}</strong>
         <div className="meta">최대 30만원 절감 가능 · 정책 상세 보기</div>
       </Link>
+      <section className="trip-benefit-grid" aria-label="이 일정에서 챙길 혜택">
+        <article>
+          <span>대표 지원</span>
+          <strong>지역사랑 휴가지원</strong>
+          <p>여행 전 신청과 여행 후 인증을 챙겨야 해요.</p>
+        </article>
+        <article>
+          <span>교통</span>
+          <strong>이동수단 할인 후보</strong>
+          <p>기차·항공 이동이 정해지면 함께 확인해요.</p>
+        </article>
+        <article>
+          <span>지역 할인</span>
+          <strong>방문지 주변 혜택</strong>
+          <p>장소를 추가하면 지역 할인 후보를 더 잘 볼 수 있어요.</p>
+        </article>
+      </section>
       <div className="map-large" aria-label="제주 일정 지도">
         <div className="marker one" />
         <div className="marker two" />

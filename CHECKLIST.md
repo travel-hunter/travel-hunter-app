@@ -40,6 +40,8 @@
 - [x] PWA manifest/meta and app icons are provided.
 - [x] PWA service worker/offline caching strategy is documented without enabling runtime caching.
 - [x] Project structure audit is documented in `docs/project-structure-audit.md`.
+- [x] Prototype UX flow analysis is documented in `docs/prototype-ux-flow-analysis.md`.
+- [x] Prototype-based frontend UX refresh is applied to the app shell, home, policy detail, and trip detail without changing API/DB routes.
 - [x] Signup now uses email/password plus email availability check, then `/nickname-setup`.
 - [x] Nickname setup supports server-generated temporary nicknames and dice-button suggestions.
 - [x] Codex model split workflow is documented and scripted for planning `gpt-5.5/xhigh` and implementation `gpt-5.3-codex/high`.
@@ -64,6 +66,8 @@
 - VPS compose config: passed.
 - Tunnel compose config: passed.
 - Password reset local preflight: unknown email returns `requested=true`; existing email without SMTP env fails with `503`.
+- Prototype frontend UX refresh(2026-05-13): frontend typecheck/build passed and `git diff --check` passed.
+- Prototype frontend UX refresh test note: Docker Desktop was not running, so Docker-backed frontend `npm test` could not complete in this pass.
 
 ## 다음 우선순위
 
@@ -77,7 +81,7 @@
 - [x] Implement password reset and social login OAuth entry points.
 - [x] Document password reset SMTP smoke runbook and local preflight.
 - [x] Implement draft autosave for trip creation, add-place, and edit-place forms.
-- [ ] Commit and push the current signup/nickname plus Codex workflow changes.
+- [ ] Commit and push the current prototype-based frontend UX refresh.
 - [ ] Verify SMTP delivery in staging.
 - [ ] Verify OAuth provider credentials in staging.
 - [ ] Resume Cloudflare Tunnel staging deployment when the feature pass pauses.

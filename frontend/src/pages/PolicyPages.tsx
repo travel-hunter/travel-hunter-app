@@ -411,6 +411,7 @@ export function PolicyDetailPage() {
           <div className="warning-text">{dday(policy.deadline)} · 서둘러 신청하세요</div>
         </section>
         <PolicyFitSummary policy={policy} profile={profile} />
+        <BenefitBundlePreview policy={policy} />
         <section className="section-block">
           <h3>신청 대상</h3>
           <ul className="bullet-list">
@@ -510,6 +511,38 @@ function PolicyFitSummary({ policy, profile }: { policy: Policy; profile: Profil
           <Tag tone={policy.documents.length > 0 ? "warning" : "gray"}>서류</Tag>
           <strong>{policy.documents.length > 0 ? "서류 준비 필요" : "서류 확인 필요"}</strong>
           <span className="meta">{documentPreview.length > 0 ? documentPreview.join(", ") : "공식 안내에서 제출 서류를 확인해 주세요."}</span>
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function BenefitBundlePreview({ policy }: { policy: Policy }) {
+  return (
+    <section className="section-block benefit-package" aria-labelledby="benefit-package-title">
+      <div className="section-title-row">
+        <div>
+          <p className="state-eyebrow">여행 혜택 패키지</p>
+          <h3 id="benefit-package-title">이 정책과 함께 확인할 혜택</h3>
+        </div>
+        <Tag tone="gray">공식 확인 필요</Tag>
+      </div>
+      <p className="meta">이 정책을 일정에 담으면 대표 지원, 교통, 지역 할인 후보를 한 화면에서 함께 확인할 수 있어요.</p>
+      <div className="benefit-package-grid">
+        <article className="benefit-package-card primary">
+          <span>대표 지원</span>
+          <strong>{policy.title}</strong>
+          <p>{policy.amount} · 여행 전 신청과 조건 확인이 필요해요.</p>
+        </article>
+        <article className="benefit-package-card">
+          <span>교통 혜택</span>
+          <strong>기차·항공 이동 혜택 후보</strong>
+          <p>이동수단이 정해지면 교통 할인이나 포인트 적립 가능성을 확인해요.</p>
+        </article>
+        <article className="benefit-package-card">
+          <span>지역 할인</span>
+          <strong>{policy.region} 주변 할인 후보</strong>
+          <p>입장료, 체험, 숙박, 지역 투어 할인은 공식 페이지에서 최종 확인해요.</p>
         </article>
       </div>
     </section>

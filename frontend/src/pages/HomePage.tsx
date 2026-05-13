@@ -1,4 +1,4 @@
-import { Plus, Search } from "lucide-react";
+import { CalendarDays, Plus, Search, Sparkles, WalletCards } from "lucide-react";
 import { Link } from "react-router-dom";
 import { appDataApi, type Policy } from "../api";
 import { useAsyncResource } from "../api/useAsyncResource";
@@ -36,22 +36,23 @@ export function HomePage() {
       <div className="top-search">
         <Link className="search-pill" to="/policies">
           <Search size={18} />
-          지역, 혜택, 일정 검색
+          어디로 떠날지 정하고 받을 혜택 찾기
         </Link>
         <Link className="avatar" to="/mypage">
           {name[0]}
         </Link>
       </div>
       <div className="greeting">
-        <h2>어디로 떠나볼까요, {name}님</h2>
-        <p>여행에서 받을 수 있는 혜택을 먼저 확인해보세요.</p>
+        <div className="eyebrow">Travel Hunter</div>
+        <h2>{name}님, 이번 여행에서 챙길 수 있는 혜택을 먼저 볼까요?</h2>
+        <p>정책, 교통 할인, 지역 혜택을 일정과 함께 확인해보세요.</p>
       </div>
       {policiesLoading && <LoadingState label="추천 혜택을 불러오는 중입니다" />}
       {policiesError && <ErrorState message={policiesError} />}
       {featuredPolicy && (
         <Link className="promo" to={`/policies/${featuredPolicy.slug}`}>
           <div>
-            <div className="kicker">내 일정에 맞는 추천 정책</div>
+            <div className="kicker">대표 지원 혜택</div>
             <strong>{featuredPolicy.amount}</strong>
           </div>
           <div>
@@ -59,6 +60,17 @@ export function HomePage() {
               {featuredPolicy.title} · {featuredPolicy.region} · {dday(featuredPolicy.deadline)}
             </span>
             <span className="promo-cta">지금 확인하기</span>
+          </div>
+          <div className="promo-metrics" aria-label="대표 혜택 요약">
+            <span>
+              <WalletCards size={15} /> 정책
+            </span>
+            <span>
+              <CalendarDays size={15} /> 일정 연결
+            </span>
+            <span>
+              <Sparkles size={15} /> 혜택 묶음
+            </span>
           </div>
         </Link>
       )}

@@ -6,8 +6,8 @@
 - Runtime mock mode는 다시 추가하지 않는다.
 - 기능 변경 시 API 계약, frontend type, backend schema/test를 함께 갱신한다.
 - 실제 secret/env 값은 repo에 기록하지 않는다.
-- 기준 스냅샷: `c856a06` (fix: allow tunnel and staging preview hosts).
-- 브랜치 상태: `feat/prototype-to-react`가 `origin/feat/prototype-to-react` 대비 `ahead 2`이며, 이번 분석 시작 시 tracked worktree는 clean 상태였다.
+- 기준 스냅샷: `a927ac4` (docs: analyze prototype UX flow) 이후 현재 worktree의 프로토타입 기반 frontend UX 개편까지 포함한다.
+- 브랜치 상태: `feat/prototype-to-react`가 `origin/feat/prototype-to-react` 대비 `ahead 6`이며, 현재 frontend UX 개편 변경분은 커밋 전이다.
 
 ## 완료된 최근 작업
 
@@ -49,17 +49,22 @@
 - PWA service worker/offline 전략 검토:
   - 현재는 service worker를 추가하지 않는다.
   - 후속 구현 시 static shell/assets만 캐시하고 `/api/*`와 auth/reset/OAuth 데이터는 캐시하지 않는다.
+- 프로토타입 기반 frontend UX 개편:
+  - 업로드 HTML 프로토타입의 모바일 앱형 흐름을 실제 React 앱에 반영했다.
+  - 홈 대표 혜택 hero, 정책 상세 혜택 패키지, 일정 상세 혜택 묶음, 공통 배경/카드/태그 톤을 정리했다.
+  - backend API, DB schema, route URL은 변경하지 않았다.
 
 ## 다음 우선순위
 
 | 우선순위 | 작업 | 성공 기준 |
 |---:|---|---|
-| 1 | `deploy/.env.tunnel` 실제값 확보 + Cloudflare Tunnel full-up | 실제 `CLOUDFLARE_TUNNEL_TOKEN`, DB password, `DATABASE_URL`, staging domain으로 compose tunnel migration/seed/up 성공 |
-| 2 | 외부 HTTPS 핵심 smoke | staging URL에서 `/api/health`, `/login`, `/policies`, `/trips` 접근과 테스트 계정 로그인을 확인 |
-| 3 | 실제 SMTP provider password reset staging smoke | SMTP env와 public HTTPS base URL을 주입해 reset email 발송, 링크 진입, password confirm을 외부 URL 기준으로 확인 |
-| 4 | Kakao/Google OAuth provider console smoke | provider console redirect URI와 env 값을 맞추고 실제 social login callback/refresh를 확인 |
-| 5 | 전화번호 OTP 설계/구현 | Kakao AlimTalk 수신 연락처 실소유 검증 |
-| 6 | PWA service worker 1차 구현 여부 결정 | 인증/API 데이터를 캐시하지 않는 static shell/assets 전용 service worker 도입 여부 확정 |
+| 1 | 프로토타입 기반 frontend UX 개편 변경분 커밋 | frontend typecheck/build와 `git diff --check` 결과를 함께 기록하고 기준점 고정 |
+| 2 | `deploy/.env.tunnel` 실제값 확보 + Cloudflare Tunnel full-up | 실제 `CLOUDFLARE_TUNNEL_TOKEN`, DB password, `DATABASE_URL`, staging domain으로 compose tunnel migration/seed/up 성공 |
+| 3 | 외부 HTTPS 핵심 smoke + visual QA | staging URL에서 `/api/health`, `/login`, `/policies`, `/trips` 접근과 테스트 계정 로그인을 확인하고 390/1024/1440 viewport에서 핵심 화면을 확인 |
+| 4 | 실제 SMTP provider password reset staging smoke | SMTP env와 public HTTPS base URL을 주입해 reset email 발송, 링크 진입, password confirm을 외부 URL 기준으로 확인 |
+| 5 | Kakao/Google OAuth provider console smoke | provider console redirect URI와 env 값을 맞추고 실제 social login callback/refresh를 확인 |
+| 6 | 전화번호 OTP 설계/구현 | Kakao AlimTalk 수신 연락처 실소유 검증 |
+| 7 | PWA service worker 1차 구현 여부 결정 | 인증/API 데이터를 캐시하지 않는 static shell/assets 전용 service worker 도입 여부 확정 |
 
 ## 구조 정리 참고
 
