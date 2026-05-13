@@ -34,6 +34,7 @@
 - `pwa-offline-strategy.md`: service worker/offline cache 도입 안전 기준.
 - `draft-autosave-next-scope.md`: draft autosave 2차 범위와 개인정보 저장 제외 기준.
 - `benchmark-ildan-checkin.md`: 벤치마크 분석과 적용 후보.
+- `prototype-ux-flow-analysis.md`: 업로드된 단일 HTML 프로토타입의 사용자 경험 흐름 분석.
 
 ## 디자인/구조 보조 문서
 
