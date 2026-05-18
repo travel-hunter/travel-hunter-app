@@ -386,9 +386,6 @@ export function PolicyDetailPage() {
   const applicationUrl = policy.applyUrl ?? policy.officialUrl ?? undefined;
   const visual = getPolicyVisual(policy);
   const isPolicySaved = savedSlugs.has(policy.slug);
-  const showPrototypeApplicationNotice = () => {
-    setNotice("공식 신청 연결은 준비 중입니다. 필요 서류와 신청 기간을 먼저 확인해 주세요.");
-  };
   const savePrototypePolicy = async () => {
     if (!policy || isSavingPolicy) return;
     setIsSavingPolicy(true);
@@ -503,7 +500,7 @@ export function PolicyDetailPage() {
             신청하러 가기
           </a>
         ) : (
-          <Button onClick={showPrototypeApplicationNotice}>신청하러 가기</Button>
+          <Button variant="secondary" disabled>신청 준비 중</Button>
         )}
       </div>
 
