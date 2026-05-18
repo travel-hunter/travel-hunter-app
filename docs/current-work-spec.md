@@ -28,6 +28,7 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 - Notifications: deadline 설정 저장, contact 저장, delivery history, target calculation, FastAPI scheduler, SOLAPI AlimTalk adapter, retry, SOLAPI webhook 상태 추적.
 - Design/deployment: Wanted Design System 1차 적용, Figma handoff 문서, PWA manifest/meta 1차 적용, Docker VPS/Tunnel 배포 산출물.
 - PWA offline: service worker는 아직 추가하지 않고, 안전한 캐싱 기준은 `docs/pwa-offline-strategy.md`에 정리했다.
+- Service readiness: 화면 표시값은 frontend display config로 중앙화하고, `/trips/new` 기본 날짜는 KST 기준 helper를 사용한다. Protected runtime(`staging/production/prod`)에서는 localhost/public fallback과 개발 secret을 config guard로 차단한다.
 
 ## Backend 기준
 
@@ -59,6 +60,8 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 - Notification:
   - `NOTIFICATION_SCHEDULER_ENABLED`, `NOTIFICATION_RUN_AT`, `NOTIFICATION_POLL_SECONDS`
   - `KAKAO_ALIMTALK_ENABLED`, `SOLAPI_*`, `NOTIFICATION_RETRY_*`, `SOLAPI_WEBHOOK_SECRET`
+- Production/staging guard:
+  - `APP_ENV=staging|production|prod`에서는 `AUTH_SECRET_KEY`, `TRAVEL_HUNTER_PUBLIC_BASE_URL`, `CORS_ORIGINS`, `REFRESH_COOKIE_SECURE`가 운영 기준을 만족해야 한다.
 
 ## 배포 산출물
 
@@ -69,8 +72,8 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 
 ## 최신 검증
 
-- `cd backend && python -m pytest`: 174 passed.
-- `cd frontend && npm test`: 64 passed.
+- `cd backend && python -m pytest`: 181 passed.
+- `cd frontend && npm test`: 69 passed.
 - `cd frontend && npm run typecheck`: passed.
 - `cd frontend && npm run build`: passed, production sourcemap 미생성, PWA manifest/icon 산출물 확인.
 - `frontend/public/manifest.webmanifest`: valid JSON, app name/theme/icon metadata 확인.
@@ -85,6 +88,7 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 - OAuth local/preflight: passed. 미설정 env의 503, state mismatch 400, dummy provider env의 authorization redirect/state cookie 흐름을 확인했다.
 - Cloudflare Quick Tunnel: frontend preview `/login` 200 확인. `vite preview` host allowlist 보정 후 `.trycloudflare.com` 요청이 통과한다.
 - Landing removal/login clone verification(2026-05-13): `cd frontend && npm run typecheck` passed, `cd frontend && npm test` 64 passed, `cd frontend && npm run build` passed.
+- Service readiness cleanup verification(2026-05-18): display config/date defaults/runtime guard/policy data validation added; backend pytest 181 passed, frontend Vitest 69 passed, frontend typecheck/build passed.
 
 ## 미구현/조건부 범위
 

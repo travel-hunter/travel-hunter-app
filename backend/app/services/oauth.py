@@ -53,7 +53,7 @@ def safe_redirect_path(redirect: str | None) -> str:
 
 
 def _frontend_base_url() -> str:
-    return settings.travel_hunter_public_base_url.rstrip("/") or "http://127.0.0.1:5173"
+    return settings.frontend_base_url()
 
 
 def _provider_config(provider: str) -> OAuthProviderConfig:

@@ -940,7 +940,7 @@ describe("Travel Hunter app", () => {
     await user.click(screen.getByRole("button", { name: "적립" }));
     await waitFor(() => expect(document.body).toHaveTextContent("부산 여행 캐시백"));
 
-    await user.click(screen.getByRole("button", { name: "조건 초기화" }));
+    await user.click(screen.getByRole("button", { name: "초기화" }));
     await waitFor(() => expect(document.body).toHaveTextContent("지역사랑 휴가지원"));
     expect(document.body).toHaveTextContent("속초 숙박 할인권");
     expect(getLink("/policies/local-vacation")).toBeInTheDocument();

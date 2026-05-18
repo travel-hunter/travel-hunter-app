@@ -2,6 +2,7 @@ import { ChevronRight, Heart } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Policy, Trip } from "../api";
+import { getTripRegionEmojiFromTitle } from "../data/displayConfig";
 import { dday } from "../utils";
 import { Tag } from "./ui";
 
@@ -43,20 +44,8 @@ function compactDeadline(deadline: string) {
   return `~${deadline.split("-").join(".")}`;
 }
 
-const tripRegionEmojiMap: Array<[string, string]> = [
-  ["제주", "🏝️"],
-  ["부산", "🌉"],
-  ["강원", "🏔️"],
-  ["강릉", "🌊"],
-  ["경주", "🏛️"],
-  ["서울", "🏙️"],
-  ["전남", "🌊"],
-  ["경북", "🏞️"],
-  ["전국", "✈️"],
-];
-
 function tripRegionEmoji(trip: Trip) {
-  return tripRegionEmojiMap.find(([region]) => trip.title.includes(region))?.[1] ?? "🧳";
+  return getTripRegionEmojiFromTitle(trip.title);
 }
 
 export function PolicyListCard({

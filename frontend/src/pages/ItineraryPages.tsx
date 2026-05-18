@@ -9,6 +9,8 @@ import { useAsyncResource } from "../api/useAsyncResource";
 import { useSession } from "../app/session";
 import { ItineraryCard } from "../components/cards";
 import { Button, ConfirmDialog, EmptyState, ErrorState, IconButton, LinkButton, LoadingState, PageHead, Tag, Toast, TopBar } from "../components/ui";
+import { tripCreateRegions, tripRegionEmoji } from "../data/displayConfig";
+import { addDaysToDateInput, getDefaultTripDateRange } from "../utils/dateDefaults";
 import { clearDraft, createDraftKey, readDraft, saveDraft } from "../utils/draftStorage";
 import { shareLinkWithFallback } from "../utils/share";
 
@@ -16,20 +18,6 @@ const profileOptions = appDataApi.getProfileOptions();
 const durationOptions = [2, 3, 4, 5] as const;
 const tripCreateMaxDays = 5;
 const tripCreateMinDays = 2;
-const defaultTripStartDate = "2026-07-12";
-const defaultTripEndDate = "2026-07-14";
-const tripCreateRegions = ["제주", "부산", "강원", "경주", "서울", "전남", "경북", "강릉"] as const;
-const tripRegionEmoji: Record<string, string> = {
-  제주: "🏝️",
-  부산: "🌊",
-  강원: "⛰️",
-  경주: "🏯",
-  서울: "🏙️",
-  전남: "🌾",
-  경북: "🌳",
-  강릉: "🌅",
-  전국: "🧭",
-};
 const defaultPlaceTime = "09:00";
 const placeMinuteStep = 10;
 const placeMinuteOptions = [0, 10, 20, 30, 40, 50] as const;
@@ -310,6 +298,9 @@ export function ItineraryCreatePage() {
   const [searchParams] = useSearchParams();
   const { profile, updateProfile, addPolicy } = useSession();
   const policySlug = searchParams.get("policySlug") ?? undefined;
+  const defaultTripDatesRef = useRef(getDefaultTripDateRange());
+  const defaultTripStartDate = defaultTripDatesRef.current.startDate;
+  const defaultTripEndDate = defaultTripDatesRef.current.endDate;
   const draftKey = tripCreateDraftKey(policySlug);
   const initialDraft = readDraft<TripCreateDraft>(draftKey);
   const initialProfileRef = useRef({ region: profile.region, style: profile.style });
@@ -366,14 +357,9 @@ export function ItineraryCreatePage() {
       }
       if (isValidTripCreateStep(draft.step)) setStep(draft.step);
       if (!draft.startDate && isDurationOption(draft.durationDays)) {
-        const start = parseDateInput(defaultTripStartDate);
-        if (start) {
-          const end = new Date(start);
-          end.setDate(start.getDate() + draft.durationDays - 1);
-          const nextEndDate = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}`;
-          setEndDate(nextEndDate);
-          if (draft.durationDays !== 3) appliedDraft = true;
-        }
+        const nextEndDate = addDaysToDateInput(defaultTripStartDate, draft.durationDays - 1);
+        setEndDate(nextEndDate);
+        if (draft.durationDays !== 3) appliedDraft = true;
       }
       setIsTripDraftNoticeVisible(appliedDraft);
     }

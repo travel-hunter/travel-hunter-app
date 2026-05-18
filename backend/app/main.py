@@ -11,6 +11,8 @@ from app.services.notification_scheduler import (
     stop_notification_scheduler,
 )
 
+settings.validate_runtime()
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):

@@ -1,3 +1,8 @@
+"""Development seed data only.
+
+Do not treat these demo records as the operational policy catalog.
+"""
+
 USER = {
     "id": "1",
     "name": "테스트 사용자",

@@ -35,6 +35,7 @@
 - `frontend-feature-work-plan.md`: frontend 기능 추가 후보와 구현 순서.
 - `pwa-offline-strategy.md`: service worker/offline cache 도입 기준.
 - `draft-autosave-next-scope.md`: draft autosave 2차 범위.
+- `service-readiness-hardcoding.md`: seed/demo 데이터, 고정 날짜, 표시값, 운영 설정 guard 정리 기준.
 - `benchmark-ildan-checkin.md`: 일단체크인 벤치마크 분석과 적용 후보.
 - `prototype-ux-flow-analysis.md`: 업로드 HTML 프로토타입의 사용자 경험 흐름 분석.
 

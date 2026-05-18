@@ -152,7 +152,7 @@ def logout(db: Session, refresh_token: str | None) -> None:
 
 
 def _frontend_base_url() -> str:
-    return settings.travel_hunter_public_base_url.rstrip("/") or "http://127.0.0.1:5173"
+    return settings.frontend_base_url()
 
 
 def request_password_reset(db: Session, request: PasswordResetRequest) -> dict[str, bool]:

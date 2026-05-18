@@ -43,6 +43,10 @@
 - [x] Prototype UX flow analysis is documented in `docs/prototype-ux-flow-analysis.md`.
 - [x] Prototype-based frontend UX refresh is applied to the app shell, home, policy detail, and trip detail without changing API/DB routes.
 - [x] Landing/onboarding first-entry page is removed; `/` now renders the prototype-style login screen and `/onboarding` redirects to `/login`.
+- [x] Frontend display-only policy/trip visual values are centralized in `displayConfig`.
+- [x] `/trips/new` default dates use a KST helper instead of fixed 2026 defaults.
+- [x] Protected runtime config rejects development secrets, localhost public URLs, localhost CORS, and insecure refresh cookies.
+- [x] Digital tourism policy JSON has a validation script for shape, duplicate slugs, dates, and encoding-risk markers.
 - [x] Signup now uses email/password plus email availability check, then `/nickname-setup`.
 - [x] Nickname setup supports server-generated temporary nicknames and dice-button suggestions.
 - [x] Codex model split workflow is documented and scripted for planning `gpt-5.5/xhigh` and implementation `gpt-5.3-codex/high`.
@@ -51,8 +55,8 @@
 
 ## 마지막 검증 결과
 
-- Date: 2026-05-11.
-- Backend pytest: 169 passed.
+- Date: 2026-05-18.
+- Backend pytest: 181 passed.
 - Alembic offline SQL: passed.
 - Local compose config: passed.
 - VPS compose config: passed.
@@ -60,7 +64,7 @@
 - `git diff --check`: passed.
 - Frontend typecheck/build: passed.
 - Frontend build output includes PWA manifest/icons and no sourcemap files.
-- Frontend DB-backed Vitest: 64 passed.
+- Frontend DB-backed Vitest: 69 passed.
 - Docker backend/frontend rebuild: passed.
 - Previous DB-backed Playwright e2e: 5 passed.
 - Local compose config/build: passed.
@@ -69,6 +73,7 @@
 - Password reset local preflight: unknown email returns `requested=true`; existing email without SMTP env fails with `503`.
 - Prototype frontend UX refresh(2026-05-13): frontend typecheck/build passed and `git diff --check` passed.
 - Landing removal/login clone verification(2026-05-13): frontend typecheck, DB-backed Vitest 64 passed, frontend build, and `git diff --check` passed.
+- Service readiness cleanup(2026-05-18): display config/date defaults/runtime guard/policy data validation added; frontend typecheck/build and backend pytest passed.
 
 ## 다음 우선순위
 

@@ -6,6 +6,7 @@ import { useAsyncResource } from "../api/useAsyncResource";
 import { useSession } from "../app/session";
 import { PolicyListCard } from "../components/cards";
 import { Button, EmptyState, ErrorState, IconButton, LinkButton, LoadingState, Tag, Toast } from "../components/ui";
+import { getPolicyVisual } from "../data/displayConfig";
 import { dday } from "../utils";
 import { shareLinkWithFallback } from "../utils/share";
 
@@ -94,18 +95,6 @@ function getCategoryHighlights(policies: Policy[]) {
     .filter((item): item is { category: DiscoveryPolicyCategory; policy: Policy } => Boolean(item.policy));
 }
 
-const policyVisuals: Record<string, { emoji: string; from: string; to: string }> = {
-  "local-vacation": { emoji: "🏖️", from: "#ffe0e0", to: "#ff8a7a" },
-  "nongchon-stay": { emoji: "🌂", from: "#d9f7f2", to: "#80dccd" },
-  "rail-youth": { emoji: "🚆", from: "#dff0ff", to: "#8ac7ff" },
-  "hotel-sale": { emoji: "🏨", from: "#f5ddff", to: "#d39cff" },
-  default: { emoji: "🎁", from: "#fff1bd", to: "#ffcf66" },
-};
-
-function getPolicyVisual(policy: Policy) {
-  return policyVisuals[policy.slug] ?? policyVisuals.default;
-}
-
 function getPolicyAmountDetail(policy: Policy) {
   if (policy.summary) return policy.summary;
   return `${policy.amount} 혜택을 받을 수 있는지 공식 안내에서 최종 확인해 주세요.`;
@@ -151,8 +140,8 @@ export function PolicyListPage() {
   const [isRegionFilterOpen, setIsRegionFilterOpen] = useState(false);
   const [isPeriodFilterOpen, setIsPeriodFilterOpen] = useState(false);
   const [isAmountFilterOpen, setIsAmountFilterOpen] = useState(false);
-  const [savedSlugs, setSavedSlugs] = useState<Set<string>>(new Set());
   const [showSavedOnly, setShowSavedOnly] = useState(false);
+  const { savedSlugs, addSavedSlug, removeSavedSlug } = useSession();
   const { data: policies, error, isLoading } = useAsyncResource(() => appDataApi.listPolicies(), []);
   const regionFilters = useMemo(() => {
     const regions = policies?.map((policy) => policy.region) ?? [];
@@ -163,14 +152,10 @@ export function PolicyListPage() {
     const slug = policy.slug;
     if (savedSlugs.has(slug)) {
       await appDataApi.removeSavedPolicy(slug);
-      setSavedSlugs((prev) => {
-        const next = new Set(prev);
-        next.delete(slug);
-        return next;
-      });
+      removeSavedSlug(slug);
     } else {
       await appDataApi.savePolicy(slug);
-      setSavedSlugs((prev) => new Set(prev).add(slug));
+      addSavedSlug(slug);
     }
   };
 

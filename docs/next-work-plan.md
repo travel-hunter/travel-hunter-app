@@ -57,12 +57,16 @@
   - `/`는 온보딩 없이 프로토타입 로그인 화면을 렌더링한다.
   - `/onboarding`은 `/login`으로 redirect한다.
   - 실제 email/password login, password reset, signup, Kakao/Google OAuth는 유지한다.
+- 하드코딩 제거 및 완성도 정리 1차:
+  - 프론트 표시값을 `displayConfig`로 중앙화했다.
+  - `/trips/new` 기본 날짜를 KST helper로 교체했다.
+  - protected runtime 설정 guard와 정책 JSON 검증 스크립트를 추가했다.
 
 ## 다음 우선순위
 
 | 우선순위 | 작업 | 성공 기준 |
 |---:|---|---|
-| 1 | 랜딩 제거와 프로토타입 로그인 첫 화면 변경분 커밋 | frontend typecheck/test/build와 `git diff --check` 결과를 함께 기록하고 기준점 고정 |
+| 1 | 현재 하드코딩 제거/완성도 정리 변경분 검증 및 커밋 | frontend/backend test, policy data validation, `git diff --check` 결과를 기록하고 기준점 고정 |
 | 2 | `deploy/.env.tunnel` 실제값 확보 + Cloudflare Tunnel full-up | 실제 `CLOUDFLARE_TUNNEL_TOKEN`, DB password, `DATABASE_URL`, staging domain으로 compose tunnel migration/seed/up 성공 |
 | 3 | 외부 HTTPS 핵심 smoke + visual QA | staging URL에서 `/api/health`, `/login`, `/policies`, `/trips` 접근과 테스트 계정 로그인을 확인하고 390/1024/1440 viewport에서 핵심 화면을 확인 |
 | 4 | 실제 SMTP provider password reset staging smoke | SMTP env와 public HTTPS base URL을 주입해 reset email 발송, 링크 진입, password confirm을 외부 URL 기준으로 확인 |

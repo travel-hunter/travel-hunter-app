@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import sys
@@ -24,9 +25,12 @@ except ImportError:
     print("httpx가 설치되어 있지 않습니다. pip install httpx", file=sys.stderr)
     sys.exit(1)
 
-BASE_URL = "https://korean.visitkorea.or.kr"
-TARGET_URL = f"{BASE_URL}/dgtourcard/tour50.do"
-OUTPUT_PATH = Path(__file__).parent.parent / "app" / "data" / "dgtourcard_policies.json"
+DEFAULT_BASE_URL = "https://korean.visitkorea.or.kr"
+DEFAULT_TARGET_PATH = "/dgtourcard/tour50.do"
+DEFAULT_TARGET_URL = f"{DEFAULT_BASE_URL}{DEFAULT_TARGET_PATH}"
+DEFAULT_OUTPUT_PATH = Path(__file__).parent.parent / "app" / "data" / "dgtourcard_policies.json"
+DEFAULT_DEADLINE = "2026-12-31"
+DEFAULT_EXISTING_SLUGS = ("local-vacation", "sokcho-stay", "busan-cashback")
 
 HEADERS = {
     "User-Agent": (
@@ -186,7 +190,7 @@ def fetch(url: str, client: httpx.Client) -> str:
     return resp.text
 
 
-def parse_policies_from_html(html: str) -> list[dict[str, Any]]:
+def parse_policies_from_html(html: str, *, target_url: str = DEFAULT_TARGET_URL) -> list[dict[str, Any]]:
     """HTML에서 정책 목록을 추출한다. func_go_detail → 테이블 순으로 시도."""
     policies: list[dict[str, Any]] = []
 
@@ -208,7 +212,7 @@ def parse_policies_from_html(html: str) -> list[dict[str, Any]]:
                 region=region,
                 amount="혜택 제공",
                 summary=f"디지털관광주민증 소지자 대상 {city}({province}) 지역 방문 시 혜택을 제공합니다.",
-                url=TARGET_URL,
+                url=target_url,
             )
             policy["slug"] = f"dgtour-{slugify(city)}-{entry['id']}"
             policies.append(policy)
@@ -237,7 +241,7 @@ def parse_policies_from_html(html: str) -> list[dict[str, Any]]:
                     region=region,
                     amount=amount,
                     summary=" ".join(row[:3])[:100],
-                    url=TARGET_URL,
+                    url=target_url,
                 )
             )
 
@@ -260,14 +264,14 @@ def _make_policy_dict(
         "title": title,
         "org": org,
         "region": region,
-        "deadline": "2026-12-31",
+        "deadline": DEFAULT_DEADLINE,
         "amount": amount,
         "summary": summary,
         "match": 75,
         "category": category,
         "requirements": ["디지털관광주민증 발급자", f"{region} 방문"],
         "documents": ["디지털관광주민증"],
-        "officialUrl": url or TARGET_URL,
+        "officialUrl": url or DEFAULT_TARGET_URL,
         "applyUrl": None,
     }
 
@@ -288,7 +292,7 @@ def deduplicate(policies: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
-def _fallback_policies() -> list[dict[str, Any]]:
+def _fallback_policies(*, target_url: str = DEFAULT_TARGET_URL) -> list[dict[str, Any]]:
     """
     JavaScript 렌더링이나 파싱 실패 시 반환할 기본 정책 목록.
     디지털관광주민증 프로그램의 대표적인 지역 혜택 기준으로 작성.
@@ -353,22 +357,22 @@ def _fallback_policies() -> list[dict[str, Any]]:
                 region=item["region"],
                 amount=item["amount"],
                 summary=item["summary"],
-                url=TARGET_URL,
+                url=target_url,
             )
         )
     return deduplicate(policies)
 
 
-def crawl() -> list[dict[str, Any]]:
-    print(f"대상 URL: {TARGET_URL}")
+def crawl(*, target_url: str = DEFAULT_TARGET_URL) -> list[dict[str, Any]]:
+    print(f"대상 URL: {target_url}")
     with httpx.Client() as client:
         print("페이지 요청 중...")
         try:
-            html = fetch(TARGET_URL, client)
+            html = fetch(target_url, client)
         except httpx.HTTPError as e:
             print(f"HTTP 오류: {e}", file=sys.stderr)
             print("폴백 정책 데이터를 사용합니다.", file=sys.stderr)
-            return _fallback_policies()
+            return _fallback_policies(target_url=target_url)
 
         print(f"  응답 수신: {len(html):,} 바이트")
 
@@ -379,36 +383,45 @@ def crawl() -> list[dict[str, Any]]:
                 file=sys.stderr,
             )
             print("  폴백 정책 데이터를 사용합니다.", file=sys.stderr)
-            return _fallback_policies()
+            return _fallback_policies(target_url=target_url)
 
         print("HTML 파싱 중...")
-        policies = parse_policies_from_html(html)
+        policies = parse_policies_from_html(html, target_url=target_url)
 
         if not policies:
             print(
                 "  경고: 자동 파싱으로 정책을 찾지 못했습니다. 폴백 데이터를 사용합니다.",
                 file=sys.stderr,
             )
-            return _fallback_policies()
+            return _fallback_policies(target_url=target_url)
 
         return deduplicate(policies)
 
 
-def main() -> None:
-    debug = "--debug" in sys.argv
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="디지털관광주민증 정책 데이터를 수집합니다.")
+    parser.add_argument("--target-url", default=DEFAULT_TARGET_URL, help="수집할 한국관광공사 페이지 URL")
+    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT_PATH, help="정책 JSON 저장 경로")
+    parser.add_argument("--existing-slug", action="append", default=list(DEFAULT_EXISTING_SLUGS), help="충돌을 확인할 기존 seed slug. 여러 번 지정할 수 있습니다.")
+    parser.add_argument("--debug", action="store_true", help="첫 번째 정책 미리보기를 출력합니다.")
+    return parser.parse_args(argv)
 
-    policies = crawl()
+
+def main() -> None:
+    args = parse_args()
+
+    policies = crawl(target_url=str(args.target_url))
     print(f"\n총 {len(policies)}개 정책 수집됨.")
 
-    if debug:
+    if args.debug:
         print("\n--- 첫 번째 정책 미리보기 ---")
         if policies:
             print(json.dumps(policies[0], ensure_ascii=False, indent=2))
 
-    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with OUTPUT_PATH.open("w", encoding="utf-8") as f:
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    with args.output.open("w", encoding="utf-8") as f:
         json.dump(policies, f, ensure_ascii=False, indent=2)
-    print(f"저장 완료: {OUTPUT_PATH}")
+    print(f"저장 완료: {args.output}")
 
     # slug 중복 확인
     slugs = [p["slug"] for p in policies]
@@ -416,7 +429,7 @@ def main() -> None:
         print("경고: slug 중복이 있습니다!", file=sys.stderr)
 
     # 기존 seed slug와 충돌 확인
-    existing_slugs = {"local-vacation", "sokcho-stay", "busan-cashback"}
+    existing_slugs = set(args.existing_slug)
     conflicts = existing_slugs & set(slugs)
     if conflicts:
         print(f"경고: 기존 seed slug와 충돌: {conflicts}", file=sys.stderr)

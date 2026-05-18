@@ -87,8 +87,8 @@ Cloudflare public hostname은 `https://<staging-domain>`에서 tunnel을 통해 
 
 ## 검증 결과
 
-- Backend pytest: 174 passed.
-- Frontend Vitest: 55 passed.
+- Backend pytest: 181 passed.
+- Frontend Vitest: 69 passed.
 - DB-backed Playwright e2e: 5 passed.
 - Frontend build: passed.
 - Alembic offline SQL: passed.

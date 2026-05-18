@@ -9,7 +9,7 @@ const profileOptions = appDataApi.getProfileOptions();
 
 export function MyPage() {
   const navigate = useNavigate();
-  const { currentUser, likedPolicy, logout, profile, saveNickname, saveProfile } = useSession();
+  const { currentUser, likedPolicy, logout, profile, saveNickname, saveProfile, removeSavedSlug, savedSlugs } = useSession();
   const previewUser = appDataApi.getPreviewUser();
   const name = currentUser?.nickname ?? previewUser.nickname;
   const [savedPolicies, setSavedPolicies] = useState<Policy[]>([]);
@@ -145,6 +145,7 @@ export function MyPage() {
     try {
       await appDataApi.removeSavedPolicy(policy.slug);
       setSavedPolicies((current) => current.filter((item) => item.slug !== policy.slug));
+      removeSavedSlug(policy.slug);
     } catch {
       setSavedPolicyError("저장한 정책을 해제하지 못했어요.");
     } finally {
@@ -243,7 +244,7 @@ export function MyPage() {
     }
   };
 
-  const savedPolicyCount = savedPolicies.length || (likedPolicy ? 1 : 0);
+  const savedPolicyCount = savedSlugs.size || (likedPolicy ? 1 : 0);
   const tripCount = tripError ? 0 : trips.length;
   const deadlineEnabled = notificationSettings?.deadlineEnabled ?? true;
   const deadlineLeadDays = notificationSettings?.deadlineLeadDays ?? [7, 1];

@@ -6,6 +6,11 @@ def split_csv(value: str) -> tuple[str, ...]:
     return tuple(item.strip() for item in value.split(",") if item.strip())
 
 
+LOCAL_URL_MARKERS = ("127.0.0.1", "localhost")
+PROTECTED_APP_ENVS = {"staging", "production", "prod"}
+DEV_AUTH_SECRET_KEY = "dev-only-change-me-secret-key-32-bytes"
+
+
 @dataclass(frozen=True)
 class Settings:
     app_env: str = os.getenv("APP_ENV", "local")
@@ -86,6 +91,32 @@ class Settings:
     oauth_state_cookie_name: str = os.getenv(
         "OAUTH_STATE_COOKIE_NAME", "travel_hunter_oauth_state"
     )
+
+    @property
+    def is_protected_env(self) -> bool:
+        return self.app_env.strip().lower() in PROTECTED_APP_ENVS
+
+    def frontend_base_url(self) -> str:
+        return self.travel_hunter_public_base_url.rstrip("/") or "http://127.0.0.1:5173"
+
+    def validate_runtime(self) -> None:
+        if not self.is_protected_env:
+            return
+
+        problems: list[str] = []
+        if self.auth_secret_key == DEV_AUTH_SECRET_KEY:
+            problems.append("AUTH_SECRET_KEY must not use the development default")
+        if not self.travel_hunter_public_base_url:
+            problems.append("TRAVEL_HUNTER_PUBLIC_BASE_URL is required")
+        elif any(marker in self.travel_hunter_public_base_url for marker in LOCAL_URL_MARKERS):
+            problems.append("TRAVEL_HUNTER_PUBLIC_BASE_URL must not point to localhost")
+        if any(any(marker in origin for marker in LOCAL_URL_MARKERS) for origin in self.cors_origins):
+            problems.append("CORS_ORIGINS must not include localhost origins")
+        if not self.refresh_cookie_secure:
+            problems.append("REFRESH_COOKIE_SECURE=true is required")
+
+        if problems:
+            raise RuntimeError("Invalid protected runtime configuration: " + "; ".join(problems))
 
 
 settings = Settings()

@@ -5,19 +5,8 @@ import { appDataApi, type Policy } from "../api";
 import { useAsyncResource } from "../api/useAsyncResource";
 import { useSession } from "../app/session";
 import { ErrorState, LoadingState } from "../components/ui";
+import { getFeaturedPolicy, getHomePolicyIcon, homeDestinations } from "../data/displayConfig";
 import { dday } from "../utils";
-
-const homeDestinations = [
-  { title: "제주", stars: "4.9", color: "#3BC9DB", to: "/trips/new?region=%EC%A0%9C%EC%A3%BC" },
-  { title: "부산", stars: "4.8", color: "#4DABF7", to: "/trips/new?region=%EB%B6%80%EC%82%B0" },
-  { title: "강원", stars: "4.7", color: "#69DB7C", to: "/trips/new?region=%EA%B0%95%EC%9B%90" },
-];
-
-const homePolicyIcons: Record<string, string> = {
-  "local-vacation": "💴",
-  "sokcho-stay": "🏖️",
-  "busan-cashback": "🎁",
-};
 
 function policyDeadlineTime(policy: Policy) {
   const time = new Date(policy.deadline).getTime();
@@ -26,14 +15,6 @@ function policyDeadlineTime(policy: Policy) {
 
 function getDeadlinePolicies(policies: Policy[] | null | undefined) {
   return [...(policies ?? [])].sort((left, right) => policyDeadlineTime(left) - policyDeadlineTime(right)).slice(0, 4);
-}
-
-function getFeaturedPolicy(policies: Policy[] | null | undefined) {
-  return policies?.find((policy) => policy.slug === "local-vacation") ?? policies?.[0];
-}
-
-function getHomePolicyIcon(policy: Policy) {
-  return homePolicyIcons[policy.slug] ?? "💸";
 }
 
 export function HomePage() {

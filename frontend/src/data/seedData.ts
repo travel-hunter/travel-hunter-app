@@ -1,5 +1,7 @@
 import { ItineraryPlace, Policy, Recommendation, Trip, User } from "../api/types";
 
+// Development fallback data only. Production screens should read policy/trip
+// state through the backend API instead of treating this file as source data.
 export const user: User = {
   id: "1",
   nickname: "테스트 사용자",
