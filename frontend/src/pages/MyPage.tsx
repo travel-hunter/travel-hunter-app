@@ -6,6 +6,7 @@ import { useSession } from "../app/session";
 import { Button, EmptyState, ErrorState, LoadingState } from "../components/ui";
 
 const profileOptions = appDataApi.getProfileOptions();
+type InfoSheetType = "faq" | "terms" | "privacy";
 
 export function MyPage() {
   const navigate = useNavigate();
@@ -36,7 +37,7 @@ export function MyPage() {
   const [isSavingContact, setIsSavingContact] = useState(false);
   const [contactError, setContactError] = useState("");
   const [isNotificationSheetOpen, setIsNotificationSheetOpen] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
+  const [infoSheetType, setInfoSheetType] = useState<InfoSheetType | null>(null);
 
   useEffect(() => {
     let isCurrent = true;
@@ -131,11 +132,6 @@ export function MyPage() {
   const signOut = async () => {
     await logout();
     navigate("/login");
-  };
-
-  const showPreparedToast = () => {
-    setToastMessage("준비 중이에요.");
-    window.setTimeout(() => setToastMessage(""), 1800);
   };
 
   const removeSavedPolicy = async (policy: Policy) => {
@@ -346,7 +342,7 @@ export function MyPage() {
               ›
             </span>
           </button>
-          <button className="prototype-menu-row" onClick={showPreparedToast} type="button">
+          <button className="prototype-menu-row" onClick={() => setInfoSheetType("faq")} type="button">
             <span className="prototype-menu-icon" aria-hidden="true">
               ❔
             </span>
@@ -355,11 +351,20 @@ export function MyPage() {
               ›
             </span>
           </button>
-          <button className="prototype-menu-row" onClick={showPreparedToast} type="button">
+          <button className="prototype-menu-row" onClick={() => setInfoSheetType("terms")} type="button">
             <span className="prototype-menu-icon" aria-hidden="true">
               📄
             </span>
             <strong>이용약관</strong>
+            <span className="prototype-menu-chevron" aria-hidden="true">
+              ›
+            </span>
+          </button>
+          <button className="prototype-menu-row" onClick={() => setInfoSheetType("privacy")} type="button">
+            <span className="prototype-menu-icon" aria-hidden="true">
+              🔒
+            </span>
+            <strong>개인정보처리방침</strong>
             <span className="prototype-menu-chevron" aria-hidden="true">
               ›
             </span>
@@ -374,12 +379,6 @@ export function MyPage() {
             </span>
           </button>
         </section>
-
-        {toastMessage && (
-          <div className="toast" role="status">
-            {toastMessage}
-          </div>
-        )}
 
         {isProfileEditorOpen && (
           <ProfileEditSheet
@@ -415,6 +414,8 @@ export function MyPage() {
             onToggleDeadline={toggleDeadlineNotifications}
           />
         )}
+
+        {infoSheetType && <InfoSheet type={infoSheetType} onClose={() => setInfoSheetType(null)} />}
       </div>
     </section>
   );
@@ -435,6 +436,74 @@ function policyIcon(policy: Policy) {
   if (policy.slug.includes("cashback")) return "🎁";
   if (policy.slug.includes("food") || policy.title.includes("맛집")) return "🍽️";
   return "💙";
+}
+
+const infoSheetContent: Record<InfoSheetType, { title: string; intro: string; sections: Array<{ heading: string; body: string }> }> = {
+  faq: {
+    title: "공지사항 / FAQ",
+    intro: "트래블헌터 MVP 이용 중 자주 확인하는 내용을 모았어요.",
+    sections: [
+      { heading: "정책 정보는 어디서 확인하나요?", body: "정책 상세 화면의 공식 신청 페이지 버튼을 통해 주관 기관 안내를 최종 확인해 주세요." },
+      { heading: "즐겨찾기는 어떻게 사용하나요?", body: "관심 있는 정책의 하트를 누르면 마이페이지의 즐겨찾기 정책에 저장됩니다." },
+      { heading: "일정에 정책을 담으면 무엇이 좋나요?", body: "여행 일정에서 받을 수 있는 혜택과 준비할 정책을 함께 확인할 수 있습니다." },
+      { heading: "알림은 언제 받을 수 있나요?", body: "마감 알림을 켜고 연락처를 저장하면 D-7, D-1 기준 알림 발송 준비 대상이 됩니다." },
+    ],
+  },
+  terms: {
+    title: "이용약관",
+    intro: "트래블헌터 MVP의 기본 이용 조건입니다.",
+    sections: [
+      { heading: "서비스 목적", body: "트래블헌터는 여행 정책 탐색, 일정 관리, 정책 준비를 돕는 정보 제공 서비스입니다." },
+      { heading: "사용자 책임", body: "정책 신청 가능 여부와 제출 서류는 반드시 공식 안내 페이지에서 최종 확인해야 합니다." },
+      { heading: "서비스 변경", body: "MVP 기간에는 기능, 화면, 정책 데이터가 개선 과정에서 변경될 수 있습니다." },
+      { heading: "제한 사항", body: "부정 사용, 타인의 계정 접근, 서비스 운영을 방해하는 행위는 제한될 수 있습니다." },
+    ],
+  },
+  privacy: {
+    title: "개인정보처리방침",
+    intro: "회원 기능과 알림 기능 제공에 필요한 최소 정보를 다룹니다.",
+    sections: [
+      { heading: "수집 항목", body: "이메일, 닉네임, 프로필 선호 정보, 저장 정책, 여행 일정, 알림 연락처를 기능 제공 범위에서 사용합니다." },
+      { heading: "이용 목적", body: "로그인, 맞춤 정책 표시, 일정 관리, 마감 알림 설정과 같은 사용자 기능 제공에 사용합니다." },
+      { heading: "보관 기준", body: "계정과 연결된 데이터는 서비스 이용 기간 동안 보관하며, 운영 정책에 따라 삭제할 수 있습니다." },
+      { heading: "외부 연동", body: "SMTP, OAuth, SOLAPI 등 외부 연동은 실제 환경 설정이 있는 경우에만 사용하며 secret 값은 저장소에 기록하지 않습니다." },
+    ],
+  },
+};
+
+function InfoSheet({ onClose, type }: { onClose: () => void; type: InfoSheetType }) {
+  const content = infoSheetContent[type];
+
+  return (
+    <div className="sheet-backdrop" role="presentation" onMouseDown={onClose}>
+      <section
+        className="trip-select-sheet prototype-info-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mypage-info-sheet-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="sheet-head">
+          <div>
+            <h2 id="mypage-info-sheet-title">{content.title}</h2>
+            <p className="meta">{content.intro}</p>
+          </div>
+          <button className="btn sm ghost" type="button" onClick={onClose}>
+            닫기
+          </button>
+        </div>
+
+        <div className="prototype-info-sheet-content">
+          {content.sections.map((section) => (
+            <article className="prototype-info-block" key={section.heading}>
+              <strong>{section.heading}</strong>
+              <p>{section.body}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
 }
 
 function NotificationSettingsSheet({

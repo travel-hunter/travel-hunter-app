@@ -73,7 +73,7 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 ## 최신 검증
 
 - `cd backend && python -m pytest`: 181 passed.
-- `cd frontend && npm test`: 69 passed.
+- `cd frontend && npm test`: 71 passed.
 - `cd frontend && npm run typecheck`: passed.
 - `cd frontend && npm run build`: passed, production sourcemap 미생성, PWA manifest/icon 산출물 확인.
 - `frontend/public/manifest.webmanifest`: valid JSON, app name/theme/icon metadata 확인.
@@ -89,6 +89,7 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 - Cloudflare Quick Tunnel: frontend preview `/login` 200 확인. `vite preview` host allowlist 보정 후 `.trycloudflare.com` 요청이 통과한다.
 - Landing removal/login clone verification(2026-05-13): `cd frontend && npm run typecheck` passed, `cd frontend && npm test` 64 passed, `cd frontend && npm run build` passed.
 - Service readiness cleanup verification(2026-05-18): display config/date defaults/runtime guard/policy data validation added; backend pytest 181 passed, frontend Vitest 69 passed, frontend typecheck/build passed.
+- MyPage information sheet verification(2026-05-18): FAQ, terms, and privacy settings rows open in-app sheets; frontend Vitest 71 passed.
 
 ## 미구현/조건부 범위
 

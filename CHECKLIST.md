@@ -64,7 +64,7 @@
 - `git diff --check`: passed.
 - Frontend typecheck/build: passed.
 - Frontend build output includes PWA manifest/icons and no sourcemap files.
-- Frontend DB-backed Vitest: 69 passed.
+- Frontend DB-backed Vitest: 71 passed.
 - Docker backend/frontend rebuild: passed.
 - Previous DB-backed Playwright e2e: 5 passed.
 - Local compose config/build: passed.
@@ -74,6 +74,7 @@
 - Prototype frontend UX refresh(2026-05-13): frontend typecheck/build passed and `git diff --check` passed.
 - Landing removal/login clone verification(2026-05-13): frontend typecheck, DB-backed Vitest 64 passed, frontend build, and `git diff --check` passed.
 - Service readiness cleanup(2026-05-18): display config/date defaults/runtime guard/policy data validation added; frontend typecheck/build and backend pytest passed.
+- MyPage information sheets(2026-05-18): FAQ, terms, and privacy rows render in-app sheet content; frontend Vitest 71 passed.
 
 ## 다음 우선순위
 

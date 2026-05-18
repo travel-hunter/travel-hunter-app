@@ -5053,6 +5053,38 @@
   align-items: flex-start;
 }
 
+.prototype-info-sheet .sheet-head {
+  align-items: flex-start;
+}
+
+.prototype-info-sheet-content {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 4px;
+}
+
+.prototype-info-block {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid #ececf1;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.prototype-info-block strong {
+  color: #1a1a2e;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.prototype-info-block p {
+  margin: 0;
+  color: #6f6f84;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
 .prototype-notification-panel {
   display: grid;
   gap: 14px;

@@ -6,8 +6,8 @@
 - Runtime mock mode는 다시 추가하지 않는다.
 - 기능 변경 시 API 계약, frontend type, backend schema/test를 함께 갱신한다.
 - 실제 secret/env 값은 repo에 기록하지 않는다.
-- 기준 스냅샷: `7b8fec0` (feat: refresh frontend UX from prototype) 이후 현재 worktree의 랜딩 제거와 프로토타입 로그인 첫 화면 클론까지 포함한다.
-- 브랜치 상태: `feat/prototype-to-react`가 `origin/feat/prototype-to-react` 대비 `ahead 7`이며, 현재 랜딩 제거/로그인 화면 변경분은 커밋 전이다.
+- 기준 스냅샷: `04245df feat: improve mypage empty favorite state` 이후 현재 worktree의 마이페이지 정보 메뉴 sheet 변경분까지 포함한다.
+- 브랜치 상태: `feat/prototype-to-react`가 `origin/feat/prototype-to-react` 대비 ahead 상태이며, 현재 마이페이지 FAQ/약관/개인정보 sheet 변경분은 커밋 전이다.
 
 ## 완료된 최근 작업
 
@@ -61,18 +61,20 @@
   - 프론트 표시값을 `displayConfig`로 중앙화했다.
   - `/trips/new` 기본 날짜를 KST helper로 교체했다.
   - protected runtime 설정 guard와 정책 JSON 검증 스크립트를 추가했다.
+- 마이페이지 빈 즐겨찾기 EmptyState 개선:
+  - 저장 정책이 없을 때 Prototype 톤의 안내 카드와 `정책 보러가기` CTA를 표시한다.
 
 ## 다음 우선순위
 
 | 우선순위 | 작업 | 성공 기준 |
 |---:|---|---|
-| 1 | 현재 하드코딩 제거/완성도 정리 변경분 검증 및 커밋 | frontend/backend test, policy data validation, `git diff --check` 결과를 기록하고 기준점 고정 |
+| 1 | 현재 마이페이지 정보 메뉴 sheet 변경분 검증 및 커밋 | FAQ/약관/개인정보 sheet 테스트, frontend build, `git diff --check` 결과를 기록하고 기준점 고정 |
 | 2 | `deploy/.env.tunnel` 실제값 확보 + Cloudflare Tunnel full-up | 실제 `CLOUDFLARE_TUNNEL_TOKEN`, DB password, `DATABASE_URL`, staging domain으로 compose tunnel migration/seed/up 성공 |
 | 3 | 외부 HTTPS 핵심 smoke + visual QA | staging URL에서 `/api/health`, `/login`, `/policies`, `/trips` 접근과 테스트 계정 로그인을 확인하고 390/1024/1440 viewport에서 핵심 화면을 확인 |
 | 4 | 실제 SMTP provider password reset staging smoke | SMTP env와 public HTTPS base URL을 주입해 reset email 발송, 링크 진입, password confirm을 외부 URL 기준으로 확인 |
 | 5 | Kakao/Google OAuth provider console smoke | provider console redirect URI와 env 값을 맞추고 실제 social login callback/refresh를 확인 |
-| 6 | 전화번호 OTP 설계/구현 | Kakao AlimTalk 수신 연락처 실소유 검증 |
-| 7 | PWA service worker 1차 구현 여부 결정 | 인증/API 데이터를 캐시하지 않는 static shell/assets 전용 service worker 도입 여부 확정 |
+| 6 | 신청 정책 카운트 API 연동 여부 결정 | 신청/접수 상태를 저장할 도메인 모델과 UI 범위를 확정 |
+| 7 | 전화번호 OTP 설계/구현 | Kakao AlimTalk 수신 연락처 실소유 검증 |
 
 ## 구조 정리 참고
 

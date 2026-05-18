@@ -1092,6 +1092,30 @@ describe("Travel Hunter app", () => {
     expect(within(dialog).getByRole("switch")).toBeInTheDocument();
   });
 
+  it("opens FAQ, terms, and privacy content from my page settings", async () => {
+    await login();
+    cleanup();
+    renderRoute("/mypage");
+    const user = userEvent.setup();
+
+    await waitFor(() => expect(screen.getAllByText("마이").length).toBeGreaterThan(0));
+
+    await user.click(screen.getByRole("button", { name: /공지사항 \/ FAQ/ }));
+    let dialog = await screen.findByRole("dialog", { name: "공지사항 / FAQ" });
+    expect(within(dialog).getByText("정책 정보는 어디서 확인하나요?")).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent("준비 중이에요.");
+    await user.click(within(dialog).getByRole("button", { name: "닫기" }));
+
+    await user.click(screen.getByRole("button", { name: /이용약관/ }));
+    dialog = await screen.findByRole("dialog", { name: "이용약관" });
+    expect(within(dialog).getByText("서비스 목적")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "닫기" }));
+
+    await user.click(screen.getByRole("button", { name: /개인정보처리방침/ }));
+    dialog = await screen.findByRole("dialog", { name: "개인정보처리방침" });
+    expect(within(dialog).getByText("수집 항목")).toBeInTheDocument();
+  });
+
   it("edits profile preferences from my page", async () => {
     const nextProfile = {
       region: "강원",

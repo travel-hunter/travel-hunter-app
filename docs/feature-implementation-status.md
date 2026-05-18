@@ -88,7 +88,7 @@
 - `cd backend && python -m pytest`: 181 passed.
 - `cd backend && alembic upgrade head --sql`: passed.
 - `cd frontend && npm run typecheck`: passed.
-- `cd frontend && npm test`: 69 passed.
+- `cd frontend && npm test`: 71 passed.
 - `cd frontend && npm run build`: passed, sourcemap 미생성, PWA manifest/icon 산출물 확인.
 - `cd frontend && npm run test:e2e`: 5 passed.
 - `docker compose -f compose.yaml config`: passed.
@@ -100,6 +100,7 @@
 - Cloudflare Quick Tunnel frontend `/login`: 200 after preview host allowlist fix.
 - Landing removal/login clone(2026-05-13): frontend typecheck, DB-backed Vitest 64 passed, frontend build, `git diff --check` passed.
 - Service readiness cleanup(2026-05-18): display hardcoding centralized, KST trip date defaults added, protected runtime env guard added, policy JSON validator added.
+- MyPage information sheets(2026-05-18): FAQ, terms, and privacy settings rows no longer show placeholder toast and render in-app sheet content.
 
 ## 다음 기능 우선순위
 
