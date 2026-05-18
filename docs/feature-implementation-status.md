@@ -85,10 +85,10 @@
 
 ## 검증 결과
 
-- `cd backend && python -m pytest`: 181 passed.
+- `cd backend && python -m pytest`: 184 passed.
 - `cd backend && alembic upgrade head --sql`: passed.
 - `cd frontend && npm run typecheck`: passed.
-- `cd frontend && npm test`: 71 passed.
+- `cd frontend && npm test`: 72 passed.
 - `cd frontend && npm run build`: passed, sourcemap 미생성, PWA manifest/icon 산출물 확인.
 - `cd frontend && npm run test:e2e`: 5 passed.
 - `docker compose -f compose.yaml config`: passed.

@@ -113,6 +113,21 @@ def list_saved_policies(
     ]
 
 
+def list_applied_policies(
+    db: Session | None = None,
+    user: User | None = None,
+) -> list[dict[str, object]]:
+    if db is None:
+        raise RuntimeError("DB session is required.")
+    if user is None:
+        raise RuntimeError("User is required.")
+
+    return [
+        policy_to_api(policy)
+        for policy in policy_repository.list_applied_policies(db, user_id=user.id)
+    ]
+
+
 def remove_saved_policy(
     policy_slug: str,
     db: Session | None = None,

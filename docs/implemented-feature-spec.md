@@ -25,6 +25,7 @@
 | 프로필 설정 | `/profile-setup`에서 관심 지역, 스타일, 예산을 저장한다. | `PATCH /api/me/profile`, `users` |
 | 프로필 편집 | `/mypage`의 편집 sheet에서 profile 값을 수정한다. | `PATCH /api/me/profile` |
 | 저장 정책 | `/mypage`에서 저장한 정책을 확인하고 삭제한다. | `GET/DELETE /api/me/saved-policies` |
+| 신청 정책 통계 | `/mypage`에서 내 일정에 연결된 정책 수를 확인한다. | `GET /api/me/applied-policies`, `trip_policies` |
 | 알림 연락처 | 카카오 알림톡 연락처를 저장하거나 삭제한다. | `GET/PATCH /api/me/contact`, `users.phone_number` |
 | 마감 알림 설정 | D-7/D-1 정책 알림을 켜거나 끈다. | `GET/PATCH /api/me/notification-settings` |
 

@@ -127,6 +127,7 @@ export type AppDataApi = {
   getPolicy: (policySlug?: string) => Promise<Policy>;
   savePolicy: (policySlug: string) => Promise<SavePolicyResponse>;
   listSavedPolicies: () => Promise<Policy[]>;
+  listAppliedPolicies: () => Promise<Policy[]>;
   removeSavedPolicy: (policySlug: string) => Promise<SavePolicyResponse>;
   listTrips: () => Promise<Trip[]>;
   createTrip: (trip?: CreateTripRequest) => Promise<Trip>;

@@ -19,6 +19,8 @@ export function MyPage() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [isLoadingTrips, setIsLoadingTrips] = useState(true);
   const [tripError, setTripError] = useState("");
+  const [appliedPolicyCount, setAppliedPolicyCount] = useState(0);
+  const [isLoadingAppliedPolicies, setIsLoadingAppliedPolicies] = useState(true);
   const [removingPolicySlug, setRemovingPolicySlug] = useState<string | null>(null);
   const [isProfileEditorOpen, setIsProfileEditorOpen] = useState(false);
   const [profileDraft, setProfileDraft] = useState<Profile>(() => profile);
@@ -76,6 +78,27 @@ export function MyPage() {
       })
       .finally(() => {
         if (isCurrent) setIsLoadingTrips(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isCurrent = true;
+    setIsLoadingAppliedPolicies(true);
+
+    appDataApi
+      .listAppliedPolicies()
+      .then((policies) => {
+        if (isCurrent) setAppliedPolicyCount(policies.length);
+      })
+      .catch(() => {
+        if (isCurrent) setAppliedPolicyCount(0);
+      })
+      .finally(() => {
+        if (isCurrent) setIsLoadingAppliedPolicies(false);
       });
 
     return () => {
@@ -269,7 +292,7 @@ export function MyPage() {
         <section className="prototype-stat-grid" aria-label="나의 활동 요약">
           <ProfileStat label="내 일정" value={isLoadingTrips ? "..." : String(tripCount)} tone="primary" />
           <ProfileStat label="즐겨찾기" value={isLoadingSavedPolicies ? "..." : String(savedPolicyCount)} tone="secondary" />
-          <ProfileStat label="신청 정책" value="0" tone="accent" />
+          <ProfileStat label="신청 정책" value={isLoadingAppliedPolicies ? "..." : String(appliedPolicyCount)} tone="accent" />
         </section>
 
         <section className="prototype-favorite-section" aria-labelledby="favorite-policy-title">

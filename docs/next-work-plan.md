@@ -73,7 +73,7 @@
 | 3 | 외부 HTTPS 핵심 smoke + visual QA | staging URL에서 `/api/health`, `/login`, `/policies`, `/trips` 접근과 테스트 계정 로그인을 확인하고 390/1024/1440 viewport에서 핵심 화면을 확인 |
 | 4 | 실제 SMTP provider password reset staging smoke | SMTP env와 public HTTPS base URL을 주입해 reset email 발송, 링크 진입, password confirm을 외부 URL 기준으로 확인 |
 | 5 | Kakao/Google OAuth provider console smoke | provider console redirect URI와 env 값을 맞추고 실제 social login callback/refresh를 확인 |
-| 6 | 신청 정책 카운트 API 연동 여부 결정 | 신청/접수 상태를 저장할 도메인 모델과 UI 범위를 확정 |
+| 6 | 홈 추천 목적지 동적화 여부 결정 | 현재 display config의 제주/부산/강원 추천 목적지를 정책/일정 데이터 기반으로 바꿀지 범위를 확정 |
 | 7 | 전화번호 OTP 설계/구현 | Kakao AlimTalk 수신 연락처 실소유 검증 |
 
 ## 구조 정리 참고

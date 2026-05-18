@@ -35,6 +35,7 @@
 | `GET /api/policies` | 200 | first item has `id` and `slug` | P0 |
 | `GET /api/policies/local-vacation` | 200 | `amount`, `officialUrl`, `applyUrl`, policy detail shape | P0 |
 | `GET /api/me/saved-policies` | 200 | `Policy[]`, DB mode returns current user's saved policies | P1 |
+| `GET /api/me/applied-policies` | 200 | `Policy[]`, DB mode returns distinct policies linked to the current user's accessible trips | P1 |
 | `POST /api/me/saved-policies/local-vacation` | 200 | `{ "policyId": "local-vacation", "saved": true }`, DB mode persists `user_saved_policies` idempotently | P1 |
 | `DELETE /api/me/saved-policies/local-vacation` | 200 | `{ "policyId": "local-vacation", "saved": false }`, DB mode removes saved policy idempotently | P1 |
 | `GET /api/trips` | 200 | first item has `id`; DB mode id is numeric string and includes `currentUserRole` | P0 |
@@ -108,6 +109,7 @@ Policy endpoints must preserve the same public response shape:
 - `GET /api/policies` returns `id`, `slug`, `title`, `org`, `deadline`, `amount`, `match`, `requirements`, `documents`, `officialUrl`, and `applyUrl`.
 - `GET /api/policies/local-vacation` returns the seeded policy with slug `local-vacation`.
 - `GET /api/me/saved-policies` requires bearer auth and returns the current user's saved policies.
+- `GET /api/me/applied-policies` requires bearer auth and returns distinct policies linked through `trip_policies` on trips owned by or shared with the current user.
 - `POST /api/me/saved-policies/local-vacation` requires bearer auth and stores one `user_saved_policies` row per user/policy pair.
 - `DELETE /api/me/saved-policies/local-vacation` requires bearer auth and removes one `user_saved_policies` row per user/policy pair.
 - Repeated saved policy requests return the same response without duplicate rows.

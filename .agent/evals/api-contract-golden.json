@@ -353,6 +353,17 @@
       "dbModeBehavior": "Requires bearer auth and returns current user's saved policies."
     },
     {
+      "method": "GET",
+      "path": "/api/me/applied-policies",
+      "status": 200,
+      "requiredArrayItemFields": {
+        "id": "string",
+        "slug": "string",
+        "title": "string"
+      },
+      "dbModeBehavior": "Requires bearer auth and returns distinct policies linked to trips owned by or shared with the current user."
+    },
+    {
       "method": "POST",
       "path": "/api/me/saved-policies/local-vacation",
       "status": 200,

@@ -1012,12 +1012,33 @@ describe("Travel Hunter app", () => {
   it("saves a policy from the policy detail header action", async () => {
     await login();
     cleanup();
-    renderRoute("/policies/local-vacation");
+    render(
+      <MemoryRouter initialEntries={["/policies", "/policies/local-vacation"]} initialIndex={1}>
+        <AppProviders>
+          <App />
+        </AppProviders>
+      </MemoryRouter>,
+    );
 
     const saveButton = await screen.findByRole("button", { name: "저장" });
-    await userEvent.setup().click(saveButton);
+    const user = userEvent.setup();
+    await user.click(saveButton);
 
     await waitFor(() => expect(document.body).toHaveTextContent("관심 정책으로 저장했어요."));
+    await user.click(screen.getByRole("button", { name: "뒤로" }));
+    const savedFilterButton = await waitFor(() => {
+      const button = document.querySelector(".prototype-head-pill");
+      expect(button).toBeTruthy();
+      return button as HTMLButtonElement;
+    });
+    await user.click(savedFilterButton);
+
+    await waitFor(() => {
+      expect(document.querySelector(".prototype-head-pill")).toHaveTextContent(/\([1-9]\d*\)/);
+      expect(document.querySelector('a[href="/policies/local-vacation"]')).toBeTruthy();
+    });
+    await user.click(screen.getByRole("button", { name: "지역사랑 휴가지원 즐겨찾기 해제" }));
+    await waitFor(() => expect(document.querySelector('a[href="/policies/local-vacation"]')).toBeFalsy());
   });
 
   it("shows saved policies on my page and removes them", async () => {
@@ -1314,6 +1335,62 @@ describe("Travel Hunter app", () => {
       expect(within(summary).getByText("3")).toBeInTheDocument();
     } finally {
       listTripsSpy.mockRestore();
+    }
+  });
+
+  it("shows the applied policy count in the my page stats", async () => {
+    const appliedPolicies: Policy[] = [
+      {
+        id: "local-vacation",
+        slug: "local-vacation",
+        label: "지",
+        tag: "최대 30만원 환급",
+        title: "지역사랑 휴가지원",
+        org: "문화체육관광부",
+        region: "전국",
+        deadline: "2026-10-31",
+        amount: "최대 30만원 환급",
+        summary: "국내 여행 지원",
+        match: 98,
+        category: "환급",
+        requirements: [],
+        documents: [],
+        officialUrl: null,
+        applyUrl: null,
+      },
+      {
+        id: "sokcho-stay",
+        slug: "sokcho-stay",
+        label: "속",
+        tag: "숙박 할인",
+        title: "속초 숙박 할인권",
+        org: "속초시",
+        region: "강원",
+        deadline: "2026-08-15",
+        amount: "숙박비 50% 할인",
+        summary: "숙박 할인",
+        match: 90,
+        category: "숙박",
+        requirements: [],
+        documents: [],
+        officialUrl: null,
+        applyUrl: null,
+      },
+    ];
+
+    await login();
+    const listAppliedPoliciesSpy = vi.spyOn(appDataApi, "listAppliedPolicies").mockResolvedValue(appliedPolicies);
+
+    try {
+      cleanup();
+      renderRoute("/mypage");
+
+      const summary = await screen.findByLabelText("나의 활동 요약");
+      const appliedPolicyStat = within(summary).getByText("신청 정책").closest(".prototype-stat-card") as HTMLElement;
+      expect(appliedPolicyStat).toBeTruthy();
+      await waitFor(() => expect(within(appliedPolicyStat).getByText("2")).toBeInTheDocument());
+    } finally {
+      listAppliedPoliciesSpy.mockRestore();
     }
   });
 

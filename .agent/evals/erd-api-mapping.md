@@ -38,6 +38,7 @@
 | `Policy.applyUrl` | `policies.apply_url` | External application deep link, nullable |
 | `SavePolicyResponse.policyId` | `policies.slug` through `user_saved_policies.policy_id` | Standalone saved policy |
 | `SavePolicyResponse.saved` | `user_saved_policies` row existence | Idempotent save response |
+| `AppliedPolicy[]` | `trip_policies` joined through owned/shared `trips` | `GET /api/me/applied-policies` returns distinct policies linked to trips accessible by the current user |
 | `Trip.id` | `trips.id` | API returns numeric DB id as string |
 | `Trip.status` | `trips.status` | `draft` or `confirmed`; `/trips` persists confirmation through the status endpoint |
 | `Trip.dates` | `trips.start_date` + `trips.end_date` | Display string |

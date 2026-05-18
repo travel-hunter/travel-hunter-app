@@ -52,11 +52,12 @@
 - [x] Codex model split workflow is documented and scripted for planning `gpt-5.5/xhigh` and implementation `gpt-5.3-codex/high`.
 - [x] Public VPS artifacts exist.
 - [x] Cloudflare Tunnel artifacts exist.
+- [x] MyPage applied policy count is backed by `GET /api/me/applied-policies` and distinct `trip_policies`.
 
 ## 마지막 검증 결과
 
 - Date: 2026-05-18.
-- Backend pytest: 181 passed.
+- Backend pytest: 184 passed.
 - Alembic offline SQL: passed.
 - Local compose config: passed.
 - VPS compose config: passed.
@@ -64,7 +65,7 @@
 - `git diff --check`: passed.
 - Frontend typecheck/build: passed.
 - Frontend build output includes PWA manifest/icons and no sourcemap files.
-- Frontend DB-backed Vitest: 71 passed.
+- Frontend DB-backed Vitest: 72 passed.
 - Docker backend/frontend rebuild: passed.
 - Previous DB-backed Playwright e2e: 5 passed.
 - Local compose config/build: passed.
@@ -75,6 +76,7 @@
 - Landing removal/login clone verification(2026-05-13): frontend typecheck, DB-backed Vitest 64 passed, frontend build, and `git diff --check` passed.
 - Service readiness cleanup(2026-05-18): display config/date defaults/runtime guard/policy data validation added; frontend typecheck/build and backend pytest passed.
 - MyPage information sheets(2026-05-18): FAQ, terms, and privacy rows render in-app sheet content; frontend Vitest 71 passed.
+- MyPage applied policy count(2026-05-18): `/mypage` `신청 정책` stat uses `GET /api/me/applied-policies`; backend pytest 184 passed, frontend Vitest 72 passed.
 
 ## 다음 우선순위
 

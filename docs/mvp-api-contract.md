@@ -501,6 +501,15 @@ Errors:
 
 Bearer token ?꾩슂. Response `200`: `Policy[]`
 
+### `GET /api/me/applied-policies`
+
+Bearer token required. Response `200`: `Policy[]`
+
+Behavior:
+
+- Returns the distinct policies linked to trips owned by or shared with the current user.
+- This powers the My Page `신청 정책` count without adding a separate application-status table.
+
 ### `POST /api/me/saved-policies/{policySlug}`
 
 Bearer token ?꾩슂.

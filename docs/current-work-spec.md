@@ -19,6 +19,7 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 - OAuth: Kakao/Google authorization code 시작, callback state 검증, social account 연결/생성, refresh cookie 기반 frontend callback.
 - Profile: profile setup, mypage profile edit, notification contact 저장.
 - Policies: 목록, 상세, 검색/필터, 정책 탐색 바로가기(추천/마감/유형), 조건 확인 요약/FAQ, 저장/삭제, official/apply URL CTA, 정책 링크 복사, Web Share API 공유 fallback.
+- Policy application stats: `/mypage`의 `신청 정책` 통계는 `GET /api/me/applied-policies`로 현재 사용자가 접근 가능한 일정에 연결된 distinct `trip_policies` 수를 표시한다.
 - Trips: 목록, 생성, 상세, 삭제, 정책 담기, 일정 확정 상태 저장, 장소 추가/수정/삭제, 장소 드래그앤드롭 순서/날짜 이동과 이동 affordance.
 - Frontend UX: HTML 프로토타입의 모바일 앱형 흐름을 현재 React 앱에 반영했다. `/`는 랜딩/온보딩 없이 프로토타입 로그인 첫 화면을 보여주고, `/onboarding`은 `/login`으로 redirect한다. 하단 탭/desktop header는 유지하고, 홈 대표 혜택 hero, 정책 카드/태그, 정책 상세 혜택 패키지, 일정 상세 혜택 묶음, 공통 배경/카드 톤을 프로토타입 기준으로 정리했다.
 - Draft autosave: `/trips/new` 일정 생성 draft와 `/trips/:id` 장소 추가/수정 draft를 24시간 localStorage에 임시 저장하고, 복원 시 안내와 버리기 액션을 제공한다.
@@ -72,8 +73,8 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 
 ## 최신 검증
 
-- `cd backend && python -m pytest`: 181 passed.
-- `cd frontend && npm test`: 71 passed.
+- `cd backend && python -m pytest`: 184 passed.
+- `cd frontend && npm test`: 72 passed.
 - `cd frontend && npm run typecheck`: passed.
 - `cd frontend && npm run build`: passed, production sourcemap 미생성, PWA manifest/icon 산출물 확인.
 - `frontend/public/manifest.webmanifest`: valid JSON, app name/theme/icon metadata 확인.
@@ -90,6 +91,7 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 - Landing removal/login clone verification(2026-05-13): `cd frontend && npm run typecheck` passed, `cd frontend && npm test` 64 passed, `cd frontend && npm run build` passed.
 - Service readiness cleanup verification(2026-05-18): display config/date defaults/runtime guard/policy data validation added; backend pytest 181 passed, frontend Vitest 69 passed, frontend typecheck/build passed.
 - MyPage information sheet verification(2026-05-18): FAQ, terms, and privacy settings rows open in-app sheets; frontend Vitest 71 passed.
+- MyPage applied policy count verification(2026-05-18): `GET /api/me/applied-policies` powers the `/mypage` `신청 정책` stat from distinct `trip_policies`; backend pytest 184 passed, frontend Vitest 72 passed.
 
 ## 미구현/조건부 범위
 
