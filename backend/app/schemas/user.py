@@ -58,7 +58,7 @@ class ContactInfo(BaseModel):
 
 
 class ContactUpdate(BaseModel):
-    phoneNumber: str | None = Field(default=None, max_length=30)
+    phoneNumber: str | None = Field(default=None, max_length=30, pattern=r"^(\s*$|[0-9\-+() ]{7,})$")
 
 
 class LoginRequest(BaseModel):
@@ -84,7 +84,7 @@ class NicknameSuggestion(BaseModel):
 
 
 class NicknameUpdate(BaseModel):
-    nickname: str = Field(min_length=1, max_length=20)
+    nickname: str = Field(min_length=2, max_length=20, pattern=r"^[가-힣a-zA-Z0-9_]+$")
 
 
 class AuthResponse(BaseModel):

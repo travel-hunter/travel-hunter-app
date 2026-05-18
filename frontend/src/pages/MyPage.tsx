@@ -45,107 +45,59 @@ export function MyPage() {
     let isCurrent = true;
     setIsLoadingSavedPolicies(true);
     setSavedPolicyError("");
-
-    appDataApi
-      .listSavedPolicies()
-      .then((policies) => {
-        if (isCurrent) setSavedPolicies(policies);
-      })
-      .catch(() => {
-        if (isCurrent) setSavedPolicyError("저장한 정책을 불러오지 못했어요.");
-      })
-      .finally(() => {
-        if (isCurrent) setIsLoadingSavedPolicies(false);
-      });
-
-    return () => {
-      isCurrent = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let isCurrent = true;
     setIsLoadingTrips(true);
     setTripError("");
-
-    appDataApi
-      .listTrips()
-      .then((nextTrips) => {
-        if (isCurrent) setTrips(nextTrips);
-      })
-      .catch(() => {
-        if (isCurrent) setTripError("일정 정보를 불러오지 못했어요");
-      })
-      .finally(() => {
-        if (isCurrent) setIsLoadingTrips(false);
-      });
-
-    return () => {
-      isCurrent = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let isCurrent = true;
     setIsLoadingAppliedPolicies(true);
-
-    appDataApi
-      .listAppliedPolicies()
-      .then((policies) => {
-        if (isCurrent) setAppliedPolicyCount(policies.length);
-      })
-      .catch(() => {
-        if (isCurrent) setAppliedPolicyCount(0);
-      })
-      .finally(() => {
-        if (isCurrent) setIsLoadingAppliedPolicies(false);
-      });
-
-    return () => {
-      isCurrent = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let isCurrent = true;
     setIsLoadingNotifications(true);
     setNotificationError("");
-
-    appDataApi
-      .getNotificationSettings()
-      .then((settings) => {
-        if (isCurrent) setNotificationSettings(settings);
-      })
-      .catch(() => {
-        if (isCurrent) setNotificationError("알림 설정을 불러오지 못했어요.");
-      })
-      .finally(() => {
-        if (isCurrent) setIsLoadingNotifications(false);
-      });
-
-    return () => {
-      isCurrent = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let isCurrent = true;
     setIsLoadingContact(true);
     setContactError("");
 
-    appDataApi
-      .getContact()
-      .then((nextContact) => {
-        if (!isCurrent) return;
-        setContact(nextContact);
-        setContactDraft(nextContact.phoneNumber ?? "");
-      })
-      .catch(() => {
-        if (isCurrent) setContactError("알림 연락처를 불러오지 못했어요.");
-      })
-      .finally(() => {
-        if (isCurrent) setIsLoadingContact(false);
-      });
+    Promise.allSettled([
+      appDataApi.listSavedPolicies(),
+      appDataApi.listTrips(),
+      appDataApi.listAppliedPolicies(),
+      appDataApi.getNotificationSettings(),
+      appDataApi.getContact(),
+    ]).then(([savedResult, tripsResult, appliedResult, notifResult, contactResult]) => {
+      if (!isCurrent) return;
+
+      if (savedResult.status === "fulfilled") {
+        setSavedPolicies(savedResult.value);
+      } else {
+        setSavedPolicyError("저장한 정책을 불러오지 못했어요.");
+      }
+      setIsLoadingSavedPolicies(false);
+
+      if (tripsResult.status === "fulfilled") {
+        setTrips(tripsResult.value);
+      } else {
+        setTripError("일정 정보를 불러오지 못했어요");
+      }
+      setIsLoadingTrips(false);
+
+      if (appliedResult.status === "fulfilled") {
+        setAppliedPolicyCount(appliedResult.value.length);
+      } else {
+        setAppliedPolicyCount(0);
+      }
+      setIsLoadingAppliedPolicies(false);
+
+      if (notifResult.status === "fulfilled") {
+        setNotificationSettings(notifResult.value);
+      } else {
+        setNotificationError("알림 설정을 불러오지 못했어요.");
+      }
+      setIsLoadingNotifications(false);
+
+      if (contactResult.status === "fulfilled") {
+        setContact(contactResult.value);
+        setContactDraft(contactResult.value.phoneNumber ?? "");
+      } else {
+        setContactError("알림 연락처를 불러오지 못했어요.");
+      }
+      setIsLoadingContact(false);
+    });
 
     return () => {
       isCurrent = false;

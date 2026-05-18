@@ -17,10 +17,10 @@ class ItineraryPlace(BaseModel):
 
 
 class CreateTripRequest(BaseModel):
-    title: str | None = None
+    title: str | None = Field(default=None, max_length=100)
     region: str | None = None
     style: str | None = None
-    description: str | None = None
+    description: str | None = Field(default=None, max_length=500)
     policySlug: str | None = None
     durationDays: int | None = Field(default=None, ge=2, le=5)
     startDate: date | None = None
