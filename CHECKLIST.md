@@ -7,6 +7,7 @@
 - [x] `docs/release-candidate-handoff.md` is the MVP release-candidate handoff guide.
 - [x] `docs/deployment-vps.md` is the public VPS staging runbook.
 - [x] `docs/deployment-tunnel.md` is the Cloudflare Tunnel staging runbook.
+- [x] `docs/deployment-cicd/README.md` is the team deployment/CICD documentation index.
 - [x] `docs/mvp-api-contract.md` is the API contract.
 - [x] `docs/next-work-plan.md` is the next-priority plan.
 - [x] `docs/db-schema-v0.3.sql` is the ERD v0.3 SQL baseline.
@@ -93,6 +94,9 @@
 - Docker rebuild/restart(2026-05-18): backend/frontend images rebuilt with Compose, containers recreated, backend health is `ok`, Alembic `upgrade head` passed, and `/api/trips/48` now returns `linkedPolicies`.
 - Multiple saved trips display(2026-05-18): trip list and policy trip picker render multiple saved trips with scroll/padding guard; frontend typecheck, App.test, build, Docker frontend rebuild, and 360/390/430px Playwright checks passed.
 - Trip detail linked-policy list(2026-05-18): trip detail renders every linked policy and prioritizes the policy passed from the just-attached route state; frontend typecheck, App.test, build, Docker frontend rebuild, and `/policies/local-vacation` -> `/trips/48` Playwright flow passed.
+- Deployment/CICD docs folder(2026-05-18): added `docs/deployment-cicd/` with GitHub workflow, local dev setup, frontend/backend/DB/AI guides, infrastructure, Jenkins pipeline, and release checklist; `deploy/.env.dev` and `deploy/.env.prod` are ignored; `git diff --check` passed.
+- Deployment/CICD doc correction(2026-05-18): clarified Jenkins is planned rather than currently implemented, removed the nonexistent `scripts/jenkins-deploy-placeholder.sh` call from the Jenkinsfile draft, documented the current branch-strategy transition state, and `git diff --check` passed.
+- Deployment/CICD GitHub handoff note(2026-05-18): documented source-based GitHub deploy flow, clarified temporary Docker image archives are not GitHub deployment artifacts, added archive ignore rules, added pre-push checks for env/secret/archive files, and `git diff --check` passed.
 
 ## 다음 우선순위
 

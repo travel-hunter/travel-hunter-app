@@ -26,6 +26,11 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# Local archives and Docker image handoff files
+*.tar
+*.tar.gz
+*.tgz
+
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
@@ -139,6 +144,8 @@ celerybeat.pid
 .envrc
 deploy/.env.staging
 deploy/.env.tunnel
+deploy/.env.dev
+deploy/.env.prod
 .venv
 env/
 venv/

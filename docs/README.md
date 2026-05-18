@@ -22,6 +22,7 @@
 
 ## 운영/배포 문서
 
+- `deployment-cicd/README.md`: GitHub, WSL/Docker 개발 환경, 프론트/백/DB/AI 작업 설명서, Jenkins, release checklist를 모은 팀 배포/CICD 산출문서.
 - `deployment-tunnel.md`: NAT 제한 환경 Cloudflare Tunnel staging runbook.
 - `deployment-vps.md`: public VPS 직접 노출 staging runbook.
 - `vps-staging-inputs.md`: VPS staging 입력값과 secret 처리 기준.
