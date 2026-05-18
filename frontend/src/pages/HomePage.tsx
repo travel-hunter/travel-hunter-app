@@ -5,7 +5,7 @@ import { appDataApi, type Policy } from "../api";
 import { useAsyncResource } from "../api/useAsyncResource";
 import { useSession } from "../app/session";
 import { ErrorState, LoadingState } from "../components/ui";
-import { getFeaturedPolicy, getHomePolicyIcon, homeDestinations } from "../data/displayConfig";
+import { buildHomeDestinations, getFeaturedPolicy, getHomePolicyIcon } from "../data/displayConfig";
 import { dday } from "../utils";
 
 function policyDeadlineTime(policy: Policy) {
@@ -26,6 +26,7 @@ export function HomePage() {
   const featuredPolicy = getFeaturedPolicy(policies);
   const featuredTrip = trips?.[0];
   const deadlinePolicies = getDeadlinePolicies(policies);
+  const homeDestinations = buildHomeDestinations(policies);
   const avatarLabel = name.trim().slice(0, 1).toUpperCase() || "T";
   const aiCardTo = featuredTrip ? `/trips/${featuredTrip.id}` : "/trips/new";
 
@@ -77,7 +78,7 @@ export function HomePage() {
             to={destination.to}
           >
             <strong>{destination.title}</strong>
-            <span>⭐ {destination.stars}</span>
+            <span>{destination.badge}</span>
           </Link>
         ))}
       </div>

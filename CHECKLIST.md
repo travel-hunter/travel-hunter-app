@@ -44,6 +44,7 @@
 - [x] Prototype-based frontend UX refresh is applied to the app shell, home, policy detail, and trip detail without changing API/DB routes.
 - [x] Landing/onboarding first-entry page is removed; `/` now renders the prototype-style login screen and `/onboarding` redirects to `/login`.
 - [x] Frontend display-only policy/trip visual values are centralized in `displayConfig`.
+- [x] Home destination rail is derived from policy regions/titles and no longer shows fake star ratings.
 - [x] `/trips/new` default dates use a KST helper instead of fixed 2026 defaults.
 - [x] Protected runtime config rejects development secrets, localhost public URLs, localhost CORS, and insecure refresh cookies.
 - [x] Digital tourism policy JSON has a validation script for shape, duplicate slugs, dates, and encoding-risk markers.
@@ -77,6 +78,7 @@
 - Service readiness cleanup(2026-05-18): display config/date defaults/runtime guard/policy data validation added; frontend typecheck/build and backend pytest passed.
 - MyPage information sheets(2026-05-18): FAQ, terms, and privacy rows render in-app sheet content; frontend Vitest 71 passed.
 - MyPage applied policy count(2026-05-18): `/mypage` `신청 정책` stat uses `GET /api/me/applied-policies`; backend pytest 184 passed, frontend Vitest 72 passed.
+- Home destination rail(2026-05-18): `/home` derives destination cards from policy data and uses benefit-count badges instead of fake star ratings.
 
 ## 다음 우선순위
 

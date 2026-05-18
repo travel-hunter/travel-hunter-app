@@ -22,6 +22,7 @@ Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저�
 - Policy application stats: `/mypage`의 `신청 정책` 통계는 `GET /api/me/applied-policies`로 현재 사용자가 접근 가능한 일정에 연결된 distinct `trip_policies` 수를 표시한다.
 - Trips: 목록, 생성, 상세, 삭제, 정책 담기, 일정 확정 상태 저장, 장소 추가/수정/삭제, 장소 드래그앤드롭 순서/날짜 이동과 이동 affordance.
 - Frontend UX: HTML 프로토타입의 모바일 앱형 흐름을 현재 React 앱에 반영했다. `/`는 랜딩/온보딩 없이 프로토타입 로그인 첫 화면을 보여주고, `/onboarding`은 `/login`으로 redirect한다. 하단 탭/desktop header는 유지하고, 홈 대표 혜택 hero, 정책 카드/태그, 정책 상세 혜택 패키지, 일정 상세 혜택 묶음, 공통 배경/카드 톤을 프로토타입 기준으로 정리했다.
+- Home destinations: `/home`의 인기 국내 여행지 rail은 고정 별점 대신 정책 목록의 지역/제목을 기준으로 목적지를 파생하고, 부족한 항목만 fallback 목적지로 채운다.
 - Draft autosave: `/trips/new` 일정 생성 draft와 `/trips/:id` 장소 추가/수정 draft를 24시간 localStorage에 임시 저장하고, 복원 시 안내와 버리기 액션을 제공한다.
 - State UX: `/policies`, `/trips`, `/mypage`의 loading/empty/error 상태에 공통 상태 패널과 다음 행동 CTA를 적용했다.
 - AI recommendations: 추천 결과를 실제 `trip_places`에 추가, 추천 기준 sheet.

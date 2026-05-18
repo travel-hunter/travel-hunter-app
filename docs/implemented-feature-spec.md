@@ -35,7 +35,7 @@
 |---|---|---|
 | 정책 목록/상세 | `/policies`에서 목록을 보고 `/policies/:slug`에서 상세를 확인한다. | `GET /api/policies`, `GET /api/policies/{policySlug}` |
 | 검색/필터 | 검색어, 지역, 카테고리를 client-side AND 조건으로 적용한다. | frontend filtering |
-| 정책 탐색 바로가기 | `/policies` 상단에서 매칭 높은 정책, 마감 임박 정책, 유형별 모아보기를 먼저 보여주고 `/home`에서도 마감 임박/추천 혜택 레일을 분리해 보여준다. | frontend grouping |
+| 정책 탐색 바로가기 | `/policies` 상단에서 매칭 높은 정책, 마감 임박 정책, 유형별 모아보기를 먼저 보여주고 `/home`에서도 마감 임박/추천 혜택 레일을 분리해 보여준다. 홈 인기 국내 여행지는 정책 지역/제목에서 파생하고 fallback 목적지만 보조로 채운다. | frontend grouping |
 | 조건 확인 요약/FAQ | 정책 상세에서 내 관심 지역과 정책 지역, 핵심 신청 조건, 필요 서류를 요약하고 정적 FAQ accordion을 제공한다. 확정 자격 판정은 하지 않는다. | `Policy.requirements`, `Policy.documents`, `Policy.region` |
 | 저장/삭제 | 정책 상세에서 저장하고 마이페이지에서 삭제한다. | `user_saved_policies` |
 | 공식/신청 URL | `applyUrl` 우선, 없으면 `officialUrl`, 둘 다 없으면 준비 안내를 표시한다. | `policies.apply_url`, `policies.official_url` |

@@ -980,10 +980,11 @@ describe("Travel Hunter app", () => {
     expect(screen.getByLabelText("이번 달 혜택 정책 목록")).toBeInTheDocument();
     const destinationRail = screen.getByLabelText("인기 국내 여행지 목록");
     expect(destinationRail).toBeInTheDocument();
-    expect(within(destinationRail).getByRole("link", { name: /제주/ })).toHaveAttribute("href", "/trips/new?region=%EC%A0%9C%EC%A3%BC");
+    expect(within(destinationRail).getByRole("link", { name: /부산/ })).toHaveAttribute("href", "/trips/new?region=%EB%B6%80%EC%82%B0");
+    await waitFor(() => expect(within(destinationRail).getAllByText(/혜택 \d+개/).length).toBeGreaterThan(0));
+    expect(document.body).not.toHaveTextContent("⭐ 4.9");
     await waitFor(() => expect(screen.getByText("💰 이번 달 인기 정책")).toBeInTheDocument());
     await waitFor(() => expect(document.body).toHaveTextContent("💴"));
-    await waitFor(() => expect(document.body).toHaveTextContent("⭐ 4.9"));
     await waitFor(() => expect(getLink("/policies/local-vacation")).toBeInTheDocument());
   });
 

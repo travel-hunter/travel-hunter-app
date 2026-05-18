@@ -4,16 +4,84 @@ export const featuredPolicySlug = "local-vacation";
 
 export type HomeDestination = {
   title: string;
-  stars: string;
+  badge: string;
   color: string;
   to: string;
 };
 
-export const homeDestinations: HomeDestination[] = [
-  { title: "제주", stars: "4.9", color: "#3BC9DB", to: "/trips/new?region=%EC%A0%9C%EC%A3%BC" },
-  { title: "부산", stars: "4.8", color: "#4DABF7", to: "/trips/new?region=%EB%B6%80%EC%82%B0" },
-  { title: "강원", stars: "4.7", color: "#69DB7C", to: "/trips/new?region=%EA%B0%95%EC%9B%90" },
+type DestinationCandidate = Omit<HomeDestination, "badge" | "to"> & {
+  regionQuery: string;
+};
+
+const destinationCandidates: DestinationCandidate[] = [
+  { title: "제주", regionQuery: "제주", color: "#3BC9DB" },
+  { title: "부산", regionQuery: "부산", color: "#4DABF7" },
+  { title: "강원", regionQuery: "강원", color: "#69DB7C" },
+  { title: "속초", regionQuery: "속초", color: "#74C0FC" },
+  { title: "경주", regionQuery: "경주", color: "#FFD43B" },
+  { title: "서울", regionQuery: "서울", color: "#FF8787" },
+  { title: "전남", regionQuery: "전남", color: "#38D9A9" },
+  { title: "경북", regionQuery: "경북", color: "#B197FC" },
+  { title: "강릉", regionQuery: "강릉", color: "#66D9E8" },
 ];
+
+const fallbackDestinations = destinationCandidates.slice(0, 3);
+
+function destinationToLink(region: string): string {
+  return `/trips/new?region=${encodeURIComponent(region)}`;
+}
+
+function policyDeadlineTime(policy: Pick<Policy, "deadline">): number {
+  const time = new Date(policy.deadline).getTime();
+  return Number.isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
+}
+
+function matchesDestination(policy: Policy, candidate: DestinationCandidate): boolean {
+  if (policy.region === "전국") return false;
+  return policy.region.includes(candidate.regionQuery) || policy.title.includes(candidate.regionQuery);
+}
+
+export function buildHomeDestinations(
+  policies: Policy[] | null | undefined,
+  max = 3,
+): HomeDestination[] {
+  const policyList = policies ?? [];
+  const rankedDestinations = destinationCandidates
+    .map((candidate) => {
+      const matches = policyList.filter((policy) => matchesDestination(policy, candidate));
+      const closestDeadline = matches.reduce(
+        (closest, policy) => Math.min(closest, policyDeadlineTime(policy)),
+        Number.MAX_SAFE_INTEGER,
+      );
+      return {
+        ...candidate,
+        matchCount: matches.length,
+        closestDeadline,
+      };
+    })
+    .filter((candidate) => candidate.matchCount > 0)
+    .sort((left, right) => right.matchCount - left.matchCount || left.closestDeadline - right.closestDeadline)
+    .map<HomeDestination>((candidate) => ({
+      title: candidate.title,
+      badge: candidate.closestDeadline === Number.MAX_SAFE_INTEGER ? `혜택 ${candidate.matchCount}개` : `혜택 ${candidate.matchCount}개`,
+      color: candidate.color,
+      to: destinationToLink(candidate.regionQuery),
+    }));
+
+  const destinations = [...rankedDestinations];
+  for (const fallback of fallbackDestinations) {
+    if (destinations.length >= max) break;
+    if (destinations.some((destination) => destination.title === fallback.title)) continue;
+    destinations.push({
+      title: fallback.title,
+      badge: "추천",
+      color: fallback.color,
+      to: destinationToLink(fallback.regionQuery),
+    });
+  }
+
+  return destinations.slice(0, max);
+}
 
 const homePolicyIcons: Record<string, string> = {
   "local-vacation": "💴",
