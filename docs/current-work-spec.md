@@ -1,113 +1,124 @@
 # Travel Hunter 현재 작업 명세
 
-## 현재 상태
+## 현재 기준
 
-Travel Hunter는 국내 여행 정책 탐색, 일정 생성/편집, 정책 저장, 초대 협업, 마감 알림 기반을 제공하는 DB-backed-only MVP다. Runtime mock mode는 제거됐고, frontend는 항상 FastAPI backend를 호출한다.
+- 기준일: 2026-05-18
+- 브랜치: `feat/prototype-to-react`
+- 기준 커밋: `239f09d fix: disable apply button when no application url`
+- 원격 상태: `origin/feat/prototype-to-react` 대비 `ahead 1`
+- 작업 상태: tracked worktree clean
+- 실행 모드: DB-backed-only MVP. Runtime mock mode는 제거된 상태를 유지한다.
 
-- 기준: 커밋 `7b8fec0`(feat: refresh frontend UX from prototype) 이후 현재 worktree의 랜딩 제거와 프로토타입 로그인 첫 화면 클론까지 포함한 스냅샷.
-- 브랜치 상태: `feat/prototype-to-react`, `origin/feat/prototype-to-react` 대비 `ahead 7`이며 현재 랜딩 제거/로그인 화면 변경분이 커밋 전 상태로 남아 있다.
-- 최근 변경으로 일단체크인 벤치마크 분석, 업로드 HTML 프로토타입 UX 분석, production sourcemap 비공개 명시, PWA manifest/meta 1차 적용, 프로젝트 구조 audit 문서화, Web Share API 공유 fallback, Codex 모델 실행 스크립트 호환성 수정, tunnel/staging preview host allowlist 보정, 프로토타입 기반 frontend UX 개편, 랜딩 제거와 프로토타입 로그인 첫 화면 클론을 완료했다.
-- 같은 네트워크에서 개발 서버를 공유하는 LAN runbook은 `docs/local-lan-access.md`에 정리했다.
-- Password reset SMTP smoke runbook은 `docs/password-reset-smtp-smoke.md`에 정리했다. Local SMTP capture 기반 E2E는 통과했고, 실제 SMTP provider와 public HTTPS staging domain 기반 smoke는 아직 입력값 대기 상태다.
-- 구현 기능명세서는 `docs/implemented-feature-spec.md`에 정리했다.
+Travel Hunter는 국내 여행 정책 탐색, 정책 저장/공유, 일정 생성/편집, 정책-일정 연결, 초대 협업, 마감 알림 기반을 제공하는 FastAPI/PostgreSQL 기반 MVP다. Frontend는 항상 `AppDataApi`를 통해 backend API를 호출하며, seed/demo 값은 운영 source of truth로 취급하지 않는다.
+
+## 최근 완료 작업
+
+- `/mypage` 빈 즐겨찾기 EmptyState 개선.
+- FAQ, 이용약관, 개인정보처리방침을 마이페이지 인앱 sheet로 제공.
+- 정책 상세 저장 하트 상태를 `savedSlugs` 기준으로 동기화.
+- `/mypage` 신청 정책 카운트를 `GET /api/me/applied-policies` 기반으로 연결.
+- `/home` 인기 국내 여행지 rail을 정책 제목/지역 기반으로 동적 생성하고, 가짜 별점 표시는 제거.
+- 정책 신청 URL이 없을 때 신청 버튼을 비활성화하고 준비 안내를 유지.
+- Docker frontend/backend/db rebuild 및 로컬 접속 확인.
 
 ## 구현 완료 범위
 
-- Auth: email/password 회원가입, email 중복 확인, 닉네임 설정/추천, 로그인, refresh, logout, `/api/me`.
-- Codex workflow: `docs/codex-model-workflow.md` and `scripts/codex-*.ps1` define planning `gpt-5.5/xhigh` and implementation `gpt-5.3-codex/high`.
-- Password reset: email reset link 요청, token confirm, password hash 갱신, 기존 refresh token revoke.
-- OAuth: Kakao/Google authorization code 시작, callback state 검증, social account 연결/생성, refresh cookie 기반 frontend callback.
-- Profile: profile setup, mypage profile edit, notification contact 저장.
-- Policies: 목록, 상세, 검색/필터, 정책 탐색 바로가기(추천/마감/유형), 조건 확인 요약/FAQ, 저장/삭제, official/apply URL CTA, 정책 링크 복사, Web Share API 공유 fallback.
-- Policy application stats: `/mypage`의 `신청 정책` 통계는 `GET /api/me/applied-policies`로 현재 사용자가 접근 가능한 일정에 연결된 distinct `trip_policies` 수를 표시한다.
-- Trips: 목록, 생성, 상세, 삭제, 정책 담기, 일정 확정 상태 저장, 장소 추가/수정/삭제, 장소 드래그앤드롭 순서/날짜 이동과 이동 affordance.
-- Frontend UX: HTML 프로토타입의 모바일 앱형 흐름을 현재 React 앱에 반영했다. `/`는 랜딩/온보딩 없이 프로토타입 로그인 첫 화면을 보여주고, `/onboarding`은 `/login`으로 redirect한다. 하단 탭/desktop header는 유지하고, 홈 대표 혜택 hero, 정책 카드/태그, 정책 상세 혜택 패키지, 일정 상세 혜택 묶음, 공통 배경/카드 톤을 프로토타입 기준으로 정리했다.
-- Home destinations: `/home`의 인기 국내 여행지 rail은 고정 별점 대신 정책 목록의 지역/제목을 기준으로 목적지를 파생하고, 부족한 항목만 fallback 목적지로 채운다.
-- Draft autosave: `/trips/new` 일정 생성 draft와 `/trips/:id` 장소 추가/수정 draft를 24시간 localStorage에 임시 저장하고, 복원 시 안내와 버리기 액션을 제공한다.
-- State UX: `/policies`, `/trips`, `/mypage`의 loading/empty/error 상태에 공통 상태 패널과 다음 행동 CTA를 적용했다.
-- AI recommendations: 추천 결과를 실제 `trip_places`에 추가, 추천 기준 sheet.
-- Invites: 링크 생성, viewer/editor role 저장, 수락, 일정 멤버십 저장, 장소 편집 권한 enforcement.
-- Notifications: deadline 설정 저장, contact 저장, delivery history, target calculation, FastAPI scheduler, SOLAPI AlimTalk adapter, retry, SOLAPI webhook 상태 추적.
-- Design/deployment: Wanted Design System 1차 적용, Figma handoff 문서, PWA manifest/meta 1차 적용, Docker VPS/Tunnel 배포 산출물.
-- PWA offline: service worker는 아직 추가하지 않고, 안전한 캐싱 기준은 `docs/pwa-offline-strategy.md`에 정리했다.
-- Service readiness: 화면 표시값은 frontend display config로 중앙화하고, `/trips/new` 기본 날짜는 KST 기준 helper를 사용한다. Protected runtime(`staging/production/prod`)에서는 localhost/public fallback과 개발 secret을 config guard로 차단한다.
+- Auth:
+  - email/password 회원가입 및 로그인.
+  - 이메일 중복 확인.
+  - 닉네임 설정, 임시 닉네임 자동 생성, 주사위 추천.
+  - refresh/logout/session 복구.
+  - SMTP 기반 password reset request/confirm.
+  - Kakao/Google OAuth authorization code flow.
+- Profile/MyPage:
+  - profile setup.
+  - 닉네임/지역/스타일/예산 편집.
+  - 저장 정책 목록, 빈 상태 안내, 삭제.
+  - 신청 정책 카운트.
+  - 알림 연락처 저장.
+  - 마감 알림 설정 저장.
+  - FAQ/약관/개인정보 sheet.
+- Policies:
+  - 목록, 상세, 검색, 카테고리/지역/기간/금액 필터.
+  - 저장/해제와 세션 공유 상태 동기화.
+  - 공유 링크 복사 및 Web Share API fallback.
+  - 조건 확인 요약, 필요 서류 checklist, FAQ.
+  - 신청 URL이 있는 정책은 외부 링크, 없는 정책은 비활성/준비 안내.
+- Trips:
+  - 일정 목록, 생성, 상세, 삭제.
+  - `draft -> confirmed` 상태 저장.
+  - 날짜 기반 일정 생성과 KST 기본 날짜 helper.
+  - 정책 일정 담기.
+  - 장소 추가/수정/삭제.
+  - 방문 시간 10분 단위 spinner와 시간 없음 저장.
+  - 장소 drag-and-drop 순서/날짜 이동.
+  - 작성 중 draft autosave.
+- AI recommendations:
+  - 추천 결과 조회.
+  - 추천 장소를 실제 `trip_places`에 저장.
+  - 추천 기준 sheet.
+- Invites:
+  - 초대 링크 생성.
+  - viewer/editor role 저장.
+  - 초대 수락.
+  - viewer 편집 제한 enforcement.
+- Notifications:
+  - 사용자 마감 알림 설정 저장.
+  - 전화번호 저장.
+  - `notification_deliveries` 발송 이력 기반.
+  - D-7/D-1 target calculation service.
+  - FastAPI 내부 scheduler.
+  - SOLAPI Kakao AlimTalk provider adapter.
+  - retry policy.
+  - SOLAPI webhook delivery status tracking.
+- Frontend UX:
+  - 업로드 Prototype 기반 모바일 앱형 shell, bottom tab, 로그인 첫 화면, home/policy/trip/mypage 주요 화면 스타일 반영.
+  - Prototype red theme 적용.
+  - PWA manifest/meta와 icon 제공.
+  - production sourcemap 비공개 명시.
+- Dev/ops:
+  - Docker local compose.
+  - public VPS compose/Caddy 산출물.
+  - Cloudflare Tunnel compose/Caddy 산출물.
+  - LAN 개발 공유 runbook.
+  - Codex model split workflow script/document.
 
-## Backend 기준
+## 주요 문서 역할
 
-- FastAPI route/schema/service/repository 계층.
-- SQLAlchemy 2.x sync ORM + psycopg 3 + Alembic + PostgreSQL 16.
-- `create_all()`은 사용하지 않고 schema 생성은 Alembic migration만 허용한다.
-- API DTO는 `camelCase`, DB column은 `snake_case`를 유지한다.
-- 보안 필드(`password_hash`, `refresh_token_hash`, reset token raw value, OAuth provider id)는 response에 노출하지 않는다.
+- `docs/requirements.md`: 공식 제품 요구사항.
+- `docs/implemented-feature-spec.md`: 실제 구현 기능 명세.
+- `docs/feature-implementation-status.md`: 기능별 완료/조건부/미구현 상태표.
+- `docs/mvp-api-contract.md`: API 계약.
+- `docs/current-work-spec.md`: 현재 구현 상태 요약.
+- `docs/next-work-plan.md`: 다음 작업 우선순위.
+- `docs/deployment-vps.md`: public VPS 직접 노출 runbook.
+- `docs/deployment-tunnel.md`: NAT 제한 환경 Cloudflare Tunnel runbook.
+- `docs/password-reset-smtp-smoke.md`: SMTP password reset smoke 절차.
+- `docs/project-structure-audit.md`: 폴더/파일 구조 점검 기록.
 
-## Auth/OAuth 추가 사항
+## 최신 검증 기록
 
-- `password_reset_tokens`는 raw token이 아니라 SHA-256 hash를 저장한다.
-- reset token 기본 만료는 `PASSWORD_RESET_EXPIRE_MINUTES`이며 기본값은 30분이다.
-- SMTP 미설정 환경에서 실제 계정에 password reset email을 발송해야 하면 `503 Email delivery is not configured`로 실패한다.
-- OAuth state는 HttpOnly cookie로 검증한다.
-- OAuth redirect 값은 내부 path만 허용한다. 외부 URL 또는 `//...` 값은 `/home`으로 대체한다.
-- OAuth callback 성공 후 frontend `/oauth/callback?redirect=...`로 돌아가고, frontend는 `/api/auth/refresh`로 access token을 복구한다.
-
-## Runtime Env 추가
-
-- Password reset/SMTP:
-  - `PASSWORD_RESET_EXPIRE_MINUTES`
-  - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`, `SMTP_USE_TLS`
-  - `TRAVEL_HUNTER_PUBLIC_BASE_URL`
-- OAuth:
-  - `KAKAO_CLIENT_ID`, `KAKAO_CLIENT_SECRET`, `KAKAO_REDIRECT_URI`
-  - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`
-  - `OAUTH_STATE_COOKIE_NAME`
-- Notification:
-  - `NOTIFICATION_SCHEDULER_ENABLED`, `NOTIFICATION_RUN_AT`, `NOTIFICATION_POLL_SECONDS`
-  - `KAKAO_ALIMTALK_ENABLED`, `SOLAPI_*`, `NOTIFICATION_RETRY_*`, `SOLAPI_WEBHOOK_SECRET`
-- Production/staging guard:
-  - `APP_ENV=staging|production|prod`에서는 `AUTH_SECRET_KEY`, `TRAVEL_HUNTER_PUBLIC_BASE_URL`, `CORS_ORIGINS`, `REFRESH_COOKIE_SECURE`가 운영 기준을 만족해야 한다.
-
-## 배포 산출물
-
-- Local compose: `compose.yaml`.
-- Public VPS direct mode: `compose.vps.yaml`, `deploy/Caddyfile`, `deploy/.env.staging.example`.
-- NAT 제한 Cloudflare Tunnel mode: `compose.tunnel.yaml`, `deploy/Caddyfile.tunnel`, `deploy/.env.tunnel.example`.
-- 실제 secret/env 값은 repo에 커밋하지 않는다.
-
-## 최신 검증
-
-- `cd backend && python -m pytest`: 184 passed.
-- `cd frontend && npm test`: 72 passed.
-- `cd frontend && npm run typecheck`: passed.
-- `cd frontend && npm run build`: passed, production sourcemap 미생성, PWA manifest/icon 산출물 확인.
-- `frontend/public/manifest.webmanifest`: valid JSON, app name/theme/icon metadata 확인.
-- Draft autosave는 frontend localStorage 범위 변경이며 backend/API/DB 변경이 없다.
-- `cd backend && alembic upgrade head --sql`: passed.
-- `docker compose -f compose.yaml config`: passed.
-- `docker compose --env-file deploy/.env.staging.example -f compose.vps.yaml config`: passed.
-- `docker compose --env-file deploy/.env.tunnel.example -f compose.tunnel.yaml config`: passed.
+- Backend pytest: `184 passed`.
+- Frontend Vitest: `72 passed`.
+- Frontend typecheck: passed.
+- Frontend build: passed.
+- Alembic offline SQL: passed.
 - `git diff --check`: passed.
-- Docker backend/frontend rebuild: passed.
-- Local SMTP capture password reset E2E: passed. Reset email 수신, token confirm, 기존 비밀번호 실패, 새 비밀번호 로그인 성공을 확인했다.
-- OAuth local/preflight: passed. 미설정 env의 503, state mismatch 400, dummy provider env의 authorization redirect/state cookie 흐름을 확인했다.
-- Cloudflare Quick Tunnel: frontend preview `/login` 200 확인. `vite preview` host allowlist 보정 후 `.trycloudflare.com` 요청이 통과한다.
-- Landing removal/login clone verification(2026-05-13): `cd frontend && npm run typecheck` passed, `cd frontend && npm test` 64 passed, `cd frontend && npm run build` passed.
-- Service readiness cleanup verification(2026-05-18): display config/date defaults/runtime guard/policy data validation added; backend pytest 181 passed, frontend Vitest 69 passed, frontend typecheck/build passed.
-- MyPage information sheet verification(2026-05-18): FAQ, terms, and privacy settings rows open in-app sheets; frontend Vitest 71 passed.
-- MyPage applied policy count verification(2026-05-18): `GET /api/me/applied-policies` powers the `/mypage` `신청 정책` stat from distinct `trip_policies`; backend pytest 184 passed, frontend Vitest 72 passed.
+- Docker frontend/backend/db rebuild: passed.
+- 로컬 접속:
+  - frontend: `http://127.0.0.1:4173/` 200.
+  - backend health: `http://127.0.0.1:8000/api/health` 200, database connected.
 
-## 미구현/조건부 범위
+## 현재 조건부 항목
 
-- SMTP 설정 없이는 password reset email 실제 발송이 불가하다.
-- Password reset local SMTP capture E2E는 통과했다. Unknown email은 `{"requested": true}`로 계정 존재 여부를 숨기고, existing email은 SMTP 미설정 상태에서 `503`으로 실패한다.
-- Kakao/Google provider secret과 redirect URI가 없으면 OAuth 실제 로그인이 불가하다.
-- Cloudflare named tunnel은 실제 `CLOUDFLARE_TUNNEL_TOKEN`이 필요하다. 현재 placeholder token은 유효하지 않다.
-- Tunnel full-up의 DB migration/seed는 실제 `POSTGRES_PASSWORD`와 `DATABASE_URL` 값이 맞아야 한다. placeholder env로는 기존 Docker volume의 DB 비밀번호와 충돌할 수 있다.
-- 전화번호 실인증/OTP는 아직 없다.
-- 정책 실시간 수집, 지도/장소 검색, 실제 AI 추천 엔진은 아직 없다.
-- 친구 초대 email/SMS/Kakao 외부 발송은 아직 없다.
-- PWA service worker/offline runtime은 아직 없다. 현재는 install metadata만 제공한다.
-- 실제 staging 외부 URL smoke는 배포 입력값 확보 후 진행한다.
+- 실제 SMTP staging smoke는 SMTP provider env와 public HTTPS domain이 필요하다.
+- Kakao/Google OAuth 실로그인은 provider console redirect URI와 secret 설정이 필요하다.
+- Cloudflare named tunnel full-up은 실제 `CLOUDFLARE_TUNNEL_TOKEN`, staging domain, DB/env 값이 필요하다.
+- SOLAPI 실제 발송은 SOLAPI 계정, Kakao business channel, 승인 템플릿, secret env가 필요하다.
+- 전화번호 OTP 실인증은 아직 후속 설계/구현 범위다.
 
-## 다음 작업
+## 다음 작업 방향
 
-다음 기능 우선순위는 `docs/next-work-plan.md`를 따른다.
-현재 진행 순서는 `랜딩 제거와 프로토타입 로그인 첫 화면 변경분 커밋 -> deploy/.env.tunnel 실제값 확보 및 Cloudflare Tunnel full-up -> 외부 HTTPS 핵심 smoke -> 실제 SMTP provider password reset staging smoke -> Kakao/Google OAuth provider console smoke -> Phone OTP 설계/구현 -> PWA service worker 1차 구현 여부 결정`이다.
+1. 현재 명세 문서 최신화 변경분을 커밋하고 원격에 push한다.
+2. 기능 개발 흐름을 계속할 경우 `정책 신청 URL 품질 점검` 또는 `공지사항/FAQ 실제 콘텐츠 보강`을 진행한다.
+3. 운영 검증 흐름으로 전환할 경우 `Cloudflare Tunnel actual env full-up`, `SMTP staging smoke`, `OAuth provider smoke` 순서로 진행한다.

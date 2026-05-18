@@ -54,6 +54,8 @@
 - [x] Public VPS artifacts exist.
 - [x] Cloudflare Tunnel artifacts exist.
 - [x] MyPage applied policy count is backed by `GET /api/me/applied-policies` and distinct `trip_policies`.
+- [x] Home destination rail is derived from policy data instead of static fake-star destinations.
+- [x] Policy apply CTA is disabled when a policy has no application URL.
 
 ## 마지막 검증 결과
 
@@ -79,6 +81,7 @@
 - MyPage information sheets(2026-05-18): FAQ, terms, and privacy rows render in-app sheet content; frontend Vitest 71 passed.
 - MyPage applied policy count(2026-05-18): `/mypage` `신청 정책` stat uses `GET /api/me/applied-policies`; backend pytest 184 passed, frontend Vitest 72 passed.
 - Home destination rail(2026-05-18): `/home` derives destination cards from policy data and uses benefit-count badges instead of fake star ratings.
+- Policy apply CTA(2026-05-18): policies without `applyUrl`/`officialUrl` render a disabled application button instead of opening an invalid link.
 
 ## 다음 우선순위
 
@@ -92,7 +95,8 @@
 - [x] Implement password reset and social login OAuth entry points.
 - [x] Document password reset SMTP smoke runbook and local preflight.
 - [x] Implement draft autosave for trip creation, add-place, and edit-place forms.
-- [ ] Commit and push the current landing removal and prototype login screen changes.
+- [ ] Commit and push the current work-spec refresh.
+- [ ] Audit policy application URLs and CTA quality.
 - [ ] Verify SMTP delivery in staging.
 - [ ] Verify OAuth provider credentials in staging.
-- [ ] Resume Cloudflare Tunnel staging deployment when the feature pass pauses.
+- [ ] Resume Cloudflare Tunnel staging deployment when actual env values are ready.

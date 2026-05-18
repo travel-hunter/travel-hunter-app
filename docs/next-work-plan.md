@@ -2,100 +2,58 @@
 
 ## 기준
 
-- DB-backed-only 원칙을 유지한다.
-- Runtime mock mode는 다시 추가하지 않는다.
-- 기능 변경 시 API 계약, frontend type, backend schema/test를 함께 갱신한다.
-- 실제 secret/env 값은 repo에 기록하지 않는다.
-- 기준 스냅샷: `04245df feat: improve mypage empty favorite state` 이후 현재 worktree의 마이페이지 정보 메뉴 sheet 변경분까지 포함한다.
-- 브랜치 상태: `feat/prototype-to-react`가 `origin/feat/prototype-to-react` 대비 ahead 상태이며, 현재 마이페이지 FAQ/약관/개인정보 sheet 변경분은 커밋 전이다.
+- 기준일: 2026-05-18
+- 기준 커밋: `239f09d fix: disable apply button when no application url`
+- 브랜치: `feat/prototype-to-react`
+- 원격 상태: `origin/feat/prototype-to-react` 대비 `ahead 1`
+- worktree: tracked 변경 없음
 
 ## 완료된 최근 작업
 
-- 일정 장소 추가/수정/삭제.
-- 일정 장소 드래그앤드롭 순서/날짜 이동.
-- `/trips` 일정 확정 상태 저장: `draft -> confirmed` 저장 버튼과 `trips.status` persistence.
-- 마이페이지 프로필 편집.
-- AI 추천 결과를 일정 타임라인에 추가.
-- 초대 role 저장과 viewer/editor 편집 권한 enforcement.
-- 마감 알림 설정, 연락처 저장, 대상 계산, scheduler, SOLAPI adapter, retry, webhook 추적.
-- 버튼 audit 기반 수정:
-  - 비밀번호 재설정 flow.
-  - Kakao/Google OAuth flow.
-  - 정책 링크 복사.
-  - 필요 서류 static checklist.
-  - 친구 초대 링크 활성화 문구.
-  - AI 추천 기준 sheet.
-- 일단체크인 벤치마크 분석 문서화.
-- Production sourcemap 비공개 명시.
-- PWA manifest/meta 1차 적용.
-- 프로젝트 구조 audit 문서화.
-- Web Share API 공유 fallback.
-- 같은 네트워크 개발 서버 공유용 LAN runbook 문서화.
-- Password reset SMTP smoke runbook 문서화와 local SMTP capture E2E 확인.
-- 구현 기능명세서 문서화.
-- Codex 모델 실행 스크립트 호환성 수정과 기준점 커밋.
-- `vite preview` tunnel/staging host allowlist 수정.
-- OAuth start/callback local preflight 확인.
-- Cloudflare Quick Tunnel frontend `/login` 200 확인.
-- 작성 중 draft autosave 1차 구현:
-  - `/trips/new` 일정 생성 draft.
-  - `/trips/:id` 장소 추가 draft.
-- Draft autosave 2차 범위 검토:
-  - 다음 구현 후보는 장소 수정 draft로 제한한다.
-  - 마이페이지 프로필 draft는 보류하고 연락처 draft는 개인정보 저장 위험 때문에 제외한다.
-- 장소 수정 draft autosave 구현:
-  - `/trips/:id` 장소 수정 sheet의 `time`, `label`, `meta` draft를 `placeId` 기준으로 저장한다.
-  - 저장 성공, 닫기, 장소 삭제 시 edit draft를 삭제한다.
-- PWA service worker/offline 전략 검토:
-  - 현재는 service worker를 추가하지 않는다.
-  - 후속 구현 시 static shell/assets만 캐시하고 `/api/*`와 auth/reset/OAuth 데이터는 캐시하지 않는다.
-- 프로토타입 기반 frontend UX 개편:
-  - 업로드 HTML 프로토타입의 모바일 앱형 흐름을 실제 React 앱에 반영했다.
-  - 홈 대표 혜택 hero, 정책 상세 혜택 패키지, 일정 상세 혜택 묶음, 공통 배경/카드/태그 톤을 정리했다.
-  - backend API, DB schema, route URL은 변경하지 않았다.
-- 랜딩 제거와 프로토타입 로그인 첫 화면 클론:
-  - `/`는 온보딩 없이 프로토타입 로그인 화면을 렌더링한다.
-  - `/onboarding`은 `/login`으로 redirect한다.
-  - 실제 email/password login, password reset, signup, Kakao/Google OAuth는 유지한다.
-- 하드코딩 제거 및 완성도 정리 1차:
-  - 프론트 표시값을 `displayConfig`로 중앙화했다.
-  - `/trips/new` 기본 날짜를 KST helper로 교체했다.
-  - protected runtime 설정 guard와 정책 JSON 검증 스크립트를 추가했다.
-- 마이페이지 빈 즐겨찾기 EmptyState 개선:
-  - 저장 정책이 없을 때 Prototype 톤의 안내 카드와 `정책 보러가기` CTA를 표시한다.
+- `/mypage` 빈 즐겨찾기 EmptyState 개선.
+- `/mypage` FAQ/이용약관/개인정보처리방침 sheet 추가.
+- 정책 상세 하트 저장 상태를 정책별 `savedSlugs` 기준으로 동기화.
+- `/mypage` 신청 정책 카운트를 `GET /api/me/applied-policies`로 연결.
+- `/home` 인기 국내 여행지를 정책 데이터 기반으로 동적 생성.
+- 정책 신청 URL이 없을 때 신청 버튼을 비활성화.
+- Docker frontend/backend/db rebuild 및 로컬 접속 확인.
 
 ## 다음 우선순위
 
 | 우선순위 | 작업 | 성공 기준 |
 |---:|---|---|
-| 1 | 현재 마이페이지 정보 메뉴 sheet 변경분 검증 및 커밋 | FAQ/약관/개인정보 sheet 테스트, frontend build, `git diff --check` 결과를 기록하고 기준점 고정 |
-| 2 | `deploy/.env.tunnel` 실제값 확보 + Cloudflare Tunnel full-up | 실제 `CLOUDFLARE_TUNNEL_TOKEN`, DB password, `DATABASE_URL`, staging domain으로 compose tunnel migration/seed/up 성공 |
-| 3 | 외부 HTTPS 핵심 smoke + visual QA | staging URL에서 `/api/health`, `/login`, `/policies`, `/trips` 접근과 테스트 계정 로그인을 확인하고 390/1024/1440 viewport에서 핵심 화면을 확인 |
-| 4 | 실제 SMTP provider password reset staging smoke | SMTP env와 public HTTPS base URL을 주입해 reset email 발송, 링크 진입, password confirm을 외부 URL 기준으로 확인 |
-| 5 | Kakao/Google OAuth provider console smoke | provider console redirect URI와 env 값을 맞추고 실제 social login callback/refresh를 확인 |
-| 6 | 정책 신청 버튼 링크/URL 품질 점검 | `applyUrl -> officialUrl -> 준비 안내` 흐름에서 실제 seed URL 품질과 외부 링크 상태를 점검 |
-| 7 | 전화번호 OTP 설계/구현 | Kakao AlimTalk 수신 연락처 실소유 검증 |
+| 1 | 현재 명세 문서 최신화 변경분 커밋 및 `origin/feat/prototype-to-react` push | 최신 기준 커밋과 다음 우선순위가 문서에 반영되고 원격 브랜치가 최신 커밋을 포함한다. |
+| 2 | 정책 신청 URL 품질 점검 | seed/API 정책의 `applyUrl`, `officialUrl` 상태를 점검하고, 신청 가능한 정책과 준비 안내 정책의 CTA가 명확히 분리된다. |
+| 3 | 공지사항/FAQ 실제 콘텐츠 보강 | 마이페이지 sheet의 임시 안내를 실제 서비스 안내 문구로 정리한다. |
+| 4 | Cloudflare Tunnel actual env full-up | 실제 `deploy/.env.tunnel` 값으로 migration, seed, compose up, `/api/health` smoke가 통과한다. |
+| 5 | SMTP password reset staging smoke | 실제 SMTP provider와 HTTPS staging URL로 reset email 수신, token confirm, 새 비밀번호 로그인이 통과한다. |
+| 6 | Kakao/Google OAuth provider smoke | provider console redirect URI와 runtime env를 맞춘 뒤 실제 social login callback과 session 복구가 통과한다. |
+| 7 | 전화번호 OTP 설계/구현 | 알림 수신 전화번호의 실제 검증 흐름과 `phone_verified_at` 갱신 기준을 확정한다. |
 
-## 구조 정리 참고
+## 기능 개발 후보
 
-- 구조 점검 결과는 `docs/project-structure-audit.md`를 따른다.
-- 프론트 기능 추가 후보는 `docs/frontend-feature-work-plan.md`를 따른다.
-- route/page 파일 분리는 현재 우선순위에서 제외한다.
-- 로컬 산출물 정리는 기능 작업과 분리해서 진행한다.
+- 정책 신청 URL 품질 점검과 신청 가능/준비 중 CTA 문구 정리.
+- 공지사항/FAQ/이용약관/개인정보처리방침 콘텐츠 고도화.
+- 홈 추천 목적지 ranking 기준 고도화.
+- 신청 정책 상태 모델 확장.
+- 전화번호 OTP 요청/확인 API와 UI.
+- PWA service worker 1차 적용 여부 결정.
 
-## 후순위 후보
+## 운영 검증 후보
 
-- PWA service worker 1차 구현 여부 확정 및 적용.
-- 정책 실시간 수집/검색 API 확장 여부 검토.
-- 실제 AI 추천 엔진 연동 범위 정리.
-- 친구 초대 외부 발송(email/SMS/Kakao) 확장 범위 정리.
+- Cloudflare Tunnel named tunnel full-up.
+- public HTTPS 기준 `/login`, `/policies`, `/trips`, `/mypage` smoke.
+- SMTP password reset staging smoke.
+- Kakao/Google OAuth staging smoke.
+- SOLAPI Kakao AlimTalk 실제 발송 smoke.
 
 ## Fast Lane
 
 ```powershell
 cd frontend
 npm run typecheck
-npm test
+npm test -- --run
+npm run build
 
 cd ..\backend
 python -m pytest
@@ -108,15 +66,17 @@ cd backend
 alembic upgrade head --sql
 ```
 
-## Release Gate
+문서만 변경한 경우에는 아래를 기본 검증으로 둔다.
 
 ```powershell
-cd frontend
-npm run build
-npm run test:e2e
-
-cd ..
-docker compose -f compose.yaml config
-docker compose --env-file deploy/.env.staging.example -f compose.vps.yaml config
-docker compose --env-file deploy/.env.tunnel.example -f compose.tunnel.yaml config
+git diff --check
+git status --short --branch
 ```
+
+## Guardrails
+
+- Runtime mock mode는 다시 추가하지 않는다.
+- 실제 secret/env 값은 repo에 기록하지 않는다.
+- API DTO는 `camelCase`, DB column은 `snake_case`를 유지한다.
+- Frontend는 backend boundary를 `AppDataApi`로 유지한다.
+- Backend route는 얇게 두고 business rule은 service/repository 계층에 둔다.
