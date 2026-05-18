@@ -18,27 +18,6 @@ export const user: User = {
   updatedAt: "2026-05-04T00:00:00Z",
 };
 
-export const onboardingSlides = [
-  {
-    eyebrow: "여행 혜택 탐색",
-    title: "숨은 여행 혜택, 다 모았어요",
-    body: "지역, 기간, 예산에 맞는 국내 여행 지원 정책을 한 화면에서 비교하세요.",
-    stat: "30만원 환급 가능",
-  },
-  {
-    eyebrow: "AI 일정 추천",
-    title: "AI가 일정도 맞춰드려요",
-    body: "정책 조건, 이동 거리, 취향을 함께 고려해 여행 코스를 제안합니다.",
-    stat: "이동 시간 24분 단축",
-  },
-  {
-    eyebrow: "친구와 함께",
-    title: "친구와 함께 준비해요",
-    body: "초대 링크로 일정을 공유하고 필요한 서류와 혜택 상태를 함께 확인하세요.",
-    stat: "친구 3명 공유",
-  },
-];
-
 export const policies: Policy[] = [
   {
     id: "local-vacation",

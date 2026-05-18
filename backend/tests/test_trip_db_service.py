@@ -734,6 +734,28 @@ def test_create_trip_uses_duration_days_for_date_range_and_days(monkeypatch) -> 
     ]
 
 
+def test_create_trip_uses_request_date_range_for_dates_and_days(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    captured = install_create_trip_stubs(monkeypatch)
+
+    trip_service.create_trip(
+        fake_db,
+        user,
+        CreateTripRequest(region="Busan", style="Food", startDate=date(2026, 7, 12), endDate=date(2026, 7, 15)),
+    )
+
+    assert captured["create_trip"]["title"] == "Busan 4일 여행"
+    assert captured["create_trip"]["start_date"] == date(2026, 7, 12)
+    assert captured["create_trip"]["end_date"] == date(2026, 7, 15)
+    assert captured["trip_days"] == [
+        {"trip_id": 11, "day_number": 1, "date_value": date(2026, 7, 12)},
+        {"trip_id": 11, "day_number": 2, "date_value": date(2026, 7, 13)},
+        {"trip_id": 11, "day_number": 3, "date_value": date(2026, 7, 14)},
+        {"trip_id": 11, "day_number": 4, "date_value": date(2026, 7, 15)},
+    ]
+
+
 def test_create_trip_links_policy_when_policy_slug_is_present(monkeypatch) -> None:
     fake_db = FakeDb()
     user = make_user()

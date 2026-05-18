@@ -13,7 +13,7 @@
 |---|---|---|
 | 회원가입 | `/signup`에서 email 중복 확인 후 email/password로 가입한다. 성공 후 인증 세션이 생성되고 닉네임 설정으로 이어진다. | `POST /api/auth/email-check`, `POST /api/auth/signup`, `users`, refresh cookie |
 | 닉네임 설정 | `/nickname-setup`에서 자동 생성된 임시 닉네임을 수정하거나 주사위 버튼으로 새 추천 닉네임을 받아 저장한다. | `GET /api/me/nickname-suggestion`, `PATCH /api/me/nickname`, `users.nickname` |
-| 로그인 | `/login`에서 email/password로 로그인한다. 실패 시 사용자용 오류를 표시한다. | `POST /api/auth/login`, `auth_refresh_tokens` |
+| 로그인 | `/`와 `/login`에서 프로토타입과 같은 모바일 앱형 로그인 화면을 보여주고 email/password로 로그인한다. 실패 시 사용자용 오류를 표시한다. | `POST /api/auth/login`, `auth_refresh_tokens` |
 | 세션 유지/로그아웃 | refresh cookie로 access token을 갱신하고, 로그아웃 시 refresh token을 revoke한다. | `POST /api/auth/refresh`, `POST /api/auth/logout` |
 | 비밀번호 재설정 | `/forgot-password` 요청 후 email link로 `/reset-password?token=...`에서 새 비밀번호를 설정한다. | `password_reset_tokens`, SMTP 설정 필요 |
 | Kakao/Google OAuth | 로그인 버튼에서 provider authorization flow를 시작하고 callback에서 세션을 복구한다. | `social_accounts`, provider env 필요 |
@@ -86,7 +86,7 @@
 | 기능 | 설명 |
 |---|---|
 | 공통 상태 UX | `/policies`, `/trips`, `/mypage`의 loading/empty/error 상태는 공통 상태 패널과 다음 행동 CTA를 사용한다. |
-| 프로토타입 기반 앱 UX | 업로드 HTML 프로토타입의 모바일 앱형 흐름을 현재 React 화면에 반영했다. 홈 대표 혜택 hero, 정책 카드/태그, 정책 상세 혜택 패키지, 일정 상세 혜택 묶음, 공통 배경/카드 톤을 정리하되 실제 DB-backed 기능은 유지한다. |
+| 프로토타입 기반 앱 UX | 업로드 HTML 프로토타입의 모바일 앱형 흐름을 현재 React 화면에 반영했다. `/` 랜딩은 제거하고 프로토타입 로그인 첫 화면을 실제 auth flow와 연결했다. 홈 대표 혜택 hero, 정책 카드/태그, 정책 상세 혜택 패키지, 일정 상세 혜택 묶음, 공통 배경/카드 톤을 정리하되 실제 DB-backed 기능은 유지한다. |
 | PWA manifest/meta | 앱 이름, theme color, Apple mobile meta, 192/512/maskable icon을 제공한다. Service worker는 아직 추가하지 않는다. |
 | Production sourcemap | Vite production sourcemap은 명시적으로 비활성화되어 있다. |
 | LAN 개발 공유 | 같은 네트워크에서 `0.0.0.0` dev server와 LAN IP로 접근하는 절차를 문서화했다. |

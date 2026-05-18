@@ -1,7 +1,6 @@
 import {
   budgets,
   itinerary,
-  onboardingSlides,
   regions,
   travelStyles,
   user,
@@ -46,7 +45,6 @@ const defaultSignup: SignupRequest = {
 
 export const backendApi: AppDataApi = {
   getPreviewUser: (): User => user,
-  getOnboardingSlides: () => onboardingSlides,
   getProfileOptions: (): ProfileOptions => ({ regions, travelStyles, budgets }),
   getPreviewTrip: (): Trip => itinerary,
   login: (request = defaultLogin): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/login", request),

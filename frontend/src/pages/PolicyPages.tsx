@@ -1,11 +1,11 @@
-import { ChevronLeft, Heart, Search, Share2, SlidersHorizontal } from "lucide-react";
+import { ChevronLeft, Heart, Share2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { appDataApi, type Policy, type PolicyCategory, type Profile, type Trip } from "../api";
 import { useAsyncResource } from "../api/useAsyncResource";
 import { useSession } from "../app/session";
 import { PolicyListCard } from "../components/cards";
-import { Button, EmptyState, ErrorState, IconButton, LinkButton, LoadingState, Tag, Toast, TopBar } from "../components/ui";
+import { Button, EmptyState, ErrorState, IconButton, LinkButton, LoadingState, Tag, Toast } from "../components/ui";
 import { dday } from "../utils";
 import { shareLinkWithFallback } from "../utils/share";
 
@@ -20,11 +20,46 @@ function policyTripErrorMessage(error: unknown): string {
 
 const allFilter = "전체";
 const categoryFilters = [allFilter, "환급", "숙박", "캐시백"] as const;
+const periodFilters = ["전체", "7일 이내", "30일 이내", "3개월 이내"] as const;
+const amountFilters = ["전체", "금액 명시", "10만원 이상", "30만원 이상"] as const;
+type PeriodFilter = (typeof periodFilters)[number];
+type AmountFilter = (typeof amountFilters)[number];
+const policyCategoryTabs: Array<{ label: string; value: (typeof categoryFilters)[number] }> = [
+  { label: "전체", value: allFilter },
+  { label: "할인", value: "숙박" },
+  { label: "지원금", value: "환급" },
+  { label: "적립", value: "캐시백" },
+];
 type DiscoveryPolicyCategory = Exclude<PolicyCategory, "추천">;
 const discoveryCategoryFilters: DiscoveryPolicyCategory[] = ["환급", "숙박", "캐시백"];
 
-function normalizeSearch(value: string) {
-  return value.trim().toLocaleLowerCase("ko-KR");
+function daysUntilDeadline(deadline: string): number {
+  const ms = new Date(deadline).getTime() - Date.now();
+  return Math.ceil(ms / 86_400_000);
+}
+
+function parseManWon(amount: string): number | null {
+  const m = amount.match(/(\d+)\s*만원/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+function matchesPeriod(policy: Policy, filter: PeriodFilter): boolean {
+  if (filter === "전체") return true;
+  if (!policy.deadline) return false;
+  const days = daysUntilDeadline(policy.deadline);
+  if (filter === "7일 이내") return days >= 0 && days <= 7;
+  if (filter === "30일 이내") return days >= 0 && days <= 30;
+  if (filter === "3개월 이내") return days >= 0 && days <= 90;
+  return true;
+}
+
+function matchesAmount(policy: Policy, filter: AmountFilter): boolean {
+  if (filter === "전체") return true;
+  const won = parseManWon(policy.amount ?? "");
+  if (filter === "금액 명시") return won !== null || (policy.amount ?? "").includes("%");
+  if (filter === "10만원 이상") return won !== null && won >= 10;
+  if (filter === "30만원 이상") return won !== null && won >= 30;
+  return true;
 }
 
 function isNationwidePolicy(region: string) {
@@ -59,6 +94,27 @@ function getCategoryHighlights(policies: Policy[]) {
     .filter((item): item is { category: DiscoveryPolicyCategory; policy: Policy } => Boolean(item.policy));
 }
 
+const policyVisuals: Record<string, { emoji: string; from: string; to: string }> = {
+  "local-vacation": { emoji: "🏖️", from: "#ffe0e0", to: "#ff8a7a" },
+  "nongchon-stay": { emoji: "🌂", from: "#d9f7f2", to: "#80dccd" },
+  "rail-youth": { emoji: "🚆", from: "#dff0ff", to: "#8ac7ff" },
+  "hotel-sale": { emoji: "🏨", from: "#f5ddff", to: "#d39cff" },
+  default: { emoji: "🎁", from: "#fff1bd", to: "#ffcf66" },
+};
+
+function getPolicyVisual(policy: Policy) {
+  return policyVisuals[policy.slug] ?? policyVisuals.default;
+}
+
+function getPolicyAmountDetail(policy: Policy) {
+  if (policy.summary) return policy.summary;
+  return `${policy.amount} 혜택을 받을 수 있는지 공식 안내에서 최종 확인해 주세요.`;
+}
+
+function getPolicyPeriodLabel(policy: Policy) {
+  return `2026.05.01 ~ ${policy.deadline.replace(/^~/, "")}`;
+}
+
 function buildPolicyFaqs(policy: Policy) {
   const requirements = policy.requirements.length > 0 ? policy.requirements.join(", ") : "공식 안내의 신청 대상 조건";
   const documents = policy.documents.length > 0 ? policy.documents.join(", ") : "공식 안내에서 요구하는 제출 서류";
@@ -88,94 +144,142 @@ function buildPolicyFaqs(policy: Policy) {
 }
 
 export function PolicyListPage() {
-  const [query, setQuery] = useState("");
   const [selectedRegion, setSelectedRegion] = useState<string>(allFilter);
   const [selectedCategory, setSelectedCategory] = useState<(typeof categoryFilters)[number]>(allFilter);
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodFilter>("전체");
+  const [selectedAmount, setSelectedAmount] = useState<AmountFilter>("전체");
+  const [isRegionFilterOpen, setIsRegionFilterOpen] = useState(false);
+  const [isPeriodFilterOpen, setIsPeriodFilterOpen] = useState(false);
+  const [isAmountFilterOpen, setIsAmountFilterOpen] = useState(false);
+  const [savedSlugs, setSavedSlugs] = useState<Set<string>>(new Set());
+  const [showSavedOnly, setShowSavedOnly] = useState(false);
   const { data: policies, error, isLoading } = useAsyncResource(() => appDataApi.listPolicies(), []);
   const regionFilters = useMemo(() => {
     const regions = policies?.map((policy) => policy.region) ?? [];
     return [allFilter, ...Array.from(new Set(regions))];
   }, [policies]);
 
+  const handleToggleSave = async (policy: Policy) => {
+    const slug = policy.slug;
+    if (savedSlugs.has(slug)) {
+      await appDataApi.removeSavedPolicy(slug);
+      setSavedSlugs((prev) => {
+        const next = new Set(prev);
+        next.delete(slug);
+        return next;
+      });
+    } else {
+      await appDataApi.savePolicy(slug);
+      setSavedSlugs((prev) => new Set(prev).add(slug));
+    }
+  };
+
   const visiblePolicies = useMemo(() => {
     if (!policies) return [];
-    const searchText = normalizeSearch(query);
     return policies.filter((policy) => {
-      const searchable = [policy.title, policy.org, policy.region, policy.summary, policy.tag, policy.amount, policy.category]
-        .map((value) => normalizeSearch(value))
-        .join(" ");
-      const matchesSearch = !searchText || searchable.includes(searchText);
+      if (showSavedOnly && !savedSlugs.has(policy.slug)) return false;
       const matchesRegion = selectedRegion === allFilter || policy.region === selectedRegion;
       const matchesCategory = selectedCategory === allFilter || policy.category === selectedCategory;
-      return matchesSearch && matchesRegion && matchesCategory;
+      return matchesRegion && matchesCategory && matchesPeriod(policy, selectedPeriod) && matchesAmount(policy, selectedAmount);
     });
-  }, [policies, query, selectedCategory, selectedRegion]);
+  }, [policies, selectedCategory, selectedRegion, selectedPeriod, selectedAmount, showSavedOnly, savedSlugs]);
 
-  const hasActiveFilters = query.trim().length > 0 || selectedRegion !== allFilter || selectedCategory !== allFilter;
+  const hasActiveFilters =
+    selectedRegion !== allFilter || selectedCategory !== allFilter || selectedPeriod !== "전체" || selectedAmount !== "전체" || showSavedOnly;
+
   const resetFilters = () => {
-    setQuery("");
     setSelectedRegion(allFilter);
     setSelectedCategory(allFilter);
+    setSelectedPeriod("전체");
+    setSelectedAmount("전체");
+    setShowSavedOnly(false);
+    setIsRegionFilterOpen(false);
+    setIsPeriodFilterOpen(false);
+    setIsAmountFilterOpen(false);
+  };
+
+  const handleRegionToggle = () => {
+    setIsRegionFilterOpen((o) => !o);
+    setIsPeriodFilterOpen(false);
+    setIsAmountFilterOpen(false);
+  };
+  const handlePeriodToggle = () => {
+    setIsPeriodFilterOpen((o) => !o);
+    setIsRegionFilterOpen(false);
+    setIsAmountFilterOpen(false);
+  };
+  const handleAmountToggle = () => {
+    setIsAmountFilterOpen((o) => !o);
+    setIsRegionFilterOpen(false);
+    setIsPeriodFilterOpen(false);
   };
 
   return (
-    <section className="screen with-tabs">
-      <TopBar
-        title="정책 목록"
-        left={
-          <IconButton label="홈으로" to="/home">
-            <ChevronLeft size={20} />
-          </IconButton>
-        }
-        right={
-          <button className="icon-btn" disabled={!hasActiveFilters} onClick={resetFilters} type="button" aria-label="필터 초기화">
-            <SlidersHorizontal size={18} />
+    <section className="screen with-tabs prototype-policy-list-screen">
+      <div className="prototype-policy-titlebar">
+        <h1>정책</h1>
+        <button
+          className={showSavedOnly ? "prototype-head-pill active" : "prototype-head-pill"}
+          onClick={() => setShowSavedOnly((o) => !o)}
+          type="button"
+        >
+          ♥ 즐겨찾기{showSavedOnly ? ` (${savedSlugs.size})` : ""}
+        </button>
+      </div>
+      <div className="prototype-category-tabs" aria-label="정책 카테고리">
+        {policyCategoryTabs.map((tab) => (
+          <button className={selectedCategory === tab.value ? "prototype-category-tab active" : "prototype-category-tab"} key={tab.value} onClick={() => setSelectedCategory(tab.value)} type="button">
+            {tab.label}
           </button>
-        }
-      />
-      <div className="policy-search-panel card">
-        <label className="search-field">
-          <Search size={18} />
-          <input aria-label="정책 검색" placeholder="정책명, 지역, 기관, 혜택 금액 검색" value={query} onChange={(event) => setQuery(event.target.value)} />
-        </label>
-        <div className="filter-group" aria-label="지역 필터">
-          <span className="filter-label">지역</span>
-          <div className="filter-row compact">
+        ))}
+      </div>
+      <div className="prototype-policy-filter-shell">
+        <div className="prototype-policy-filter-row" aria-label="정책 필터">
+          <button className={selectedRegion !== allFilter ? "prototype-filter-pill active" : "prototype-filter-pill"} onClick={handleRegionToggle} type="button">
+            🌎 지역{selectedRegion !== allFilter ? ` · ${selectedRegion}` : ""}
+          </button>
+          <button className={selectedPeriod !== "전체" ? "prototype-filter-pill active" : "prototype-filter-pill"} onClick={handlePeriodToggle} type="button">
+            🗓 기간{selectedPeriod !== "전체" ? ` · ${selectedPeriod}` : ""}
+          </button>
+          <button className={selectedAmount !== "전체" ? "prototype-filter-pill active" : "prototype-filter-pill"} onClick={handleAmountToggle} type="button">
+            💰 금액{selectedAmount !== "전체" ? ` · ${selectedAmount}` : ""}
+          </button>
+        </div>
+        {isRegionFilterOpen && (
+          <div className="prototype-region-options" aria-label="지역 필터">
             {regionFilters.map((region) => (
               <button className={selectedRegion === region ? "filter-chip active" : "filter-chip"} key={region} onClick={() => setSelectedRegion(region)} type="button">
                 {region}
               </button>
             ))}
           </div>
-        </div>
-        <div className="filter-group" aria-label="카테고리 필터">
-          <span className="filter-label">카테고리</span>
-          <div className="filter-row compact">
-            {categoryFilters.map((category) => (
-              <button className={selectedCategory === category ? "filter-chip active" : "filter-chip"} key={category} onClick={() => setSelectedCategory(category)} type="button">
-                {category}
+        )}
+        {isPeriodFilterOpen && (
+          <div className="prototype-region-options" aria-label="기간 필터">
+            {periodFilters.map((period) => (
+              <button className={selectedPeriod === period ? "filter-chip active" : "filter-chip"} key={period} onClick={() => { setSelectedPeriod(period); setIsPeriodFilterOpen(false); }} type="button">
+                {period}
               </button>
             ))}
           </div>
-        </div>
+        )}
+        {isAmountFilterOpen && (
+          <div className="prototype-region-options" aria-label="금액 필터">
+            {amountFilters.map((amount) => (
+              <button className={selectedAmount === amount ? "filter-chip active" : "filter-chip"} key={amount} onClick={() => { setSelectedAmount(amount); setIsAmountFilterOpen(false); }} type="button">
+                {amount}
+              </button>
+            ))}
+          </div>
+        )}
         {hasActiveFilters && (
           <Button variant="line" full onClick={resetFilters}>
-            조건 초기화
+            초기화
           </Button>
         )}
       </div>
       {isLoading && <LoadingState label="정책을 불러오는 중입니다" />}
       {error && <ErrorState message={error} action={<LinkButton to="/home" variant="line">홈으로 가기</LinkButton>} />}
-      {!isLoading && !error && policies && policies.length > 0 && !hasActiveFilters && (
-        <PolicyDiscoveryBlocks
-          onSelectCategory={(category) => {
-            setSelectedCategory(category);
-            setQuery("");
-            setSelectedRegion(allFilter);
-          }}
-          policies={policies}
-        />
-      )}
       {!isLoading && !error && visiblePolicies.length === 0 && (
         <EmptyState
           eyebrow="정책 탐색"
@@ -185,14 +289,11 @@ export function PolicyListPage() {
         />
       )}
       {!isLoading && !error && visiblePolicies.length > 0 && (
-        <>
-          <div className="result-summary">조건에 맞는 정책 {visiblePolicies.length}개</div>
-          <div className="list">
-            {visiblePolicies.map((policy) => (
-              <PolicyListCard key={policy.id} policy={policy} />
-            ))}
-          </div>
-        </>
+        <div className="list">
+          {visiblePolicies.map((policy) => (
+            <PolicyListCard key={policy.id} policy={policy} isSaved={savedSlugs.has(policy.slug)} onToggleSave={handleToggleSave} />
+          ))}
+        </div>
       )}
     </section>
   );
@@ -264,7 +365,8 @@ export function PolicyDetailPage() {
   const { policyId } = useParams();
   const navigate = useNavigate();
   const { addedPolicy, addPolicy, likedPolicy, profile, togglePolicyLike } = useSession();
-  const { data: policy, error, isLoading } = useAsyncResource(() => appDataApi.getPolicy(policyId), [policyId]);
+  const { data: policyData, error, isLoading } = useAsyncResource(() => appDataApi.getPolicy(policyId), [policyId]);
+  const policy = policyData as Policy;
   const [notice, setNotice] = useState<string | null>(null);
   const [sheetStatus, setSheetStatus] = useState<TripSheetStatus>("closed");
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -349,7 +451,7 @@ export function PolicyDetailPage() {
 
   if (isLoading) {
     return (
-      <section className="screen detail">
+      <section className="screen detail prototype-policy-detail-screen">
         <div className="detail-body">
           <LoadingState label="정책 상세를 불러오는 중입니다" />
         </div>
@@ -359,7 +461,7 @@ export function PolicyDetailPage() {
 
   if (error || !policy) {
     return (
-      <section className="screen detail">
+      <section className="screen detail prototype-policy-detail-screen">
         <div className="detail-body">
           <ErrorState message={error ?? "정책 정보를 찾지 못했어요."} action={<LinkButton to="/policies" variant="line">정책 목록으로</LinkButton>} />
         </div>
@@ -367,10 +469,138 @@ export function PolicyDetailPage() {
     );
   }
 
-  const applicationUrl = policy.applyUrl ?? policy.officialUrl;
+  const applicationUrl = policy.applyUrl ?? policy.officialUrl ?? undefined;
+  const visual = getPolicyVisual(policy);
+  const showPrototypeApplicationNotice = () => {
+    setNotice("공식 신청 연결은 준비 중입니다. 필요 서류와 신청 기간을 먼저 확인해 주세요.");
+  };
+  const savePrototypePolicy = async () => {
+    if (!policy || isSavingPolicy) return;
+    setIsSavingPolicy(true);
+    try {
+      await appDataApi.savePolicy(policy.slug);
+      if (!likedPolicy) togglePolicyLike();
+      setNotice("관심 정책으로 저장했어요.");
+    } catch {
+      setNotice("정책을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setIsSavingPolicy(false);
+    }
+  };
+  const sharePrototypePolicyLink = async () => {
+    const policyUrl = `${window.location.origin}/policies/${policy.slug}`;
+    try {
+      const method = await shareLinkWithFallback({
+        title: policy.title,
+        text: `${policy.title} 정책을 트래블헌터에서 확인해 보세요.`,
+        url: policyUrl,
+      });
+      setNotice(method === "share" ? "정책 링크를 공유했어요." : "정책 링크를 복사했어요.");
+    } catch {
+      setNotice("정책 링크를 공유하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    }
+  };
 
   return (
-    <section className="screen detail">
+    <section className="screen detail prototype-policy-detail-screen">
+      <div className="hero" style={{ background: `linear-gradient(145deg, ${visual.from}, ${visual.to})` }}>
+        <div className="overlay-nav">
+          <IconButton label="뒤로" onClick={() => navigate(-1)}>
+            <ChevronLeft size={20} />
+          </IconButton>
+          <div className="row">
+            <button className="icon-btn" disabled={isSavingPolicy} onClick={savePrototypePolicy} type="button" aria-label="저장">
+              <Heart size={18} fill={likedPolicy ? "currentColor" : "none"} />
+            </button>
+            <IconButton label="공유" onClick={sharePrototypePolicyLink}>
+              <Share2 size={18} />
+            </IconButton>
+          </div>
+        </div>
+        <div className="hero-label" aria-hidden="true">{visual.emoji}</div>
+      </div>
+
+      <div className="detail-body">
+        <div className="title-block">
+          <div className="row">
+            <Tag>{policy.tag}</Tag>
+            <Tag tone="warning">{dday(policy.deadline)} 마감</Tag>
+          </div>
+          <h1>{policy.title}</h1>
+          <div className="meta">
+            {policy.org} 주관 · {policy.region}
+          </div>
+        </div>
+
+        <section className="section-block">
+          <h3>💰 지원 내용</h3>
+          <div className="highlight-box">
+            <div className="price">{policy.amount}</div>
+            <div className="meta">{getPolicyAmountDetail(policy)}</div>
+          </div>
+        </section>
+
+        <section className="section-block">
+          <h3>📅 신청 기간</h3>
+          <div>{getPolicyPeriodLabel(policy)}</div>
+          <div className="warning-text">{dday(policy.deadline)} · 서둘러 신청하세요</div>
+        </section>
+
+        <section className="section-block">
+          <h3>👥 신청 대상</h3>
+          <ul className="bullet-list">
+            {policy.requirements.map((item) => (
+              <li key={item}>
+                <span className="bullet">✓</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="section-block">
+          <h3>📄 필요 서류</h3>
+          <div className="check-list">
+            {policy.documents.map((document) => (
+              <div className="check-item" key={document}>
+                <span className="policy-doc-icon" aria-hidden="true">📄</span>
+                <span>{document}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {notice && <Toast>{notice}</Toast>}
+      </div>
+
+      <div className="sticky-cta">
+        <Button variant="secondary" onClick={addToTrip}>
+          {addedPolicy ? "일정에 담김" : "📅 내 일정에 담기"}
+        </Button>
+        {applicationUrl ? (
+          <a className="btn primary" href={applicationUrl} rel="noreferrer" target="_blank">
+            신청하러 가기
+          </a>
+        ) : (
+          <Button onClick={showPrototypeApplicationNotice}>신청하러 가기</Button>
+        )}
+      </div>
+
+      <TripSelectSheet
+        error={sheetError}
+        onClose={closeTripSheet}
+        onSelectTrip={attachPolicyToTrip}
+        onViewTrip={viewSelectedTrip}
+        policySlug={policy.slug}
+        selectedTrip={selectedTrip}
+        status={sheetStatus}
+        trips={trips}
+      />
+    </section>
+  );
+
+  return (
+    <section className="screen detail prototype-policy-detail-screen">
       <div className="hero">
         <div className="overlay-nav">
           <IconButton label="홈으로" to="/home">
@@ -437,7 +667,7 @@ export function PolicyDetailPage() {
         <section className="section-block">
           <h3>관련 정보</h3>
           {policy.officialUrl ? (
-            <a className="btn ghost full" href={policy.officialUrl} rel="noreferrer" target="_blank">
+            <a className="btn ghost full" href={policy.officialUrl ?? undefined} rel="noreferrer" target="_blank">
               공식 안내 확인하기
             </a>
           ) : (

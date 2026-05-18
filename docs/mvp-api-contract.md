@@ -573,12 +573,14 @@ Request body optional:
 
 ```json
 {
-  "title": "?쒖＜ 3???ы뻾",
-  "region": "?쒖＜",
-  "style": "?댁떇",
-  "description": "?댁떇",
+  "title": "부산 4일 여행",
+  "region": "부산",
+  "style": "맛집",
+  "description": "맛집",
   "policySlug": "local-vacation",
-  "durationDays": 3
+  "durationDays": 3,
+  "startDate": "2026-07-12",
+  "endDate": "2026-07-15"
 }
 ```
 
@@ -591,13 +593,17 @@ Rules:
 - if `description` is absent and `style` exists, `style` is stored in `trips.description`
 - if `policySlug` exists, generated trip is connected through `trip_policies`
 - `durationDays` is optional, defaults to `3`, and must be between `2` and `5`
+- `startDate` and `endDate` are optional but must be provided together
+- when `startDate/endDate` are provided, they override `durationDays`
+- date ranges must be between `2` and `5` days inclusive
 - created trips have `status=draft`
 - `durationDays` controls `trips.end_date` and the number of generated `trip_days`
+- `startDate/endDate` controls `trips.start_date`, `trips.end_date`, and generated `trip_days.date`
 
 Errors:
 
 - unknown `policySlug`: `404 {"detail": "Policy not found"}`
-- invalid `durationDays`: `422`
+- invalid `durationDays`, invalid date format, missing paired date, reversed date range, or out-of-range date span: `422`
 
 ### `GET /api/trips/{tripId}`
 

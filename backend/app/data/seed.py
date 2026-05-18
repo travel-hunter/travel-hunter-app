@@ -29,6 +29,20 @@ PROFILE_OPTIONS = {
     "budgets": ["1인 30만원 이하", "1인 40만원 이하", "1인 60만원 이하", "상관없음"],
 }
 
+import json
+from pathlib import Path
+
+_DATA_DIR = Path(__file__).parent
+
+
+def _load_crawled() -> list[dict]:
+    path = _DATA_DIR / "dgtourcard_policies.json"
+    if not path.exists():
+        return []
+    with path.open(encoding="utf-8") as f:
+        return json.load(f)
+
+
 POLICIES = [
     {
         "id": "local-vacation",
@@ -84,7 +98,7 @@ POLICIES = [
         "officialUrl": "https://www.busan.go.kr/nbnews/1713613",
         "applyUrl": None,
     },
-]
+] + _load_crawled()
 
 TRIP = {
     "id": "jeju-3-days",

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from fastapi.testclient import TestClient
 
@@ -111,12 +111,19 @@ def test_db_trip_create_route_returns_created_numeric_id(monkeypatch) -> None:
         trip_routes.trip_service,
         "create_trip",
         lambda db, current_user, payload: trip_payload("8")
-        if db is fake_db and current_user is user and payload and payload.title == "New trip" and payload.durationDays == 4
+        if (
+            db is fake_db
+            and current_user is user
+            and payload
+            and payload.title == "New trip"
+            and payload.startDate == date(2026, 7, 12)
+            and payload.endDate == date(2026, 7, 15)
+        )
         else trip_payload("7"),
     )
 
     try:
-        response = client.post("/api/trips", json={"title": "New trip", "durationDays": 4})
+        response = client.post("/api/trips", json={"title": "New trip", "startDate": "2026-07-12", "endDate": "2026-07-15"})
     finally:
         clear_overrides()
 
@@ -135,6 +142,24 @@ def test_db_trip_create_route_rejects_out_of_range_duration() -> None:
         clear_overrides()
 
     assert response.status_code == 422
+
+
+def test_db_trip_create_route_rejects_invalid_date_ranges() -> None:
+    fake_db = object()
+    user = make_user()
+    install_db_route_dependencies(None, fake_db, user)
+
+    try:
+        responses = [
+            client.post("/api/trips", json={"startDate": "2026-07-12"}),
+            client.post("/api/trips", json={"startDate": "2026-07-12", "endDate": "2026-07-12"}),
+            client.post("/api/trips", json={"startDate": "2026-07-15", "endDate": "2026-07-12"}),
+            client.post("/api/trips", json={"startDate": "2026-07-12", "endDate": "2026-07-17"}),
+        ]
+    finally:
+        clear_overrides()
+
+    assert [response.status_code for response in responses] == [422, 422, 422, 422]
 
 
 def test_db_trip_create_route_maps_policy_error(monkeypatch) -> None:

@@ -6,8 +6,8 @@
 - Runtime mock mode는 다시 추가하지 않는다.
 - 기능 변경 시 API 계약, frontend type, backend schema/test를 함께 갱신한다.
 - 실제 secret/env 값은 repo에 기록하지 않는다.
-- 기준 스냅샷: `a927ac4` (docs: analyze prototype UX flow) 이후 현재 worktree의 프로토타입 기반 frontend UX 개편까지 포함한다.
-- 브랜치 상태: `feat/prototype-to-react`가 `origin/feat/prototype-to-react` 대비 `ahead 6`이며, 현재 frontend UX 개편 변경분은 커밋 전이다.
+- 기준 스냅샷: `7b8fec0` (feat: refresh frontend UX from prototype) 이후 현재 worktree의 랜딩 제거와 프로토타입 로그인 첫 화면 클론까지 포함한다.
+- 브랜치 상태: `feat/prototype-to-react`가 `origin/feat/prototype-to-react` 대비 `ahead 7`이며, 현재 랜딩 제거/로그인 화면 변경분은 커밋 전이다.
 
 ## 완료된 최근 작업
 
@@ -53,12 +53,16 @@
   - 업로드 HTML 프로토타입의 모바일 앱형 흐름을 실제 React 앱에 반영했다.
   - 홈 대표 혜택 hero, 정책 상세 혜택 패키지, 일정 상세 혜택 묶음, 공통 배경/카드/태그 톤을 정리했다.
   - backend API, DB schema, route URL은 변경하지 않았다.
+- 랜딩 제거와 프로토타입 로그인 첫 화면 클론:
+  - `/`는 온보딩 없이 프로토타입 로그인 화면을 렌더링한다.
+  - `/onboarding`은 `/login`으로 redirect한다.
+  - 실제 email/password login, password reset, signup, Kakao/Google OAuth는 유지한다.
 
 ## 다음 우선순위
 
 | 우선순위 | 작업 | 성공 기준 |
 |---:|---|---|
-| 1 | 프로토타입 기반 frontend UX 개편 변경분 커밋 | frontend typecheck/build와 `git diff --check` 결과를 함께 기록하고 기준점 고정 |
+| 1 | 랜딩 제거와 프로토타입 로그인 첫 화면 변경분 커밋 | frontend typecheck/test/build와 `git diff --check` 결과를 함께 기록하고 기준점 고정 |
 | 2 | `deploy/.env.tunnel` 실제값 확보 + Cloudflare Tunnel full-up | 실제 `CLOUDFLARE_TUNNEL_TOKEN`, DB password, `DATABASE_URL`, staging domain으로 compose tunnel migration/seed/up 성공 |
 | 3 | 외부 HTTPS 핵심 smoke + visual QA | staging URL에서 `/api/health`, `/login`, `/policies`, `/trips` 접근과 테스트 계정 로그인을 확인하고 390/1024/1440 viewport에서 핵심 화면을 확인 |
 | 4 | 실제 SMTP provider password reset staging smoke | SMTP env와 public HTTPS base URL을 주입해 reset email 발송, 링크 진입, password confirm을 외부 URL 기준으로 확인 |

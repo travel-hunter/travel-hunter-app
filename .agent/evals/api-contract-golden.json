@@ -402,7 +402,9 @@
         "style": "string",
         "description": "string",
         "policySlug": "string",
-        "durationDays": "number"
+        "durationDays": "number",
+        "startDate": "YYYY-MM-DD string",
+        "endDate": "YYYY-MM-DD string"
       },
       "requiredFields": {
         "id": "string",
@@ -415,7 +417,8 @@
         "currentUserRole": "string enum(owner|editor|viewer)"
       },
       "dbModePolicySlugBehavior": "When policySlug is present, create the trip and link trip_policies; unknown policySlug returns 404 Policy not found.",
-      "durationDaysBehavior": "Optional durationDays defaults to 3, accepts 2 through 5, controls trips.end_date and generated trip_days."
+      "durationDaysBehavior": "Optional durationDays defaults to 3, accepts 2 through 5, controls trips.end_date and generated trip_days when startDate/endDate are absent.",
+      "dateRangeBehavior": "Optional startDate/endDate must be provided together, accept 2 through 5 days inclusive, override durationDays, and control trips.start_date/end_date plus generated trip_days.date."
     },
     {
       "method": "GET",

@@ -42,6 +42,7 @@
 - [x] Project structure audit is documented in `docs/project-structure-audit.md`.
 - [x] Prototype UX flow analysis is documented in `docs/prototype-ux-flow-analysis.md`.
 - [x] Prototype-based frontend UX refresh is applied to the app shell, home, policy detail, and trip detail without changing API/DB routes.
+- [x] Landing/onboarding first-entry page is removed; `/` now renders the prototype-style login screen and `/onboarding` redirects to `/login`.
 - [x] Signup now uses email/password plus email availability check, then `/nickname-setup`.
 - [x] Nickname setup supports server-generated temporary nicknames and dice-button suggestions.
 - [x] Codex model split workflow is documented and scripted for planning `gpt-5.5/xhigh` and implementation `gpt-5.3-codex/high`.
@@ -59,7 +60,7 @@
 - `git diff --check`: passed.
 - Frontend typecheck/build: passed.
 - Frontend build output includes PWA manifest/icons and no sourcemap files.
-- Frontend DB-backed Vitest: 63 passed.
+- Frontend DB-backed Vitest: 64 passed.
 - Docker backend/frontend rebuild: passed.
 - Previous DB-backed Playwright e2e: 5 passed.
 - Local compose config/build: passed.
@@ -67,7 +68,7 @@
 - Tunnel compose config: passed.
 - Password reset local preflight: unknown email returns `requested=true`; existing email without SMTP env fails with `503`.
 - Prototype frontend UX refresh(2026-05-13): frontend typecheck/build passed and `git diff --check` passed.
-- Prototype frontend UX refresh test note: Docker Desktop was not running, so Docker-backed frontend `npm test` could not complete in this pass.
+- Landing removal/login clone verification(2026-05-13): frontend typecheck, DB-backed Vitest 64 passed, frontend build, and `git diff --check` passed.
 
 ## 다음 우선순위
 
@@ -81,7 +82,7 @@
 - [x] Implement password reset and social login OAuth entry points.
 - [x] Document password reset SMTP smoke runbook and local preflight.
 - [x] Implement draft autosave for trip creation, add-place, and edit-place forms.
-- [ ] Commit and push the current prototype-based frontend UX refresh.
+- [ ] Commit and push the current landing removal and prototype login screen changes.
 - [ ] Verify SMTP delivery in staging.
 - [ ] Verify OAuth provider credentials in staging.
 - [ ] Resume Cloudflare Tunnel staging deployment when the feature pass pauses.

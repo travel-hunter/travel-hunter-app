@@ -1,7 +1,7 @@
 import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, type DragEndEvent, type DragStartEvent, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Bot, ChevronLeft, GripVertical, Plus, Send, Share2 } from "lucide-react";
+import { Bot, ChevronLeft, GripVertical, Send, Share2 } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { appDataApi, type InviteRole, type InviteState, type ItineraryPlace, type Recommendation, type Trip, type TripPlaceRequest } from "../api";
@@ -14,6 +14,22 @@ import { shareLinkWithFallback } from "../utils/share";
 
 const profileOptions = appDataApi.getProfileOptions();
 const durationOptions = [2, 3, 4, 5] as const;
+const tripCreateMaxDays = 5;
+const tripCreateMinDays = 2;
+const defaultTripStartDate = "2026-07-12";
+const defaultTripEndDate = "2026-07-14";
+const tripCreateRegions = ["제주", "부산", "강원", "경주", "서울", "전남", "경북", "강릉"] as const;
+const tripRegionEmoji: Record<string, string> = {
+  제주: "🏝️",
+  부산: "🌊",
+  강원: "⛰️",
+  경주: "🏯",
+  서울: "🏙️",
+  전남: "🌾",
+  경북: "🌳",
+  강릉: "🌅",
+  전국: "🧭",
+};
 const defaultPlaceTime = "09:00";
 const placeMinuteStep = 10;
 const placeMinuteOptions = [0, 10, 20, 30, 40, 50] as const;
@@ -22,7 +38,11 @@ type DurationDays = (typeof durationOptions)[number];
 type TripCreateDraft = {
   region: string;
   style: string;
-  durationDays: DurationDays;
+  durationDays?: DurationDays;
+  startDate?: string;
+  endDate?: string;
+  title?: string;
+  step?: number;
   policySlug: string | null;
 };
 type TripPlaceAddDraft = TripPlaceRequest & {
@@ -85,6 +105,39 @@ function recommendationKey(item: Recommendation, index: number): string {
 
 function isDurationOption(value: unknown): value is DurationDays {
   return durationOptions.includes(value as DurationDays);
+}
+
+function parseDateInput(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  if (
+    date.getFullYear() !== Number(match[1]) ||
+    date.getMonth() !== Number(match[2]) - 1 ||
+    date.getDate() !== Number(match[3])
+  ) {
+    return null;
+  }
+  return date;
+}
+
+function tripDateDayCount(startDate: string, endDate: string): number | null {
+  const start = parseDateInput(startDate);
+  const end = parseDateInput(endDate);
+  if (!start || !end) return null;
+  return Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1;
+}
+
+function formatTripCreateDate(value: string): string {
+  return value.replace(/-/g, ".");
+}
+
+function generatedTripTitle(region: string, dayCount: number | null): string {
+  return `${region || "선택한 지역"} ${dayCount ?? 3}일 여행`;
+}
+
+function isValidTripCreateStep(value: unknown): value is 1 | 2 | 3 {
+  return value === 1 || value === 2 || value === 3;
 }
 
 function tripCreateDraftKey(policySlug: string | undefined): string {
@@ -210,16 +263,16 @@ export function ItineraryListPage() {
   };
 
   return (
-    <section className="screen with-tabs">
-      <TopBar
-        title="일정 목록"
-        right={
-          <IconButton label="일정 생성" to="/trips/new">
-            <Plus size={18} />
-          </IconButton>
-        }
-      />
-      <div className="content stack padded">
+    <section className="screen with-tabs prototype-trip-list-screen">
+      <div className="prototype-screen-head">
+        <div>
+          <h1>내 일정</h1>
+        </div>
+        <Link className="prototype-head-pill" to="/trips/new">
+          + 새 일정
+        </Link>
+      </div>
+      <div className="content stack padded prototype-trip-list-content">
         {isLoading && <LoadingState label="일정을 불러오는 중입니다" />}
         {error && <ErrorState message={error} action={<LinkButton to="/trips/new" variant="line">새 일정 만들기</LinkButton>} />}
         {!isLoading && !error && trips.length === 0 && (
@@ -237,16 +290,6 @@ export function ItineraryListPage() {
             onDelete={requestDeleteTrip}
           />
         ))}
-        <Link className="list-card card" to="/trips/new">
-          <div className="between">
-            <div>
-              <Tag tone="primary">새 일정</Tag>
-              <h3>정책 조건에 맞는 여행 만들기</h3>
-            </div>
-            <span className="btn sm primary">만들기</span>
-          </div>
-          <p className="meta">지역, 날짜, 테마를 선택하면 받을 수 있는 정책과 이동 동선을 함께 맞춰드려요.</p>
-        </Link>
       </div>
       <ConfirmDialog
         open={Boolean(deleteCandidateTrip)}
@@ -263,6 +306,264 @@ export function ItineraryListPage() {
 }
 
 export function ItineraryCreatePage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { profile, updateProfile, addPolicy } = useSession();
+  const policySlug = searchParams.get("policySlug") ?? undefined;
+  const draftKey = tripCreateDraftKey(policySlug);
+  const initialDraft = readDraft<TripCreateDraft>(draftKey);
+  const initialProfileRef = useRef({ region: profile.region, style: profile.style });
+  const skipNextTripDraftSaveRef = useRef(false);
+  const initialDayCount = tripDateDayCount(initialDraft?.startDate ?? defaultTripStartDate, initialDraft?.endDate ?? defaultTripEndDate);
+  const initialRegion = initialDraft?.region || profile.region || "제주";
+  const [step, setStep] = useState<1 | 2 | 3>(isValidTripCreateStep(initialDraft?.step) ? initialDraft.step : 1);
+  const [startDate, setStartDate] = useState(initialDraft?.startDate ?? defaultTripStartDate);
+  const [endDate, setEndDate] = useState(initialDraft?.endDate ?? defaultTripEndDate);
+  const [titleDraft, setTitleDraft] = useState(initialDraft?.title ?? generatedTripTitle(initialRegion, initialDayCount));
+  const [isCreating, setIsCreating] = useState(false);
+  const [isDraftReady, setIsDraftReady] = useState(false);
+  const [isTripDraftNoticeVisible, setIsTripDraftNoticeVisible] = useState(false);
+  const [error, setError] = useState("");
+  const selectedRegion = profile.region.trim() || initialRegion;
+  const dayCount = tripDateDayCount(startDate, endDate);
+  const dateRangeError =
+    dayCount === null
+      ? "출발일과 도착일을 선택해 주세요."
+      : dayCount < tripCreateMinDays || dayCount > tripCreateMaxDays
+        ? "일정 기간은 2일부터 5일까지 선택할 수 있어요."
+        : "";
+  const linkedPolicyLabel = policySlug ? "선택한 정책을 새 일정에 연결할게요" : "";
+  const canProceed =
+    step === 1
+      ? Boolean(selectedRegion)
+      : step === 2
+        ? !dateRangeError
+        : Boolean(titleDraft.trim());
+
+  useEffect(() => {
+    const draft = readDraft<TripCreateDraft>(draftKey);
+    if (draft && draft.policySlug === (policySlug ?? null)) {
+      let appliedDraft = false;
+      if (draft.region) {
+        updateProfile("region", draft.region);
+        if (draft.region !== initialProfileRef.current.region) appliedDraft = true;
+      }
+      if (draft.style) {
+        updateProfile("style", draft.style);
+        if (draft.style !== initialProfileRef.current.style) appliedDraft = true;
+      }
+      if (draft.startDate) {
+        setStartDate(draft.startDate);
+        if (draft.startDate !== defaultTripStartDate) appliedDraft = true;
+      }
+      if (draft.endDate) {
+        setEndDate(draft.endDate);
+        if (draft.endDate !== defaultTripEndDate) appliedDraft = true;
+      }
+      if (draft.title) {
+        setTitleDraft(draft.title);
+        appliedDraft = true;
+      }
+      if (isValidTripCreateStep(draft.step)) setStep(draft.step);
+      if (!draft.startDate && isDurationOption(draft.durationDays)) {
+        const start = parseDateInput(defaultTripStartDate);
+        if (start) {
+          const end = new Date(start);
+          end.setDate(start.getDate() + draft.durationDays - 1);
+          const nextEndDate = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}`;
+          setEndDate(nextEndDate);
+          if (draft.durationDays !== 3) appliedDraft = true;
+        }
+      }
+      setIsTripDraftNoticeVisible(appliedDraft);
+    }
+    setIsDraftReady(true);
+  }, [draftKey, policySlug]);
+
+  useEffect(() => {
+    if (!isDraftReady) return;
+    if (skipNextTripDraftSaveRef.current) {
+      skipNextTripDraftSaveRef.current = false;
+      return;
+    }
+    saveDraft<TripCreateDraft>(draftKey, {
+      region: selectedRegion,
+      style: profile.style,
+      startDate,
+      endDate,
+      title: titleDraft,
+      step,
+      policySlug: policySlug ?? null,
+    });
+  }, [draftKey, endDate, isDraftReady, policySlug, profile.style, selectedRegion, startDate, step, titleDraft]);
+
+  const selectRegion = (region: string) => {
+    const previousAutoTitle = generatedTripTitle(selectedRegion, dayCount);
+    updateProfile("region", region);
+    setTitleDraft((current) => (current.trim() === "" || current === previousAutoTitle ? generatedTripTitle(region, dayCount) : current));
+  };
+
+  const updateDates = (nextStartDate: string, nextEndDate: string) => {
+    const previousAutoTitle = generatedTripTitle(selectedRegion, dayCount);
+    const nextDayCount = tripDateDayCount(nextStartDate, nextEndDate);
+    setStartDate(nextStartDate);
+    setEndDate(nextEndDate);
+    setTitleDraft((current) => (current.trim() === "" || current === previousAutoTitle ? generatedTripTitle(selectedRegion, nextDayCount) : current));
+  };
+
+  const discardTripCreateDraft = () => {
+    skipNextTripDraftSaveRef.current = true;
+    clearDraft(draftKey);
+    updateProfile("region", initialProfileRef.current.region);
+    updateProfile("style", initialProfileRef.current.style);
+    setStep(1);
+    setStartDate(defaultTripStartDate);
+    setEndDate(defaultTripEndDate);
+    setTitleDraft(generatedTripTitle(initialProfileRef.current.region || "제주", 3));
+    setIsTripDraftNoticeVisible(false);
+  };
+
+  const goNext = () => {
+    if (!canProceed) return;
+    if (step < 3) {
+      setStep((current) => (current + 1) as 1 | 2 | 3);
+      return;
+    }
+    void createTrip();
+  };
+
+  const createTrip = async () => {
+    const title = titleDraft.trim();
+    if (!title) {
+      setError("일정 제목을 입력해 주세요.");
+      return;
+    }
+    if (dateRangeError) {
+      setError(dateRangeError);
+      setStep(2);
+      return;
+    }
+    setIsCreating(true);
+    setError("");
+    try {
+      const trip = await appDataApi.createTrip({
+        title,
+        region: selectedRegion,
+        style: profile.style,
+        policySlug,
+        startDate,
+        endDate,
+      });
+      if (policySlug) {
+        await appDataApi.addPolicyToTrip(trip.id, policySlug);
+        addPolicy();
+      }
+      clearDraft(draftKey);
+      navigate(`/trips/${trip.id}`);
+    } catch {
+      setError("일정을 만들지 못했어요. 선택한 조건을 확인하고 다시 시도해 주세요.");
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  return (
+    <section className="screen prototype-trip-create-screen">
+      <div className="prototype-create-top">
+        <IconButton label="일정 목록" to="/trips">
+          <ChevronLeft size={20} />
+        </IconButton>
+        <h1>새 일정</h1>
+        <span>{step}/3</span>
+      </div>
+
+      <div className="prototype-create-progress" aria-label="일정 생성 단계">
+        <span style={{ width: `${(step / 3) * 100}%` }} />
+      </div>
+
+      <div className="prototype-create-content">
+        {policySlug && step === 1 && (
+          <div className="prototype-linked-policy-banner">
+            <span aria-hidden="true">🎁</span>
+            <strong>{linkedPolicyLabel}</strong>
+          </div>
+        )}
+
+        {step === 1 && (
+          <section className="prototype-create-step-panel">
+            <h2>어디로 떠나나요?</h2>
+            <p>지역을 선택하면 맞춤 정책을 찾아드려요.</p>
+            <div className="prototype-region-grid">
+              {tripCreateRegions.map((region) => (
+                <button className={selectedRegion === region ? "active" : ""} key={region} onClick={() => selectRegion(region)} type="button">
+                  <span>{tripRegionEmoji[region]}</span>
+                  <strong>{region}</strong>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {step === 2 && (
+          <section className="prototype-create-step-panel">
+            <h2>언제 떠나나요?</h2>
+            <p>여행 기간을 선택해 주세요.</p>
+            <div className="prototype-date-fields">
+              <label>
+                출발일
+                <input type="date" value={startDate} onChange={(event) => updateDates(event.target.value, endDate)} />
+              </label>
+              <label>
+                도착일
+                <input type="date" value={endDate} onChange={(event) => updateDates(startDate, event.target.value)} />
+              </label>
+            </div>
+            <div className={dateRangeError ? "prototype-date-summary invalid" : "prototype-date-summary"}>
+              <span>🧳</span>
+              <strong>{dayCount && !dateRangeError ? `총 ${dayCount}일 여행` : dateRangeError}</strong>
+            </div>
+          </section>
+        )}
+
+        {step === 3 && (
+          <section className="prototype-create-step-panel">
+            <h2>일정 제목을 정해볼까요?</h2>
+            <p>나중에 언제든 변경할 수 있어요.</p>
+            <label className="prototype-title-field">
+              일정 제목
+              <input name="trip-title" onChange={(event) => setTitleDraft(event.target.value)} placeholder={generatedTripTitle(selectedRegion, dayCount)} value={titleDraft} />
+            </label>
+            <div className="prototype-create-summary">
+              <span>요약</span>
+              <div>📍 지역 · {selectedRegion}</div>
+              <div>
+                🗓 일정 · {formatTripCreateDate(startDate)} ~ {formatTripCreateDate(endDate)} ({dayCount ?? "-"}일)
+              </div>
+              <div>👥 인원 · 1명</div>
+              {policySlug && <div className="linked">🎁 연결 정책 · 선택한 정책</div>}
+            </div>
+          </section>
+        )}
+
+        {isTripDraftNoticeVisible && <DraftRestoreNotice message="작성 중이던 일정 조건을 불러왔어요." onDiscard={discardTripCreateDraft} />}
+        {error && <ErrorState compact message={error} />}
+      </div>
+
+      <div className="prototype-create-sticky-actions">
+        {step > 1 && (
+          <Button variant="line" disabled={isCreating} onClick={() => setStep((current) => (current - 1) as 1 | 2 | 3)}>
+            이전
+          </Button>
+        )}
+        <Button full disabled={!canProceed || isCreating} onClick={goNext}>
+          {isCreating ? "일정을 만드는 중입니다" : step < 3 ? "다음" : "일정 만들기"}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function LegacyItineraryCreatePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { profile, updateProfile, addPolicy } = useSession();
@@ -369,7 +670,7 @@ export function ItineraryCreatePage() {
   };
 
   return (
-    <section className="screen">
+    <section className="screen prototype-trip-create-screen">
       <TopBar
         title="일정 생성"
         left={
@@ -379,6 +680,11 @@ export function ItineraryCreatePage() {
         }
       />
       <div className="content stack padded">
+        <div className="prototype-create-steps" aria-label="일정 생성 단계">
+          <span className="active">1 지역</span>
+          <span>2 기간</span>
+          <span>3 이름</span>
+        </div>
         <div className="card">
           <div className="card-body stack">
             {policySlug && <Tag tone="warning">선택한 혜택도 함께 담을게요</Tag>}
@@ -724,7 +1030,7 @@ export function ItineraryDetailPage() {
 
   if (isLoading) {
     return (
-      <section className="screen with-tabs">
+      <section className="screen with-tabs prototype-trip-detail-screen">
         <LoadingState label="일정 상세를 불러오는 중입니다" />
       </section>
     );
@@ -732,14 +1038,14 @@ export function ItineraryDetailPage() {
 
   if (error || !trip) {
     return (
-      <section className="screen with-tabs">
+      <section className="screen with-tabs prototype-trip-detail-screen">
         <ErrorState message={error ?? "일정 정보를 찾지 못했어요."} action={<LinkButton to="/trips" variant="line">일정 목록으로</LinkButton>} />
       </section>
     );
   }
 
   return (
-    <section className={canEditTrip ? "screen with-tabs" : "screen with-tabs readonly-trip"}>
+    <section className={canEditTrip ? "screen with-tabs prototype-trip-detail-screen" : "screen with-tabs readonly-trip prototype-trip-detail-screen"}>
       <TopBar
         title={trip.title}
         left={
@@ -753,6 +1059,13 @@ export function ItineraryDetailPage() {
           </IconButton>
         }
       />
+      <div className="prototype-trip-detail-hero">
+        <div>
+          <span>Travel Hunter itinerary</span>
+          <h1>{trip.title}</h1>
+          <p>{trip.dates} · {stayLabel}</p>
+        </div>
+      </div>
       <div className="trip-summary">
         <div className="row meta">{trip.dates} · {stayLabel}</div>
         <div className="between">

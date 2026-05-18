@@ -1,6 +1,7 @@
+from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 InviteRole = Literal["viewer", "editor"]
@@ -22,6 +23,20 @@ class CreateTripRequest(BaseModel):
     description: str | None = None
     policySlug: str | None = None
     durationDays: int | None = Field(default=None, ge=2, le=5)
+    startDate: date | None = None
+    endDate: date | None = None
+
+    @model_validator(mode="after")
+    def validate_date_range(self) -> "CreateTripRequest":
+        has_start = self.startDate is not None
+        has_end = self.endDate is not None
+        if has_start != has_end:
+            raise ValueError("startDate and endDate must be provided together")
+        if self.startDate is not None and self.endDate is not None:
+            day_count = (self.endDate - self.startDate).days + 1
+            if day_count < 2 or day_count > 5:
+                raise ValueError("Trip date range must be between 2 and 5 days")
+        return self
 
 
 class Trip(BaseModel):

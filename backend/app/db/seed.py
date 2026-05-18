@@ -98,7 +98,7 @@ def seed_policies(db: Session) -> dict[str, Policy]:
         policy.organization = str(item["org"])
         policy.policy_type = str(item["category"])
         policy.description = str(item["summary"])
-        policy.benefit_amount = BENEFIT_AMOUNTS[slug]
+        policy.benefit_amount = BENEFIT_AMOUNTS.get(slug)
         policy.benefit_detail = str(item["amount"])
         policy.target_condition = "\n".join(str(value) for value in item["requirements"])
         policy.region = str(item["region"])

@@ -3,7 +3,7 @@
 ## 기준
 
 - 기준 브랜치: `feat/prototype-to-react`.
-- 기준 범위: 최신 커밋 `a927ac4 docs: analyze prototype UX flow` 이후 현재 worktree의 프로토타입 기반 frontend UX 개편까지 포함한다.
+- 기준 범위: 최신 커밋 `7b8fec0 feat: refresh frontend UX from prototype` 이후 현재 worktree의 랜딩 제거와 프로토타입 로그인 첫 화면 클론까지 포함한다.
 - 실행 모드: DB-backed-only. Runtime mock mode는 제거된 상태다.
 - 공식 요구사항 문서: `docs/requirements.md`.
 - 분류 기준:
@@ -16,7 +16,7 @@
 
 ## 전체 요약
 
-현재 MVP의 핵심 사용자 흐름은 대부분 `Complete`다. 회원가입/로그인, 프로필, 정책 탐색/저장, 일정 생성/삭제/편집, 정책 담기, AI 추천 결과 일정 추가, 초대 수락/권한, 마이페이지 알림 설정은 프론트 UI에서 백엔드 API와 PostgreSQL 저장까지 연결되어 있다. 프론트는 업로드 HTML 프로토타입의 모바일 앱형 흐름을 반영해 홈, 정책 상세, 일정 상세의 혜택 탐색 구조를 강화했다.
+현재 MVP의 핵심 사용자 흐름은 대부분 `Complete`다. 회원가입/로그인, 프로필, 정책 탐색/저장, 일정 생성/삭제/편집, 정책 담기, AI 추천 결과 일정 추가, 초대 수락/권한, 마이페이지 알림 설정은 프론트 UI에서 백엔드 API와 PostgreSQL 저장까지 연결되어 있다. 프론트는 업로드 HTML 프로토타입의 모바일 앱형 흐름을 반영해 첫 접속 로그인, 홈, 정책 상세, 일정 상세의 혜택 탐색 구조를 강화했다.
 
 외부 서비스가 필요한 기능은 `Conditional`이다. 비밀번호 재설정은 local SMTP capture E2E까지 통과했지만 실제 staging email 발송에는 SMTP provider와 HTTPS domain이 필요하다. Kakao/Google OAuth는 local preflight를 통과했지만 provider client id/secret/redirect URI가 있어야 실제 로그인이 가능하다. SOLAPI 알림톡도 SOLAPI/Kakao 채널/템플릿 env가 있어야 실제 발송된다. Cloudflare Tunnel은 Quick Tunnel `/login` 200까지 확인했고, named tunnel full-up은 실제 token/env 값이 필요하다.
 
@@ -26,7 +26,7 @@
 |---|---|---|---|---|---|---|---|---|
 | 인증 | 회원가입 | `/signup` | `POST /api/auth/email-check`, `POST /api/auth/signup` | `users`, refresh token | backend, Vitest, e2e | Complete | 이름 입력 없이 email/password만 받음 | 유지 |
 | 인증 | 닉네임 설정 | `/nickname-setup` | `GET /api/me/nickname-suggestion`, `PATCH /api/me/nickname` | `users.nickname` | backend, Vitest | Complete | 임시 닉네임은 서버가 자동 생성 | 유지 |
-| 인증 | 로그인/실패 처리 | `/login` | `POST /api/auth/login` | refresh token | backend, Vitest, e2e | Complete | 없음 | 유지 |
+| 인증 | 로그인/실패 처리 | `/`, `/login` | `POST /api/auth/login` | refresh token | backend, Vitest, e2e | Complete | `/onboarding`은 `/login`으로 redirect | 유지 |
 | 인증 | 세션 refresh/logout | app session | `POST /api/auth/refresh`, `POST /api/auth/logout` | `auth_refresh_tokens` | backend, Vitest, e2e | Complete | 없음 | 유지 |
 | 인증 | 비밀번호 재설정 요청 | `/forgot-password` | `POST /api/auth/password-reset/request` | `password_reset_tokens` hash | backend, Vitest, local SMTP capture smoke | Conditional | 실제 staging 발송은 SMTP provider와 HTTPS base URL 필요 | 실제 SMTP provider smoke |
 | 인증 | 비밀번호 재설정 확정 | `/reset-password?token=...` | `POST /api/auth/password-reset/confirm` | password hash 갱신, refresh revoke | backend, Vitest, local SMTP capture smoke | Complete | local E2E는 통과, 외부 staging 링크는 provider env 필요 | 실제 SMTP provider smoke |
@@ -46,7 +46,7 @@
 | 플랫폼 | PWA manifest/meta | HTML shell, `manifest.webmanifest` | Vite static assets | 없음 | build 산출물 확인 | Complete | service worker/offline은 없음 | offline 전략은 후속 검토 |
 | 플랫폼 | Draft autosave 1차 | `/trips/new`, `/trips/:id` 장소 추가/수정 sheet | frontend localStorage utility | localStorage | Vitest | Complete | 서버 동기화가 아닌 임시 입력 보호이며 복원 안내/버리기를 제공 | 유지 |
 | 플랫폼 | 공통 상태 UX | `/policies`, `/trips`, `/mypage` | frontend state components | 없음 | Vitest | Complete | loading/empty/error 상태에 다음 행동 CTA 제공 | 유지 |
-| 플랫폼 | 프로토타입 기반 앱 UX | `/home`, `/policies/:slug`, `/trips/:id`, app shell | frontend layout/styles | 없음 | typecheck/build | Complete | 390/1024/1440 수동 시각 QA는 후속 확인 필요 | smoke 환경에서 visual QA |
+| 플랫폼 | 프로토타입 기반 앱 UX | `/`, `/login`, `/home`, `/policies/:slug`, `/trips/:id`, app shell | frontend layout/styles | 없음 | typecheck/build | Complete | 390/1024/1440 수동 시각 QA는 후속 확인 필요 | smoke 환경에서 visual QA |
 | 정책 | 공식/신청 URL CTA | `/policies/:slug` | `officialUrl/applyUrl` DTO | `policies.official_url/apply_url` | backend, Vitest | Complete | 실제 URL 정확도는 seed 데이터 품질에 의존 | 정책 URL 유지보수 |
 | 정책 | 필요 서류 표시 | `/policies/:slug` | static checklist row | `policy_documents` | Vitest | Complete | 없음 | 유지 |
 | 일정 | 일정 목록/생성/상세 | `/trips`, `/trips/new`, `/trips/:id` | `GET/POST/GET /api/trips` | `trips`, `trip_days`, `trip_places` | backend, Vitest, e2e | Complete | 없음 | 유지 |
@@ -88,7 +88,7 @@
 - `cd backend && python -m pytest`: 174 passed.
 - `cd backend && alembic upgrade head --sql`: passed.
 - `cd frontend && npm run typecheck`: passed.
-- `cd frontend && npm test`: 63 passed.
+- `cd frontend && npm test`: 64 passed.
 - `cd frontend && npm run build`: passed, sourcemap 미생성, PWA manifest/icon 산출물 확인.
 - `cd frontend && npm run test:e2e`: 5 passed.
 - `docker compose -f compose.yaml config`: passed.
@@ -98,11 +98,11 @@
 - Local SMTP capture password reset E2E: passed.
 - OAuth local/preflight: passed.
 - Cloudflare Quick Tunnel frontend `/login`: 200 after preview host allowlist fix.
-- Prototype UX refresh(2026-05-13): frontend typecheck/build passed and `git diff --check` passed. Docker Desktop 미실행으로 Docker 기반 `npm test`는 이번 실행에서 완료하지 못했다.
+- Landing removal/login clone(2026-05-13): frontend typecheck, DB-backed Vitest 64 passed, frontend build, `git diff --check` passed.
 
 ## 다음 기능 우선순위
 
-1. 프로토타입 기반 frontend UX 개편 변경분 커밋.
+1. 랜딩 제거와 프로토타입 로그인 첫 화면 변경분 커밋.
 2. `deploy/.env.tunnel` 실제값 확보 + Cloudflare Tunnel full-up.
 3. 외부 HTTPS URL 기준 `/api/health`, `/login`, `/policies`, `/trips` 핵심 smoke와 visual QA.
 4. 실제 SMTP provider password reset staging smoke.

@@ -5,7 +5,6 @@ import { ForgotPasswordPage, LoginPage, NicknameSetupPage, OAuthCallbackPage, Re
 import { HomePage } from "../pages/HomePage";
 import { InviteAcceptPage } from "../pages/InviteAcceptPage";
 import { MyPage } from "../pages/MyPage";
-import { OnboardingPage } from "../pages/OnboardingPage";
 import { PolicyDetailPage, PolicyListPage } from "../pages/PolicyPages";
 import { ProfileSetupPage } from "../pages/ProfileSetupPage";
 import { useSession } from "./session";
@@ -14,8 +13,8 @@ export function App() {
   return (
     <Routes>
       <Route element={<PublicLayout />}>
-        <Route path="/" element={<OnboardingPage />} />
-        <Route path="/onboarding" element={<OnboardingPage />} />
+        <Route path="/" element={<LoginPage />} />
+        <Route path="/onboarding" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />

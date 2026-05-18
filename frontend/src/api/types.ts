@@ -38,13 +38,6 @@ export type ContactInfo = {
   phoneVerified: boolean;
 };
 
-export type OnboardingSlide = {
-  eyebrow: string;
-  title: string;
-  body: string;
-  stat: string;
-};
-
 export type PolicyCategory = "추천" | "환급" | "숙박" | "캐시백";
 
 export type Policy = {

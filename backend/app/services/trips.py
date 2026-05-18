@@ -236,10 +236,17 @@ def create_trip(
     payload = (payload or CreateTripRequest()).model_dump()
     if payload.get("description") is None and payload.get("style") is not None:
         payload["description"] = payload["style"]
-    duration_days = int(payload.get("durationDays") or 3)
     region = str(payload.get("region") or seed.PROFILE["region"])
-    start_date = date(2026, 6, 15)
-    end_date = start_date + timedelta(days=duration_days - 1)
+    start_date_value = payload.get("startDate")
+    end_date_value = payload.get("endDate")
+    if isinstance(start_date_value, date) and isinstance(end_date_value, date):
+        start_date = start_date_value
+        end_date = end_date_value
+        duration_days = (end_date - start_date).days + 1
+    else:
+        duration_days = int(payload.get("durationDays") or 3)
+        start_date = date(2026, 6, 15)
+        end_date = start_date + timedelta(days=duration_days - 1)
     title = str(payload.get("title") or f"{region} {duration_days}일 여행")
 
     trip = trip_repository.create_trip(

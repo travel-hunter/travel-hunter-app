@@ -11,7 +11,7 @@
 
 | 화면 | 저장 대상 | 저장 위치 | 삭제 시점 |
 |---|---|---|---|
-| `/trips/new` | `region`, `style`, `durationDays`, `policySlug` | `travel-hunter:draft:trip-create:*` | 일정 생성 성공 |
+| `/trips/new` | `region`, `style`, `startDate`, `endDate`, `title`, `step`, `policySlug` | `travel-hunter:draft:trip-create:*` | 일정 생성 성공 또는 draft 폐기 |
 | `/trips/:id` 장소 추가 sheet | `dayNumber`, `time`, `label`, `meta` | `travel-hunter:draft:trip-place:{tripId}:add:{dayNumber}` | 저장 성공 또는 sheet 닫기 |
 | `/trips/:id` 장소 수정 sheet | `placeId`, `time`, `label`, `meta` | `travel-hunter:draft:trip-place:{tripId}:edit:{placeId}` | 저장 성공, sheet 닫기, 장소 삭제 |
 
