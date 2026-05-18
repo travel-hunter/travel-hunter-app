@@ -90,6 +90,7 @@ def create_trip(
     title: str,
     start_date: date,
     end_date: date,
+    status: str,
     region: str | None,
     description: str | None,
 ) -> Trip:
@@ -98,6 +99,7 @@ def create_trip(
         title=title,
         start_date=start_date,
         end_date=end_date,
+        status=status,
         region=region,
         description=description,
     )
@@ -130,6 +132,7 @@ def add_trip_place(
         memo=memo,
     )
     db.add(place)
+    db.flush()
     return place
 
 
@@ -196,6 +199,18 @@ def delete_trip(db: Session, trip: Trip) -> None:
     db.delete(trip)
 
 
+def delete_trip_place(db: Session, place: TripPlace) -> None:
+    db.delete(place)
+
+
+def reorder_trip_day_places(trip_day: TripDay, places: list[TripPlace]) -> None:
+    trip_day.places = list(places)
+    for order_num, place in enumerate(places, start=1):
+        place.trip_day = trip_day
+        place.trip_day_id = trip_day.id
+        place.order_num = order_num
+
+
 def get_latest_active_invite(db: Session, *, trip_id: int, now) -> TripInvite | None:
     statement = (
         select(TripInvite)
@@ -222,12 +237,14 @@ def create_invite(
     invite_token: str,
     created_by: int,
     expires_at,
+    role: str = "editor",
 ) -> TripInvite:
     invite = TripInvite(
         trip_id=trip_id,
         invite_token=invite_token,
         created_by=created_by,
         expires_at=expires_at,
+        role=role,
     )
     db.add(invite)
     db.flush()

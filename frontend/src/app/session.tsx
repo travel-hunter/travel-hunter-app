@@ -13,16 +13,23 @@ type SessionContextValue = {
   currentUser: User | null;
   profile: Profile;
   addedPolicy: boolean;
+  addedPolicySlugs: Set<string>;
   likedPolicy: boolean;
   invited: boolean;
   login: (request?: LoginRequest) => Promise<void>;
   signup: (request?: SignupRequest) => Promise<void>;
+  completeOAuthSession: () => Promise<void>;
   logout: () => Promise<void>;
+  saveNickname: (nickname: string) => Promise<User>;
   updateProfile: (key: keyof Profile, value: string) => void;
   saveProfile: (profile?: Partial<Profile>) => Promise<Profile>;
-  addPolicy: () => void;
+  addPolicy: (slug?: string) => void;
+  isPolicyAdded: (slug: string) => boolean;
   togglePolicyLike: () => void;
   sendInvite: () => void;
+  savedSlugs: Set<string>;
+  addSavedSlug: (slug: string) => void;
+  removeSavedSlug: (slug: string) => void;
 };
 
 const AUTH_STORAGE_KEY = "travel-hunter-production-auth";
@@ -67,8 +74,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     budget: "1인 40만원 이하",
   });
   const [addedPolicy, setAddedPolicy] = useState(false);
+  const [addedPolicySlugs, setAddedPolicySlugs] = useState<Set<string>>(new Set());
   const [likedPolicy, setLikedPolicy] = useState(false);
   const [invited, setInvited] = useState(false);
+  const [savedSlugs, setSavedSlugs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +91,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           persistAuth(refreshed);
           setCurrentUser(refreshed.user);
           setProfile(await readRemoteProfile());
+          appDataApi.listSavedPolicies().then((p) => { if (!cancelled) setSavedSlugs(new Set(p.map((s) => s.slug))); }).catch(() => {});
         } catch {
           clearAuth();
         }
@@ -95,6 +105,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         persistAuth(nextAuth);
         setCurrentUser(user);
         setProfile(await readRemoteProfile());
+        appDataApi.listSavedPolicies().then((p) => { if (!cancelled) setSavedSlugs(new Set(p.map((s) => s.slug))); }).catch(() => {});
       } catch {
         if (cancelled) return;
         try {
@@ -103,6 +114,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           persistAuth(refreshed);
           setCurrentUser(refreshed.user);
           setProfile(await readRemoteProfile());
+          appDataApi.listSavedPolicies().then((p) => { if (!cancelled) setSavedSlugs(new Set(p.map((s) => s.slug))); }).catch(() => {});
           return;
         } catch {
           // Fall through to clearing the stale local session.
@@ -123,6 +135,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       currentUser,
       profile,
       addedPolicy,
+      addedPolicySlugs,
       likedPolicy,
       invited,
       login: async (request) => {
@@ -130,12 +143,28 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         persistAuth(auth);
         setCurrentUser(auth.user);
         setProfile(await readRemoteProfile());
+        appDataApi.listSavedPolicies().then((p) => setSavedSlugs(new Set(p.map((s) => s.slug)))).catch(() => {});
       },
       signup: async (request) => {
         const auth = await appDataApi.signup(request);
         persistAuth(auth);
         setCurrentUser(auth.user);
         setProfile(await readRemoteProfile());
+        setSavedSlugs(new Set());
+      },
+      completeOAuthSession: async () => {
+        const auth = await appDataApi.refreshSession();
+        persistAuth(auth);
+        setCurrentUser(auth.user);
+        setProfile(await readRemoteProfile());
+        appDataApi.listSavedPolicies().then((p) => setSavedSlugs(new Set(p.map((s) => s.slug)))).catch(() => {});
+      },
+      saveNickname: async (nickname) => {
+        const user = await appDataApi.updateNickname({ nickname });
+        const stored = readStoredAuth();
+        if (stored) persistAuth({ accessToken: stored.accessToken, user });
+        setCurrentUser(user);
+        return user;
       },
       logout: async () => {
         try {
@@ -143,6 +172,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         } finally {
           clearAuth();
           setCurrentUser(null);
+          setSavedSlugs(new Set());
+          setAddedPolicy(false);
+          setAddedPolicySlugs(new Set());
         }
       },
       updateProfile: (key, value) => {
@@ -161,11 +193,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
         return savedProfile;
       },
-      addPolicy: () => setAddedPolicy(true),
+      addPolicy: (slug?: string) => {
+        setAddedPolicy(true);
+        if (slug) {
+          setAddedPolicySlugs((prev) => new Set(prev).add(slug));
+        }
+      },
+      isPolicyAdded: (slug: string) => addedPolicySlugs.has(slug),
       togglePolicyLike: () => setLikedPolicy((current) => !current),
       sendInvite: () => setInvited(true),
+      savedSlugs,
+      addSavedSlug: (slug: string) => setSavedSlugs((prev) => new Set(prev).add(slug)),
+      removeSavedSlug: (slug: string) =>
+        setSavedSlugs((prev) => {
+          const next = new Set(prev);
+          next.delete(slug);
+          return next;
+        }),
     }),
-    [addedPolicy, currentUser, invited, likedPolicy, profile],
+    [addedPolicy, addedPolicySlugs, currentUser, invited, likedPolicy, profile, savedSlugs],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

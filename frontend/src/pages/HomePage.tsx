@@ -1,79 +1,127 @@
-import { Plus, Search } from "lucide-react";
+import { Search } from "lucide-react";
+import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
-import { appDataApi } from "../api";
+import { appDataApi, type Policy } from "../api";
 import { useAsyncResource } from "../api/useAsyncResource";
 import { useSession } from "../app/session";
-import { ItineraryCard, PlaceCard, PolicyMiniCard } from "../components/cards";
 import { ErrorState, LoadingState } from "../components/ui";
+import { buildHomeDestinations, getFeaturedPolicy, getHomePolicyIcon } from "../data/displayConfig";
 import { dday } from "../utils";
 
+function policyDeadlineTime(policy: Policy) {
+  const time = new Date(policy.deadline).getTime();
+  return Number.isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
+}
+
+function getDeadlinePolicies(policies: Policy[] | null | undefined) {
+  return [...(policies ?? [])].sort((left, right) => policyDeadlineTime(left) - policyDeadlineTime(right)).slice(0, 4);
+}
+
 export function HomePage() {
-  const { currentUser, profile, addedPolicy } = useSession();
+  const { currentUser, profile } = useSession();
   const previewUser = appDataApi.getPreviewUser();
   const { data: policies, error: policiesError, isLoading: policiesLoading } = useAsyncResource(() => appDataApi.listPolicies(), []);
   const { data: trips, error: tripsError, isLoading: tripsLoading } = useAsyncResource(() => appDataApi.listTrips(), []);
-  const name = currentUser?.name ?? previewUser.name;
-  const featuredPolicy = policies?.[0];
+  const name = currentUser?.nickname ?? previewUser.nickname ?? "여행자";
+  const featuredPolicy = getFeaturedPolicy(policies);
   const featuredTrip = trips?.[0];
+  const deadlinePolicies = getDeadlinePolicies(policies);
+  const homeDestinations = buildHomeDestinations(policies);
+  const avatarLabel = name.trim().slice(0, 1).toUpperCase() || "T";
+  const aiCardTo = featuredTrip ? `/trips/${featuredTrip.id}` : "/trips/new";
 
   return (
-    <section className="screen with-tabs">
-      <div className="top-search">
-        <Link className="search-pill" to="/policies">
-          <Search size={18} />
-          지역, 혜택, 일정 검색
+    <section className="screen with-tabs prototype-app-screen prototype-home-screen">
+      <div className="prototype-status-spacer" aria-hidden="true" />
+      <div className="prototype-home-search-row">
+        <Link className="prototype-home-search-pill" to="/policies">
+          <Search size={15} />
+          어디로 떠나요?
         </Link>
-        <Link className="avatar" to="/mypage">
-          {name[0]}
+        <Link className="prototype-home-avatar" to="/mypage" aria-label="마이페이지">
+          {avatarLabel}
         </Link>
       </div>
-      <div className="greeting">
-        <h2>어디로 떠나볼까요, {name}님</h2>
-        <p>여행에서 받을 수 있는 혜택을 먼저 확인해보세요.</p>
+
+      <div className="prototype-home-greeting">
+        <h2>안녕, {name}님 👋</h2>
+        <p>이번 달 놓치면 안 될 혜택이 있어요!</p>
       </div>
-      {policiesLoading && <LoadingState label="추천 혜택을 불러오는 중입니다" />}
-      {policiesError && <ErrorState message={policiesError} />}
+
+      {policiesLoading && <LoadingState label="혜택을 불러오는 중입니다" />}
+      {policiesError && <ErrorState title="혜택을 불러오지 못했어요" message={policiesError} />}
       {featuredPolicy && (
-        <Link className="promo" to={`/policies/${featuredPolicy.slug}`}>
-          <div>
-            <div className="kicker">내 일정에 맞는 추천 정책</div>
-            <strong>{featuredPolicy.amount}</strong>
-          </div>
-          <div>
-            <span>
-              {featuredPolicy.title} · {featuredPolicy.region} · {dday(featuredPolicy.deadline)}
-            </span>
-            <span className="promo-cta">지금 확인하기</span>
-          </div>
+        <Link className="prototype-home-hero" to={`/policies/${featuredPolicy.slug}`}>
+          <div className="prototype-home-hero-kicker">💰 이번 달 인기 정책</div>
+          <strong>{featuredPolicy.amount}</strong>
+          <p>
+            {featuredPolicy.title} · {featuredPolicy.region} · {dday(featuredPolicy.deadline)}
+          </p>
+          <span className="prototype-home-hero-cta">지금 확인하기 →</span>
         </Link>
       )}
-      <div className="section-title">
-        <h3>받을 수 있는 혜택</h3>
-        <Link to="/policies">전체 보기</Link>
-      </div>
-      <div className="h-scroll" aria-label="추천 정책 목록">
-        {(policies ?? []).map((policy) => (
-          <PolicyMiniCard key={policy.id} policy={policy} />
+
+      <PrototypeSectionHeader title="💸 이번 달 혜택" action="더보기" to="/policies" />
+      <div className="prototype-home-policy-rail" aria-label="이번 달 혜택 정책 목록">
+        {deadlinePolicies.map((policy) => (
+          <PrototypePolicyCard key={policy.id} policy={policy} />
         ))}
       </div>
-      <div className="section-title">
-        <h3>인기 국내 여행지</h3>
-        <Link to="/trips/new">
-          <Plus size={16} /> 일정 만들기
-        </Link>
+
+      <PrototypeSectionHeader title="🏞️ 인기 국내 여행지" />
+      <div className="prototype-home-destination-rail" aria-label="인기 국내 여행지 목록">
+        {homeDestinations.map((destination) => (
+          <Link
+            key={destination.title}
+            className="prototype-home-destination-card"
+            style={{ "--destination-color": destination.color } as CSSProperties}
+            to={destination.to}
+          >
+            <strong>{destination.title}</strong>
+            <span>{destination.badge}</span>
+          </Link>
+        ))}
       </div>
-      <div className="h-scroll" aria-label="인기 여행지 목록">
-        <PlaceCard title="제주" meta="혜택 2건 · 매칭 98%" className="jeju" />
-        <PlaceCard title="부산" meta="맛집 중심 · 캐시백" className="busan" />
-        <PlaceCard title="강원" meta="숙박 할인 · 자연" className="gangwon" />
-      </div>
-      <div className="section-title">
-        <h3>AI 추천 일정</h3>
-        <Link to="/trips">내 일정</Link>
-      </div>
+
+      <div className="prototype-home-ai-title">✨ AI 추천 맞춤 일정</div>
       {tripsLoading && <LoadingState label="추천 일정을 불러오는 중입니다" />}
-      {tripsError && <ErrorState message={tripsError} />}
-      {featuredTrip && <ItineraryCard trip={featuredTrip} addedPolicy={addedPolicy} />}
+      {tripsError && <ErrorState title="일정을 불러오지 못했어요" message={tripsError} />}
+      <Link className="prototype-home-ai-card" to={aiCardTo}>
+        <div className="prototype-home-ai-visual">
+          <span aria-hidden="true">🏝️</span>
+        </div>
+        <div className="prototype-home-ai-body">
+          <strong>{featuredTrip ? featuredTrip.title : `${profile.region} ${profile.style} 코스 만들기`}</strong>
+          <div className="prototype-home-ai-meta">
+            <span className="prototype-home-ai-saving">{featuredTrip ? `예상 절약 ${featuredTrip.expectedSaving}` : "정책과 일정을 함께 추천"}</span>
+            <span className="prototype-home-ai-detail">{featuredTrip ? featuredTrip.dates : `${profile.budget} 기준`}</span>
+          </div>
+        </div>
+      </Link>
     </section>
+  );
+}
+
+function PrototypeSectionHeader({ title, action, to = "/policies" }: { title: string; action?: string; to?: string }) {
+  return (
+    <div className="prototype-home-section-header">
+      <h3>{title}</h3>
+      {action && <Link to={to}>{action}</Link>}
+    </div>
+  );
+}
+
+function PrototypePolicyCard({ policy }: { policy: Policy }) {
+  return (
+    <Link className="prototype-home-policy-card" to={`/policies/${policy.slug}`}>
+      <div className="prototype-home-policy-label" aria-hidden="true">
+        {getHomePolicyIcon(policy)}
+      </div>
+      <span>{policy.amount}</span>
+      <strong>{policy.title}</strong>
+      <small>
+        {policy.region} · {dday(policy.deadline)}
+      </small>
+    </Link>
   );
 }

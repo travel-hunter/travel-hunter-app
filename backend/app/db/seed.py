@@ -98,7 +98,7 @@ def seed_policies(db: Session) -> dict[str, Policy]:
         policy.organization = str(item["org"])
         policy.policy_type = str(item["category"])
         policy.description = str(item["summary"])
-        policy.benefit_amount = BENEFIT_AMOUNTS[slug]
+        policy.benefit_amount = BENEFIT_AMOUNTS.get(slug)
         policy.benefit_detail = str(item["amount"])
         policy.target_condition = "\n".join(str(value) for value in item["requirements"])
         policy.region = str(item["region"])
@@ -136,6 +136,7 @@ def get_or_create_trip(db: Session, owner: User) -> Trip:
         db.add(trip)
 
     trip.end_date = date(2026, 6, 17)
+    trip.status = "confirmed"
     trip.region = "제주"
     trip.description = "휴식 중심 여행"
     db.flush()
@@ -216,6 +217,7 @@ def seed_trip_invite(db: Session, trip: Trip, creator: User) -> None:
 
     invite.trip_id = trip.id
     invite.created_by = creator.id
+    invite.role = "editor"
     invite.accepted_at = None
     invite.created_at = parse_datetime(seed.INVITE_CREATED_AT)
     invite.expires_at = parse_datetime(seed.INVITE_EXPIRES_AT)

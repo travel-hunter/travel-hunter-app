@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models import Policy, UserSavedPolicy
+from app.models import Policy, Trip, TripMember, TripPolicy, UserSavedPolicy
 
 
 def list_policies(db: Session) -> list[Policy]:
@@ -52,6 +52,22 @@ def list_saved_policies(db: Session, *, user_id: int) -> list[Policy]:
     )
     saved_rows = list(db.scalars(statement).all())
     return [row.policy for row in saved_rows]
+
+
+def list_applied_policies(db: Session, *, user_id: int) -> list[Policy]:
+    statement = (
+        select(Policy)
+        .join(TripPolicy, TripPolicy.policy_id == Policy.id)
+        .join(Trip, Trip.id == TripPolicy.trip_id)
+        .options(selectinload(Policy.documents))
+        .where(
+            (Trip.owner_id == user_id)
+            | (Trip.members.any(TripMember.user_id == user_id))
+        )
+        .distinct()
+        .order_by(Policy.id)
+    )
+    return list(db.scalars(statement).all())
 
 
 def remove_saved_policy(

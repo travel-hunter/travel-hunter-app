@@ -4,7 +4,19 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import get_current_user
 from app.db.session import get_optional_db
 from app.models import User
-from app.schemas.trip import CreateTripRequest, DeleteTripResponse, InviteState, Recommendation, Trip, TripPolicyResponse
+from app.schemas.trip import (
+    ConfirmInviteRequest,
+    CreateTripPlaceRequest,
+    CreateTripRequest,
+    DeleteTripResponse,
+    InviteState,
+    MoveTripPlaceRequest,
+    Recommendation,
+    Trip,
+    TripPolicyResponse,
+    UpdateTripPlaceRequest,
+    UpdateTripStatusRequest,
+)
 from app.services import trips as trip_service
 
 router = APIRouter(prefix="/trips", tags=["trips"])
@@ -97,6 +109,107 @@ def add_policy_to_trip(
     return TripPolicyResponse(**result)
 
 
+@router.patch("/{trip_id}/status", response_model=Trip)
+def update_trip_status(
+    trip_id: str,
+    payload: UpdateTripStatusRequest,
+    db: Session | None = Depends(get_optional_db),
+    current_user: User | None = Depends(get_current_user),
+) -> Trip:
+    try:
+        trip = trip_service.update_trip_status(
+            _require_db(db),
+            _require_user(current_user),
+            trip_id,
+            payload,
+        )
+    except trip_service.TripServiceError as error:
+        _raise_trip_error(error)
+    return Trip(**trip)
+
+
+@router.post("/{trip_id}/days/{day_number}/places", response_model=Trip)
+def add_place_to_trip_day(
+    trip_id: str,
+    day_number: int,
+    payload: CreateTripPlaceRequest,
+    db: Session | None = Depends(get_optional_db),
+    current_user: User | None = Depends(get_current_user),
+) -> Trip:
+    try:
+        trip = trip_service.add_place_to_trip_day(
+            _require_db(db),
+            _require_user(current_user),
+            trip_id,
+            day_number,
+            payload,
+        )
+    except trip_service.TripServiceError as error:
+        _raise_trip_error(error)
+    return Trip(**trip)
+
+
+@router.patch("/{trip_id}/places/{place_id}", response_model=Trip)
+def update_trip_place(
+    trip_id: str,
+    place_id: int,
+    payload: UpdateTripPlaceRequest,
+    db: Session | None = Depends(get_optional_db),
+    current_user: User | None = Depends(get_current_user),
+) -> Trip:
+    try:
+        trip = trip_service.update_trip_place(
+            _require_db(db),
+            _require_user(current_user),
+            trip_id,
+            place_id,
+            payload,
+        )
+    except trip_service.TripServiceError as error:
+        _raise_trip_error(error)
+    return Trip(**trip)
+
+
+@router.patch("/{trip_id}/places/{place_id}/move", response_model=Trip)
+def move_trip_place(
+    trip_id: str,
+    place_id: int,
+    payload: MoveTripPlaceRequest,
+    db: Session | None = Depends(get_optional_db),
+    current_user: User | None = Depends(get_current_user),
+) -> Trip:
+    try:
+        trip = trip_service.move_trip_place(
+            _require_db(db),
+            _require_user(current_user),
+            trip_id,
+            place_id,
+            payload,
+        )
+    except trip_service.TripServiceError as error:
+        _raise_trip_error(error)
+    return Trip(**trip)
+
+
+@router.delete("/{trip_id}/places/{place_id}", response_model=Trip)
+def delete_trip_place(
+    trip_id: str,
+    place_id: int,
+    db: Session | None = Depends(get_optional_db),
+    current_user: User | None = Depends(get_current_user),
+) -> Trip:
+    try:
+        trip = trip_service.delete_trip_place(
+            _require_db(db),
+            _require_user(current_user),
+            trip_id,
+            place_id,
+        )
+    except trip_service.TripServiceError as error:
+        _raise_trip_error(error)
+    return Trip(**trip)
+
+
 @router.get("/{trip_id}/recommendations", response_model=list[Recommendation])
 def list_recommendations(
     trip_id: str,
@@ -132,6 +245,7 @@ def get_invite_state(
 @router.post("/{trip_id}/invite", response_model=InviteState)
 def confirm_invite_sent(
     trip_id: str,
+    payload: ConfirmInviteRequest | None = Body(default=None),
     db: Session | None = Depends(get_optional_db),
     current_user: User | None = Depends(get_current_user),
 ) -> InviteState:
@@ -139,6 +253,7 @@ def confirm_invite_sent(
         _require_db(db),
         _require_user(current_user),
         trip_id,
+        payload.role if payload else "editor",
     )
     if invite_state is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trip not found")
@@ -148,13 +263,15 @@ def confirm_invite_sent(
 @router.post("/{trip_id}/invites", response_model=InviteState)
 def create_trip_invite(
     trip_id: str,
+    payload: ConfirmInviteRequest | None = Body(default=None),
     db: Session | None = Depends(get_optional_db),
     current_user: User | None = Depends(get_current_user),
 ) -> InviteState:
-    invite_state = trip_service.get_invite_state(
+    invite_state = trip_service.confirm_invite_sent(
         _require_db(db),
         _require_user(current_user),
         trip_id,
+        payload.role if payload else "editor",
     )
     if invite_state is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trip not found")

@@ -1,0 +1,130 @@
+# Travel Hunter 마감 알림 발송 기반 설계
+
+## Summary
+
+- 마감 알림은 카카오 알림톡을 1차 발송 채널로 둔다.
+- 현재 구현 완료 범위는 알림 설정 저장, 연락처 저장, 발송 이력 테이블, D-7/D-1 대상 계산 service, FastAPI 내부 scheduler, SOLAPI 기반 Kakao AlimTalk provider adapter, 실패 알림 retry 정책, SOLAPI webhook 배송 상태 추적이다.
+- scheduler는 기본 비활성화이며 `NOTIFICATION_SCHEDULER_ENABLED=true`일 때 하루 1회 dispatch service를 실행한다.
+- `KAKAO_ALIMTALK_ENABLED=false`이면 후보 생성만 수행하고, `true`이면 pending 후보를 SOLAPI 알림톡으로 접수한다.
+- SOLAPI webhook은 provider의 최종 배송 리포트를 받아 `notification_deliveries` 상태를 보정한다.
+
+## Current Implementation
+
+- `users.phone_number`: 카카오 알림톡 수신 연락처.
+- `users.phone_verified_at`: 연락처 검증 여부. 현재는 read-only 값이다.
+- `user_notification_settings.deadline_enabled`: 사용자별 정책 마감 알림 전체 켜기/끄기.
+- `notification_deliveries`: 사용자/정책/channel/lead day/마감일 조합의 발송 후보와 이력.
+- `backend/app/services/notification_delivery.py`: D-7/D-1 대상 계산 service.
+- `backend/app/services/notification_dispatch.py`: pending 후보 발송 dispatch service.
+- `backend/app/services/kakao_alimtalk.py`: SOLAPI Kakao AlimTalk provider adapter.
+- `backend/app/services/notification_scheduler.py`: FastAPI 내부 scheduler.
+- `backend/app/services/solapi_webhook.py`: SOLAPI webhook 배송 상태 추적 service.
+
+## Target Calculation
+
+- `user_saved_policies`에 저장된 정책만 대상이다.
+- `policies.end_date == today + lead_day`인 정책만 대상이다.
+- `lead_days` 기본값은 `[7, 1]`이다.
+- `user_notification_settings` row가 없으면 `deadline_enabled=true`로 취급한다.
+- `deadline_enabled=false` 사용자는 제외한다.
+- 전화번호가 있고 `phone_verified_at`이 있으면 `pending` 후보를 만든다.
+- 전화번호가 없거나 미검증이면 `skipped` 후보를 만든다.
+- 기존 `sent`/`skipped` row는 제외한다.
+- 기존 `pending` row는 재사용한다.
+- 기존 `failed` row는 retry 정책 기준에 맞으면 다음 scheduler 실행에서 재시도한다.
+
+## Scheduler
+
+- FastAPI lifespan에서 background task로 시작한다.
+- `NOTIFICATION_SCHEDULER_ENABLED=false`가 기본값이다.
+- enabled 상태에서 `DATABASE_URL`이 없으면 startup에서 실패한다.
+- 시간 기준은 KST이며 `zoneinfo.ZoneInfo("Asia/Seoul")`를 사용한다.
+- `NOTIFICATION_RUN_AT=09:00` 이후 같은 KST 날짜에 한 번만 실행한다.
+- `NOTIFICATION_POLL_SECONDS=60` 간격으로 실행 가능 여부를 확인한다.
+- dispatch 실패는 로그로 남기고 앱 프로세스는 죽이지 않는다.
+- 실패한 날짜는 성공 처리하지 않으므로 다음 polling cycle에서 다시 시도할 수 있다.
+- retry delay가 아직 지나지 않은 failed row가 있으면 같은 KST 날짜를 완료 처리하지 않고 다음 polling cycle에서 다시 확인한다.
+- shutdown 시 background task를 cancel하고 정상 종료한다.
+- multi-worker 중복 실행은 별도 distributed lock 없이 `notification_deliveries` unique key로 방어한다.
+
+## Runtime Env
+
+- `NOTIFICATION_SCHEDULER_ENABLED`: `true`일 때 scheduler 시작.
+- `NOTIFICATION_RUN_AT`: KST 기준 실행 시각. 형식은 `HH:MM` 또는 `HH:MM:SS`.
+- `NOTIFICATION_POLL_SECONDS`: scheduler polling 간격. 1 이상이어야 한다.
+- `NOTIFICATION_RETRY_ENABLED`: `true`일 때 failed delivery 재시도.
+- `NOTIFICATION_RETRY_MAX_ATTEMPTS`: provider 발송 실패 누적 허용 횟수. 기본값은 `3`.
+- `NOTIFICATION_RETRY_DELAY_SECONDS`: failed row의 다음 재시도까지 기다릴 시간. 기본값은 `600`.
+
+## Kakao AlimTalk Provider
+
+- 실제 벤더는 SOLAPI 기준이다.
+- endpoint는 `POST /messages/v4/send-many/detail`을 사용한다.
+- message type은 알림톡 `ATA`로 고정한다.
+- 인증 헤더는 SOLAPI API Key 방식의 `HMAC-SHA256 apiKey=..., date=..., salt=..., signature=...` 형식을 사용한다.
+- D-7 템플릿은 `SOLAPI_TEMPLATE_ID_D7`, D-1 템플릿은 `SOLAPI_TEMPLATE_ID_D1`로 분리한다.
+- 템플릿 변수는 `#{사용자명}`, `#{정책명}`, `#{마감일}`, `#{남은일수}`, `#{정책URL}`로 고정한다.
+- `SOLAPI_DISABLE_SMS=true`가 기본값이며, 알림톡 실패 시 SMS 대체발송을 사용하지 않는다.
+- provider disabled 상태에서는 SOLAPI를 호출하지 않는다.
+
+환경변수:
+
+- `KAKAO_ALIMTALK_ENABLED`
+- `SOLAPI_BASE_URL`
+- `SOLAPI_API_KEY`
+- `SOLAPI_API_SECRET`
+- `SOLAPI_PF_ID`
+- `SOLAPI_TEMPLATE_ID_D7`
+- `SOLAPI_TEMPLATE_ID_D1`
+- `SOLAPI_FROM_NUMBER`
+- `SOLAPI_DISABLE_SMS`
+- `SOLAPI_TIMEOUT_SECONDS`
+- `TRAVEL_HUNTER_PUBLIC_BASE_URL`
+- `SOLAPI_WEBHOOK_SECRET`
+
+## Failure And Retry Rules
+
+- 발송 성공: `status=sent`, `sent_at`, `provider_message_id` 저장.
+- 전화번호 없음, 미검증, 한국 휴대폰 번호 정규화 실패: `status=skipped`.
+- provider 또는 network 오류: `status=failed`, `attempt_count`, `error_message`, `failed_at` 저장.
+- SOLAPI 접수 성공(`messageList.statusCode=2000`)은 MVP에서 `sent`로 본다.
+- SOLAPI `failedMessageList`, HTTP error, timeout은 `failed`로 기록한다.
+- `failed` retry는 다음 scheduler 실행에서 수행한다.
+- retry 대상은 같은 lead day 안의 `failed` row 중 `attempt_count < NOTIFICATION_RETRY_MAX_ATTEMPTS`이고, `failed_at + NOTIFICATION_RETRY_DELAY_SECONDS <= now`인 row다.
+- retry 성공 시 `sent`, retry 실패 시 `failed` 유지와 `attempt_count + 1`, retry 중 전화번호 정규화 실패 시 `skipped`로 갱신한다.
+- `attempt_count >= NOTIFICATION_RETRY_MAX_ATTEMPTS`인 row는 최종 실패로 간주하지만 새 status를 만들지 않고 `failed`로 둔다.
+- 같은 사용자/정책/channel/lead day/마감일 조합이 이미 `sent` 또는 `skipped`이면 다시 발송하지 않는다.
+
+## SOLAPI Webhook Tracking
+
+- endpoint는 provider-facing `POST /api/webhooks/solapi`다.
+- SOLAPI webhook secret이 설정된 경우 요청 header `X-Solapi-Secret`은 설정 secret의 SHA1 hash와 일치해야 한다.
+- payload는 SOLAPI event object 배열로 받는다.
+- `messageId`를 `notification_deliveries.provider_message_id`와 매칭한다.
+- `statusCode=4000`은 최종 성공으로 보고 `status=sent`, `sent_at`을 갱신한다.
+- `statusCode=2000` 또는 `3000`은 접수/처리 중 상태로 보고 기존 delivery 상태를 바꾸지 않는다.
+- `statusCode`가 실패 범위이면 `status=failed`, `attempt_count + 1`, `failed_at`, `error_message`를 갱신한다.
+- 모르는 `messageId`나 필수 field가 부족한 event는 무시하고 200 response의 `ignored` 카운트에 포함한다.
+- webhook은 public user auth를 요구하지 않지만 provider secret으로 보호한다.
+
+## Next Implementation Order
+
+1. 전화번호 실인증/OTP.
+   - 카카오 알림톡 수신 연락처가 실제 사용자 소유인지 검증한다.
+2. 운영 방식 재검토.
+   - MVP 이후에는 cron container, Jenkins scheduled job, 외부 job runner로 대체할 수 있다.
+
+## Test Coverage
+
+- target calculation service는 D-7/D-1 후보, skipped 후보, 기존 delivery 중복 방지를 검증한다.
+- scheduler는 disabled 상태, run time 전/후, 같은 날짜 1회 실행, 다음 날짜 재실행, 실패 후 retry 가능성, cancellation, DB misconfig를 검증한다.
+- SOLAPI provider adapter는 HMAC auth header, D-7/D-1 template 선택, ATA payload, 접수 성공/실패/timeout 처리를 검증한다.
+- dispatch service는 provider disabled, invalid phone skipped, sent/failed 상태 갱신, retry delay, max attempts, retry 성공/실패를 검증한다.
+- SOLAPI webhook route/service는 secret 검증, success/failure/in-progress status 처리, unknown event 무시를 검증한다.
+
+## Assumptions
+
+- 1차 알림 대상은 저장 정책(`user_saved_policies`)으로 제한한다.
+- 일정에 담긴 정책(`trip_policies`) 기반 알림은 후속 확장으로 둔다.
+- 실제 카카오 알림톡은 비즈니스 채널, 승인 템플릿, provider secret 준비 후 연결한다.
+- 전화번호 실인증/OTP는 이번 범위에 포함하지 않는다.

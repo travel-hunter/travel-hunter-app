@@ -1,8 +1,9 @@
 import { ItineraryPlace, Policy, Recommendation, Trip, User } from "../api/types";
 
+// Development fallback data only. Production screens should read policy/trip
+// state through the backend API instead of treating this file as source data.
 export const user: User = {
   id: "1",
-  name: "테스트 사용자",
   nickname: "테스트 사용자",
   email: "test.user@example.com",
   birthDate: "1997-04-12",
@@ -18,27 +19,6 @@ export const user: User = {
   createdAt: "2026-05-04T00:00:00Z",
   updatedAt: "2026-05-04T00:00:00Z",
 };
-
-export const onboardingSlides = [
-  {
-    eyebrow: "여행 혜택 탐색",
-    title: "숨은 여행 혜택, 다 모았어요",
-    body: "지역, 기간, 예산에 맞는 국내 여행 지원 정책을 한 화면에서 비교하세요.",
-    stat: "30만원 환급 가능",
-  },
-  {
-    eyebrow: "AI 일정 추천",
-    title: "AI가 일정도 맞춰드려요",
-    body: "정책 조건, 이동 거리, 취향을 함께 고려해 여행 코스를 제안합니다.",
-    stat: "이동 시간 24분 단축",
-  },
-  {
-    eyebrow: "친구와 함께",
-    title: "친구와 함께 준비해요",
-    body: "초대 링크로 일정을 공유하고 필요한 서류와 혜택 상태를 함께 확인하세요.",
-    stat: "친구 3명 공유",
-  },
-];
 
 export const policies: Policy[] = [
   {
@@ -99,10 +79,20 @@ export const policies: Policy[] = [
 
 export const itinerary: Trip = {
   id: "jeju-3-days",
+  status: "confirmed",
   title: "제주 3일 여행",
   dates: "2026.06.15 - 06.17",
   people: ["테스트 사용자", "민서", "현우"],
   expectedSaving: "12만원",
+  linkedPolicies: [
+    {
+      slug: "local-vacation",
+      title: "지역사랑 휴가지원",
+      amount: "최대 30만원",
+      region: "전국",
+    },
+  ],
+  currentUserRole: "owner",
   days: {
     1: [
       { time: "09:00", label: "성산 일출봉", meta: "자연 · 관광지" },

@@ -1,11 +1,10 @@
 import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { PublicLayout, ServiceLayout } from "../components/AppLayout";
 import { AiResultsPage, FriendInvitePage, ItineraryCreatePage, ItineraryDetailPage, ItineraryListPage } from "../pages/ItineraryPages";
-import { LoginPage, SignupPage } from "../pages/AuthPages";
+import { ForgotPasswordPage, LoginPage, NicknameSetupPage, OAuthCallbackPage, ResetPasswordPage, SignupPage } from "../pages/AuthPages";
 import { HomePage } from "../pages/HomePage";
 import { InviteAcceptPage } from "../pages/InviteAcceptPage";
 import { MyPage } from "../pages/MyPage";
-import { OnboardingPage } from "../pages/OnboardingPage";
 import { PolicyDetailPage, PolicyListPage } from "../pages/PolicyPages";
 import { ProfileSetupPage } from "../pages/ProfileSetupPage";
 import { useSession } from "./session";
@@ -14,13 +13,17 @@ export function App() {
   return (
     <Routes>
       <Route element={<PublicLayout />}>
-        <Route path="/" element={<OnboardingPage />} />
-        <Route path="/onboarding" element={<OnboardingPage />} />
+        <Route path="/" element={<LoginPage />} />
+        <Route path="/onboarding" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
       </Route>
       <Route element={<ProtectedRoute />}>
         <Route element={<PublicLayout />}>
+          <Route path="/nickname-setup" element={<NicknameSetupPage />} />
           <Route path="/profile-setup" element={<ProfileSetupPage />} />
         </Route>
         <Route element={<ServiceLayout />}>

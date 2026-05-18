@@ -1,7 +1,9 @@
 from datetime import datetime
 
 from app.models import User
+from app.schemas.user import ContactUpdate
 from app.schemas.user import ProfileUpdate
+from app.services import contact as contact_service
 from app.services import profile as profile_service
 
 
@@ -82,3 +84,48 @@ def test_update_profile_prefers_explicit_style_and_budget() -> None:
     assert result == {"region": "제주", "style": "맛집", "budget": "1인 30만원 이하"}
     assert user.travel_style == "맛집"
     assert user.travel_budget == "1인 30만원 이하"
+
+
+def test_get_contact_returns_phone_and_verified_state() -> None:
+    user = make_user()
+    user.phone_number = "01012345678"
+    user.phone_verified_at = datetime(2026, 5, 7, 0, 0, 0)
+
+    assert contact_service.get_contact(user) == {
+        "phoneNumber": "01012345678",
+        "phoneVerified": True,
+    }
+
+
+def test_update_contact_normalizes_whitespace_and_resets_verification() -> None:
+    db = FakeDb()
+    user = make_user()
+    user.phone_verified_at = datetime(2026, 5, 7, 0, 0, 0)
+
+    result = contact_service.update_contact(
+        db,  # type: ignore[arg-type]
+        user,
+        ContactUpdate(phoneNumber="010 1234 5678"),
+    )
+
+    assert result == {"phoneNumber": "01012345678", "phoneVerified": False}
+    assert user.phone_number == "01012345678"
+    assert user.phone_verified_at is None
+    assert db.added == [user]
+    assert db.flushed is True
+    assert db.committed is True
+
+
+def test_update_contact_clears_empty_phone_number() -> None:
+    db = FakeDb()
+    user = make_user()
+    user.phone_number = "01012345678"
+
+    result = contact_service.update_contact(
+        db,  # type: ignore[arg-type]
+        user,
+        ContactUpdate(phoneNumber="   "),
+    )
+
+    assert result == {"phoneNumber": None, "phoneVerified": False}
+    assert user.phone_number is None

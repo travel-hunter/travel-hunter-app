@@ -1,4 +1,4 @@
-# 트레블헌터 앱 기여 가이드
+# 트래블헌터 앱 기여 가이드
 
 > 이 문서는 `travel-hunter-app` 레포에 처음 기여하는 팀원을 위한 안내서입니다.
 > 스터디 레포(`travel-hunter-study`)의 PR 흐름을 먼저 익히고 오세요.
@@ -140,14 +140,17 @@ DB schema는 Alembic migration으로만 변경한다. SQLAlchemy `create_all()`�
 처음 참여하는 개발자는 아래 순서로 읽는다.
 
 1. `README.md`
-2. `docs/collaboration-handoff.md`
-3. `docs/current-work-spec.md`
-4. `docs/mvp-api-contract.md`
-5. `docs/release-candidate-handoff.md`
-6. `docs/deployment-vps.md`
-7. `docs/next-work-plan.md`
+2. `docs/requirements.md`
+3. `docs/release-candidate-handoff.md`
+4. `docs/current-work-spec.md`
+5. `docs/feature-implementation-status.md`
+6. `docs/mvp-api-contract.md`
+7. `docs/deployment-tunnel.md` 또는 `docs/deployment-vps.md`
+8. `docs/next-work-plan.md`
 
 현재 MVP는 FastAPI + PostgreSQL DB-backed-only 기준이다. runtime mock mode는 제거됐다.
+
+새 참여자는 `feat/prototype-to-react` 브랜치에서 현재 RC 상태를 검토하고, 다음 개발은 `develop`에 머지된 뒤 새 작업 브랜치에서 시작한다.
 
 ---
 
@@ -201,4 +204,4 @@ docker compose --env-file deploy/.env.staging.example -f compose.vps.yaml config
 
 ---
 
-last updated: 2026-05-06
+last updated: 2026-05-07

@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "line";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "line" | "danger";
 
 export function Button({
   children,
@@ -91,30 +91,55 @@ export function IconButton({ children, to, label, onClick }: { children: ReactNo
   );
 }
 
-export function EmptyState({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
+export function EmptyState({
+  title,
+  body,
+  action,
+  compact = false,
+  eyebrow,
+}: {
+  title: string;
+  body: string;
+  action?: ReactNode;
+  compact?: boolean;
+  eyebrow?: string;
+}) {
   return (
-    <section className="empty-state">
+    <section className={compact ? "empty-state compact" : "empty-state"}>
+      {eyebrow && <span className="state-eyebrow">{eyebrow}</span>}
       <h1>{title}</h1>
       <p>{body}</p>
-      {action}
+      {action && <div className="state-actions">{action}</div>}
     </section>
   );
 }
 
-export function LoadingState({ label = "정보를 불러오는 중입니다" }: { label?: string }) {
+export function LoadingState({ label = "정보를 불러오는 중입니다", body, compact = false }: { label?: string; body?: string; compact?: boolean }) {
   return (
-    <div className="state-panel" role="status">
+    <div className={compact ? "state-panel compact" : "state-panel"} role="status">
       <span className="spinner" />
       <strong>{label}</strong>
+      {body && <p>{body}</p>}
     </div>
   );
 }
 
-export function ErrorState({ message }: { message: string }) {
+export function ErrorState({
+  message,
+  action,
+  compact = false,
+  title = "잠깐 문제가 생겼어요",
+}: {
+  message: string;
+  action?: ReactNode;
+  compact?: boolean;
+  title?: string;
+}) {
   return (
-    <div className="state-panel error" role="alert">
-      <strong>잠깐 문제가 생겼어요</strong>
+    <div className={compact ? "state-panel error compact" : "state-panel error"} role="alert">
+      <strong>{title}</strong>
       <p>{message}</p>
+      {action && <div className="state-actions">{action}</div>}
     </div>
   );
 }
@@ -123,6 +148,54 @@ export function Toast({ children }: { children: ReactNode }) {
   return (
     <div className="toast" role="status">
       {children}
+    </div>
+  );
+}
+
+export function ConfirmDialog({
+  open,
+  title,
+  body,
+  error,
+  confirmLabel,
+  cancelLabel = "취소",
+  isSubmitting = false,
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean;
+  title: string;
+  body: string;
+  error?: string;
+  confirmLabel: string;
+  cancelLabel?: string;
+  isSubmitting?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  if (!open) return null;
+
+  const cancel = () => {
+    if (!isSubmitting) onCancel();
+  };
+
+  return (
+    <div className="sheet-backdrop confirm-backdrop" role="presentation" onMouseDown={cancel}>
+      <section className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-dialog-title" onMouseDown={(event) => event.stopPropagation()}>
+        <div>
+          <h2 id="confirm-dialog-title">{title}</h2>
+          <p>{body}</p>
+          {error && <p className="form-error">{error}</p>}
+        </div>
+        <div className="confirm-actions">
+          <Button variant="line" disabled={isSubmitting} onClick={cancel}>
+            {cancelLabel}
+          </Button>
+          <Button variant="danger" disabled={isSubmitting} onClick={onConfirm}>
+            {isSubmitting ? `${confirmLabel} 중` : confirmLabel}
+          </Button>
+        </div>
+      </section>
     </div>
   );
 }

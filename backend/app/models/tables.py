@@ -36,6 +36,8 @@ class User(Base):
     region: Mapped[str | None] = mapped_column(String(50))
     preferred_regions: Mapped[str | None] = mapped_column(String(255))
     residence_area: Mapped[str | None] = mapped_column(String(50))
+    phone_number: Mapped[str | None] = mapped_column(String(30))
+    phone_verified_at: Mapped[datetime | None] = mapped_column(DateTime)
     travel_style: Mapped[str | None] = mapped_column(String(50))
     travel_budget: Mapped[str | None] = mapped_column(String(50))
     onboarding_completed: Mapped[bool] = mapped_column(
@@ -51,6 +53,9 @@ class User(Base):
     refresh_tokens: Mapped[list[AuthRefreshToken]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+    password_reset_tokens: Mapped[list[PasswordResetToken]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
     social_accounts: Mapped[list[SocialAccount]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
@@ -59,6 +64,12 @@ class User(Base):
     created_invites: Mapped[list[TripInvite]] = relationship(back_populates="creator")
     recommendations: Mapped[list[Recommendation]] = relationship(back_populates="user")
     saved_policies: Mapped[list[UserSavedPolicy]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    notification_settings: Mapped[UserNotificationSetting | None] = relationship(
+        back_populates="user", cascade="all, delete-orphan", uselist=False
+    )
+    notification_deliveries: Mapped[list[NotificationDelivery]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
 
@@ -78,6 +89,23 @@ class AuthRefreshToken(Base):
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     user: Mapped[User] = relationship(back_populates="refresh_tokens")
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    token_hash: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+    user: Mapped[User] = relationship(back_populates="password_reset_tokens")
 
 
 class SocialAccount(Base):
@@ -126,6 +154,9 @@ class Policy(Base):
     )
     trip_links: Mapped[list[TripPolicy]] = relationship(back_populates="policy")
     user_saves: Mapped[list[UserSavedPolicy]] = relationship(back_populates="policy")
+    notification_deliveries: Mapped[list[NotificationDelivery]] = relationship(
+        back_populates="policy"
+    )
 
 
 class PolicyDocument(Base):
@@ -150,6 +181,7 @@ class Trip(Base):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="draft")
     region: Mapped[str | None] = mapped_column(String(100))
     description: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
@@ -269,6 +301,71 @@ class UserSavedPolicy(Base):
     policy: Mapped[Policy] = relationship(back_populates="user_saves")
 
 
+class UserNotificationSetting(Base):
+    __tablename__ = "user_notification_settings"
+    __table_args__ = (UniqueConstraint("user_id"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    deadline_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="true"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+
+    user: Mapped[User] = relationship(back_populates="notification_settings")
+
+
+class NotificationDelivery(Base):
+    __tablename__ = "notification_deliveries"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "policy_id",
+            "channel",
+            "lead_day",
+            "target_deadline_date",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    policy_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("policies.id"), nullable=False, index=True
+    )
+    channel: Mapped[str] = mapped_column(String(30), nullable=False)
+    lead_day: Mapped[int] = mapped_column(Integer, nullable=False)
+    target_deadline_date: Mapped[date] = mapped_column(Date, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default="pending"
+    )
+    attempt_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
+    provider_message_id: Mapped[str | None] = mapped_column(String(100))
+    error_message: Mapped[str | None] = mapped_column(Text)
+    scheduled_at: Mapped[datetime | None] = mapped_column(DateTime)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime)
+    failed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+
+    user: Mapped[User] = relationship(back_populates="notification_deliveries")
+    policy: Mapped[Policy] = relationship(back_populates="notification_deliveries")
+
+
 class TripInvite(Base):
     __tablename__ = "trip_invites"
 
@@ -278,6 +375,7 @@ class TripInvite(Base):
     )
     invite_token: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
     created_by: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
+    role: Mapped[str] = mapped_column(String(20), nullable=False, server_default="editor")
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     created_at: Mapped[datetime] = mapped_column(

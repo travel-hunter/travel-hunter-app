@@ -2,18 +2,10 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
+from app.data.policy_display import DISPLAY_OVERRIDES, SUPPORTED_CATEGORIES
 from app.models import User
 from app.models import Policy as PolicyModel
 from app.repositories import policies as policy_repository
-
-
-DISPLAY_OVERRIDES = {
-    "local-vacation": {"label": "TH", "tag": "최대 30만원", "match": 98},
-    "sokcho-stay": {"label": "SC", "tag": "50% 할인", "match": 86},
-    "busan-cashback": {"label": "BS", "tag": "5% 캐시백", "match": 79},
-}
-
-SUPPORTED_CATEGORIES = {"추천", "환급", "숙박", "캐시백"}
 
 
 def _format_benefit_amount(value: int | None) -> str | None:
@@ -118,6 +110,21 @@ def list_saved_policies(
     return [
         policy_to_api(policy)
         for policy in policy_repository.list_saved_policies(db, user_id=user.id)
+    ]
+
+
+def list_applied_policies(
+    db: Session | None = None,
+    user: User | None = None,
+) -> list[dict[str, object]]:
+    if db is None:
+        raise RuntimeError("DB session is required.")
+    if user is None:
+        raise RuntimeError("User is required.")
+
+    return [
+        policy_to_api(policy)
+        for policy in policy_repository.list_applied_policies(db, user_id=user.id)
     ]
 
 

@@ -16,6 +16,8 @@
 
 실제 VPS에서는 `deploy/.env.staging.example`을 `deploy/.env.staging`으로 복사한 뒤 domain, secret, DB password를 교체한다. `deploy/.env.staging`은 커밋하지 않는다.
 
+배포 전 필요한 입력값과 secret 처리 기준은 `docs/vps-staging-inputs.md`를 따른다.
+
 ## VPS 준비
 
 필수 조건:

@@ -1,57 +1,117 @@
 # Travel Hunter Harness Checklist
 
-## Current Baseline
+## 기준 문서
 
-- [x] Root and nested `AGENTS.md` rules exist.
-- [x] `PLANS.md` tracks the current implementation phase.
-- [x] `.agent/skills` procedures exist for recurring workflows.
-- [x] `.agent/evals` acceptance artifacts exist.
 - [x] `docs/current-work-spec.md` is the current implementation summary.
+- [x] `docs/notification-delivery-plan.md` is the deadline notification delivery design.
 - [x] `docs/release-candidate-handoff.md` is the MVP release-candidate handoff guide.
-- [x] `docs/deployment-vps.md` is the Docker VPS staging deployment plan.
+- [x] `docs/deployment-vps.md` is the public VPS staging runbook.
+- [x] `docs/deployment-tunnel.md` is the Cloudflare Tunnel staging runbook.
+- [x] `docs/deployment-cicd/README.md` is the team deployment/CICD documentation index.
 - [x] `docs/mvp-api-contract.md` is the API contract.
 - [x] `docs/next-work-plan.md` is the next-priority plan.
 - [x] `docs/db-schema-v0.3.sql` is the ERD v0.3 SQL baseline.
-- [x] `docs/future-deployment.md` preserves later AWS/Terraform/EKS expansion notes.
 - [x] `CONTRIBUTING.md` documents collaboration rules.
-- [x] `docs/collaboration-handoff.md` documents the collaboration handoff.
-- [x] GitHub PR and issue templates exist.
 
-## Current Implementation Checks
+## 현재 구현 체크
 
-- [x] MVP user flows are documented in `docs/current-work-spec.md`.
-- [x] API shape is documented in `docs/mvp-api-contract.md`.
-- [x] Release candidate run modes and evidence are documented in `docs/release-candidate-handoff.md`.
-- [x] Completed legacy planning and placeholder infrastructure notes are absorbed into current docs.
-- [x] VPS deployment artifacts exist: `compose.vps.yaml`, `deploy/Caddyfile`, and `deploy/.env.staging.example`.
+- [x] Runtime mock mode removed.
+- [x] MVP user flows implemented against FastAPI/PostgreSQL.
+- [x] Itinerary detail place add/edit/delete is connected to `trip_places`.
+- [x] Itinerary detail place drag-and-drop reordering and cross-day movement is connected to `trip_places.order_num` and `trip_day_id`.
+- [x] `/trips` itinerary cards persist draft-to-confirmed status through `trips.status`.
+- [x] Mypage profile editing is connected to `PATCH /api/me/profile`.
+- [x] AI recommendation items can be added to a trip timeline through the place add API.
+- [x] Invite role settings persist `viewer/editor` and place editing permissions are enforced.
+- [x] Deadline notification preference persists to `user_notification_settings.deadline_enabled`.
+- [x] Deadline notification contact persists to `users.phone_number`.
+- [x] Notification delivery history foundation exists in `notification_deliveries`.
+- [x] Deadline notification target calculation service creates idempotent `pending/skipped` candidates.
+- [x] FastAPI internal notification scheduler is connected through lifespan and gated by env.
+- [x] SOLAPI Kakao AlimTalk provider adapter dispatches pending notification deliveries.
+- [x] Notification retry policy resends retryable `failed` deliveries on later scheduler cycles.
+- [x] SOLAPI webhook delivery status tracking reflects final provider reports in `notification_deliveries`.
+- [x] Password reset request/confirm flow is connected to SMTP-backed reset links.
+- [x] Kakao/Google OAuth authorization code flow is connected to login buttons.
+- [x] Button audit fixes are applied for policy share, static policy documents, invite wording, and AI criteria sheet.
+- [x] Web Share API sharing fallback is implemented for policy and invite links.
+- [x] Draft autosave is implemented for trip creation, add-place, and edit-place sheets.
+- [x] Draft autosave second-scope review is documented; place edit draft is the only next autosave candidate.
+- [x] Production sourcemap is explicitly disabled and build output has no `.map` files.
+- [x] PWA manifest/meta and app icons are provided.
+- [x] PWA service worker/offline caching strategy is documented without enabling runtime caching.
+- [x] Project structure audit is documented in `docs/project-structure-audit.md`.
+- [x] Prototype UX flow analysis is documented in `docs/prototype-ux-flow-analysis.md`.
+- [x] Prototype-based frontend UX refresh is applied to the app shell, home, policy detail, and trip detail without changing API/DB routes.
+- [x] Landing/onboarding first-entry page is removed; `/` now renders the prototype-style login screen and `/onboarding` redirects to `/login`.
+- [x] Frontend display-only policy/trip visual values are centralized in `displayConfig`.
+- [x] Home destination rail is derived from policy regions/titles and no longer shows fake star ratings.
+- [x] `/trips/new` default dates use a KST helper instead of fixed 2026 defaults.
+- [x] Protected runtime config rejects development secrets, localhost public URLs, localhost CORS, and insecure refresh cookies.
+- [x] Digital tourism policy JSON has a validation script for shape, duplicate slugs, dates, and encoding-risk markers.
+- [x] Signup now uses email/password plus email availability check, then `/nickname-setup`.
+- [x] Nickname setup supports server-generated temporary nicknames and dice-button suggestions.
+- [x] Codex model split workflow is documented and scripted for planning `gpt-5.5/xhigh` and implementation `gpt-5.3-codex/high`.
+- [x] Public VPS artifacts exist.
+- [x] Cloudflare Tunnel artifacts exist.
+- [x] MyPage applied policy count is backed by `GET /api/me/applied-policies` and distinct `trip_policies`.
+- [x] Home destination rail is derived from policy data instead of static fake-star destinations.
+- [x] Policy detail CTA distinguishes direct apply links, official information links, and unavailable links.
+- [x] Unused untracked trip page split candidates were reviewed and removed from the worktree.
+- [x] MyPage FAQ, terms, and privacy sheet content is expanded into service-ready guidance.
 
-## Required Validation
+## 마지막 검증 결과
 
-- [x] `cd frontend && npm run typecheck`
-- [x] `cd frontend && npm test`
-- [x] `cd backend && python -m pytest`
-- [x] `git diff --check`
+- Date: 2026-05-18.
+- Backend pytest: 218 passed.
+- Alembic offline SQL: passed.
+- Local compose config: passed.
+- VPS compose config: passed.
+- Tunnel compose config: passed.
+- `git diff --check`: passed.
+- Frontend typecheck/build: passed.
+- Frontend build output includes PWA manifest/icons and no sourcemap files.
+- Frontend DB-backed Vitest: 73 passed.
+- Docker backend/frontend rebuild: passed.
+- Previous DB-backed Playwright e2e: 5 passed.
+- Local compose config/build: passed.
+- VPS compose config: passed.
+- Tunnel compose config: passed.
+- Password reset local preflight: unknown email returns `requested=true`; existing email without SMTP env fails with `503`.
+- Prototype frontend UX refresh(2026-05-13): frontend typecheck/build passed and `git diff --check` passed.
+- Landing removal/login clone verification(2026-05-13): frontend typecheck, DB-backed Vitest 64 passed, frontend build, and `git diff --check` passed.
+- Service readiness cleanup(2026-05-18): display config/date defaults/runtime guard/policy data validation added; frontend typecheck/build and backend pytest passed.
+- MyPage information sheets(2026-05-18): FAQ, terms, and privacy rows render in-app sheet content; frontend Vitest 71 passed.
+- MyPage applied policy count(2026-05-18): `/mypage` `신청 정책` stat uses `GET /api/me/applied-policies`; backend pytest 184 passed, frontend Vitest 72 passed.
+- Home destination rail(2026-05-18): `/home` derives destination cards from policy data and uses benefit-count badges instead of fake star ratings.
+- Policy apply CTA(2026-05-18): `applyUrl` renders `신청하러 가기`, official-only policies render `공식 안내 확인`, and policies without links render `신청 링크 준비 중`.
+- Trip detail place card layout(2026-05-18): edit/delete actions align to the right side of compact place rows; frontend build passed.
+- Trip detail linked-policy banner(2026-05-18): empty linked-policy state routes to `/policies`; frontend App.test passed.
+- Policy detail trip CTA scope(2026-05-18): `일정에 담김` state is tracked per policy slug; frontend App.test and build passed.
+- Trip API linked policies(2026-05-18): Trip responses include `linkedPolicies` from `trip_policies`; trip detail banner renders the attached policy; backend trip tests, frontend App.test, and frontend build passed.
+- Trip detail stale-response guard(2026-05-18): trip detail tolerates missing `linkedPolicies` from stale backend responses; frontend App.test and build passed.
+- Policy-to-trip detail handoff(2026-05-18): policy detail passes the just-attached policy summary into the trip detail route so stale trip responses do not show a false empty linked-policy banner; frontend typecheck, App.test, and build passed.
+- Docker rebuild/restart(2026-05-18): backend/frontend images rebuilt with Compose, containers recreated, backend health is `ok`, Alembic `upgrade head` passed, and `/api/trips/48` now returns `linkedPolicies`.
+- Multiple saved trips display(2026-05-18): trip list and policy trip picker render multiple saved trips with scroll/padding guard; frontend typecheck, App.test, build, Docker frontend rebuild, and 360/390/430px Playwright checks passed.
+- Trip detail linked-policy list(2026-05-18): trip detail renders every linked policy and prioritizes the policy passed from the just-attached route state; frontend typecheck, App.test, build, Docker frontend rebuild, and `/policies/local-vacation` -> `/trips/48` Playwright flow passed.
+- Deployment/CICD docs folder(2026-05-18): added `docs/deployment-cicd/` with GitHub workflow, local dev setup, frontend/backend/DB/AI guides, infrastructure, Jenkins pipeline, and release checklist; `deploy/.env.dev` and `deploy/.env.prod` are ignored; `git diff --check` passed.
+- Deployment/CICD doc correction(2026-05-18): clarified Jenkins is planned rather than currently implemented, removed the nonexistent `scripts/jenkins-deploy-placeholder.sh` call from the Jenkinsfile draft, documented the current branch-strategy transition state, and `git diff --check` passed.
+- Deployment/CICD GitHub handoff note(2026-05-18): documented source-based GitHub deploy flow, clarified temporary Docker image archives are not GitHub deployment artifacts, added archive ignore rules, added pre-push checks for env/secret/archive files, and `git diff --check` passed.
 
-## Release Gate Validation
+## 다음 우선순위
 
-- [x] `cd frontend && npm run test:e2e`
-- [x] `cd frontend && npm run build`
-- [x] `docker compose -f compose.yaml config`
-- [x] `docker compose -f compose.yaml build`
-- [x] `docker compose -f compose.yaml run --rm backend alembic upgrade head`
-- [x] `docker compose -f compose.yaml run --rm backend python -m app.db.seed`
-- [x] `docker compose --env-file deploy/.env.staging.example -f compose.vps.yaml config`
-
-## Last Validation Result
-
-- Status: release gate passed.
-- Date: 2026-05-06.
-- Results: frontend typecheck passed, DB-backed Vitest passed 20 tests, backend pytest passed 72 tests, DB-backed Playwright e2e passed 5 tests, frontend build passed, Alembic offline SQL passed, local compose config/build passed, and VPS compose config passed.
-- Note: runtime mock mode has been removed. `npm test` and `npm run test:e2e` start compose PostgreSQL, run Alembic/seed, and execute against FastAPI.
-
-## Next Priority
-
-- [x] Choose Docker VPS as the real staging environment.
-- [ ] Provide VPS SSH access, staging domain/DNS, repo clone access, and real staging env values.
-- [ ] Execute Docker VPS staging deployment from the release-candidate baseline.
-- [ ] Run the internal-test smoke checklist on the external staging URL.
+- [x] Prepare deadline notification delivery implementation.
+- [x] Add phone number storage and notification delivery history migration.
+- [x] Implement deadline notification target calculation service.
+- [x] Implement FastAPI internal notification scheduler.
+- [x] Implement Kakao AlimTalk provider adapter.
+- [x] Implement notification retry policy.
+- [x] Implement SOLAPI webhook delivery status tracking.
+- [x] Implement password reset and social login OAuth entry points.
+- [x] Document password reset SMTP smoke runbook and local preflight.
+- [x] Implement draft autosave for trip creation, add-place, and edit-place forms.
+- [x] Verify and commit the policy application URL quality changes.
+- [ ] Verify and commit the MyPage FAQ/terms/privacy content polish.
+- [ ] Verify SMTP delivery in staging.
+- [ ] Verify OAuth provider credentials in staging.
+- [ ] Resume Cloudflare Tunnel staging deployment when actual env values are ready.

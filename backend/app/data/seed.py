@@ -1,3 +1,8 @@
+"""Development seed data only.
+
+Do not treat these demo records as the operational policy catalog.
+"""
+
 USER = {
     "id": "1",
     "name": "테스트 사용자",
@@ -28,6 +33,20 @@ PROFILE_OPTIONS = {
     "travelStyles": ["휴식", "맛집", "자연", "사진"],
     "budgets": ["1인 30만원 이하", "1인 40만원 이하", "1인 60만원 이하", "상관없음"],
 }
+
+import json
+from pathlib import Path
+
+_DATA_DIR = Path(__file__).parent
+
+
+def _load_crawled() -> list[dict]:
+    path = _DATA_DIR / "dgtourcard_policies.json"
+    if not path.exists():
+        return []
+    with path.open(encoding="utf-8") as f:
+        return json.load(f)
+
 
 POLICIES = [
     {
@@ -84,7 +103,7 @@ POLICIES = [
         "officialUrl": "https://www.busan.go.kr/nbnews/1713613",
         "applyUrl": None,
     },
-]
+] + _load_crawled()
 
 TRIP = {
     "id": "jeju-3-days",

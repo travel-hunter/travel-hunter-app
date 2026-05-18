@@ -47,6 +47,21 @@ $env:REFRESH_COOKIE_NAME="travel_hunter_refresh"
 $env:REFRESH_COOKIE_SECURE="false"
 ```
 
+Notification settings:
+
+```powershell
+$env:NOTIFICATION_SCHEDULER_ENABLED="false"
+$env:NOTIFICATION_RUN_AT="09:00"
+$env:NOTIFICATION_POLL_SECONDS="60"
+$env:NOTIFICATION_RETRY_ENABLED="true"
+$env:NOTIFICATION_RETRY_MAX_ATTEMPTS="3"
+$env:NOTIFICATION_RETRY_DELAY_SECONDS="600"
+$env:KAKAO_ALIMTALK_ENABLED="false"
+$env:SOLAPI_BASE_URL="https://api.solapi.com"
+```
+
+When enabling SOLAPI AlimTalk dispatch, also set `SOLAPI_API_KEY`, `SOLAPI_API_SECRET`, `SOLAPI_PF_ID`, `SOLAPI_TEMPLATE_ID_D7`, `SOLAPI_TEMPLATE_ID_D1`, and `TRAVEL_HUNTER_PUBLIC_BASE_URL`.
+
 Health check:
 
 ```bash
@@ -79,7 +94,7 @@ Seeded test account:
 ## Implemented API Scope
 
 - `/api/auth/signup`, `/api/auth/login`, `/api/auth/refresh`, `/api/auth/logout`
-- `/api/me`, `/api/me/profile`, `/api/profile-options`
+- `/api/me`, `/api/me/profile`, `/api/me/contact`, `/api/me/notification-settings`, `/api/profile-options`
 - `/api/me/saved-policies`
 - `/api/me/saved-policies/{policySlug}`
 - `/api/policies`, `/api/policies/{policySlug}`
@@ -91,6 +106,8 @@ Seeded test account:
 - `/api/invites/{inviteToken}/accept`
 
 Policy detail responses expose `policies.official_url` as `officialUrl` and `policies.apply_url` as `applyUrl`. Frontend application CTAs use `applyUrl` first, then `officialUrl`, then the preparation notice when both are null.
+
+Notification delivery has no public dispatch endpoint. The internal scheduler calculates D-7/D-1 saved-policy deadline candidates and, when `KAKAO_ALIMTALK_ENABLED=true`, dispatches pending rows through SOLAPI.
 
 ## Validation
 

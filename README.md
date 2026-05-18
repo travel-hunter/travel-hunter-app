@@ -1,20 +1,19 @@
 # Travel Hunter App
 
-Travel Hunter is a React/Vite frontend plus FastAPI/PostgreSQL backend for the domestic travel policy and trip-planning MVP.
+Travel Hunter is a React/Vite frontend plus FastAPI/PostgreSQL backend for a domestic travel policy and trip-planning MVP.
 
-## Release Candidate Handoff
+## Recommended Reading Order
 
-Recommended reading order for a new developer:
-
-1. `CONTRIBUTING.md`: collaboration rules, branch strategy, PR rules, validation, and secret handling
-2. `docs/collaboration-handoff.md`: current branch, implementation summary, next work, and blockers
-3. `docs/release-candidate-handoff.md`: release candidate scope, run modes, URLs, env, and validation evidence
-4. `docs/deployment-vps.md`: Docker VPS staging deployment plan
-5. `docs/current-work-spec.md`: current implementation status
-6. `docs/mvp-api-contract.md`: API request/response/error contract
-7. `docs/next-work-plan.md`: next priority after handoff
-8. `docs/db-schema-v0.3.sql`: ERD v0.3 SQL reference
-9. `docs/future-deployment.md`: later AWS/Terraform/EKS/Argo CD expansion notes
+1. `docs/requirements.md`: product requirements, roles, feature/non-functional requirements, conditional/future scope.
+2. `docs/release-candidate-handoff.md`: RC scope, run modes, test account, validation evidence, blockers.
+3. `docs/current-work-spec.md`: current implementation status.
+4. `docs/feature-implementation-status.md`: feature completion/conditional/future status matrix.
+5. `docs/deployment-tunnel.md`: Cloudflare Tunnel staging for NAT-restricted networks.
+6. `docs/deployment-vps.md`: public VPS direct staging.
+7. `docs/mvp-api-contract.md`: API contract.
+8. `docs/next-work-plan.md`: next priority.
+9. `CONTRIBUTING.md`: branch, PR, validation, and secret rules.
+10. `docs/codex-model-workflow.md`: Codex planning/implementation model split and CLI workflow.
 
 ## Local Development
 
@@ -22,9 +21,11 @@ Start PostgreSQL and seed data:
 
 ```powershell
 docker compose -f compose.yaml up -d db
+
 cd backend
 python -m pip install -r requirements.txt
 $env:DATABASE_URL="postgresql+psycopg://travelhunter:travelhunter@127.0.0.1:55432/travelhunter"
+$env:AUTH_SECRET_KEY="dev-only-change-me-secret-key-32-bytes"
 alembic upgrade head
 python -m app.db.seed
 ```
@@ -34,6 +35,7 @@ Start backend:
 ```powershell
 cd backend
 $env:DATABASE_URL="postgresql+psycopg://travelhunter:travelhunter@127.0.0.1:55432/travelhunter"
+$env:AUTH_SECRET_KEY="dev-only-change-me-secret-key-32-bytes"
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
@@ -46,69 +48,74 @@ $env:VITE_API_BASE_URL="http://127.0.0.1:8000"
 npm run dev
 ```
 
-## Docker Compose Local Staging Mode
+Local URLs:
 
-```powershell
-docker compose -f compose.yaml build
-docker compose -f compose.yaml up -d db
-docker compose -f compose.yaml run --rm backend alembic upgrade head
-docker compose -f compose.yaml run --rm backend python -m app.db.seed
-docker compose -f compose.yaml up -d backend frontend
-```
-
-Default local compose URLs:
-
-- Frontend preview: `http://127.0.0.1:4173`
+- Frontend dev: `http://127.0.0.1:5173`
 - Backend API: `http://127.0.0.1:8000`
-- Backend API docs: `http://127.0.0.1:8000/docs`
+- Backend docs: `http://127.0.0.1:8000/docs`
 - PostgreSQL host port: `127.0.0.1:55432`
 
-Seeded test account:
+Seed test account:
 
 - Email: `test.user@example.com`
 - Password: `password123`
 - Display name: `테스트 사용자`
 
-## Docker VPS Staging Direction
+## Staging Deployment Modes
 
-The MVP release candidate targets an internal-test Docker VPS staging deployment. The VPS-specific artifacts are:
+Use public VPS direct mode when the server can expose `80` and `443`:
 
-- `compose.vps.yaml`: staging Compose services for `db`, `backend`, `frontend`, and `caddy`
-- `deploy/Caddyfile`: HTTPS reverse proxy routing for frontend and backend
-- `deploy/.env.staging.example`: staging environment template
+- `compose.vps.yaml`
+- `deploy/Caddyfile`
+- `deploy/.env.staging.example`
+- Runbook: `docs/deployment-vps.md`
 
-Use `docs/deployment-vps.md` for the server setup, staging env values, Caddy routing, and smoke checklist. The local `compose.yaml` remains for local development and local release-gate validation.
+Use Cloudflare Tunnel mode when school or on-premise NAT rules prevent inbound access:
 
-VPS command outline:
+- `compose.tunnel.yaml`
+- `deploy/Caddyfile.tunnel`
+- `deploy/.env.tunnel.example`
+- Runbook: `docs/deployment-tunnel.md`
 
-```bash
-cp deploy/.env.staging.example deploy/.env.staging
-docker compose --env-file deploy/.env.staging -f compose.vps.yaml config
-docker compose --env-file deploy/.env.staging -f compose.vps.yaml build
-docker compose --env-file deploy/.env.staging -f compose.vps.yaml up -d db
-docker compose --env-file deploy/.env.staging -f compose.vps.yaml run --rm backend alembic upgrade head
-docker compose --env-file deploy/.env.staging -f compose.vps.yaml run --rm backend python -m app.db.seed
-docker compose --env-file deploy/.env.staging -f compose.vps.yaml up -d
-```
+Real `.env` files, DB passwords, `AUTH_SECRET_KEY`, and Cloudflare tunnel tokens must not be committed.
 
-## Release Readiness Validation
+## Validation
+
+Fast lane:
 
 ```powershell
-cd backend
+cd frontend
+npm run typecheck
+npm test
+
+cd ..\backend
 python -m pytest
-alembic upgrade head --sql
+```
+
+Release gate:
+
+```powershell
+cd frontend
+npm run test:e2e
+npm run build
 
 cd ..
 docker compose -f compose.yaml config
 docker compose -f compose.yaml build
 docker compose -f compose.yaml run --rm backend alembic upgrade head
 docker compose -f compose.yaml run --rm backend python -m app.db.seed
-
-cd frontend
-npm run typecheck
-npm test
-npm run test:e2e
-npm run build
+docker compose --env-file deploy/.env.tunnel.example -f compose.tunnel.yaml config
 ```
 
 `npm test` and `npm run test:e2e` run against FastAPI and PostgreSQL. Runtime mock mode has been removed.
+
+## Codex Model Workflow
+
+Use `gpt-5.5/xhigh` for planning and `gpt-5.3-codex/high` for implementation through the Codex CLI helper scripts:
+
+```powershell
+.\scripts\codex-plan.ps1 -Prompt "요청 내용을 분석하고 구현 계획만 작성해줘."
+.\scripts\codex-implement.ps1 -PlanFile .\.codex-runs\latest-plan.md
+```
+
+See `docs/codex-model-workflow.md` for the full workflow and Docker/server permission option.

@@ -207,6 +207,43 @@ def test_db_list_saved_policies_returns_policy_list(monkeypatch) -> None:
     assert response.json()[0]["slug"] == "local-vacation"
 
 
+def test_db_list_applied_policies_requires_user(monkeypatch) -> None:
+    fake_db = object()
+    set_db_dependency_override(fake_db)
+    app.dependency_overrides[policy_routes.get_current_user] = lambda: None
+
+    try:
+        response = client.get("/api/me/applied-policies")
+    finally:
+        clear_db_dependency_override()
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Not authenticated"}
+
+
+def test_db_list_applied_policies_returns_policy_list(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    policy = make_seed_like_policy()
+    monkeypatch.setattr(
+        policy_service,
+        "list_applied_policies",
+        lambda db, current_user: [policy_service.policy_to_api(policy)]
+        if db is fake_db and current_user is user
+        else [],
+    )
+    set_db_dependency_override(fake_db)
+    app.dependency_overrides[policy_routes.get_current_user] = lambda: user
+
+    try:
+        response = client.get("/api/me/applied-policies")
+    finally:
+        clear_db_dependency_override()
+
+    assert response.status_code == 200
+    assert response.json()[0]["slug"] == "local-vacation"
+
+
 def test_db_remove_saved_policy_requires_user(monkeypatch) -> None:
     fake_db = object()
     set_db_dependency_override(fake_db)

@@ -38,7 +38,6 @@
         "accessToken": "string",
         "user": {
           "id": "string",
-          "name": "string",
           "nickname": "string",
           "email": "string",
           "birthDate": "string|null",
@@ -61,7 +60,6 @@
       "path": "/api/auth/signup",
       "status": 200,
       "request": {
-        "name": "Test New User",
         "email": "new-user@travel.kr",
         "password": "password123"
       },
@@ -69,13 +67,24 @@
         "accessToken": "string",
         "user": {
           "id": "string",
-          "name": "string",
           "nickname": "string",
           "email": "string",
           "onboardingCompleted": "boolean",
           "socialAccounts": "array"
         }
       }
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/email-check",
+      "status": 200,
+      "request": {
+        "email": "new-user@travel.kr"
+      },
+      "requiredFields": {
+        "available": "boolean"
+      },
+      "dbModeBehavior": "Returns available=false when a user with the same email already exists."
     },
     {
       "method": "POST",
@@ -102,18 +111,89 @@
       }
     },
     {
+      "method": "POST",
+      "path": "/api/auth/password-reset/request",
+      "status": 200,
+      "request": {
+        "email": "test.user@example.com"
+      },
+      "requiredFields": {
+        "requested": "boolean"
+      },
+      "dbModeBehavior": "Always returns requested=true for valid email shape, stores only a SHA-256 reset token hash for existing users, and sends a reset link by SMTP when configured."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/password-reset/confirm",
+      "status": 200,
+      "request": {
+        "token": "raw-reset-token",
+        "newPassword": "new-password-123"
+      },
+      "requiredFields": {
+        "reset": "boolean"
+      },
+      "dbModeBehavior": "Validates the hashed token, rejects expired/used/unknown tokens, updates users.password_hash, marks the token used, and revokes existing refresh tokens."
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/oauth/kakao/start",
+      "status": 302,
+      "query": {
+        "redirect": "/home"
+      },
+      "requiredBehavior": "Sets OAuth state HttpOnly cookie and redirects to the Kakao authorization URL."
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/oauth/google/start",
+      "status": 302,
+      "query": {
+        "redirect": "/home"
+      },
+      "requiredBehavior": "Sets OAuth state HttpOnly cookie and redirects to the Google OpenID Connect authorization URL."
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/oauth/{provider}/callback",
+      "status": 302,
+      "requiredBehavior": "Validates code/state, links or creates the user through social_accounts, sets the refresh cookie, clears the OAuth state cookie, and redirects to frontend /oauth/callback."
+    },
+    {
       "method": "GET",
       "path": "/api/me",
       "status": 200,
       "requiredFields": {
         "id": "string",
-        "name": "string",
         "nickname": "string",
         "email": "string",
         "homeRegion": "string",
         "onboardingCompleted": "boolean",
         "socialAccounts": "array"
       }
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/nickname-suggestion",
+      "status": 200,
+      "requiredFields": {
+        "nickname": "string"
+      },
+      "dbModeBehavior": "Requires bearer auth and returns a non-persisted random nickname suggestion."
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/me/nickname",
+      "status": 200,
+      "request": {
+        "nickname": "반짝이는여행자123"
+      },
+      "requiredFields": {
+        "id": "string",
+        "nickname": "string",
+        "email": "string"
+      },
+      "dbModeBehavior": "Requires bearer auth, trims the nickname, validates length 2-20, and updates users.nickname."
     },
     {
       "method": "GET",
@@ -145,6 +225,82 @@
         "budget": "string"
       },
       "dbModeBehavior": "Updates users.region, users.travel_style, users.travel_budget and marks onboarding_completed true."
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/contact",
+      "status": 200,
+      "requiredFields": {
+        "phoneNumber": "string|null",
+        "phoneVerified": "boolean"
+      },
+      "dbFields": {
+        "phoneNumber": "users.phone_number",
+        "phoneVerified": "users.phone_verified_at != null"
+      },
+      "dbModeBehavior": "Requires bearer auth and returns null/false when no phone number is stored."
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/me/contact",
+      "status": 200,
+      "request": {
+        "phoneNumber": "010 1234 5678"
+      },
+      "requiredFields": {
+        "phoneNumber": "string|null",
+        "phoneVerified": "boolean"
+      },
+      "dbModeBehavior": "Requires bearer auth, strips whitespace, stores users.phone_number, clears users.phone_verified_at when the phone number changes, and treats blank/null as no phone number."
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/notification-settings",
+      "status": 200,
+      "requiredFields": {
+        "deadlineEnabled": "boolean",
+        "deadlineLeadDays": "array"
+      },
+      "dbFields": {
+        "deadlineEnabled": "user_notification_settings.deadline_enabled"
+      },
+      "dbModeBehavior": "Requires bearer auth and returns true with [7, 1] lead days when no row exists."
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/me/notification-settings",
+      "status": 200,
+      "request": {
+        "deadlineEnabled": false
+      },
+      "requiredFields": {
+        "deadlineEnabled": "boolean",
+        "deadlineLeadDays": "array"
+      },
+      "dbModeBehavior": "Requires bearer auth and upserts one user_notification_settings row per user."
+    },
+    {
+      "method": "POST",
+      "path": "/api/webhooks/solapi",
+      "status": 200,
+      "request": [
+        {
+          "messageId": "M4V202605071200000001",
+          "statusCode": "4000",
+          "statusMessage": "Delivered",
+          "dateReported": "2026-05-07T12:03:00+09:00"
+        }
+      ],
+      "headers": {
+        "X-Solapi-Secret": "sha1(SOLAPI_WEBHOOK_SECRET) when configured"
+      },
+      "requiredFields": {
+        "received": "number",
+        "updated": "number",
+        "ignored": "number",
+        "failed": "number"
+      },
+      "dbModeBehavior": "Provider-facing webhook; matches messageId to notification_deliveries.provider_message_id, maps statusCode 4000 to sent, ignores 2000/3000, and maps failure status codes to failed."
     },
     {
       "method": "GET",
@@ -197,6 +353,17 @@
       "dbModeBehavior": "Requires bearer auth and returns current user's saved policies."
     },
     {
+      "method": "GET",
+      "path": "/api/me/applied-policies",
+      "status": 200,
+      "requiredArrayItemFields": {
+        "id": "string",
+        "slug": "string",
+        "title": "string"
+      },
+      "dbModeBehavior": "Requires bearer auth and returns distinct policies linked to trips owned by or shared with the current user."
+    },
+    {
       "method": "POST",
       "path": "/api/me/saved-policies/local-vacation",
       "status": 200,
@@ -223,10 +390,13 @@
       "requiredArrayItemFields": {
         "id": "string",
         "title": "string",
+        "status": "string enum(draft|confirmed)",
         "dates": "string",
         "people": "array",
         "expectedSaving": "string",
-        "days": "object"
+        "linkedPolicies": "array of { slug, title, amount, region }",
+        "days": "object",
+        "currentUserRole": "string enum(owner|editor|viewer)"
       },
       "exampleTripId": "1",
       "legacyTripAlias": "jeju-3-days",
@@ -244,18 +414,24 @@
         "style": "string",
         "description": "string",
         "policySlug": "string",
-        "durationDays": "number"
+        "durationDays": "number",
+        "startDate": "YYYY-MM-DD string",
+        "endDate": "YYYY-MM-DD string"
       },
       "requiredFields": {
         "id": "string",
         "title": "string",
+        "status": "string enum(draft|confirmed)",
         "dates": "string",
         "people": "array",
         "expectedSaving": "string",
-        "days": "object"
+        "linkedPolicies": "array of { slug, title, amount, region }",
+        "days": "object",
+        "currentUserRole": "string enum(owner|editor|viewer)"
       },
       "dbModePolicySlugBehavior": "When policySlug is present, create the trip and link trip_policies; unknown policySlug returns 404 Policy not found.",
-      "durationDaysBehavior": "Optional durationDays defaults to 3, accepts 2 through 5, controls trips.end_date and generated trip_days."
+      "durationDaysBehavior": "Optional durationDays defaults to 3, accepts 2 through 5, controls trips.end_date and generated trip_days when startDate/endDate are absent.",
+      "dateRangeBehavior": "Optional startDate/endDate must be provided together, accept 2 through 5 days inclusive, override durationDays, and control trips.start_date/end_date plus generated trip_days.date."
     },
     {
       "method": "GET",
@@ -264,10 +440,13 @@
       "requiredFields": {
         "id": "string",
         "title": "string",
+        "status": "string enum(draft|confirmed)",
         "dates": "string",
         "people": "array",
         "expectedSaving": "string",
-        "days": "object"
+        "linkedPolicies": "array of { slug, title, amount, region }",
+        "days": "object",
+        "currentUserRole": "string enum(owner|editor|viewer)"
       },
       "legacyAliasPath": "/api/trips/jeju-3-days",
       "legacyAliasResponseId": "numeric string"
@@ -298,6 +477,38 @@
       }
     },
     {
+      "method": "PATCH",
+      "path": "/api/trips/1/status",
+      "status": 200,
+      "request": {
+        "status": "confirmed"
+      },
+      "requiredFields": {
+        "id": "string",
+        "title": "string",
+        "status": "string enum(draft|confirmed)",
+        "days": "object",
+        "currentUserRole": "string enum(owner|editor|viewer)"
+      },
+      "dbModeBehavior": "Requires owner/editor access, stores trips.status, and returns the updated Trip. Viewer access returns 403 Trip edit permission required."
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/trips/1/places/2/move",
+      "status": 200,
+      "request": {
+        "dayNumber": 2,
+        "position": 1
+      },
+      "requiredFields": {
+        "id": "string",
+        "title": "string",
+        "days": "object",
+        "currentUserRole": "string enum(owner|editor|viewer)"
+      },
+      "dbModeBehavior": "Requires owner/editor access, updates trip_places.trip_day_id when day changes, normalizes affected trip_places.order_num values to consecutive 1-based positions, and returns the updated Trip."
+    },
+    {
       "method": "GET",
       "path": "/api/trips/1/recommendations",
       "status": 200,
@@ -321,10 +532,12 @@
         "createdAt": "string",
         "acceptedAt": "string|null",
         "invited": "boolean",
-        "copied": "boolean"
+        "copied": "boolean",
+        "role": "string enum(viewer|editor)"
       },
       "serverCopiedValue": false,
-      "invitedMeaning": "true when a valid invite token exists or the current request created/confirmed one"
+      "invitedMeaning": "true when a valid invite token exists or the current request created/confirmed one",
+      "roleBehavior": "POST /api/trips/{tripId}/invite accepts optional viewer/editor role and defaults to editor"
     },
     {
       "method": "POST",
@@ -339,9 +552,10 @@
         "createdAt": "string",
         "acceptedAt": "string",
         "invited": "boolean",
-        "copied": "boolean"
+        "copied": "boolean",
+        "role": "string enum(viewer|editor)"
       },
-      "dbModeBehavior": "Requires bearer auth, marks trip_invites.accepted_at, and inserts trip_members idempotently."
+      "dbModeBehavior": "Requires bearer auth, marks trip_invites.accepted_at, and inserts trip_members idempotently with the invite role."
     }
   ]
 }

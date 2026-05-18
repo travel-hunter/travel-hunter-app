@@ -1,10 +1,20 @@
 import { CalendarDays, Home, UserRound, WalletCards } from "lucide-react";
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 
 export function PublicLayout() {
+  const { pathname } = useLocation();
+  const isPrototypeLoginScreen =
+    pathname === "/" ||
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password" ||
+    pathname === "/oauth/callback" ||
+    pathname === "/onboarding";
+
   return (
-    <main className="public-layout">
-      <div className="public-container">
+    <main className={isPrototypeLoginScreen ? "public-layout prototype-login-layout" : "public-layout"}>
+      <div className={isPrototypeLoginScreen ? "public-container prototype-login-container" : "public-container"}>
         <Outlet />
       </div>
     </main>
@@ -14,36 +24,12 @@ export function PublicLayout() {
 export function ServiceLayout() {
   return (
     <div className="service-layout">
-      <header className="service-header">
-        <Link className="brand" to="/home" aria-label="Travel Hunter 홈으로">
-          <span className="brand-mark">TH</span>
-          <span>Travel Hunter</span>
-        </Link>
-        <nav className="desktop-nav" aria-label="주요 메뉴">
-          <NavLink className={navClass} to="/home">
-            홈
-          </NavLink>
-          <NavLink className={navClass} to="/policies">
-            정책
-          </NavLink>
-          <NavLink className={navClass} to="/trips">
-            일정
-          </NavLink>
-          <NavLink className={navClass} to="/mypage">
-            마이
-          </NavLink>
-        </nav>
-      </header>
       <main className="app-container">
         <Outlet />
       </main>
       <BottomTabs />
     </div>
   );
-}
-
-function navClass({ isActive }: { isActive: boolean }) {
-  return isActive ? "nav-link active" : "nav-link";
 }
 
 function tabClass({ isActive }: { isActive: boolean }) {

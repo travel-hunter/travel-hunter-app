@@ -64,8 +64,16 @@ def create_refresh_token() -> str:
     return secrets.token_urlsafe(48)
 
 
-def hash_refresh_token(token: str) -> str:
+def create_urlsafe_token() -> str:
+    return secrets.token_urlsafe(48)
+
+
+def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def hash_refresh_token(token: str) -> str:
+    return hash_token(token)
 
 
 def refresh_token_expires_at() -> datetime:

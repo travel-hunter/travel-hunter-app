@@ -9,7 +9,6 @@ class SocialAccount(BaseModel):
 
 class User(BaseModel):
     id: str
-    name: str
     nickname: str
     email: str
     birthDate: str | None = None
@@ -44,15 +43,48 @@ class ProfileOptions(BaseModel):
     budgets: list[str]
 
 
+class NotificationSettings(BaseModel):
+    deadlineEnabled: bool
+    deadlineLeadDays: list[int]
+
+
+class NotificationSettingsUpdate(BaseModel):
+    deadlineEnabled: bool
+
+
+class ContactInfo(BaseModel):
+    phoneNumber: str | None = None
+    phoneVerified: bool
+
+
+class ContactUpdate(BaseModel):
+    phoneNumber: str | None = Field(default=None, max_length=30, pattern=r"^(\s*$|[0-9\-+() ]{7,})$")
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1)
 
 
 class SignupRequest(BaseModel):
-    name: str = Field(min_length=1, max_length=50)
     email: EmailStr
     password: str = Field(min_length=8)
+
+
+class EmailAvailabilityRequest(BaseModel):
+    email: EmailStr
+
+
+class EmailAvailabilityResponse(BaseModel):
+    available: bool
+
+
+class NicknameSuggestion(BaseModel):
+    nickname: str
+
+
+class NicknameUpdate(BaseModel):
+    nickname: str = Field(min_length=2, max_length=20, pattern=r"^[가-힣a-zA-Z0-9_]+$")
 
 
 class AuthResponse(BaseModel):
@@ -62,3 +94,20 @@ class AuthResponse(BaseModel):
 
 class LogoutResponse(BaseModel):
     loggedOut: bool
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str = Field(min_length=1)
+    newPassword: str = Field(min_length=8)
+
+
+class PasswordResetResponse(BaseModel):
+    requested: bool
+
+
+class PasswordResetConfirmResponse(BaseModel):
+    reset: bool

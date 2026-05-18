@@ -1,102 +1,92 @@
-# Travel Hunter 현재 구현 명세
+# Travel Hunter 현재 작업 명세
 
-## 현재 상태
+## 기준
 
-Travel Hunter는 React/Vite 프론트엔드와 FastAPI/PostgreSQL 백엔드로 구성된 국내 여행 정책/일정 MVP다. 런타임 mock mode는 제거됐고, 사용자-facing 인증/데이터 흐름은 항상 FastAPI와 PostgreSQL 기준으로 동작한다.
+- 기준일: 2026-05-18
+- 기준 커밋: `3f3924a fix: clarify policy application cta links`
+- 브랜치: `feat/prototype-to-react`
+- 원칙: DB-backed-only MVP를 유지하고 runtime mock mode는 다시 추가하지 않는다.
+- 현재 단계: 정책 URL 품질 점검과 마이페이지 정보 콘텐츠 보강을 완료했고, 변경분 검증/커밋 전 상태다.
 
-## 기준 커밋
+## 제품 범위
 
-- 문서 정리 시작 기준 커밋: `6436672 docs: record vps deployment prerequisites`
-- Docker VPS staging 산출물 커밋: `91df9e9 chore: add docker vps staging artifacts`
-- 실제 VPS 배포 상태: VPS 입력값 대기 중
+Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장하고, 여행 일정과 연결해 신청 준비 흐름을 돕는 모바일 앱형 웹 서비스다.
 
-## 주요 위치
+현재 구현은 다음 기준을 따른다.
 
-| 구분 | 위치 |
-|---|---|
-| App root | `C:\Users\HP\Documents\프로젝트\진행중\travel-hunter-app` |
-| Frontend | `frontend` |
-| Backend | `backend` |
-| API contract | `docs/mvp-api-contract.md` |
-| DB schema reference | `docs/db-schema-v0.3.sql` |
-| Release handoff | `docs/release-candidate-handoff.md` |
-| Docker VPS deployment | `docs/deployment-vps.md` |
+- 인증, 정책, 일정, 마이페이지, 초대, 알림 설정은 FastAPI/PostgreSQL에 연결된다.
+- frontend는 React/Vite 기반이며, `AppDataApi`를 API 경계로 사용한다.
+- backend는 `api/core/db/models/repositories/schemas/services` 계층을 유지한다.
+- Docker local, public VPS direct, Cloudflare Tunnel staging 산출물이 존재한다.
+- 외부 secret이 필요한 SMTP/OAuth/SOLAPI/Cloudflare 실제 smoke는 env 준비 후 진행한다.
 
-## Frontend 구현 범위
+## 완료된 핵심 기능
 
-- Vite + React + TypeScript + React Router 기반 반응형 웹.
-- `AppRoot`, `AppProviders`, `SessionProvider`, `ProtectedRoute` 구조.
-- 모든 화면 데이터 접근은 `frontend/src/api/AppDataApi` 경계를 통해 수행.
-- `appDataApi`는 항상 `backendApi`를 사용한다.
-- 기존 데이터 소스 선택기와 mock e2e는 제거됐다.
-- 로그인/회원가입/세션 검증은 `/api/auth/*`, `/api/me` 기준으로 동작.
-- 정책 목록은 `GET /api/policies` 결과를 client-side 검색/지역/카테고리 필터로 탐색.
-- 정책 상세는 저장 정책, 일정 선택 sheet, 공식/신청 URL CTA를 제공.
-- 일정 생성은 `region`, `style`, 선택 `policySlug`를 `POST /api/trips` payload로 전달.
-- 초대 수락 route `/invites/:inviteToken/accept`는 로그인 복귀 후 `POST /api/invites/{inviteToken}/accept`를 호출한다.
+- 이메일/비밀번호 회원가입과 로그인.
+- 이메일 중복 확인 후 회원가입, `/nickname-setup` 닉네임 설정, 서버 추천 닉네임과 주사위 추천.
+- Kakao/Google OAuth authorization code flow entry point.
+- password reset request/confirm flow.
+- 프로필 설정과 마이페이지 프로필 편집.
+- 정책 목록, 카테고리/지역/기간/금액 필터, 정책 저장/해제.
+- 정책 상세의 지원 내용, 신청 기간, 신청 대상, 필요 서류, 공유, 일정 담기.
+- 정책 상세 CTA 분리:
+  - `applyUrl`: `신청하러 가기`
+  - `officialUrl`: `공식 안내 확인`
+  - URL 없음: `신청 링크 준비 중`
+- 정책 JSON validation:
+  - shape, duplicate slug, deadline, encoding-risk marker 검사.
+  - `officialUrl/applyUrl`의 localhost, placeholder, 잘못된 URL 차단.
+- 일정 생성 3단계 UX, 동적 기본 날짜, draft autosave.
+- 일정 목록, 삭제 dialog, draft/confirmed 상태 저장.
+- 일정 상세 장소 추가/수정/삭제, 10분 단위 시간 스피너, 시간 없음 저장, drag-and-drop 이동.
+- AI 추천 장소를 일정 타임라인에 추가.
+- 초대 링크 role 저장과 viewer/editor 권한 enforcement.
+- 마감 알림 설정, 연락처 저장, 알림 대상 계산, scheduler/provider/retry/webhook 기반.
+- MyPage 신청 정책 카운트 `GET /api/me/applied-policies`.
+- MyPage/PolicyList/PolicyDetail 즐겨찾기 상태 `SessionProvider.savedSlugs` 동기화.
+- PWA manifest/meta, production sourcemap 비공개, Web Share API fallback.
+- Prototype 기반 모바일 앱형 UX 적용.
 
-## Backend 구현 범위
+## 최근 작업
 
-- FastAPI route/schema/service/repository/data 계층.
-- SQLAlchemy 2.x sync ORM + psycopg 3 + Alembic + PostgreSQL 16.
-- schema 생성은 Alembic만 사용하고 `create_all()`은 사용하지 않는다.
-- 개발 seed는 `python -m app.db.seed`로 주입하며 idempotent하다.
-- `/api/profile-options`는 DB-backed 앱의 정적 옵션 응답이다.
+- 정책 신청 URL 품질 점검을 완료하고 `3f3924a`로 커밋했다.
+- `docs/next-work-plan.md`의 다음 우선순위를 FAQ/콘텐츠 보강 기준으로 갱신했다.
+- import되지 않는 임시 untracked 파일 `TripCreateModal.tsx`, `TripItinerary.tsx`는 route와 연결되지 않고 깨진 문자열이 있어 정리했다.
+- `/mypage`의 공지사항/FAQ, 이용약관, 개인정보처리방침 sheet 콘텐츠를 실제 서비스 안내 수준으로 보강했다.
 
-Implemented endpoints:
+## 현재 조건부 항목
 
-- `POST /api/auth/signup`, `POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/auth/logout`
-- `GET /api/me`, `GET /api/me/profile`, `PATCH /api/me/profile`, `GET /api/profile-options`
-- `GET /api/policies`, `GET /api/policies/{policySlug}`
-- `GET /api/me/saved-policies`, `POST /api/me/saved-policies/{policySlug}`, `DELETE /api/me/saved-policies/{policySlug}`
-- `GET /api/trips`, `POST /api/trips`, `GET /api/trips/{tripId}`, `DELETE /api/trips/{tripId}`
-- `POST /api/trips/{tripId}/policies/{policySlug}`
-- `GET /api/trips/{tripId}/recommendations`
-- `GET /api/trips/{tripId}/invite`, `POST /api/trips/{tripId}/invite`, `POST /api/trips/{tripId}/invites`
-- `POST /api/invites/{inviteToken}/accept`
+- SMTP password reset staging smoke는 실제 SMTP provider env와 public HTTPS domain이 필요하다.
+- Kakao/Google OAuth 실로그인은 provider console redirect URI와 secret 설정이 필요하다.
+- Cloudflare named tunnel full-up은 실제 `CLOUDFLARE_TUNNEL_TOKEN`, staging domain, DB/env 값이 필요하다.
+- SOLAPI 실제 발송은 SOLAPI 계정, Kakao business channel, 승인 템플릿, secret env가 필요하다.
+- 전화번호 OTP 실인증은 아직 후속 설계/구현 범위다.
 
-## DB/API 기준
+## 문서 역할
 
-- `policies.slug`를 정책 상세 key로 사용한다.
-- `trips.slug`는 만들지 않는다.
-- `Trip.id`는 DB `trips.id`를 string으로 반환한다.
-- `jeju-3-days`는 legacy seed alias일 뿐 public slug가 아니다.
-- `Policy.match`, `Trip.expectedSaving`, `InviteState.copied`, `InviteState.invited`는 service mapper 계산/상태 값이다.
-- API DTO는 `camelCase`, DB/SQL 필드는 `snake_case`.
-- 응답에 `password_hash`, `refresh_token_hash`, `provider_id`를 노출하지 않는다.
+- `docs/requirements.md`: 제품 요구사항.
+- `docs/implemented-feature-spec.md`: 실제 구현 기능 명세.
+- `docs/feature-implementation-status.md`: 기능별 완료/조건부/미구현 상태표.
+- `docs/mvp-api-contract.md`: API 계약.
+- `docs/current-work-spec.md`: 현재 구현 상태 요약.
+- `docs/next-work-plan.md`: 다음 작업 우선순위.
+- `docs/deployment-vps.md`: public VPS 직접 노출 runbook.
+- `docs/deployment-tunnel.md`: NAT 제한 환경 Cloudflare Tunnel runbook.
+- `docs/password-reset-smtp-smoke.md`: SMTP password reset smoke 절차.
+- `docs/project-structure-audit.md`: 폴더/파일 구조 점검 기록.
 
-## Seed Test Account
+## 최신 검증 기록
 
-- Email: `test.user@example.com`
-- Password: `password123`
-- Display name: `테스트 사용자`
+- Backend pytest: `218 passed`.
+- Frontend Vitest: `74 passed`.
+- Frontend typecheck: passed.
+- Frontend build: passed.
+- Alembic offline SQL: passed.
+- `git diff --check`: passed.
+- Policy data validation: passed.
 
-## 최근 검증
+## 다음 작업 방향
 
-- `cd backend && python -m pytest`: 72 passed.
-- `cd backend && alembic upgrade head --sql`: passed.
-- `docker compose -f compose.yaml config`: passed.
-- `cd frontend && npm run typecheck`: passed.
-- `cd frontend && npm test`: DB-backed Vitest 20 passed.
-- `cd frontend && npm run test:e2e`: DB-backed Playwright 5 passed.
-- `cd frontend && npm run build`: passed.
-- `docker compose -f compose.yaml build`: passed.
-- `docker compose --env-file deploy/.env.staging.example -f compose.vps.yaml config`: passed.
-
-Known local note:
-
-- Windows 환경에서 `backend/.pytest_cache` 접근 경고가 날 수 있지만 테스트 결과에는 영향이 없다.
-
-## 미구현 범위
-
-- 소셜 로그인 실제 연동.
-- 정책 실시간 수집 API.
-- 지도/장소 검색/이동 시간 계산.
-- 실제 AI 추천 엔진.
-- 친구 초대 이메일/SMS/카카오톡 실제 발송.
-- 운영 관리자 기능.
-- 실제 VPS staging 배포 실행. 현재 blocker는 VPS SSH 접속 정보, staging domain/DNS, repo clone 권한, 실제 `deploy/.env.staging` 값 미제공이다.
-
-## 다음 작업
-
-다음 우선순위는 `docs/next-work-plan.md`를 따른다. 현재는 Docker VPS staging 산출물까지 커밋됐고, 실제 배포는 VPS SSH 접속 정보, staging domain/DNS, repo clone 권한, 실제 staging env 값이 준비되면 진행한다.
+1. `/mypage` 공지사항/FAQ/이용약관/개인정보처리방침 콘텐츠 변경분을 커밋 가능한 기준점으로 고정한다.
+2. 기능 개발 흐름을 계속할 경우 홈 추천 목적지 ranking 고도화를 진행한다.
+3. 운영 검증 흐름으로 전환할 경우 Cloudflare Tunnel actual env full-up, SMTP staging smoke, OAuth provider smoke 순서로 진행한다.

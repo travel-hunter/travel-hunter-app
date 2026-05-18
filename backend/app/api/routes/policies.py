@@ -43,6 +43,18 @@ def list_saved_policies(
     return [Policy(**policy) for policy in saved_policies]
 
 
+@router.get("/me/applied-policies", response_model=list[Policy])
+def list_applied_policies(
+    db: Session | None = Depends(get_optional_db),
+    current_user: User | None = Depends(get_current_user),
+) -> list[Policy]:
+    applied_policies = policy_service.list_applied_policies(
+        db,
+        _require_user(current_user),
+    )
+    return [Policy(**policy) for policy in applied_policies]
+
+
 @router.post("/me/saved-policies/{policy_slug}", response_model=SavePolicyResponse)
 def save_policy(
     policy_slug: str,
