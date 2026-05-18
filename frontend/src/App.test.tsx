@@ -1283,6 +1283,7 @@ describe("Travel Hunter app", () => {
       await user.click(await screen.findByRole("button", { name: /알림 설정/ }));
       const dialog = await screen.findByRole("dialog", { name: "알림 설정" });
       const phoneInput = within(dialog).getByRole("textbox", { name: "전화번호" });
+      await waitFor(() => expect(phoneInput).not.toBeDisabled());
       await user.type(phoneInput, "010 1234 5678");
       await user.click(within(dialog).getByRole("button", { name: "연락처 저장" }));
 
@@ -1311,7 +1312,9 @@ describe("Travel Hunter app", () => {
 
       const summary = await screen.findByLabelText("나의 활동 요약");
       await waitFor(() => expect(within(summary).getByText("내 일정")).toBeInTheDocument());
-      expect(within(summary).getByText("1")).toBeInTheDocument();
+      const tripStat = within(summary).getByText("내 일정").closest(".prototype-stat-card");
+      expect(tripStat).not.toBeNull();
+      await waitFor(() => expect(within(tripStat as HTMLElement).getByText("1")).toBeInTheDocument());
     } finally {
       listTripsSpy.mockRestore();
     }
@@ -1333,7 +1336,9 @@ describe("Travel Hunter app", () => {
 
       const summary = await screen.findByLabelText("나의 활동 요약");
       await waitFor(() => expect(within(summary).getByText("내 일정")).toBeInTheDocument());
-      expect(within(summary).getByText("3")).toBeInTheDocument();
+      const tripStat = within(summary).getByText("내 일정").closest(".prototype-stat-card");
+      expect(tripStat).not.toBeNull();
+      await waitFor(() => expect(within(tripStat as HTMLElement).getByText("3")).toBeInTheDocument());
     } finally {
       listTripsSpy.mockRestore();
     }
@@ -1405,7 +1410,9 @@ describe("Travel Hunter app", () => {
 
       const summary = await screen.findByLabelText("나의 활동 요약");
       await waitFor(() => expect(within(summary).getByText("내 일정")).toBeInTheDocument());
-      expect(within(summary).getAllByText("0").length).toBeGreaterThan(0);
+      const tripStat = within(summary).getByText("내 일정").closest(".prototype-stat-card");
+      expect(tripStat).not.toBeNull();
+      await waitFor(() => expect(within(tripStat as HTMLElement).getByText("0")).toBeInTheDocument());
       expect(document.body).not.toHaveTextContent("일정 정보를 불러오지 못했어요");
     } finally {
       listTripsSpy.mockRestore();
@@ -1431,6 +1438,7 @@ describe("Travel Hunter app", () => {
       await user.click(await screen.findByRole("button", { name: /알림 설정/ }));
       const dialog = await screen.findByRole("dialog", { name: "알림 설정" });
       const phoneInput = within(dialog).getByRole("textbox", { name: "전화번호" });
+      await waitFor(() => expect(phoneInput).not.toBeDisabled());
       await user.clear(phoneInput);
       await user.click(within(dialog).getByRole("button", { name: "연락처 저장" }));
 
@@ -1472,15 +1480,49 @@ describe("Travel Hunter app", () => {
     }
   });
 
-  it("uses an official policy link when available and keeps the fallback notice otherwise", async () => {
+  it("uses an official policy link as an official information CTA when no direct apply link is available", async () => {
     await login();
     cleanup();
     renderRoute("/policies/local-vacation");
 
     const officialUrl = "https://www.mcst.go.kr/site/s_notice/press/pressView.jsp?pMenuCD=0302000000&pSeq=22267";
-    const applicationLink = await screen.findByRole("link", { name: "신청하러 가기" });
+    const applicationLink = await screen.findByRole("link", { name: "공식 안내 확인" });
     expect(applicationLink).toHaveAttribute("href", officialUrl);
     expect(applicationLink).toHaveAttribute("target", "_blank");
+  });
+
+  it("uses a direct apply link as the primary application CTA when available", async () => {
+    const applyPolicy: Policy = {
+      id: "apply-policy",
+      slug: "apply-policy",
+      label: "AP",
+      tag: "접수 가능",
+      title: "직접 신청 가능 정책",
+      org: "Travel Hunter",
+      region: "전국",
+      deadline: "2026-12-31",
+      amount: "확인 필요",
+      summary: "직접 신청 링크가 확인된 정책입니다.",
+      match: 70,
+      category: "추천",
+      requirements: ["공식 공고 확인 필요"],
+      documents: ["공식 공고 확인 필요"],
+      officialUrl: "https://travel.example/notice",
+      applyUrl: "https://travel.example/apply",
+    };
+    const getPolicySpy = vi.spyOn(appDataApi, "getPolicy").mockResolvedValue(applyPolicy);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/policies/apply-policy");
+
+      const applicationLink = await screen.findByRole("link", { name: "신청하러 가기" });
+      expect(applicationLink).toHaveAttribute("href", "https://travel.example/apply");
+      expect(applicationLink).toHaveAttribute("target", "_blank");
+    } finally {
+      getPolicySpy.mockRestore();
+    }
   });
 
   it("renders the prototype policy detail section order", async () => {
@@ -1534,10 +1576,9 @@ describe("Travel Hunter app", () => {
       await login();
       cleanup();
       renderRoute("/policies/no-link-policy");
-      const fallbackButton = await screen.findByRole("button", { name: "신청하러 가기" });
-      await userEvent.setup().click(fallbackButton);
-
-      await waitFor(() => expect(document.body).toHaveTextContent("공식 신청 연결은 준비 중입니다."));
+      const fallbackButton = await screen.findByRole("button", { name: "신청 링크 준비 중" });
+      expect(fallbackButton).toBeDisabled();
+      expect(fallbackButton).toHaveAttribute("title", "공식 신청 연결은 준비 중입니다.");
     } finally {
       getPolicySpy.mockRestore();
     }

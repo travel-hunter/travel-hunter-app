@@ -15,16 +15,17 @@
 - 정책 상세 하트 저장 상태를 정책별 `savedSlugs` 기준으로 동기화.
 - `/mypage` 신청 정책 카운트를 `GET /api/me/applied-policies`로 연결.
 - `/home` 인기 국내 여행지를 정책 데이터 기반으로 동적 생성.
-- 정책 신청 URL이 없을 때 신청 버튼을 비활성화.
+- 정책 상세 CTA가 직접 신청 링크, 공식 안내 링크, 링크 준비 중 상태를 구분.
+- 정책 JSON URL 검증이 localhost/placeholder/잘못된 URL을 차단.
 - Docker frontend/backend/db rebuild 및 로컬 접속 확인.
 
 ## 다음 우선순위
 
 | 우선순위 | 작업 | 성공 기준 |
 |---:|---|---|
-| 1 | 현재 명세 문서 최신화 변경분 커밋 및 `origin/feat/prototype-to-react` push | 최신 기준 커밋과 다음 우선순위가 문서에 반영되고 원격 브랜치가 최신 커밋을 포함한다. |
-| 2 | 정책 신청 URL 품질 점검 | seed/API 정책의 `applyUrl`, `officialUrl` 상태를 점검하고, 신청 가능한 정책과 준비 안내 정책의 CTA가 명확히 분리된다. |
-| 3 | 공지사항/FAQ 실제 콘텐츠 보강 | 마이페이지 sheet의 임시 안내를 실제 서비스 안내 문구로 정리한다. |
+| 1 | 정책 신청 URL 품질 점검 변경분 검증 및 커밋 | CTA 분기 테스트, 정책 JSON validation, frontend/backend 검증이 통과한다. |
+| 2 | 공지사항/FAQ 실제 콘텐츠 보강 | 마이페이지 sheet의 임시 안내를 실제 서비스 안내 문구로 정리한다. |
+| 3 | 홈 추천 목적지 ranking 고도화 | 정책 기반 목적지 추천의 점수 기준과 fallback 설명이 명확해진다. |
 | 4 | Cloudflare Tunnel actual env full-up | 실제 `deploy/.env.tunnel` 값으로 migration, seed, compose up, `/api/health` smoke가 통과한다. |
 | 5 | SMTP password reset staging smoke | 실제 SMTP provider와 HTTPS staging URL로 reset email 수신, token confirm, 새 비밀번호 로그인이 통과한다. |
 | 6 | Kakao/Google OAuth provider smoke | provider console redirect URI와 runtime env를 맞춘 뒤 실제 social login callback과 session 복구가 통과한다. |
@@ -32,7 +33,6 @@
 
 ## 기능 개발 후보
 
-- 정책 신청 URL 품질 점검과 신청 가능/준비 중 CTA 문구 정리.
 - 공지사항/FAQ/이용약관/개인정보처리방침 콘텐츠 고도화.
 - 홈 추천 목적지 ranking 기준 고도화.
 - 신청 정책 상태 모델 확장.

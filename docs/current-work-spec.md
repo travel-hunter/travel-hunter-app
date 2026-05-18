@@ -18,7 +18,8 @@ Travel Hunter는 국내 여행 정책 탐색, 정책 저장/공유, 일정 생�
 - 정책 상세 저장 하트 상태를 `savedSlugs` 기준으로 동기화.
 - `/mypage` 신청 정책 카운트를 `GET /api/me/applied-policies` 기반으로 연결.
 - `/home` 인기 국내 여행지 rail을 정책 제목/지역 기반으로 동적 생성하고, 가짜 별점 표시는 제거.
-- 정책 신청 URL이 없을 때 신청 버튼을 비활성화하고 준비 안내를 유지.
+- 정책 상세 CTA를 `신청하러 가기`, `공식 안내 확인`, `신청 링크 준비 중`으로 분리.
+- 정책 JSON URL 검증에서 localhost/placeholder/잘못된 URL 형식을 차단.
 - Docker frontend/backend/db rebuild 및 로컬 접속 확인.
 
 ## 구현 완료 범위
@@ -43,7 +44,7 @@ Travel Hunter는 국내 여행 정책 탐색, 정책 저장/공유, 일정 생�
   - 저장/해제와 세션 공유 상태 동기화.
   - 공유 링크 복사 및 Web Share API fallback.
   - 조건 확인 요약, 필요 서류 checklist, FAQ.
-  - 신청 URL이 있는 정책은 외부 링크, 없는 정책은 비활성/준비 안내.
+  - 직접 신청 URL, 공식 안내 URL, 링크 준비 중 상태를 구분해 CTA를 표시.
 - Trips:
   - 일정 목록, 생성, 상세, 삭제.
   - `draft -> confirmed` 상태 저장.
@@ -119,6 +120,6 @@ Travel Hunter는 국내 여행 정책 탐색, 정책 저장/공유, 일정 생�
 
 ## 다음 작업 방향
 
-1. 현재 명세 문서 최신화 변경분을 커밋하고 원격에 push한다.
-2. 기능 개발 흐름을 계속할 경우 `정책 신청 URL 품질 점검` 또는 `공지사항/FAQ 실제 콘텐츠 보강`을 진행한다.
+1. 정책 신청 URL 품질 점검 변경분을 검증하고 커밋한다.
+2. 기능 개발 흐름을 계속할 경우 `공지사항/FAQ 실제 콘텐츠 보강` 또는 `홈 추천 목적지 ranking 고도화`를 진행한다.
 3. 운영 검증 흐름으로 전환할 경우 `Cloudflare Tunnel actual env full-up`, `SMTP staging smoke`, `OAuth provider smoke` 순서로 진행한다.

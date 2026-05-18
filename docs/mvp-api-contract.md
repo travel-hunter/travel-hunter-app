@@ -484,10 +484,10 @@ Policy shape:
 
 Link semantics:
 
-- `officialUrl`: 怨듭떇 ?덈궡/?곸꽭 ?섏씠吏.
-- `applyUrl`: ?ㅼ젣 ?좎껌/?묒닔/deep link.
-- ?뺥솗???좎껌 留곹겕媛 ?뺤씤?섏? ?딆쑝硫?`applyUrl=null`.
-- ?꾨줎??CTA??`applyUrl` -> `officialUrl` -> 以鍮??덈궡 ?쒖꽌濡?泥섎━?쒕떎.
+- `applyUrl`: 실제 신청/접수/deep link. 확인된 직접 신청 링크가 아니면 `null`로 둔다.
+- `officialUrl`: 공식 안내/상세 페이지. 직접 접수 링크가 아니므로 frontend에서는 `공식 안내 확인` CTA로 표시한다.
+- Frontend CTA는 `applyUrl`이 있으면 `신청하러 가기`, `applyUrl` 없이 `officialUrl`만 있으면 `공식 안내 확인`, 둘 다 없으면 `신청 링크 준비 중`으로 처리한다.
+- 정책 JSON 검증은 `officialUrl`/`applyUrl`이 `null` 또는 `http/https` URL인지 확인하고, localhost/placeholder URL은 거부한다.
 
 ### `GET /api/policies/{policySlug}`
 

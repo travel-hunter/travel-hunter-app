@@ -94,6 +94,21 @@ function getPolicyPeriodLabel(policy: Policy) {
   return `2026.05.01 ~ ${policy.deadline.replace(/^~/, "")}`;
 }
 
+type PolicyApplicationCta =
+  | { kind: "apply"; label: string; url: string }
+  | { kind: "official"; label: string; url: string }
+  | { kind: "unavailable"; label: string; disabledNotice: string };
+
+function getPolicyApplicationCta(policy: Policy): PolicyApplicationCta {
+  if (policy.applyUrl) return { kind: "apply", label: "신청하러 가기", url: policy.applyUrl };
+  if (policy.officialUrl) return { kind: "official", label: "공식 안내 확인", url: policy.officialUrl };
+  return {
+    kind: "unavailable",
+    label: "신청 링크 준비 중",
+    disabledNotice: "공식 신청 연결은 준비 중입니다.",
+  };
+}
+
 export function PolicyListPage() {
   const [selectedRegion, setSelectedRegion] = useState<string>(allFilter);
   const [selectedCategory, setSelectedCategory] = useState<(typeof categoryFilters)[number]>(allFilter);
@@ -383,7 +398,7 @@ export function PolicyDetailPage() {
     );
   }
 
-  const applicationUrl = policy.applyUrl ?? policy.officialUrl ?? undefined;
+  const applicationCta = getPolicyApplicationCta(policy);
   const visual = getPolicyVisual(policy);
   const isPolicySaved = savedSlugs.has(policy.slug);
   const savePrototypePolicy = async () => {
@@ -495,12 +510,14 @@ export function PolicyDetailPage() {
         <Button variant="secondary" onClick={addToTrip}>
           {addedPolicy ? "일정에 담김" : "📅 내 일정에 담기"}
         </Button>
-        {applicationUrl ? (
-          <a className="btn primary" href={applicationUrl} rel="noreferrer" target="_blank">
-            신청하러 가기
+        {applicationCta.kind !== "unavailable" ? (
+          <a className={applicationCta.kind === "apply" ? "btn primary" : "btn secondary"} href={applicationCta.url} rel="noreferrer" target="_blank">
+            {applicationCta.label}
           </a>
         ) : (
-          <Button variant="secondary" disabled>신청 준비 중</Button>
+          <button className="btn secondary" disabled title={applicationCta.disabledNotice} type="button">
+            {applicationCta.label}
+          </button>
         )}
       </div>
 
