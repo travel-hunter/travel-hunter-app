@@ -1057,6 +1057,23 @@ describe("Travel Hunter app", () => {
     }
   });
 
+  it("shows a lightweight empty state when my page has no favorite policies", async () => {
+    await login();
+    const listSavedPoliciesSpy = vi.spyOn(appDataApi, "listSavedPolicies").mockResolvedValue([]);
+
+    try {
+      cleanup();
+      renderRoute("/mypage");
+
+      await waitFor(() => expect(screen.getByText("아직 즐겨찾기한 정책이 없어요")).toBeInTheDocument());
+      expect(screen.getByText("관심 있는 혜택의 하트를 눌러두면 여기에서 다시 확인할 수 있어요.")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "정책 보러가기" })).toHaveAttribute("href", "/policies");
+      expect(document.querySelector('a[href="/policies/local-vacation"]')).toBeFalsy();
+    } finally {
+      listSavedPoliciesSpy.mockRestore();
+    }
+  });
+
   it("keeps notification controls inside the settings sheet on my page", async () => {
     await login();
     cleanup();

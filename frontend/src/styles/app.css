@@ -4902,6 +4902,32 @@
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
+.prototype-favorite-empty .empty-state.compact {
+  min-height: 150px;
+  border: 0;
+  background: transparent;
+  padding: 22px 18px;
+}
+
+.prototype-favorite-empty .empty-state h1 {
+  color: #0b1024;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.prototype-favorite-empty .empty-state p {
+  max-width: 280px;
+  color: #8c8ca1;
+  font-size: 12px;
+}
+
+.prototype-favorite-empty .state-actions .btn {
+  min-height: 34px;
+  padding: 0 16px;
+  border-color: #ffb8b6;
+  color: #e84845;
+}
+
 .prototype-favorite-list {
   display: grid;
   gap: 8px;

@@ -298,11 +298,11 @@ export function MyPage() {
               <EmptyState
                 compact
                 eyebrow="즐겨찾기 정책"
-                title="저장한 정책이 없어요"
-                body="정책 상세에서 저장을 누르면 여기에 모아볼 수 있어요."
+                title="아직 즐겨찾기한 정책이 없어요"
+                body="관심 있는 혜택의 하트를 눌러두면 여기에서 다시 확인할 수 있어요."
                 action={
                   <Link className="btn line" to="/policies">
-                    정책 찾기
+                    정책 보러가기
                   </Link>
                 }
               />
