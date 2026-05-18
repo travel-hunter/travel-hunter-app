@@ -22,7 +22,6 @@
 
 ## 운영/배포 문서
 
-- `release-candidate-handoff.md`: MVP RC 범위, 실행 모드, 테스트 계정, 검증 결과.
 - `deployment-tunnel.md`: NAT 제한 환경 Cloudflare Tunnel staging runbook.
 - `deployment-vps.md`: public VPS 직접 노출 staging runbook.
 - `vps-staging-inputs.md`: VPS staging 입력값과 secret 처리 기준.
@@ -42,6 +41,7 @@
 ## 디자인/구조 보조 문서
 
 - `project-structure-audit.md`: 폴더/파일 구조 점검과 정리 후보.
+- `claude-design-handoff.md`: Claude.ai/design frontend design handoff, allowed visual changes, protected behavior, and verification checklist.
 - `design-system-map.md`: Wanted Design System과 코드 토큰/컴포넌트 매핑.
 - `figma-import-checklist.md`: Wanted `.fig` import와 component 확인 결과.
 - `figma-component-values.md`: Figma component 수치 원본.

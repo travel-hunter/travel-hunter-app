@@ -3,29 +3,28 @@
 ## 기준
 
 - 기준일: 2026-05-18
-- 기준 커밋: `239f09d fix: disable apply button when no application url`
+- 기준 커밋: `3f3924a fix: clarify policy application cta links`
 - 브랜치: `feat/prototype-to-react`
-- 원격 상태: `origin/feat/prototype-to-react` 대비 `ahead 1`
-- worktree: tracked 변경 없음
+- 원격 상태: `origin/feat/prototype-to-react` 대비 ahead 상태
+- worktree: 현재 변경분은 FAQ/약관 콘텐츠 보강과 명세 최신화이며 아직 커밋 전이다.
 
-## 완료된 최근 작업
+## 최근 완료
 
-- `/mypage` 빈 즐겨찾기 EmptyState 개선.
-- `/mypage` FAQ/이용약관/개인정보처리방침 sheet 추가.
-- 정책 상세 하트 저장 상태를 정책별 `savedSlugs` 기준으로 동기화.
-- `/mypage` 신청 정책 카운트를 `GET /api/me/applied-policies`로 연결.
-- `/home` 인기 국내 여행지를 정책 데이터 기반으로 동적 생성.
-- 정책 상세 CTA가 직접 신청 링크, 공식 안내 링크, 링크 준비 중 상태를 구분.
-- 정책 JSON URL 검증이 localhost/placeholder/잘못된 URL을 차단.
-- Docker frontend/backend/db rebuild 및 로컬 접속 확인.
+- 정책 상세 CTA가 `신청하러 가기`, `공식 안내 확인`, `신청 링크 준비 중`으로 분리됐다.
+- 정책 JSON URL validation이 `localhost`, `127.0.0.1`, `example.*`, 빈 문자열, 잘못된 scheme을 잡도록 강화됐다.
+- `/home` 인기 국내 여행지 rail이 정책 데이터 기반으로 생성되고 가짜 별점 문구를 제거했다.
+- `/mypage` 신청 정책 카운트가 `GET /api/me/applied-policies`에 연결됐다.
+- `/mypage`와 정책 목록/상세의 즐겨찾기 상태가 `SessionProvider.savedSlugs` 기준으로 동기화됐다.
+- 미사용 untracked 후보였던 `TripCreateModal.tsx`, `TripItinerary.tsx`는 현재 route/import와 연결되지 않는 임시 파일로 판단해 정리했다.
+- `/mypage` 공지사항/FAQ, 이용약관, 개인정보처리방침 sheet 콘텐츠를 실제 서비스 안내 수준으로 보강했다.
 
 ## 다음 우선순위
 
 | 우선순위 | 작업 | 성공 기준 |
 |---:|---|---|
-| 1 | 정책 신청 URL 품질 점검 변경분 검증 및 커밋 | CTA 분기 테스트, 정책 JSON validation, frontend/backend 검증이 통과한다. |
-| 2 | 공지사항/FAQ 실제 콘텐츠 보강 | 마이페이지 sheet의 임시 안내를 실제 서비스 안내 문구로 정리한다. |
-| 3 | 홈 추천 목적지 ranking 고도화 | 정책 기반 목적지 추천의 점수 기준과 fallback 설명이 명확해진다. |
+| 1 | MyPage FAQ/약관 콘텐츠 변경분 검증 및 커밋 | 정보 sheet 콘텐츠, 명세 문서, 테스트 변경분이 검증되고 기준점 커밋으로 고정된다. |
+| 2 | 홈 추천 목적지 ranking 고도화 | 정책 기반 목적지 추천에 마감 임박, 혜택 금액, 사용자 프로필 지역 가중치 같은 기준을 명확히 적용한다. |
+| 3 | 정책 신청 URL 데이터 품질 보강 | 직접 신청 URL이 확인된 정책만 `applyUrl`에 넣고, 안내 링크는 `officialUrl`로 유지한다. |
 | 4 | Cloudflare Tunnel actual env full-up | 실제 `deploy/.env.tunnel` 값으로 migration, seed, compose up, `/api/health` smoke가 통과한다. |
 | 5 | SMTP password reset staging smoke | 실제 SMTP provider와 HTTPS staging URL로 reset email 수신, token confirm, 새 비밀번호 로그인이 통과한다. |
 | 6 | Kakao/Google OAuth provider smoke | provider console redirect URI와 runtime env를 맞춘 뒤 실제 social login callback과 session 복구가 통과한다. |
@@ -33,9 +32,9 @@
 
 ## 기능 개발 후보
 
-- 공지사항/FAQ/이용약관/개인정보처리방침 콘텐츠 고도화.
+- 공지사항/FAQ/약관/개인정보처리방침 콘텐츠 고도화.
 - 홈 추천 목적지 ranking 기준 고도화.
-- 신청 정책 상태 모델 확장.
+- 정책 신청 상태 모델 확장.
 - 전화번호 OTP 요청/확인 API와 UI.
 - PWA service worker 1차 적용 여부 결정.
 
@@ -75,8 +74,7 @@ git status --short --branch
 
 ## Guardrails
 
-- Runtime mock mode는 다시 추가하지 않는다.
+- Runtime mock mode를 다시 추가하지 않는다.
 - 실제 secret/env 값은 repo에 기록하지 않는다.
 - API DTO는 `camelCase`, DB column은 `snake_case`를 유지한다.
-- Frontend는 backend boundary를 `AppDataApi`로 유지한다.
-- Backend route는 얇게 두고 business rule은 service/repository 계층에 둔다.
+- 현재 route URL과 DB-backed source of truth를 유지한다.

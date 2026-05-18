@@ -84,6 +84,14 @@ export const itinerary: Trip = {
   dates: "2026.06.15 - 06.17",
   people: ["테스트 사용자", "민서", "현우"],
   expectedSaving: "12만원",
+  linkedPolicies: [
+    {
+      slug: "local-vacation",
+      title: "지역사랑 휴가지원",
+      amount: "최대 30만원",
+      region: "전국",
+    },
+  ],
   currentUserRole: "owner",
   days: {
     1: [

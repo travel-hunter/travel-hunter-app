@@ -13,6 +13,7 @@ type SessionContextValue = {
   currentUser: User | null;
   profile: Profile;
   addedPolicy: boolean;
+  addedPolicySlugs: Set<string>;
   likedPolicy: boolean;
   invited: boolean;
   login: (request?: LoginRequest) => Promise<void>;
@@ -22,7 +23,8 @@ type SessionContextValue = {
   saveNickname: (nickname: string) => Promise<User>;
   updateProfile: (key: keyof Profile, value: string) => void;
   saveProfile: (profile?: Partial<Profile>) => Promise<Profile>;
-  addPolicy: () => void;
+  addPolicy: (slug?: string) => void;
+  isPolicyAdded: (slug: string) => boolean;
   togglePolicyLike: () => void;
   sendInvite: () => void;
   savedSlugs: Set<string>;
@@ -72,6 +74,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     budget: "1인 40만원 이하",
   });
   const [addedPolicy, setAddedPolicy] = useState(false);
+  const [addedPolicySlugs, setAddedPolicySlugs] = useState<Set<string>>(new Set());
   const [likedPolicy, setLikedPolicy] = useState(false);
   const [invited, setInvited] = useState(false);
   const [savedSlugs, setSavedSlugs] = useState<Set<string>>(new Set());
@@ -132,6 +135,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       currentUser,
       profile,
       addedPolicy,
+      addedPolicySlugs,
       likedPolicy,
       invited,
       login: async (request) => {
@@ -169,6 +173,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           clearAuth();
           setCurrentUser(null);
           setSavedSlugs(new Set());
+          setAddedPolicy(false);
+          setAddedPolicySlugs(new Set());
         }
       },
       updateProfile: (key, value) => {
@@ -187,7 +193,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
         return savedProfile;
       },
-      addPolicy: () => setAddedPolicy(true),
+      addPolicy: (slug?: string) => {
+        setAddedPolicy(true);
+        if (slug) {
+          setAddedPolicySlugs((prev) => new Set(prev).add(slug));
+        }
+      },
+      isPolicyAdded: (slug: string) => addedPolicySlugs.has(slug),
       togglePolicyLike: () => setLikedPolicy((current) => !current),
       sendInvite: () => setInvited(true),
       savedSlugs,
@@ -199,7 +211,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           return next;
         }),
     }),
-    [addedPolicy, currentUser, invited, likedPolicy, profile, savedSlugs],
+    [addedPolicy, addedPolicySlugs, currentUser, invited, likedPolicy, profile, savedSlugs],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

@@ -77,6 +77,14 @@ def test_trip_to_api_returns_numeric_string_id_and_contract_shape() -> None:
     assert payload["dates"] == "2026.06.15 - 06.17"
     assert payload["people"] == ["Test User", "Minseo"]
     assert payload["expectedSaving"] == "30만원"
+    assert payload["linkedPolicies"] == [
+        {
+            "slug": "local-vacation",
+            "title": "Vacation policy",
+            "amount": "30만원",
+            "region": "",
+        }
+    ]
     assert payload["days"] == {1: [{"id": "1", "time": "09:00", "label": "Sunrise peak", "meta": "Nature"}]}
     assert payload["currentUserRole"] == "owner"
 

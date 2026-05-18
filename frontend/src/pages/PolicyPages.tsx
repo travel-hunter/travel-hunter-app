@@ -1,7 +1,7 @@
 import { ChevronLeft, Heart, Share2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { appDataApi, type Policy, type PolicyCategory, type Trip } from "../api";
+import { appDataApi, type LinkedTripPolicy, type Policy, type PolicyCategory, type Trip } from "../api";
 import { useAsyncResource } from "../api/useAsyncResource";
 import { useSession } from "../app/session";
 import { PolicyListCard } from "../components/cards";
@@ -326,7 +326,7 @@ function PolicyDiscoveryBlocks({ policies, onSelectCategory }: { policies: Polic
 export function PolicyDetailPage() {
   const { policyId } = useParams();
   const navigate = useNavigate();
-  const { addedPolicy, addPolicy, savedSlugs, addSavedSlug, removeSavedSlug } = useSession();
+  const { addPolicy, isPolicyAdded, savedSlugs, addSavedSlug, removeSavedSlug } = useSession();
   const { data: policyData, error, isLoading } = useAsyncResource(() => appDataApi.getPolicy(policyId), [policyId]);
   const policy = policyData as Policy;
   const [notice, setNotice] = useState<string | null>(null);
@@ -361,7 +361,7 @@ export function PolicyDetailPage() {
       await appDataApi.addPolicyToTrip(trip.id, policy.slug);
       setSheetStatus("success");
       setNotice("선택한 일정에 혜택을 담았어요.");
-      addPolicy();
+      addPolicy(policy.slug);
     } catch (attachError) {
       setSheetError(policyTripErrorMessage(attachError));
       setSheetStatus("error");
@@ -375,7 +375,13 @@ export function PolicyDetailPage() {
 
   const viewSelectedTrip = () => {
     if (!selectedTrip) return;
-    navigate(`/trips/${selectedTrip.id}`);
+    const linkedPolicy: LinkedTripPolicy = {
+      slug: policy.slug,
+      title: policy.title,
+      amount: policy.amount,
+      region: policy.region,
+    };
+    navigate(`/trips/${selectedTrip.id}`, { state: { linkedPolicy } });
   };
 
   if (isLoading) {
@@ -401,6 +407,7 @@ export function PolicyDetailPage() {
   const applicationCta = getPolicyApplicationCta(policy);
   const visual = getPolicyVisual(policy);
   const isPolicySaved = savedSlugs.has(policy.slug);
+  const isPolicyInTrip = isPolicyAdded(policy.slug);
   const savePrototypePolicy = async () => {
     if (!policy || isSavingPolicy) return;
     setIsSavingPolicy(true);
@@ -508,7 +515,7 @@ export function PolicyDetailPage() {
 
       <div className="sticky-cta">
         <Button variant="secondary" onClick={addToTrip}>
-          {addedPolicy ? "일정에 담김" : "📅 내 일정에 담기"}
+          {isPolicyInTrip ? "일정에 담김" : "📅 내 일정에 담기"}
         </Button>
         {applicationCta.kind !== "unavailable" ? (
           <a className={applicationCta.kind === "apply" ? "btn primary" : "btn secondary"} href={applicationCta.url} rel="noreferrer" target="_blank">

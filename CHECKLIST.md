@@ -56,11 +56,13 @@
 - [x] MyPage applied policy count is backed by `GET /api/me/applied-policies` and distinct `trip_policies`.
 - [x] Home destination rail is derived from policy data instead of static fake-star destinations.
 - [x] Policy detail CTA distinguishes direct apply links, official information links, and unavailable links.
+- [x] Unused untracked trip page split candidates were reviewed and removed from the worktree.
+- [x] MyPage FAQ, terms, and privacy sheet content is expanded into service-ready guidance.
 
 ## 마지막 검증 결과
 
 - Date: 2026-05-18.
-- Backend pytest: 184 passed.
+- Backend pytest: 218 passed.
 - Alembic offline SQL: passed.
 - Local compose config: passed.
 - VPS compose config: passed.
@@ -68,7 +70,7 @@
 - `git diff --check`: passed.
 - Frontend typecheck/build: passed.
 - Frontend build output includes PWA manifest/icons and no sourcemap files.
-- Frontend DB-backed Vitest: 72 passed.
+- Frontend DB-backed Vitest: 73 passed.
 - Docker backend/frontend rebuild: passed.
 - Previous DB-backed Playwright e2e: 5 passed.
 - Local compose config/build: passed.
@@ -82,6 +84,15 @@
 - MyPage applied policy count(2026-05-18): `/mypage` `신청 정책` stat uses `GET /api/me/applied-policies`; backend pytest 184 passed, frontend Vitest 72 passed.
 - Home destination rail(2026-05-18): `/home` derives destination cards from policy data and uses benefit-count badges instead of fake star ratings.
 - Policy apply CTA(2026-05-18): `applyUrl` renders `신청하러 가기`, official-only policies render `공식 안내 확인`, and policies without links render `신청 링크 준비 중`.
+- Trip detail place card layout(2026-05-18): edit/delete actions align to the right side of compact place rows; frontend build passed.
+- Trip detail linked-policy banner(2026-05-18): empty linked-policy state routes to `/policies`; frontend App.test passed.
+- Policy detail trip CTA scope(2026-05-18): `일정에 담김` state is tracked per policy slug; frontend App.test and build passed.
+- Trip API linked policies(2026-05-18): Trip responses include `linkedPolicies` from `trip_policies`; trip detail banner renders the attached policy; backend trip tests, frontend App.test, and frontend build passed.
+- Trip detail stale-response guard(2026-05-18): trip detail tolerates missing `linkedPolicies` from stale backend responses; frontend App.test and build passed.
+- Policy-to-trip detail handoff(2026-05-18): policy detail passes the just-attached policy summary into the trip detail route so stale trip responses do not show a false empty linked-policy banner; frontend typecheck, App.test, and build passed.
+- Docker rebuild/restart(2026-05-18): backend/frontend images rebuilt with Compose, containers recreated, backend health is `ok`, Alembic `upgrade head` passed, and `/api/trips/48` now returns `linkedPolicies`.
+- Multiple saved trips display(2026-05-18): trip list and policy trip picker render multiple saved trips with scroll/padding guard; frontend typecheck, App.test, build, Docker frontend rebuild, and 360/390/430px Playwright checks passed.
+- Trip detail linked-policy list(2026-05-18): trip detail renders every linked policy and prioritizes the policy passed from the just-attached route state; frontend typecheck, App.test, build, Docker frontend rebuild, and `/policies/local-vacation` -> `/trips/48` Playwright flow passed.
 
 ## 다음 우선순위
 
@@ -95,7 +106,8 @@
 - [x] Implement password reset and social login OAuth entry points.
 - [x] Document password reset SMTP smoke runbook and local preflight.
 - [x] Implement draft autosave for trip creation, add-place, and edit-place forms.
-- [ ] Verify and commit the policy application URL quality changes.
+- [x] Verify and commit the policy application URL quality changes.
+- [ ] Verify and commit the MyPage FAQ/terms/privacy content polish.
 - [ ] Verify SMTP delivery in staging.
 - [ ] Verify OAuth provider credentials in staging.
 - [ ] Resume Cloudflare Tunnel staging deployment when actual env values are ready.

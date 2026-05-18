@@ -16,6 +16,13 @@ class ItineraryPlace(BaseModel):
     meta: str
 
 
+class LinkedTripPolicy(BaseModel):
+    slug: str
+    title: str
+    amount: str
+    region: str
+
+
 class CreateTripRequest(BaseModel):
     title: str | None = Field(default=None, max_length=100)
     region: str | None = None
@@ -46,6 +53,7 @@ class Trip(BaseModel):
     dates: str
     people: list[str]
     expectedSaving: str
+    linkedPolicies: list[LinkedTripPolicy]
     days: dict[int, list[ItineraryPlace]]
     currentUserRole: TripRole
 

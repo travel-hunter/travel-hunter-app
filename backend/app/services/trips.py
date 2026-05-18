@@ -81,6 +81,25 @@ def _policy_saving(trip: Trip) -> int:
     return total
 
 
+def _linked_policies(trip: Trip) -> list[dict[str, str]]:
+    linked: list[dict[str, str]] = []
+    for link in sorted(trip.policies, key=lambda item: item.id or 0):
+        policy = link.policy
+        if policy is None:
+            continue
+        slug = policy.slug or str(policy.id)
+        amount = policy.benefit_detail or _format_saving(policy.benefit_amount or 0)
+        linked.append(
+            {
+                "slug": slug,
+                "title": policy.title,
+                "amount": amount,
+                "region": policy.region or "",
+            }
+        )
+    return linked
+
+
 def _trip_role_for_user(trip: Trip, user: User | None) -> str:
     if user is None or trip.owner_id == user.id:
         return "owner"
@@ -135,6 +154,7 @@ def trip_to_api(trip: Trip, user: User | None = None) -> dict[str, object]:
         "dates": _format_dates(trip.start_date, trip.end_date),
         "people": people,
         "expectedSaving": _format_saving(_policy_saving(trip)),
+        "linkedPolicies": _linked_policies(trip),
         "days": days,
         "currentUserRole": _trip_role_for_user(trip, user),
     }

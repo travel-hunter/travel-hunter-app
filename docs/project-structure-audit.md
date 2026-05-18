@@ -2,7 +2,7 @@
 
 ## 기준
 
-- 점검일: 2026-05-11
+- 점검일: 2026-05-18
 - 기준 브랜치: `feat/prototype-to-react`
 - 현재 route/page 구조는 유지한다.
 - 이번 문서는 분석 결과이며, 파일 이동/삭제/리팩터링 실행 계획이 아니다.
@@ -52,9 +52,9 @@ frontend/src/test        test helpers
 
 | 우선순위 | 항목 | 이유 | 권장 조치 |
 |---:|---|---|---|
-| P1 | `frontend/src/pages/ItineraryPages.tsx` 약 706 lines | 일정 생성, 상세, 장소 CRUD, AI 결과, 초대 화면이 한 파일에 모여 있다. | route 구조는 유지하되, sheet/form/helper component를 같은 feature 내부 파일로 분리 검토 |
-| P1 | `frontend/src/pages/MyPage.tsx` 약 416 lines | 프로필 편집, 연락처, 알림, 저장 정책이 한 파일에 있다. | mypage 전용 local components를 분리 검토 |
-| P2 | `frontend/src/pages/PolicyPages.tsx` 약 404 lines | 목록, 상세, 공유, 일정 담기 sheet가 함께 있다. | policy picker sheet와 detail actions 분리 검토 |
+| P1 | `frontend/src/pages/ItineraryPages.tsx` 약 1,865 lines | 일정 생성, 상세, 장소 CRUD, AI 결과, 초대 화면이 한 파일에 모여 있다. | route 구조는 유지하되, sheet/form/helper component를 같은 feature 내부 파일로 분리 검토 |
+| P1 | `frontend/src/pages/MyPage.tsx` 약 752 lines | 프로필 편집, 연락처, 알림, 저장 정책이 한 파일에 있다. | mypage 전용 local components를 분리 검토 |
+| P2 | `frontend/src/pages/PolicyPages.tsx` 약 587 lines | 목록, 상세, 공유, 일정 담기 sheet가 함께 있다. | policy picker sheet와 detail actions 분리 검토 |
 | P2 | `frontend/src/App.test.tsx` 약 749 lines | 모든 frontend smoke가 단일 테스트 파일에 누적되어 있다. | auth/policy/trip/mypage/invite 단위 테스트 파일 분리 검토 |
 | P2 | `frontend/src/data/seedData.ts` | mock mode 제거 후에도 static 표시 데이터와 seed성 이름이 섞여 보일 수 있다. | `displayData.ts` 같은 명칭으로 역할 정리 검토 |
 
@@ -85,10 +85,10 @@ FastAPI route, schema, service, repository, model이 분리되어 있어 기본 
 
 | 우선순위 | 항목 | 이유 | 권장 조치 |
 |---:|---|---|---|
-| P1 | `backend/app/services/trips.py` 약 403 lines | trip resolver, DTO mapping, place CRUD, invite/policy logic이 밀집되어 있다. | resolver/mapper/place edit helper 분리 검토 |
-| P1 | `backend/app/models/tables.py` 약 334 lines | 모든 table이 한 파일에 있어 테이블 증가 시 탐색 비용이 커진다. | 당장은 유지, 15개 이상 테이블이 더 늘면 domain별 model 파일 분리 |
-| P2 | `backend/app/db/seed.py` 약 217 lines | seed 데이터와 upsert 절차가 커지고 있다. | policy/trip/user seed block 분리 검토 |
-| P2 | `backend/app/api/routes/trips.py` 약 204 lines | trip 하위 endpoint가 많다. | place/invite/policy 하위 route 파일 분리 검토 |
+| P1 | `backend/app/services/trips.py` 약 468 lines | trip resolver, DTO mapping, place CRUD, invite/policy logic이 밀집되어 있다. | resolver/mapper/place edit helper 분리 검토 |
+| P1 | `backend/app/models/tables.py` 약 335 lines | 모든 table이 한 파일에 있어 테이블 증가 시 탐색 비용이 커진다. | 당장은 유지, 15개 이상 테이블이 더 늘면 domain별 model 파일 분리 |
+| P2 | `backend/app/db/seed.py` 약 218 lines | seed 데이터와 upsert 절차가 커지고 있다. | policy/trip/user seed block 분리 검토 |
+| P2 | `backend/app/api/routes/trips.py` 약 242 lines | trip 하위 endpoint가 많다. | place/invite/policy 하위 route 파일 분리 검토 |
 | P2 | notification repository/service | 기능은 잘 분리됐지만 파일 수가 늘었다. | `services/notifications/` package 전환은 후속으로만 검토 |
 
 ## Docs and Deploy

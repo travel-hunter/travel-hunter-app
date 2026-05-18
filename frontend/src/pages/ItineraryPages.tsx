@@ -1,15 +1,15 @@
 import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, type DragEndEvent, type DragStartEvent, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Bot, ChevronLeft, GripVertical, Send, Share2 } from "lucide-react";
+import { Bot, Car, ChevronLeft, GripVertical, Info, List, Map as MapIcon, Send, X } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { appDataApi, type InviteRole, type InviteState, type ItineraryPlace, type Recommendation, type Trip, type TripPlaceRequest } from "../api";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { appDataApi, type InviteRole, type InviteState, type ItineraryPlace, type LinkedTripPolicy, type Recommendation, type Trip, type TripPlaceRequest } from "../api";
 import { useAsyncResource } from "../api/useAsyncResource";
 import { useSession } from "../app/session";
 import { ItineraryCard } from "../components/cards";
 import { Button, ConfirmDialog, EmptyState, ErrorState, IconButton, LinkButton, LoadingState, PageHead, Tag, Toast, TopBar } from "../components/ui";
-import { tripCreateRegions, tripRegionEmoji } from "../data/displayConfig";
+import { getTripRegionEmojiFromTitle, tripCreateRegions, tripRegionEmoji } from "../data/displayConfig";
 import { addDaysToDateInput, getDefaultTripDateRange } from "../utils/dateDefaults";
 import { clearDraft, createDraftKey, readDraft, saveDraft } from "../utils/draftStorage";
 import { shareLinkWithFallback } from "../utils/share";
@@ -33,12 +33,17 @@ type TripCreateDraft = {
   step?: number;
   policySlug: string | null;
 };
+
+type TripDetailLocationState = {
+  linkedPolicy?: LinkedTripPolicy | null;
+};
 type TripPlaceAddDraft = TripPlaceRequest & {
   dayNumber: number;
 };
 type TripPlaceEditDraft = TripPlaceRequest & {
   placeId: string;
 };
+type TripDetailViewMode = "list" | "map";
 type DraftRestoreNoticeProps = {
   message: string;
   onDiscard: () => void;
@@ -65,11 +70,73 @@ function formatStayLabel(dayCount: number): string {
   return `${Math.max(dayCount - 1, 0)}박 ${dayCount}일`;
 }
 
+function hasPolicySaving(expectedSaving: string | undefined): boolean {
+  const value = expectedSaving?.trim();
+  return Boolean(value && !value.startsWith("0"));
+}
+
+function linkedTripPoliciesForDisplay(apiPolicies: LinkedTripPolicy[] | undefined, routePolicy: LinkedTripPolicy | null): LinkedTripPolicy[] {
+  const seen = new Set<string>();
+  const policies: LinkedTripPolicy[] = [];
+  const append = (policy: LinkedTripPolicy | null | undefined) => {
+    if (!policy || seen.has(policy.slug)) return;
+    seen.add(policy.slug);
+    policies.push(policy);
+  };
+
+  append(routePolicy);
+  for (const policy of apiPolicies ?? []) append(policy);
+  return policies;
+}
+
 function formatDayDateLabel(dates: string, dayNumber: number): string {
   const match = /^(\d{4})\.(\d{2})\.(\d{2})/.exec(dates);
   if (!match) return `Day ${dayNumber}`;
   const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]) + dayNumber - 1);
   return `${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function formatTripDday(dates: string): string {
+  const match = /^(\d{4})\.(\d{2})\.(\d{2})/.exec(dates);
+  if (!match) return "D-day";
+  const start = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  const today = new Date();
+  const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const diffDays = Math.ceil((start.getTime() - todayDate.getTime()) / 86_400_000);
+  if (diffDays > 0) return `D-${diffDays}`;
+  if (diffDays === 0) return "D-day";
+  return `D+${Math.abs(diffDays)}`;
+}
+
+function parseTripDetailViewMode(value: string | null): TripDetailViewMode {
+  return value === "map" ? "map" : "list";
+}
+
+function getPlaceEmoji(place: ItineraryPlace): string {
+  const text = `${place.label} ${place.meta}`.toLowerCase();
+  if (/카페|커피|tea|cafe|오설록/.test(text)) return "☕";
+  if (/식당|맛집|해녀|국수|흑돼지|밥|restaurant|food|meal/.test(text)) return "🍽️";
+  if (/바다|해변|해수욕|beach|sea|월정|섭지/.test(text)) return "🌊";
+  if (/산|오름|일출|숲|공원|nature|park|peak/.test(text)) return "⛰️";
+  if (/공항|역|터미널|airport|station/.test(text)) return "🧳";
+  return "📍";
+}
+
+function getPlaceMapPoint(index: number, dayNumber: number): { x: number; y: number } {
+  const basePoints = [
+    { x: 78, y: 30 },
+    { x: 72, y: 52 },
+    { x: 84, y: 62 },
+    { x: 52, y: 70 },
+    { x: 33, y: 56 },
+    { x: 25, y: 38 },
+  ];
+  const point = basePoints[index % basePoints.length];
+  const offset = Math.max(dayNumber - 1, 0) * 3;
+  return {
+    x: Math.min(90, Math.max(10, point.x - offset)),
+    y: Math.min(86, Math.max(18, point.y + (offset % 7))),
+  };
 }
 
 function recommendationDayNumber(meta: string): number {
@@ -442,7 +509,7 @@ export function ItineraryCreatePage() {
       });
       if (policySlug) {
         await appDataApi.addPolicyToTrip(trip.id, policySlug);
-        addPolicy();
+        addPolicy(policySlug);
       }
       clearDraft(draftKey);
       navigate(`/trips/${trip.id}`);
@@ -643,7 +710,7 @@ function LegacyItineraryCreatePage() {
       });
       if (policySlug) {
         await appDataApi.addPolicyToTrip(trip.id, policySlug);
-        addPolicy();
+        addPolicy(policySlug);
       }
       clearDraft(draftKey);
       navigate(`/trips/${trip.id}`);
@@ -780,8 +847,11 @@ function TripNameDialog({
 export function ItineraryDetailPage() {
   const { tripId } = useParams();
   const navigate = useNavigate();
-  const { addedPolicy } = useSession();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeDay, setActiveDay] = useState(1);
+  const [viewMode, setViewMode] = useState<TripDetailViewMode>(() => parseTripDetailViewMode(searchParams.get("view")));
+  const [selectedMapPlaceId, setSelectedMapPlaceId] = useState<string | null>(() => searchParams.get("place"));
   const { data: loadedTrip, error, isLoading } = useAsyncResource(() => appDataApi.getTrip(tripId), [tripId]);
   const [trip, setTrip] = useState<Trip | null>(null);
   const [placeEditor, setPlaceEditor] = useState<{ mode: "add"; dayNumber: number } | { mode: "edit"; dayNumber: number; place: ItineraryPlace } | null>(null);
@@ -802,6 +872,12 @@ export function ItineraryDetailPage() {
   const stayLabel = formatStayLabel(dayNumbers.length || 3);
   const canEditTrip = trip?.currentUserRole === "owner" || trip?.currentUserRole === "editor";
   const activeDraggingPlaceLabel = draggingPlaceLabel(trip, draggingPlaceId);
+  const tripPeople = trip?.people.length ? trip.people : ["지영", "민수", "수현"];
+  const tripRegionEmojiLabel = trip ? getTripRegionEmojiFromTitle(trip.title) : "🧳";
+  const tripDdayLabel = trip ? formatTripDday(trip.dates) : "D-day";
+  const routeLinkedPolicy = (location.state as TripDetailLocationState | null)?.linkedPolicy ?? null;
+  const linkedPolicies = linkedTripPoliciesForDisplay(trip?.linkedPolicies, routeLinkedPolicy);
+  const hasLinkedPolicyFallback = linkedPolicies.length === 0 && hasPolicySaving(trip?.expectedSaving);
   const dragSensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 8 } }),
@@ -813,14 +889,55 @@ export function ItineraryDetailPage() {
   }, [loadedTrip]);
 
   useEffect(() => {
-    if (dayNumbers.length > 0) setActiveDay(dayNumbers[0]);
+    if (dayNumbers.length > 0) {
+      const requestedDay = Number(searchParams.get("day"));
+      setActiveDay(dayNumbers.includes(requestedDay) ? requestedDay : dayNumbers[0]);
+    }
   }, [trip?.id]);
+
+  useEffect(() => {
+    setViewMode(parseTripDetailViewMode(searchParams.get("view")));
+    setSelectedMapPlaceId(searchParams.get("place"));
+  }, [searchParams]);
 
   useEffect(() => {
     if (trip && tripId && trip.id !== tripId) {
       navigate(`/trips/${trip.id}`, { replace: true });
     }
   }, [navigate, trip, tripId]);
+
+  const updateDetailSearchParams = (nextValues: { day?: number; view?: TripDetailViewMode; place?: string | null }) => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (nextValues.day) next.set("day", String(nextValues.day));
+      if (nextValues.view) {
+        next.set("view", nextValues.view);
+        if (nextValues.view === "list") next.delete("place");
+      }
+      if ("place" in nextValues) {
+        if (nextValues.place) next.set("place", nextValues.place);
+        else next.delete("place");
+      }
+      return next;
+    }, { replace: true });
+  };
+
+  const selectTripDay = (day: number) => {
+    setActiveDay(day);
+    setSelectedMapPlaceId(null);
+    updateDetailSearchParams({ day, place: null });
+  };
+
+  const selectViewMode = (nextViewMode: TripDetailViewMode) => {
+    setViewMode(nextViewMode);
+    if (nextViewMode === "list") setSelectedMapPlaceId(null);
+    updateDetailSearchParams({ view: nextViewMode, place: nextViewMode === "list" ? null : selectedMapPlaceId });
+  };
+
+  const selectMapPlace = (placeId: string | null) => {
+    setSelectedMapPlaceId(placeId);
+    updateDetailSearchParams({ view: "map", day: visibleDay, place: placeId });
+  };
 
   const openAddPlace = () => {
     if (!canEditTrip) {
@@ -910,6 +1027,7 @@ export function ItineraryDetailPage() {
       const nextTrip = await appDataApi.moveTripPlace(trip.id, place.id, { dayNumber, position });
       setTrip(nextTrip);
       setActiveDay(dayNumber);
+      updateDetailSearchParams({ day: dayNumber, place: null });
       setNotice("장소 순서를 변경했어요.");
       window.setTimeout(() => setNotice(null), 1800);
     } catch {
@@ -1035,68 +1153,84 @@ export function ItineraryDetailPage() {
       <TopBar
         title={trip.title}
         left={
-          <IconButton label="홈으로" to="/home">
+          <IconButton label="일정 목록" to="/trips">
             <ChevronLeft size={20} />
-          </IconButton>
-        }
-        right={
-          <IconButton label="친구 초대" to={`/friend-invite?tripId=${encodeURIComponent(trip.id)}`}>
-            <Share2 size={18} />
           </IconButton>
         }
       />
       <div className="prototype-trip-detail-hero">
         <div>
-          <span>Travel Hunter itinerary</span>
+          <span className="prototype-detail-dday-chip">{tripDdayLabel}</span>
           <h1>{trip.title}</h1>
-          <p>{trip.dates} · {stayLabel}</p>
+          <p>📅 {trip.dates}</p>
+        </div>
+        <div className="prototype-trip-hero-icon" aria-hidden="true">
+          {tripRegionEmojiLabel}
         </div>
       </div>
       <div className="trip-summary">
-        <div className="row meta">{trip.dates} · {stayLabel}</div>
         <div className="between">
           <div className="row">
             <div className="avatar-stack">
-              {trip.people.map((name) => (
+              {tripPeople.slice(0, 3).map((name) => (
                 <span className="avatar-mini" key={name}>
                   {name[0]}
                 </span>
               ))}
             </div>
-            <span className="meta">{trip.people.length}명 참여 중</span>
+            <span className="meta">{tripPeople.length}명 참여 중</span>
           </div>
-          <Link className="btn sm secondary" to={`/friend-invite?tripId=${encodeURIComponent(trip.id)}`}>
-            초대
+          <Link className="prototype-invite-pill" to={`/friend-invite?tripId=${encodeURIComponent(trip.id)}`}>
+            + 친구 초대
           </Link>
         </div>
       </div>
-      <Link className="benefit-banner" to="/policies/local-vacation">
-        <Tag tone="warning">정책 매칭</Tag>
-        <strong>{addedPolicy ? "지역사랑 휴가지원이 연결되었어요" : "받을 수 있는 혜택 2건"}</strong>
-        <div className="meta">최대 30만원 절감 가능 · 정책 상세 보기</div>
-      </Link>
-      <section className="trip-benefit-grid" aria-label="이 일정에서 챙길 혜택">
-        <article>
-          <span>대표 지원</span>
-          <strong>지역사랑 휴가지원</strong>
-          <p>여행 전 신청과 여행 후 인증을 챙겨야 해요.</p>
-        </article>
-        <article>
-          <span>교통</span>
-          <strong>이동수단 할인 후보</strong>
-          <p>기차·항공 이동이 정해지면 함께 확인해요.</p>
-        </article>
-        <article>
-          <span>지역 할인</span>
-          <strong>방문지 주변 혜택</strong>
-          <p>장소를 추가하면 지역 할인 후보를 더 잘 볼 수 있어요.</p>
-        </article>
+      <section className="prototype-linked-policy-section" aria-label="연결된 정책">
+        <h2>🎯 연결된 정책</h2>
+        {linkedPolicies.length > 0 ? (
+          linkedPolicies.map((policy) => (
+            <Link className="benefit-banner" key={policy.slug} to={`/policies/${policy.slug}`}>
+              <span className="benefit-banner-icon" aria-hidden="true">💴</span>
+              <div>
+                <strong>{policy.title}</strong>
+                <div className="meta">{`${policy.amount || "혜택 확인"} · ${policy.region || "지역 확인"}`}</div>
+              </div>
+              <span className="benefit-banner-arrow" aria-hidden="true">›</span>
+            </Link>
+          ))
+        ) : (
+          <Link className="benefit-banner" to="/policies">
+            <span className="benefit-banner-icon" aria-hidden="true">💴</span>
+            <div>
+              <strong>{hasLinkedPolicyFallback ? "연결된 정책이 있어요" : "연결된 정책이 없어요"}</strong>
+              <div className="meta">
+                {hasLinkedPolicyFallback ? `${trip?.expectedSaving ?? "혜택 확인"} · 정책 목록에서 확인` : "정책 상세에서 일정을 연결할 수 있어요"}
+              </div>
+            </div>
+            <span className="benefit-banner-arrow" aria-hidden="true">›</span>
+          </Link>
+        )}
       </section>
-      <div className="map-large" aria-label="제주 일정 지도">
-        <div className="marker one" />
-        <div className="marker two" />
-        <div className="marker three" />
-      </div>
+      <section className="trip-benefit-grid" aria-label="이 일정에 어울리는 정책">
+        <h2>💡 이 일정에 어울리는 정책</h2>
+        <div className="prototype-matching-policy-rail">
+          <article>
+            <div className="matching-card-head">
+              <span>🚆</span>
+              <em>20% 할인</em>
+            </div>
+            <strong>KTX 청년 여행 할인</strong>
+          </article>
+          <article>
+            <div className="matching-card-head">
+              <span>🏨</span>
+              <em>1박 무료 (최대 10만원)</em>
+            </div>
+            <strong>가족 여행 숙박지원</strong>
+          </article>
+        </div>
+      </section>
+      <div className="prototype-trip-detail-divider" aria-hidden="true" />
       <DndContext
         sensors={dragSensors}
         collisionDetection={closestCenter}
@@ -1112,59 +1246,79 @@ export function ItineraryDetailPage() {
               day={day}
               isActive={visibleDay === day}
               key={day}
-              onSelect={setActiveDay}
+              onSelect={selectTripDay}
               placeLabel={activeDraggingPlaceLabel}
             />
           ))}
         </div>
-      {!canEditTrip && (
-        <div className="card">
-          <div className="card-body stack tight">
-            <strong>보기 권한으로 참여 중입니다</strong>
-            <p className="meta">일정과 정책은 확인할 수 있지만 장소 편집은 할 수 없어요.</p>
-          </div>
-        </div>
-      )}
-        {canEditTrip && dayPlaces.length > 0 && (
-          <div className={draggingPlaceId ? "dnd-affordance active" : "dnd-affordance"} role="status">
-            <GripVertical size={16} />
-            <span>{draggingPlaceId ? `${activeDraggingPlaceLabel} 이동 중` : "장소 카드의 이동 핸들로 순서를 조정할 수 있어요"}</span>
+
+        <ListMapToggle value={viewMode} onChange={selectViewMode} />
+
+        {!canEditTrip && (
+          <div className="card">
+            <div className="card-body stack tight">
+              <strong>보기 권한으로 참여 중입니다</strong>
+              <p className="meta">일정과 정책은 확인할 수 있지만 장소 편집은 할 수 없어요.</p>
+            </div>
           </div>
         )}
-        <div className={draggingPlaceId ? "timeline dnd-active" : "timeline"}>
-          {dayPlaces.length === 0 && (
-            <EmptyState
-              compact
-              eyebrow={`Day ${visibleDay}`}
-              title="아직 추가된 장소가 없어요"
-              body={canEditTrip ? "장소 추가 버튼으로 방문지를 일정에 저장해 보세요." : "아직 이 날짜에 등록된 장소가 없어요."}
-            />
-          )}
-          <SortableContext items={sortablePlaceIds} strategy={verticalListSortingStrategy}>
-            {dayPlaces.map((place) => (
-              <SortablePlaceItem
-                canEditTrip={canEditTrip}
-                currentDay={visibleDay}
-                dayNumbers={dayNumbers}
-                disabled={Boolean(movingPlaceId) || isSavingPlace}
-                isMoving={movingPlaceId === place.id}
-                key={place.id ?? `${place.time}-${place.label}`}
-                onDelete={requestDeletePlace}
-                onEdit={openEditPlace}
-                onMove={movePlaceTo}
-                place={place}
-                places={dayPlaces}
-                trip={trip}
-              />
-            ))}
-          </SortableContext>
-          <button className="dashed" type="button" onClick={openAddPlace} hidden={!canEditTrip}>
-            + 장소 추가
-          </button>
-          <Link className="btn secondary full" to={`/ai-results?tripId=${encodeURIComponent(trip.id)}`}>
-            AI 추천 일정 보기
-          </Link>
-        </div>
+
+        {viewMode === "list" ? (
+          <>
+            {false && canEditTrip && dayPlaces.length > 0 && (
+              <div className={draggingPlaceId ? "dnd-affordance active" : "dnd-affordance"} role="status">
+                <GripVertical size={16} />
+                <span>{draggingPlaceId ? `${activeDraggingPlaceLabel} 이동 중` : "장소 카드의 이동 핸들로 순서를 조정할 수 있어요"}</span>
+              </div>
+            )}
+            <div className={draggingPlaceId ? "timeline dnd-active" : "timeline"}>
+              {dayPlaces.length === 0 && (
+                <EmptyState
+                  compact
+                  eyebrow={`Day ${visibleDay}`}
+                  title="아직 추가된 장소가 없어요"
+                  body={canEditTrip ? "장소 추가 버튼으로 방문지를 일정에 저장해 보세요." : "아직 이 날짜에 등록된 장소가 없어요."}
+                />
+              )}
+              <SortableContext items={sortablePlaceIds} strategy={verticalListSortingStrategy}>
+                {dayPlaces.map((place, index) => (
+                  <SortablePlaceItem
+                    canEditTrip={canEditTrip}
+                    currentDay={visibleDay}
+                    dayNumbers={dayNumbers}
+                    disabled={Boolean(movingPlaceId) || isSavingPlace}
+                    isMoving={movingPlaceId === place.id}
+                    key={place.id ?? `${place.time}-${place.label}`}
+                    onDelete={requestDeletePlace}
+                    onEdit={openEditPlace}
+                    onMove={movePlaceTo}
+                    place={place}
+                    placeNumber={index + 1}
+                    places={dayPlaces}
+                    trip={trip}
+                  />
+                ))}
+              </SortableContext>
+              <button className="dashed" type="button" onClick={openAddPlace} hidden={!canEditTrip}>
+                + 장소 추가
+              </button>
+              <Link className="btn secondary full" to={`/ai-results?tripId=${encodeURIComponent(trip.id)}`}>
+                AI 추천 일정 보기
+              </Link>
+            </div>
+          </>
+        ) : (
+          <PrototypeTripMap
+            dayNumber={visibleDay}
+            onSelectPlace={selectMapPlace}
+            onShowPlaceDetail={() => {
+              setNotice("장소 상세 보기는 준비 중이에요.");
+              window.setTimeout(() => setNotice(null), 1800);
+            }}
+            places={dayPlaces}
+            selectedPlaceId={selectedMapPlaceId}
+          />
+        )}
       </DndContext>
       {placeError && !placeEditor && <Toast>{placeError}</Toast>}
       {moveError && <Toast>{moveError}</Toast>}
@@ -1192,6 +1346,146 @@ export function ItineraryDetailPage() {
         onCancel={cancelDeletePlace}
         onConfirm={confirmDeletePlace}
       />
+    </section>
+  );
+}
+
+function ListMapToggle({ onChange, value }: { onChange: (value: TripDetailViewMode) => void; value: TripDetailViewMode }) {
+  return (
+    <div className="list-map-toggle" role="tablist" aria-label="일정 표시 방식">
+      <button aria-selected={value === "list"} className={value === "list" ? "active" : ""} onClick={() => onChange("list")} role="tab" type="button">
+        <List size={14} />
+        리스트
+      </button>
+      <button aria-selected={value === "map"} className={value === "map" ? "active" : ""} onClick={() => onChange("map")} role="tab" type="button">
+        <MapIcon size={14} />
+        지도
+      </button>
+    </div>
+  );
+}
+
+function PrototypeTripMap({
+  dayNumber,
+  onSelectPlace,
+  onShowPlaceDetail,
+  places,
+  selectedPlaceId,
+}: {
+  dayNumber: number;
+  onSelectPlace: (placeId: string | null) => void;
+  onShowPlaceDetail: () => void;
+  places: ItineraryPlace[];
+  selectedPlaceId: string | null;
+}) {
+  const selectedPlace = places.find((place) => place.id === selectedPlaceId) ?? null;
+  const mapPlaces = places.map((place, index) => ({
+    place,
+    index,
+    point: getPlaceMapPoint(index, dayNumber),
+  }));
+  const routePoints = mapPlaces.map(({ point }) => `${point.x},${point.y}`).join(" ");
+
+  if (places.length === 0) {
+    return (
+      <div className="prototype-map-wrap">
+        <div className="prototype-map-empty">
+          <MapIcon size={28} />
+          <strong>Day {dayNumber} 지도에 표시할 장소가 없어요</strong>
+          <p>리스트 화면에서 장소를 추가하면 지도 핀이 함께 표시됩니다.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="prototype-map-wrap">
+      <div className="prototype-full-map" aria-label={`Day ${dayNumber} 지도`} onMouseDown={() => onSelectPlace(null)}>
+        <svg className="prototype-map-terrain" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M 8,22 Q 30,5 55,15 T 95,30 L 95,75 Q 70,90 40,82 Q 12,78 5,55 Z" fill="rgba(255,255,255,.2)" stroke="rgba(255,255,255,.45)" strokeWidth=".3" />
+          <path d="M 8,42 Q 35,46 55,42 T 95,55" fill="none" stroke="rgba(255,255,255,.55)" strokeWidth=".7" strokeDasharray="1.5,1" />
+          <path d="M 25,15 Q 30,40 35,60 T 50,90" fill="none" stroke="rgba(255,255,255,.45)" strokeWidth=".55" strokeDasharray="1,1" />
+          <circle cx="50" cy="50" r="3" fill="rgba(255,255,255,.5)" />
+          <text x="50" y="46" textAnchor="middle" fontSize="2.5" fill="rgba(255,255,255,.85)" fontWeight="700">
+            중심지
+          </text>
+          {mapPlaces.length > 1 && <polyline points={routePoints} fill="none" stroke="#ff5e5b" strokeWidth=".9" strokeDasharray="2.5,1.5" opacity=".85" />}
+        </svg>
+        <div className="prototype-map-controls" aria-label="지도 컨트롤">
+          <button aria-label="확대" type="button">＋</button>
+          <button aria-label="축소" type="button">−</button>
+          <button aria-label="전체 보기" type="button">🧭</button>
+        </div>
+        {mapPlaces.map(({ index, place, point }) => {
+          const selected = place.id === selectedPlaceId;
+          return (
+            <button
+              aria-label={`${index + 1}번 장소: ${place.label}`}
+              className={selected ? "prototype-map-pin selected" : "prototype-map-pin"}
+              key={place.id ?? `${place.label}-${index}`}
+              onMouseDown={(event) => event.stopPropagation()}
+              onClick={() => onSelectPlace(selected ? null : (place.id ?? null))}
+              style={{ left: `${point.x}%`, top: `${point.y}%` }}
+              type="button"
+            >
+              <span className="prototype-map-pin-dot">{index + 1}</span>
+              <span className="prototype-map-pin-label">{place.label}</span>
+            </button>
+          );
+        })}
+        {selectedPlace && (
+          <PlaceMapBottomSheet
+            onClose={() => onSelectPlace(null)}
+            onShowPlaceDetail={onShowPlaceDetail}
+            place={selectedPlace}
+          />
+        )}
+      </div>
+      <div className="prototype-map-caption">
+        <span>Day {dayNumber} · <strong>{places.length}곳</strong></span>
+        <span>핀을 탭하면 상세가 나타나요</span>
+      </div>
+    </div>
+  );
+}
+
+function PlaceMapBottomSheet({
+  onClose,
+  onShowPlaceDetail,
+  place,
+}: {
+  onClose: () => void;
+  onShowPlaceDetail: () => void;
+  place: ItineraryPlace;
+}) {
+  const kakaoSearchUrl = `https://map.kakao.com/link/search/${encodeURIComponent(place.label)}`;
+
+  return (
+    <section className="place-map-bottom-sheet" aria-label={`${place.label} 지도 상세`} role="dialog" onMouseDown={(event) => event.stopPropagation()}>
+      <div className="place-map-sheet-main">
+        <div className="place-map-sheet-icon" aria-hidden="true">{getPlaceEmoji(place)}</div>
+        <div>
+          <div className="place-map-sheet-tags">
+            {place.time && <span>{place.time}</span>}
+            <em>Day 장소</em>
+          </div>
+          <strong>{place.label}</strong>
+          <p>{place.meta || "상세 메모가 아직 없어요."}</p>
+        </div>
+        <button aria-label="지도 장소 상세 닫기" className="place-map-sheet-close" onClick={onClose} type="button">
+          <X size={14} />
+        </button>
+      </div>
+      <div className="place-map-sheet-actions">
+        <a href={kakaoSearchUrl} rel="noreferrer" target="_blank">
+          <Car size={14} />
+          길찾기
+        </a>
+        <button onClick={onShowPlaceDetail} type="button">
+          <Info size={14} />
+          상세 보기
+        </button>
+      </div>
     </section>
   );
 }
@@ -1254,6 +1548,7 @@ function SortablePlaceItem({
   onEdit,
   onMove,
   place,
+  placeNumber,
   places,
   trip,
 }: {
@@ -1266,6 +1561,7 @@ function SortablePlaceItem({
   onEdit: (place: ItineraryPlace) => void;
   onMove: (place: ItineraryPlace, dayNumber: number, position: number) => Promise<void>;
   place: ItineraryPlace;
+  placeNumber: number;
   places: ItineraryPlace[];
   trip: Trip;
 }) {
@@ -1309,7 +1605,9 @@ function SortablePlaceItem({
 
   return (
     <div className={className} data-place-id={place.id} ref={setNodeRef} style={style}>
-      <div className="time">{place.time}</div>
+      <div className="timeline-marker" aria-hidden="true">
+        <span>{placeNumber}</span>
+      </div>
       <article className="place-detail">
         {canEditTrip && place.id && (
           <button
@@ -1324,10 +1622,13 @@ function SortablePlaceItem({
             }}
           >
             <GripVertical size={16} />
-            <span>이동</span>
           </button>
         )}
         <div className="place-copy">
+          <div className="place-prototype-meta">
+            {place.time && <span>{place.time}</span>}
+            <em aria-hidden="true">{getPlaceEmoji(place)}</em>
+          </div>
           <h4>{place.label}</h4>
           <div className="meta">{place.meta}</div>
         </div>

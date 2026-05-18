@@ -30,6 +30,14 @@ def trip_payload(trip_id: str = "7") -> dict[str, object]:
         "dates": "2026.06.15 - 06.17",
         "people": ["Test User"],
         "expectedSaving": "30留뚯썝",
+        "linkedPolicies": [
+            {
+                "slug": "local-vacation",
+                "title": "Vacation policy",
+                "amount": "30留뚯썝",
+                "region": "Jeju",
+            }
+        ],
         "days": {1: [{"id": "1", "time": "09:00", "label": "Sunrise peak", "meta": "Nature"}]},
         "currentUserRole": "owner",
     }

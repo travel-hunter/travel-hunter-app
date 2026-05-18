@@ -66,6 +66,13 @@ export type ItineraryPlace = {
   meta: string;
 };
 
+export type LinkedTripPolicy = {
+  slug: string;
+  title: string;
+  amount: string;
+  region: string;
+};
+
 export type Trip = {
   id: string;
   title: string;
@@ -73,6 +80,7 @@ export type Trip = {
   dates: string;
   people: string[];
   expectedSaving: string;
+  linkedPolicies: LinkedTripPolicy[];
   days: Record<number, ItineraryPlace[]>;
   currentUserRole: "owner" | "editor" | "viewer";
 };
