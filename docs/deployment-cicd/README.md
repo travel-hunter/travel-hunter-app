@@ -1,4 +1,4 @@
-# Deployment/CICD 문서
+# 배포/CICD 문서
 
 이 폴더는 Travel Hunter 팀의 GitHub 협업, 개발 환경, Docker 배포, Jenkins CD 계획, 운영 점검 절차를 한곳에 모은 실행 문서다.
 
