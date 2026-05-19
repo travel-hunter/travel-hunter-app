@@ -6,7 +6,7 @@ import { useAsyncResource } from "../api/useAsyncResource";
 import { useSession } from "../app/session";
 import { PolicyListCard } from "../components/cards";
 import { Button, EmptyState, ErrorState, IconButton, LinkButton, LoadingState, Tag, Toast } from "../components/ui";
-import { getPolicyVisual } from "../data/displayConfig";
+import { getDeadlinePolicies, getPolicyVisual } from "../data/displayConfig";
 import { dday } from "../utils";
 import { shareLinkWithFallback } from "../utils/share";
 
@@ -63,17 +63,8 @@ function matchesAmount(policy: Policy, filter: AmountFilter): boolean {
   return true;
 }
 
-function policyDeadlineTime(policy: Policy) {
-  const time = new Date(policy.deadline).getTime();
-  return Number.isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
-}
-
 function getRecommendedPolicies(policies: Policy[]) {
   return [...policies].sort((left, right) => right.match - left.match).slice(0, 3);
-}
-
-function getDeadlinePolicies(policies: Policy[]) {
-  return [...policies].sort((left, right) => policyDeadlineTime(left) - policyDeadlineTime(right)).slice(0, 3);
 }
 
 function getCategoryHighlights(policies: Policy[]) {
@@ -281,7 +272,7 @@ function PolicyPreviewList({ policies }: { policies: Policy[] }) {
 
 function PolicyDiscoveryBlocks({ policies, onSelectCategory }: { policies: Policy[]; onSelectCategory: (category: DiscoveryPolicyCategory) => void }) {
   const recommendedPolicies = getRecommendedPolicies(policies);
-  const deadlinePolicies = getDeadlinePolicies(policies);
+  const deadlinePolicies = getDeadlinePolicies(policies, 3);
   const categoryHighlights = getCategoryHighlights(policies);
 
   return (

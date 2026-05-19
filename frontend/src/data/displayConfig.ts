@@ -83,6 +83,15 @@ export function buildHomeDestinations(
   return destinations.slice(0, max);
 }
 
+export function getDeadlinePolicies(
+  policies: Policy[] | null | undefined,
+  limit: number,
+): Policy[] {
+  return [...(policies ?? [])]
+    .sort((left, right) => policyDeadlineTime(left) - policyDeadlineTime(right))
+    .slice(0, limit);
+}
+
 const homePolicyIcons: Record<string, string> = {
   "local-vacation": "💴",
   "sokcho-stay": "🏖️",
