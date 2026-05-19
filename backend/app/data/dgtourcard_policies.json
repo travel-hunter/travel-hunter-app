@@ -1,0 +1,322 @@
+[
+  {
+    "slug": "dgtour-밀양-1",
+    "title": "밀양 디지털관광주민증 혜택",
+    "org": "한국관광공사",
+    "region": "경남",
+    "deadline": "2026-12-31",
+    "amount": "혜택 제공",
+    "summary": "디지털관광주민증 소지자 대상 밀양(경남) 지역 방문 시 혜택을 제공합니다.",
+    "match": 75,
+    "category": "추천",
+    "requirements": [
+      "디지털관광주민증 발급자",
+      "경남 방문"
+    ],
+    "documents": [
+      "디지털관광주민증"
+    ],
+    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "applyUrl": null
+  },
+  {
+    "slug": "dgtour-평창-2",
+    "title": "평창 디지털관광주민증 혜택",
+    "org": "한국관광공사",
+    "region": "강원",
+    "deadline": "2026-12-31",
+    "amount": "혜택 제공",
+    "summary": "디지털관광주민증 소지자 대상 평창(강원) 지역 방문 시 혜택을 제공합니다.",
+    "match": 75,
+    "category": "추천",
+    "requirements": [
+      "디지털관광주민증 발급자",
+      "강원 방문"
+    ],
+    "documents": [
+      "디지털관광주민증"
+    ],
+    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "applyUrl": null
+  },
+  {
+    "slug": "dgtour-하동-3",
+    "title": "하동 디지털관광주민증 혜택",
+    "org": "한국관광공사",
+    "region": "경남",
+    "deadline": "2026-12-31",
+    "amount": "혜택 제공",
+    "summary": "디지털관광주민증 소지자 대상 하동(경남) 지역 방문 시 혜택을 제공합니다.",
+    "match": 75,
+    "category": "추천",
+    "requirements": [
+      "디지털관광주민증 발급자",
+      "경남 방문"
+    ],
+    "documents": [
+      "디지털관광주민증"
+    ],
+    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "applyUrl": null
+  },
+  {
+    "slug": "dgtour-거창-4",
+    "title": "거창 디지털관광주민증 혜택",
+    "org": "한국관광공사",
+    "region": "경남",
+    "deadline": "2026-12-31",
+    "amount": "혜택 제공",
+    "summary": "디지털관광주민증 소지자 대상 거창(경남) 지역 방문 시 혜택을 제공합니다.",
+    "match": 75,
+    "category": "추천",
+    "requirements": [
+      "디지털관광주민증 발급자",
+      "경남 방문"
+    ],
+    "documents": [
+      "디지털관광주민증"
+    ],
+    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "applyUrl": null
+  },
+  {
+    "slug": "dgtour-영월-5",
+    "title": "영월 디지털관광주민증 혜택",
+    "org": "한국관광공사",
+    "region": "강원",
+    "deadline": "2026-12-31",
+    "amount": "혜택 제공",
+    "summary": "디지털관광주민증 소지자 대상 영월(강원) 지역 방문 시 혜택을 제공합니다.",
+    "match": 75,
+    "category": "추천",
+    "requirements": [
+      "디지털관광주민증 발급자",
+      "강원 방문"
+    ],
+    "documents": [
+      "디지털관광주민증"
+    ],
+    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "applyUrl": null
+  },
+  {
+    "slug": "dgtour-제천-6",
+    "title": "제천 디지털관광주민증 혜택",
+    "org": "한국관광공사",
+    "region": "충북",
+    "deadline": "2026-12-31",
+    "amount": "혜택 제공",
+    "summary": "디지털관광주민증 소지자 대상 제천(충북) 지역 방문 시 혜택을 제공합니다.",
+    "match": 75,
+    "category": "추천",
+    "requirements": [
+      "디지털관광주민증 발급자",
+      "충북 방문"
+    ],
+    "documents": [
+      "디지털관광주민증"
+    ],
+    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "applyUrl": null
+  },
+  {
+    "slug": "dgtour-강진-7",
+    "title": "강진 디지털관광주민증 혜택",
+    "org": "한국관광공사",
+    "region": "전남",
+    "deadline": "2026-12-31",
+    "amount": "혜택 제공",
+    "summary": "디지털관광주민증 소지자 대상 강진(전남) 지역 방문 시 혜택을 제공합니다.",
+    "match": 75,
+    "category": "추천",
+    "requirements": [
+      "디지털관광주민증 발급자",
+      "전남 방문"
+    ],
+    "documents": [
+      "디지털관광주민증"
+    ],
+    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "applyUrl": null
+  },
+  {
+    "slug": "dgtour-영광-8",
+    "title": "영광 디지털관광주민증 혜택",
+    "org": "한국관광공사",
+    "region": "전남",
+    "deadline": "2026-12-31",
+    "amount": "혜택 제공",
+    "summary": "디지털관광주민증 소지자 대상 영광(전남) 지역 방문 시 혜택을 제공합니다.",
+    "match": 75,
+    "category": "추천",
+    "requirements": [
+      "디지털관광주민증 발급자",
+      "전남 방문"
+    ],
+    "documents": [
+      "디지털관광주민증"
+    ],
+    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "applyUrl": null
+  },
+  {
+    "slug": "dgtour-합천-9",
+    "title": "합천 디지털관광주민증 혜택",
+    "org": "한국관광공사",
+    "region": "경남",
+    "deadline": "2026-12-31",
+    "amount": "혜택 제공",
+    "summary": "디지털관광주민증 소지자 대상 합천(경남) 지역 방문 시 혜택을 제공합니다.",
+    "match": 75,
+    "category": "추천",
+    "requirements": [
+      "디지털관광주민증 발급자",
+      "경남 방문"
+    ],
+    "documents": [
+      "디지털관광주민증"
+    ],
+    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "applyUrl": null
+  },
+  {
+    "slug": "dgtour-해남-10",
+    "title": "해남 디지털관광주민증 혜택",
+    "org": "한국관광공사",
+    "region": "전남",
+    "deadline": "2026-12-31",
+    "amount": "혜택 제공",
+    "summary": "디지털관광주민증 소지자 대상 해남(전남) 지역 방문 시 혜택을 제공합니다.",
+    "match": 75,
+    "category": "추천",
+    "requirements": [
+      "디지털관광주민증 발급자",
+      "전남 방문"
+    ],
+    "documents": [
+      "디지털관광주민증"
+    ],
+    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "applyUrl": null
+  },
+  {
+    "slug": "dgtour-남해-11",
+    "title": "남해 디지털관광주민증 혜택",
+    "org": "한국관광공사",
+    "region": "경남",
+    "deadline": "2026-12-31",
+    "amount": "혜택 제공",
+    "summary": "디지털관광주민증 소지자 대상 남해(경남) 지역 방문 시 혜택을 제공합니다.",
+    "match": 75,
+    "category": "추천",
+    "requirements": [
+      "디지털관광주민증 발급자",
+      "경남 방문"
+    ],
+    "documents": [
+      "디지털관광주민증"
+    ],
+    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "applyUrl": null
+  },
+  {
+    "slug": "dgtour-영암-12",
+    "title": "영암 디지털관광주민증 혜택",
+    "org": "한국관광공사",
+    "region": "전남",
+    "deadline": "2026-12-31",
+    "amount": "혜택 제공",
+    "summary": "디지털관광주민증 소지자 대상 영암(전남) 지역 방문 시 혜택을 제공합니다.",
+    "match": 75,
+    "category": "추천",
+    "requirements": [
+      "디지털관광주민증 발급자",
+      "전남 방문"
+    ],
+    "documents": [
+      "디지털관광주민증"
+    ],
+    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "applyUrl": null
+  },
+  {
+    "slug": "dgtour-고흥-13",
+    "title": "고흥 디지털관광주민증 혜택",
+    "org": "한국관광공사",
+    "region": "전남",
+    "deadline": "2026-12-31",
+    "amount": "혜택 제공",
+    "summary": "디지털관광주민증 소지자 대상 고흥(전남) 지역 방문 시 혜택을 제공합니다.",
+    "match": 75,
+    "category": "추천",
+    "requirements": [
+      "디지털관광주민증 발급자",
+      "전남 방문"
+    ],
+    "documents": [
+      "디지털관광주민증"
+    ],
+    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "applyUrl": null
+  },
+  {
+    "slug": "dgtour-횡성-14",
+    "title": "횡성 디지털관광주민증 혜택",
+    "org": "한국관광공사",
+    "region": "강원",
+    "deadline": "2026-12-31",
+    "amount": "혜택 제공",
+    "summary": "디지털관광주민증 소지자 대상 횡성(강원) 지역 방문 시 혜택을 제공합니다.",
+    "match": 75,
+    "category": "추천",
+    "requirements": [
+      "디지털관광주민증 발급자",
+      "강원 방문"
+    ],
+    "documents": [
+      "디지털관광주민증"
+    ],
+    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "applyUrl": null
+  },
+  {
+    "slug": "dgtour-완도-15",
+    "title": "완도 디지털관광주민증 혜택",
+    "org": "한국관광공사",
+    "region": "전남",
+    "deadline": "2026-12-31",
+    "amount": "혜택 제공",
+    "summary": "디지털관광주민증 소지자 대상 완도(전남) 지역 방문 시 혜택을 제공합니다.",
+    "match": 75,
+    "category": "추천",
+    "requirements": [
+      "디지털관광주민증 발급자",
+      "전남 방문"
+    ],
+    "documents": [
+      "디지털관광주민증"
+    ],
+    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "applyUrl": null
+  },
+  {
+    "slug": "dgtour-고창-16",
+    "title": "고창 디지털관광주민증 혜택",
+    "org": "한국관광공사",
+    "region": "전북",
+    "deadline": "2026-12-31",
+    "amount": "혜택 제공",
+    "summary": "디지털관광주민증 소지자 대상 고창(전북) 지역 방문 시 혜택을 제공합니다.",
+    "match": 75,
+    "category": "추천",
+    "requirements": [
+      "디지털관광주민증 발급자",
+      "전북 방문"
+    ],
+    "documents": [
+      "디지털관광주민증"
+    ],
+    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "applyUrl": null
+  }
+]

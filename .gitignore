@@ -26,6 +26,11 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# Local archives and Docker image handoff files
+*.tar
+*.tar.gz
+*.tgz
+
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
@@ -137,6 +142,10 @@ celerybeat.pid
 # Environments
 .env
 .envrc
+deploy/.env.staging
+deploy/.env.tunnel
+deploy/.env.dev
+deploy/.env.prod
 .venv
 env/
 venv/
@@ -209,8 +218,12 @@ yarn-error.log*
 pnpm-debug.log*
 frontend/dist/
 frontend/.vite/
+frontend/playwright-report/
+frontend/test-results/
 
 # Marimo
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+.claude/
+.codex-runs/
