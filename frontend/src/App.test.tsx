@@ -98,10 +98,37 @@ describe("Travel Hunter app", () => {
     expect(getLink("/trips")).toBeInTheDocument();
   });
 
-  it("protects authenticated app routes", () => {
+  it("waits for refresh-cookie session bootstrap before redirecting protected routes", async () => {
+    const refreshSpy = vi.spyOn(appDataApi, "refreshSession").mockImplementation(() => new Promise(() => {}));
+
+    try {
+      renderRoute("/home");
+
+      expect(screen.getByText("세션을 확인하는 중입니다")).toBeInTheDocument();
+      expect(document.querySelector('input[type="email"]')).toBeNull();
+      expect(document.body.textContent).not.toContain("redirect=");
+    } finally {
+      refreshSpy.mockRestore();
+    }
+  });
+
+  it("protects authenticated app routes after session bootstrap fails", async () => {
+    const refreshSpy = vi.spyOn(appDataApi, "refreshSession").mockRejectedValue(new Error("missing refresh cookie"));
+
+    try {
+      renderRoute("/home");
+
+      await waitFor(() => expect(document.querySelector('input[type="email"]')).toBeTruthy());
+      expect(document.querySelector('button[type="submit"]')).toBeTruthy();
+    } finally {
+      refreshSpy.mockRestore();
+    }
+  });
+
+  it("protects authenticated app routes", async () => {
     renderRoute("/home");
 
-    expect(document.querySelector('input[type="email"]')).toBeTruthy();
+    await waitFor(() => expect(document.querySelector('input[type="email"]')).toBeTruthy());
     expect(document.querySelector('button[type="submit"]')).toBeTruthy();
   });
 
@@ -2061,7 +2088,7 @@ describe("Travel Hunter app", () => {
   it("preserves an invite redirect through login and signup navigation", async () => {
     renderRoute("/invites/jeju-3d/accept");
 
-    expect(document.querySelector('input[type="email"]')).toBeTruthy();
+    await waitFor(() => expect(document.querySelector('input[type="email"]')).toBeTruthy());
 
     await userEvent.setup().click(screen.getByRole("button", { name: "회원가입" }));
     await waitFor(() => expect(screen.getByRole("heading", { name: "회원가입" })).toBeInTheDocument());

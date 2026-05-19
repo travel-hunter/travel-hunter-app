@@ -35,6 +35,7 @@
 - 2026-05-19 remaining docs cleanup: `CHECKLIST.md`, `PLANS.md`, `README.md`, `.agent` release readiness docs, and release checklist were compacted; removed-doc reference search, `.agent/evals` listing, and `git diff --check` passed.
 - 2026-05-19 final verification: frontend `npm run typecheck`, `npm test`, `npm run build`, and `npm run test:e2e` passed after updating stale e2e expectations to the current policy CTA, invite, logout, and trip creation flows; backend `python -m pytest tests/test_db_schema.py`, `python -m pytest`, `alembic upgrade head --sql`, compose config checks, and `docker compose -f compose.yaml build` passed.
 - 2026-05-19 PR #17 handoff: `feat/prototype-to-react` was pushed to origin, `develop` PR #17 was opened, GitHub Actions frontend/backend fast lanes passed, reviewers were requested, and `compose.tunnel.yaml` actual-env `config --quiet` plus build passed. Full tunnel `up`, migration, and public health smoke were intentionally left for the release window.
+- 2026-05-19 deployment hardening: Protected routes now wait for session bootstrap before redirecting, and tunnel compose services use `restart: unless-stopped`; frontend typecheck/test, tunnel compose config checks, tunnel build, and `git diff --check` passed.
 
 ## 남은 우선순위
 
