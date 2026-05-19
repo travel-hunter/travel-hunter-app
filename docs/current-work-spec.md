@@ -2,11 +2,11 @@
 
 ## 기준
 
-- 기준일: 2026-05-18
-- 기준 커밋: `3f3924a fix: clarify policy application cta links`
+- 기준일: 2026-05-19
+- 기준 검증 커밋: `f6fce98 docs: consolidate project documentation and validation`
 - 브랜치: `feat/prototype-to-react`
 - 원칙: DB-backed-only MVP를 유지하고 runtime mock mode는 다시 추가하지 않는다.
-- 현재 단계: 정책 URL 품질 점검과 마이페이지 정보 콘텐츠 보강을 완료했고, 변경분 검증/커밋 전 상태다.
+- 현재 단계: 문서 핵심화, DB schema current 문서화, frontend itinerary refactor 검증을 완료했고, `develop` 대상 PR/CI 단계로 넘기는 중이다.
 
 ## 제품 범위
 
@@ -49,10 +49,11 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 
 ## 최근 작업
 
-- 정책 신청 URL 품질 점검을 완료하고 `3f3924a`로 커밋했다.
-- `docs/next-work-plan.md`의 다음 우선순위를 FAQ/콘텐츠 보강 기준으로 갱신했다.
-- import되지 않는 임시 untracked 파일 `TripCreateModal.tsx`, `TripItinerary.tsx`는 route와 연결되지 않고 깨진 문자열이 있어 정리했다.
-- `/mypage`의 공지사항/FAQ, 이용약관, 개인정보처리방침 sheet 콘텐츠를 실제 서비스 안내 수준으로 보강했다.
+- 정책 신청 URL 품질 점검과 MyPage 정보 콘텐츠 보강은 검증된 기준점으로 고정됐다.
+- docs 루트 문서를 핵심 문서 중심으로 줄이고, 배포/CICD 문서는 `docs/deployment-cicd/` 기준으로 모았다.
+- DB schema 기준을 `docs/db-schema-current.md`, `docs/db-schema-current.sql`로 교체하고 구버전 schema SQL 참조를 정리했다.
+- frontend itinerary 관련 page를 개별 파일로 분리하면서 기존 route import를 유지했다.
+- `.agent/evals`는 machine-readable API contract 기준인 `api-contract-golden.json`만 남겼다.
 
 ## 현재 조건부 항목
 
@@ -74,16 +75,19 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 
 ## 최신 검증 기록
 
-- Backend pytest: `218 passed`.
-- Frontend Vitest: `74 passed`.
 - Frontend typecheck: passed.
+- Frontend Vitest: `80 passed`.
+- Frontend e2e: `5 passed`.
 - Frontend build: passed.
+- Backend schema pytest: `2 passed`.
+- Backend pytest: `218 passed`.
 - Alembic offline SQL: passed.
+- Compose config/build checks: passed.
 - `git diff --check`: passed.
-- Policy data validation: passed.
+- 삭제 문서 참조 검색과 secret/env/archive 추적 확인: passed.
 
 ## 다음 작업 방향
 
-1. `/mypage` 공지사항/FAQ/이용약관/개인정보처리방침 콘텐츠 변경분을 커밋 가능한 기준점으로 고정한다.
-2. 기능 개발 흐름을 계속할 경우 홈 추천 목적지 ranking 고도화를 진행한다.
-3. 운영 검증 흐름으로 전환할 경우 Cloudflare Tunnel actual env full-up, SMTP staging smoke, OAuth provider smoke 순서로 진행한다.
+1. GitHub Actions CI와 review를 통과시켜 `develop` merge 기준을 맞춘다.
+2. 운영 검증 흐름으로 전환할 경우 Cloudflare Tunnel actual env full-up, SMTP staging smoke, OAuth provider smoke 순서로 진행한다.
+3. 기능 개발 흐름을 계속할 경우 홈 추천 목적지 ranking 고도화를 진행한다.

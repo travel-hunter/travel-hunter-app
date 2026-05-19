@@ -37,7 +37,8 @@
 
 ## 남은 우선순위
 
-- [ ] Verify and commit the MyPage FAQ/terms/privacy content polish.
+- [ ] Let the `feat/prototype-to-react` to `develop` PR run GitHub Actions and fix any check failure on the same branch.
+- [ ] Request review and prepare merge into `develop`.
 - [ ] Verify SMTP delivery in staging.
 - [ ] Verify OAuth provider credentials in staging.
 - [ ] Resume Cloudflare Tunnel staging deployment when actual env values are ready.
