@@ -46,5 +46,5 @@ npm run build
 
 - No blank `#root`.
 - No unintended horizontal overflow.
-- Public and protected route smoke behavior still matches `.agent/evals/frontend-route-smoke.md`.
+- Public and protected route smoke behavior still matches `docs/deployment-cicd/03-frontend-guide.md`.
 - Text is readable and not clipped on mobile widths.

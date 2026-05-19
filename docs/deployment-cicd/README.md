@@ -63,6 +63,5 @@ GitHub에는 Docker 이미지 archive가 아니라 이미지를 재생성할 수
 
 - API 계약: `../mvp-api-contract.md`
 - 현재 구현 명세: `../current-work-spec.md`
-- Cloudflare Tunnel 기존 runbook: `../deployment-tunnel.md`
-- VPS 직접 노출 기존 runbook: `../deployment-vps.md`
-- Codex 모델 workflow: `../codex-model-workflow.md`
+- 로컬 개발 런타임: `../local-dev-runtime.md`
+- 현재 DB schema: `../db-schema-current.md`, `../db-schema-current.sql`

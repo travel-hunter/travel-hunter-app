@@ -5,17 +5,8 @@ import { appDataApi, type Policy } from "../api";
 import { useAsyncResource } from "../api/useAsyncResource";
 import { useSession } from "../app/session";
 import { ErrorState, LoadingState } from "../components/ui";
-import { buildHomeDestinations, getFeaturedPolicy, getHomePolicyIcon } from "../data/displayConfig";
+import { buildHomeDestinations, getDeadlinePolicies, getFeaturedPolicy, getHomePolicyIcon } from "../data/displayConfig";
 import { dday } from "../utils";
-
-function policyDeadlineTime(policy: Policy) {
-  const time = new Date(policy.deadline).getTime();
-  return Number.isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
-}
-
-function getDeadlinePolicies(policies: Policy[] | null | undefined) {
-  return [...(policies ?? [])].sort((left, right) => policyDeadlineTime(left) - policyDeadlineTime(right)).slice(0, 4);
-}
 
 export function HomePage() {
   const { currentUser, profile } = useSession();
@@ -25,7 +16,7 @@ export function HomePage() {
   const name = currentUser?.nickname ?? previewUser.nickname ?? "여행자";
   const featuredPolicy = getFeaturedPolicy(policies);
   const featuredTrip = trips?.[0];
-  const deadlinePolicies = getDeadlinePolicies(policies);
+  const deadlinePolicies = getDeadlinePolicies(policies, 4);
   const homeDestinations = buildHomeDestinations(policies);
   const avatarLabel = name.trim().slice(0, 1).toUpperCase() || "T";
   const aiCardTo = featuredTrip ? `/trips/${featuredTrip.id}` : "/trips/new";

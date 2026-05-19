@@ -2,21 +2,16 @@
 
 ## Current Phase
 
-The MVP is DB-backed-only and runtime mock mode has been removed. Docker VPS direct staging artifacts and Cloudflare Tunnel staging artifacts exist. Trip status confirmation, trip place editing and drag-and-drop movement, mypage profile editing, AI recommendation-to-timeline, invite role persistence/enforcement, deadline notification preference/contact/delivery foundation, notification scheduler/provider/retry/webhook tracking, password reset, Kakao/Google OAuth entry points, button-audit UX fixes, production sourcemap hardening, PWA manifest/meta, project structure audit, Web Share API sharing fallback, implemented feature spec, draft autosave, signup email-check/nickname setup, Codex model split workflow scripts, MyPage applied policy count, policy-derived home destinations, and policy application CTA quality checks are complete. The current priority is FAQ/terms/privacy content polish in MyPage, followed by home destination ranking improvements or staging smoke work when actual env values are ready.
+The MVP is DB-backed-only and runtime mock mode has been removed. Cloudflare Tunnel is the current deployment baseline, while Jenkins CD is still planned. The current priority is to complete review and merge PR #17 from `feat/prototype-to-react` into `develop` after the latest checks are green. After that, move to staging smoke work when real SMTP, OAuth, Cloudflare, and production env values are ready.
 
 ## Source Of Truth
 
 - Current implementation spec: `docs/current-work-spec.md`
 - Implemented feature spec: `docs/implemented-feature-spec.md`
-- Notification delivery design: `docs/notification-delivery-plan.md`
 - API contract: `docs/mvp-api-contract.md`
+- Current DB schema: `docs/db-schema-current.md`, `docs/db-schema-current.sql`
 - Next priority: `docs/next-work-plan.md`
-- Project structure audit: `docs/project-structure-audit.md`
-- Draft autosave next scope: `docs/draft-autosave-next-scope.md`
-- Release candidate handoff: `docs/release-candidate-handoff.md`
-- Public VPS runbook: `docs/deployment-vps.md`
-- Cloudflare Tunnel runbook: `docs/deployment-tunnel.md`
-- Codex model workflow: `docs/codex-model-workflow.md`
+- Deployment/CICD: `docs/deployment-cicd/README.md`
 
 ## Guardrails
 

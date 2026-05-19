@@ -66,6 +66,27 @@ curl -fsS https://<domain>/api/health
 test.user@example.com / password123
 ```
 
+## Release Readiness
+
+Release candidate handoff는 아래 기준을 모두 설명할 수 있을 때만 ready로 본다.
+
+- [ ] Core auth, profile, policies, trips, recommendations, saved policy, and invite flows work for the current MVP phase.
+- [ ] `docs/mvp-api-contract.md`, frontend types, backend schemas, and focused tests agree.
+- [ ] Public, protected, and authenticated routes render at target responsive widths without blank pages or horizontal overflow.
+- [ ] Frontend keeps the `AppDataApi` boundary and backend keeps route/schema/service/repository separation.
+- [ ] Fast lane checks, e2e/build checks, backend tests, Alembic SQL check, and Compose checks have release-candidate evidence.
+- [ ] README, env examples, current plan, checklist, and deployment docs explain setup, behavior, and remaining risks.
+- [ ] No known release blocker remains.
+
+## Provider Smoke
+
+실제 provider env가 준비된 staging/production 후보에서만 수행한다.
+
+- [ ] SMTP: 비밀번호 재설정 email 수신, reset token confirm, 새 비밀번호 로그인.
+- [ ] OAuth: Kakao/Google redirect URI, callback, session 복구.
+- [ ] SOLAPI: D-7/D-1 승인 템플릿 기준 AlimTalk test 발송과 webhook 상태 반영.
+- [ ] Cloudflare: public HTTPS domain에서 `/api/health`, `/login`, `/policies`, `/trips`, `/mypage` 확인.
+
 ## Rollback
 
 코드 rollback:

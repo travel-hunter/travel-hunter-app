@@ -8,7 +8,7 @@
 - 실행 모드: DB-backed-only
 - 대상 독자: PM, 개발자, QA, 디자이너
 
-이 문서는 Travel Hunter가 제품 관점에서 제공해야 하는 기능과 acceptance 기준을 정의한다. 구현 상태의 세부 판정은 `docs/feature-implementation-status.md`, API wire shape는 `docs/mvp-api-contract.md`, 현재 구현 요약은 `docs/current-work-spec.md`를 따른다.
+이 문서는 Travel Hunter가 제품 관점에서 제공해야 하는 기능과 acceptance 기준을 정의한다. API wire shape는 `docs/mvp-api-contract.md`, 현재 구현 요약은 `docs/current-work-spec.md`를 따른다.
 
 ## 1. 시스템 개요
 
@@ -112,7 +112,7 @@ Travel Hunter는 국내 여행자가 여행 혜택 정책을 찾고, 여행 일�
 | 데이터 | DB schema는 Alembic migration으로만 관리하고 `create_all()`은 사용하지 않는다. |
 | API | DTO는 `camelCase`, DB column은 `snake_case`를 유지한다. |
 | 접근성 | 주요 버튼/입력은 키보드 접근 가능해야 하며 모바일 touch target은 44px 이상을 목표로 한다. |
-| 배포 | local compose, VPS direct, Cloudflare Tunnel staging 방식을 문서화한다. |
+| 배포 | local compose와 Cloudflare Tunnel 중심 배포 방식을 문서화한다. |
 | 검증 | 기능 변경 시 backend pytest, frontend typecheck/Vitest, 필요한 migration offline SQL을 실행한다. |
 
 ## 5. 데이터 요구사항
@@ -127,7 +127,7 @@ Travel Hunter는 국내 여행자가 여행 혜택 정책을 찾고, 여행 일�
 | 추천 | `recommendations` |
 | 알림 | `user_notification_settings`, `notification_deliveries` |
 
-자세한 API/DB 매핑은 `docs/mvp-api-contract.md`, `docs/db-schema-v0.3.sql`, `.agent/evals/erd-api-mapping.md`를 기준으로 한다.
+자세한 API/DB 매핑은 `docs/mvp-api-contract.md`, `docs/db-schema-current.md`, `docs/db-schema-current.sql`을 기준으로 한다.
 
 ## 6. 조건부 기능 및 후속 범위
 
@@ -155,5 +155,5 @@ Travel Hunter는 국내 여행자가 여행 혜택 정책을 찾고, 여행 일�
 
 - 요구사항이 바뀌면 이 문서를 먼저 갱신한다.
 - API shape가 바뀌면 `docs/mvp-api-contract.md`, frontend type, backend schema/test를 함께 갱신한다.
-- 구현 완료/조건부/미구현 상태가 바뀌면 `docs/feature-implementation-status.md`와 `docs/current-work-spec.md`를 갱신한다.
+- 구현 완료/조건부/미구현 상태가 바뀌면 `docs/current-work-spec.md`와 필요한 계약 문서를 갱신한다.
 - 다음 우선순위는 `docs/next-work-plan.md`에만 짧게 유지한다.

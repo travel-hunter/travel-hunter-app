@@ -4,10 +4,11 @@
 
 Travel Hunter는 PostgreSQL 16을 사용한다. schema 변경은 Alembic migration으로만 반영한다.
 
-현재 SQL 기준본:
+현재 schema 기준 문서:
 
 ```text
-docs/db-schema-v0.3.sql
+docs/db-schema-current.md
+docs/db-schema-current.sql
 ```
 
 ## 로컬 DB
@@ -101,4 +102,3 @@ backup 파일은 repo에 커밋하지 않는다.
 - 운영 `.env`
 
 Jenkins에서는 credentials 또는 운영 PC의 로컬 env 파일로만 관리한다.
-

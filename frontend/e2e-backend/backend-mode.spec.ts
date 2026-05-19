@@ -59,7 +59,7 @@ test("backend data source drives policy, trip, recommendation, invite, and logou
 
   await page.goto("/policies/local-vacation");
   await expect(page.locator("#root")).not.toBeEmpty();
-  await expect(page.getByRole("link", { name: "혜택 받으러 가기" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "공식 안내 확인" })).toHaveAttribute(
     "href",
     "https://www.mcst.go.kr/site/s_notice/press/pressView.jsp?pMenuCD=0302000000&pSeq=22267",
   );
@@ -99,13 +99,13 @@ test("backend data source drives policy, trip, recommendation, invite, and logou
 
   await page.goto(`/friend-invite?tripId=${tripId}`);
   await expect(page.locator(".invite-link")).toBeVisible();
-  await page.locator(".invite-link button").click();
-  await expect(page.locator(".toast")).toBeVisible();
-  await page.locator(".content > .btn.full").click();
-  await expect(page.locator(".content > .btn.full")).toBeVisible();
+  await expect(page.locator(".invite-link span")).toContainText("travelhunter.app/i/");
+  await expect(page.getByRole("button", { name: "링크 복사" })).toBeVisible();
+  await page.getByRole("button", { name: /초대 링크/ }).click();
+  await expect(page.getByRole("button", { name: "초대 링크 준비 완료" })).toBeVisible();
 
   await page.goto("/mypage");
-  await page.locator(".content > .btn.full").click();
+  await page.getByRole("button", { name: "로그아웃" }).click();
   await expect(page).toHaveURL(/\/login$/);
 });
 
@@ -114,7 +114,16 @@ test("backend data source creates a trip with selected profile values and policy
 
   await page.goto("/trips/new?policySlug=local-vacation");
   await expect(page.locator("#root")).not.toBeEmpty();
-  await page.locator(".content .btn.full").click();
+  await expect(page.getByRole("heading", { name: "어디로 떠나나요?" })).toBeVisible();
+  await page.getByRole("button", { name: /부산/ }).click();
+  await page.getByRole("button", { name: "다음" }).click();
+  await expect(page.getByRole("heading", { name: "언제 떠나나요?" })).toBeVisible();
+  await page.getByLabel("출발일").fill("2026-07-12");
+  await page.getByLabel("도착일").fill("2026-07-15");
+  await page.getByRole("button", { name: "다음" }).click();
+  await expect(page.getByRole("heading", { name: "일정 제목을 정해볼까요?" })).toBeVisible();
+  await page.getByRole("textbox", { name: "일정 제목" }).fill("부산 e2e 여행");
+  await page.getByRole("button", { name: "일정 만들기" }).click();
   await expect(page).toHaveURL(/\/trips\/[1-9][0-9]*$/);
   const createdTripId = page.url().split("/").pop() ?? "";
   expect(createdTripId).toMatch(numericTripId);

@@ -2,7 +2,7 @@
 
 ## 기준
 
-- 기준일: 2026-05-18
+- 기준일: 2026-05-19
 - 기준 브랜치: `feat/prototype-to-react`
 - Base URL: `http://localhost:8000/api` (local dev), `https://<domain>/api` (staging/production)
 - 인증: Access Token을 `Authorization: Bearer <token>` 헤더로 전달한다.
@@ -233,8 +233,8 @@ OAuth provider callback 처리.
   "savedAmount": 0,
   "onboardingCompleted": false,
   "socialAccounts": [],
-  "createdAt": "2026-05-18T00:00:00",
-  "updatedAt": "2026-05-18T00:00:00"
+  "createdAt": "2026-05-19T00:00:00",
+  "updatedAt": "2026-05-19T00:00:00"
 }
 ```
 
@@ -703,7 +703,7 @@ AI 추천 장소 목록 조회.
   "inviteToken": "<token>",
   "inviteUrl": "https://<domain>/invites/<token>/accept",
   "expiresAt": "2026-05-25T00:00:00",
-  "createdAt": "2026-05-18T00:00:00",
+  "createdAt": "2026-05-19T00:00:00",
   "acceptedAt": null,
   "invited": false,
   "copied": false,

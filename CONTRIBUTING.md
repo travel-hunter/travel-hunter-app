@@ -141,11 +141,11 @@ DB schema는 Alembic migration으로만 변경한다. SQLAlchemy `create_all()`�
 
 1. `README.md`
 2. `docs/requirements.md`
-3. `docs/release-candidate-handoff.md`
-4. `docs/current-work-spec.md`
-5. `docs/feature-implementation-status.md`
-6. `docs/mvp-api-contract.md`
-7. `docs/deployment-tunnel.md` 또는 `docs/deployment-vps.md`
+3. `docs/current-work-spec.md`
+4. `docs/implemented-feature-spec.md`
+5. `docs/mvp-api-contract.md`
+6. `docs/db-schema-current.md`
+7. `docs/deployment-cicd/README.md`
 8. `docs/next-work-plan.md`
 
 현재 MVP는 FastAPI + PostgreSQL DB-backed-only 기준이다. runtime mock mode는 제거됐다.
@@ -179,15 +179,15 @@ docker compose -f compose.yaml config
 docker compose -f compose.yaml build
 docker compose -f compose.yaml run --rm backend alembic upgrade head
 docker compose -f compose.yaml run --rm backend python -m app.db.seed
-docker compose --env-file deploy/.env.staging.example -f compose.vps.yaml config
+docker compose --env-file deploy/.env.tunnel.example -f compose.tunnel.yaml config
 ```
 
 ---
 
 ## 7. Secret 규칙
 
-- `.env`, `deploy/.env.staging`, DB password, `AUTH_SECRET_KEY`, VPS SSH 정보는 커밋하지 않는다.
-- repo에는 예시 파일만 둔다: `deploy/.env.staging.example`.
+- `.env`, 실제 배포 env, DB password, `AUTH_SECRET_KEY`, SSH 정보, tunnel token은 커밋하지 않는다.
+- repo에는 예시 파일만 둔다: `deploy/.env.tunnel.example`.
 - 실제 staging 값은 GitHub 문서가 아니라 별도 비밀 공유 수단으로 전달한다.
 
 ---

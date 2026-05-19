@@ -22,7 +22,6 @@ Keep docs, frontend types, backend schemas, tests, and evals in sync for every A
 - `backend/app/services/*.py`
 - `backend/tests/*.py`
 - `.agent/evals/api-contract-golden.json`
-- `.agent/evals/backend-endpoint-smoke.md`
 
 # Procedure
 

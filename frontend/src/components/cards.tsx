@@ -6,22 +6,6 @@ import { getTripRegionEmojiFromTitle } from "../data/displayConfig";
 import { dday } from "../utils";
 import { Tag } from "./ui";
 
-export function PolicyMiniCard({ policy }: { policy: Policy }) {
-  return (
-    <Link className="policy-mini card" to={`/policies/${policy.slug}`}>
-      <div className="visual-tile">{policy.label}</div>
-      <div className="policy-mini-top">
-        <Tag>{policy.tag}</Tag>
-        <Tag tone="warning">{dday(policy.deadline)}</Tag>
-      </div>
-      <h4>{policy.title}</h4>
-      <div className="meta">
-        {policy.region} · 매칭 {policy.match}%
-      </div>
-    </Link>
-  );
-}
-
 function policyIcon(policy: Policy) {
   const text = `${policy.title} ${policy.tag} ${policy.amount}`;
   if (text.includes("숙박") || text.includes("호텔")) return "🏨";
@@ -97,15 +81,6 @@ export function PolicyListCard({
         <Heart size={20} fill={isSaved ? "currentColor" : "none"} />
       </button>
     </article>
-  );
-}
-
-export function PlaceCard({ title, meta, className }: { title: string; meta: string; className: string }) {
-  return (
-    <Link className={`place-card ${className}`} to={`/trips/new?region=${encodeURIComponent(title)}`}>
-      <h4>{title}</h4>
-      <div className="meta">{meta}</div>
-    </Link>
   );
 }
 

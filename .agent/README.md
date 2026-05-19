@@ -8,8 +8,9 @@ This directory contains reusable operating instructions and evaluation artifacts
 2. Read the nearest nested `AGENTS.md` for the area being changed.
 3. Read `../PLANS.md`.
 4. Pick the relevant skill from `.agent/skills`.
-5. Check `.agent/evals` before and after implementation.
-6. Record validation results and remaining risks in `../CHECKLIST.md` when project state changes.
+5. Check `.agent/evals` when API contract changes are in scope.
+6. Use `../docs/deployment-cicd/09-release-checklist.md` for release readiness review.
+7. Record validation results and remaining risks in `../CHECKLIST.md` when project state changes.
 
 ## Skills
 
@@ -22,7 +23,3 @@ This directory contains reusable operating instructions and evaluation artifacts
 ## Evals
 
 - `api-contract-golden.json`: required endpoint fields and example shapes.
-- `frontend-route-smoke.md`: route and responsive smoke criteria.
-- `backend-endpoint-smoke.md`: backend endpoint expectations.
-- `erd-api-mapping.md`: ERD v0.3 to API mapping notes.
-- `release-scorecard.md`: weighted release readiness scorecard.
