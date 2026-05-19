@@ -11,6 +11,7 @@ import {
 
 type SessionContextValue = {
   currentUser: User | null;
+  isSessionBootstrapping: boolean;
   profile: Profile;
   addedPolicy: boolean;
   addedPolicySlugs: Set<string>;
@@ -68,6 +69,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (stored) setApiAccessToken(stored.accessToken);
     return stored?.user ?? null;
   });
+  const [isSessionBootstrapping, setIsSessionBootstrapping] = useState(true);
   const [profile, setProfile] = useState<Profile>({
     region: "제주",
     style: "휴식",
@@ -82,45 +84,50 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
-    async function verifyStoredSession() {
-      const stored = readStoredAuth();
-      if (!stored) {
-        try {
-          const refreshed = await appDataApi.refreshSession();
-          if (cancelled) return;
-          persistAuth(refreshed);
-          setCurrentUser(refreshed.user);
-          setProfile(await readRemoteProfile());
-          appDataApi.listSavedPolicies().then((p) => { if (!cancelled) setSavedSlugs(new Set(p.map((s) => s.slug))); }).catch(() => {});
-        } catch {
-          clearAuth();
-        }
-        return;
-      }
+    function loadSavedPolicies() {
+      appDataApi.listSavedPolicies().then((p) => { if (!cancelled) setSavedSlugs(new Set(p.map((s) => s.slug))); }).catch(() => {});
+    }
 
+    async function applyAuth(auth: AuthResponse) {
+      if (cancelled) return;
+      persistAuth(auth);
+      setCurrentUser(auth.user);
+      const nextProfile = await readRemoteProfile();
+      if (cancelled) return;
+      setProfile(nextProfile);
+      loadSavedPolicies();
+    }
+
+    async function verifyStoredSession() {
       try {
-        const user = await appDataApi.getCurrentUser();
-        if (cancelled) return;
-        const nextAuth = { accessToken: stored.accessToken, user };
-        persistAuth(nextAuth);
-        setCurrentUser(user);
-        setProfile(await readRemoteProfile());
-        appDataApi.listSavedPolicies().then((p) => { if (!cancelled) setSavedSlugs(new Set(p.map((s) => s.slug))); }).catch(() => {});
-      } catch {
-        if (cancelled) return;
-        try {
-          const refreshed = await appDataApi.refreshSession();
-          if (cancelled) return;
-          persistAuth(refreshed);
-          setCurrentUser(refreshed.user);
-          setProfile(await readRemoteProfile());
-          appDataApi.listSavedPolicies().then((p) => { if (!cancelled) setSavedSlugs(new Set(p.map((s) => s.slug))); }).catch(() => {});
+        const stored = readStoredAuth();
+        if (!stored) {
+          try {
+            await applyAuth(await appDataApi.refreshSession());
+          } catch {
+            clearAuth();
+          }
           return;
-        } catch {
-          // Fall through to clearing the stale local session.
         }
-        clearAuth();
-        setCurrentUser(null);
+
+        try {
+          const user = await appDataApi.getCurrentUser();
+          await applyAuth({ accessToken: stored.accessToken, user });
+        } catch {
+          if (cancelled) return;
+          try {
+            await applyAuth(await appDataApi.refreshSession());
+            return;
+          } catch {
+            // Fall through to clearing the stale local session.
+          }
+          clearAuth();
+          setCurrentUser(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsSessionBootstrapping(false);
+        }
       }
     }
 
@@ -133,6 +140,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const value = useMemo<SessionContextValue>(
     () => ({
       currentUser,
+      isSessionBootstrapping,
       profile,
       addedPolicy,
       addedPolicySlugs,
@@ -211,7 +219,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           return next;
         }),
     }),
-    [addedPolicy, addedPolicySlugs, currentUser, invited, likedPolicy, profile, savedSlugs],
+    [addedPolicy, addedPolicySlugs, currentUser, invited, isSessionBootstrapping, likedPolicy, profile, savedSlugs],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

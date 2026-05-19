@@ -7,6 +7,7 @@ import { InviteAcceptPage } from "../pages/InviteAcceptPage";
 import { MyPage } from "../pages/MyPage";
 import { PolicyDetailPage, PolicyListPage } from "../pages/PolicyPages";
 import { ProfileSetupPage } from "../pages/ProfileSetupPage";
+import { LoadingState } from "../components/ui";
 import { useSession } from "./session";
 
 export function App() {
@@ -45,8 +46,11 @@ export function App() {
 }
 
 function ProtectedRoute() {
-  const { currentUser } = useSession();
+  const { currentUser, isSessionBootstrapping } = useSession();
   const location = useLocation();
+  if (isSessionBootstrapping && !currentUser) {
+    return <LoadingState label="세션을 확인하는 중입니다" />;
+  }
   if (!currentUser) {
     const redirectTo = `${location.pathname}${location.search}${location.hash}`;
     return <Navigate to={`/login?redirect=${encodeURIComponent(redirectTo)}`} replace />;

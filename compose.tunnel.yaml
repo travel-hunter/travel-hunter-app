@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
@@ -16,6 +17,7 @@ services:
   backend:
     build:
       context: ./backend
+    restart: unless-stopped
     environment:
       APP_ENV: ${APP_ENV:-staging}
       DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
@@ -71,6 +73,7 @@ services:
       context: ./frontend
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:?set VITE_API_BASE_URL}
+    restart: unless-stopped
     environment:
       STAGING_DOMAIN: ${STAGING_DOMAIN:-}
       __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS: ${STAGING_DOMAIN:-}
@@ -80,6 +83,7 @@ services:
 
   caddy:
     image: caddy:2-alpine
+    restart: unless-stopped
     volumes:
       - ./deploy/Caddyfile.tunnel:/etc/caddy/Caddyfile:ro
     depends_on:
