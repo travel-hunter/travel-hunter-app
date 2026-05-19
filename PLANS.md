@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-The MVP is DB-backed-only and runtime mock mode has been removed. Cloudflare Tunnel is the current deployment baseline, while Jenkins CD is still planned. The current priority is to get the `feat/prototype-to-react` to `develop` PR through GitHub Actions and review, then prepare merge. After that, move to staging smoke work when real SMTP, OAuth, Cloudflare, and production env values are ready.
+The MVP is DB-backed-only and runtime mock mode has been removed. Cloudflare Tunnel is the current deployment baseline, while Jenkins CD is still planned. The current priority is to complete review and merge PR #17 from `feat/prototype-to-react` into `develop` after the latest checks are green. After that, move to staging smoke work when real SMTP, OAuth, Cloudflare, and production env values are ready.
 
 ## Source Of Truth
 

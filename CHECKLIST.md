@@ -34,14 +34,14 @@
 - 2026-05-19 AI docs cleanup: AI/Codex guidance is consolidated in `docs/deployment-cicd/06-ai-workflow.md`; reference search and `git diff --check` passed.
 - 2026-05-19 remaining docs cleanup: `CHECKLIST.md`, `PLANS.md`, `README.md`, `.agent` release readiness docs, and release checklist were compacted; removed-doc reference search, `.agent/evals` listing, and `git diff --check` passed.
 - 2026-05-19 final verification: frontend `npm run typecheck`, `npm test`, `npm run build`, and `npm run test:e2e` passed after updating stale e2e expectations to the current policy CTA, invite, logout, and trip creation flows; backend `python -m pytest tests/test_db_schema.py`, `python -m pytest`, `alembic upgrade head --sql`, compose config checks, and `docker compose -f compose.yaml build` passed.
+- 2026-05-19 PR #17 handoff: `feat/prototype-to-react` was pushed to origin, `develop` PR #17 was opened, GitHub Actions frontend/backend fast lanes passed, reviewers were requested, and `compose.tunnel.yaml` actual-env `config --quiet` plus build passed. Full tunnel `up`, migration, and public health smoke were intentionally left for the release window.
 
 ## 남은 우선순위
 
-- [ ] Let the `feat/prototype-to-react` to `develop` PR run GitHub Actions and fix any check failure on the same branch.
-- [ ] Request review and prepare merge into `develop`.
+- [ ] Complete review and merge PR #17 into `develop` after the latest checks are green.
+- [ ] Run Cloudflare Tunnel full staging smoke during the release window.
 - [ ] Verify SMTP delivery in staging.
 - [ ] Verify OAuth provider credentials in staging.
-- [ ] Resume Cloudflare Tunnel staging deployment when actual env values are ready.
 
 ## 주의사항
 
