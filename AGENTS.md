@@ -11,7 +11,7 @@ Travel Hunter is an MVP that helps users find domestic travel support policies a
 - The backend always uses PostgreSQL-backed behavior for user-facing data. Static profile options and seed constants live under `app/data`, but there is no runtime mock API mode.
 - Policy, auth, profile, saved policy, trip list/detail/create, trip policy attachment, recommendations, invite state, invite acceptance, and policy official links are implemented.
 - The active product and API source of truth is `docs/current-work-spec.md` and `docs/mvp-api-contract.md`.
-- ERD source material lives outside this repo at `../files`; the repo SQL baseline is `docs/db-schema-v0.3.sql`.
+- ERD source material lives outside this repo at `../files`; the current repo schema reference is `docs/db-schema-current.md` and `docs/db-schema-current.sql`.
 
 ## Source Priority
 

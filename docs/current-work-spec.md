@@ -17,7 +17,7 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - 인증, 정책, 일정, 마이페이지, 초대, 알림 설정은 FastAPI/PostgreSQL에 연결된다.
 - frontend는 React/Vite 기반이며, `AppDataApi`를 API 경계로 사용한다.
 - backend는 `api/core/db/models/repositories/schemas/services` 계층을 유지한다.
-- Docker local, public VPS direct, Cloudflare Tunnel staging 산출물이 존재한다.
+- Docker local과 Cloudflare Tunnel 중심 배포 산출물이 존재한다.
 - 외부 secret이 필요한 SMTP/OAuth/SOLAPI/Cloudflare 실제 smoke는 env 준비 후 진행한다.
 
 ## 완료된 핵심 기능
@@ -66,14 +66,11 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 
 - `docs/requirements.md`: 제품 요구사항.
 - `docs/implemented-feature-spec.md`: 실제 구현 기능 명세.
-- `docs/feature-implementation-status.md`: 기능별 완료/조건부/미구현 상태표.
 - `docs/mvp-api-contract.md`: API 계약.
 - `docs/current-work-spec.md`: 현재 구현 상태 요약.
 - `docs/next-work-plan.md`: 다음 작업 우선순위.
-- `docs/deployment-vps.md`: public VPS 직접 노출 runbook.
-- `docs/deployment-tunnel.md`: NAT 제한 환경 Cloudflare Tunnel runbook.
-- `docs/password-reset-smtp-smoke.md`: SMTP password reset smoke 절차.
-- `docs/project-structure-audit.md`: 폴더/파일 구조 점검 기록.
+- `docs/deployment-cicd/README.md`: 팀 배포/CICD 기준 문서.
+- `docs/deployment-cicd/09-release-checklist.md`: 배포 전후 smoke와 rollback 체크리스트.
 
 ## 최신 검증 기록
 

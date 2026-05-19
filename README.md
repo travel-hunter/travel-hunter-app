@@ -5,41 +5,30 @@ Travel Hunter is a React/Vite frontend plus FastAPI/PostgreSQL backend for a dom
 ## Recommended Reading Order
 
 1. `docs/requirements.md`: product requirements, roles, feature/non-functional requirements, conditional/future scope.
-2. `docs/release-candidate-handoff.md`: RC scope, run modes, test account, validation evidence, blockers.
-3. `docs/current-work-spec.md`: current implementation status.
-4. `docs/feature-implementation-status.md`: feature completion/conditional/future status matrix.
-5. `docs/deployment-tunnel.md`: Cloudflare Tunnel staging for NAT-restricted networks.
-6. `docs/deployment-vps.md`: public VPS direct staging.
-7. `docs/mvp-api-contract.md`: API contract.
-8. `docs/next-work-plan.md`: next priority.
-9. `CONTRIBUTING.md`: branch, PR, validation, and secret rules.
-10. `docs/codex-model-workflow.md`: Codex planning/implementation model split and CLI workflow.
+2. `docs/current-work-spec.md`: current implementation status.
+3. `docs/implemented-feature-spec.md`: implemented user behavior and API/DB links.
+4. `docs/mvp-api-contract.md`: API contract.
+5. `docs/db-schema-current.md`: current Alembic-head DB schema reference.
+6. `docs/deployment-cicd/README.md`: team deployment/CICD workflow.
+7. `docs/next-work-plan.md`: next priority.
+8. `CONTRIBUTING.md`: branch, PR, validation, and secret rules.
 
 ## Local Development
 
-Start PostgreSQL and seed data:
+Detailed setup lives in `docs/local-dev-runtime.md`. Minimum local flow for database and backend:
 
 ```powershell
 docker compose -f compose.yaml up -d db
-
 cd backend
 python -m pip install -r requirements.txt
 $env:DATABASE_URL="postgresql+psycopg://travelhunter:travelhunter@127.0.0.1:55432/travelhunter"
 $env:AUTH_SECRET_KEY="dev-only-change-me-secret-key-32-bytes"
 alembic upgrade head
 python -m app.db.seed
-```
-
-Start backend:
-
-```powershell
-cd backend
-$env:DATABASE_URL="postgresql+psycopg://travelhunter:travelhunter@127.0.0.1:55432/travelhunter"
-$env:AUTH_SECRET_KEY="dev-only-change-me-secret-key-32-bytes"
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Start frontend:
+Frontend in another terminal:
 
 ```powershell
 cd frontend
@@ -48,34 +37,18 @@ $env:VITE_API_BASE_URL="http://127.0.0.1:8000"
 npm run dev
 ```
 
-Local URLs:
-
 - Frontend dev: `http://127.0.0.1:5173`
 - Backend API: `http://127.0.0.1:8000`
 - Backend docs: `http://127.0.0.1:8000/docs`
 - PostgreSQL host port: `127.0.0.1:55432`
+- Seed test account: `test.user@example.com` / `password123`
 
-Seed test account:
-
-- Email: `test.user@example.com`
-- Password: `password123`
-- Display name: `테스트 사용자`
-
-## Staging Deployment Modes
-
-Use public VPS direct mode when the server can expose `80` and `443`:
-
-- `compose.vps.yaml`
-- `deploy/Caddyfile`
-- `deploy/.env.staging.example`
-- Runbook: `docs/deployment-vps.md`
-
-Use Cloudflare Tunnel mode when school or on-premise NAT rules prevent inbound access:
+## Deployment
 
 - `compose.tunnel.yaml`
 - `deploy/Caddyfile.tunnel`
 - `deploy/.env.tunnel.example`
-- Runbook: `docs/deployment-tunnel.md`
+- Runbook: `docs/deployment-cicd/README.md`
 
 Real `.env` files, DB passwords, `AUTH_SECRET_KEY`, and Cloudflare tunnel tokens must not be committed.
 
@@ -109,13 +82,6 @@ docker compose --env-file deploy/.env.tunnel.example -f compose.tunnel.yaml conf
 
 `npm test` and `npm run test:e2e` run against FastAPI and PostgreSQL. Runtime mock mode has been removed.
 
-## Codex Model Workflow
+## Codex Workflow
 
-Use `gpt-5.5/xhigh` for planning and `gpt-5.3-codex/high` for implementation through the Codex CLI helper scripts:
-
-```powershell
-.\scripts\codex-plan.ps1 -Prompt "요청 내용을 분석하고 구현 계획만 작성해줘."
-.\scripts\codex-implement.ps1 -PlanFile .\.codex-runs\latest-plan.md
-```
-
-See `docs/codex-model-workflow.md` for the full workflow and Docker/server permission option.
+Team AI/Codex rules live in `docs/deployment-cicd/06-ai-workflow.md`. Local helper scripts are in `scripts/codex-*.ps1`.

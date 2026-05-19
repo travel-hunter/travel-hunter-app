@@ -1,0 +1,1171 @@
+--
+-- PostgreSQL database dump
+--
+
+\restrict lGCJanNJjdBZ57bZVh200f7oU4bCsmimtFKs6VfpOJQ08dTGVHb54tqsmMIZBFq
+
+-- Dumped from database version 16.13
+-- Dumped by pg_dump version 16.13
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- Name: alembic_version; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.alembic_version (
+    version_num character varying(32) NOT NULL
+);
+
+
+--
+-- Name: auth_refresh_tokens; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.auth_refresh_tokens (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    refresh_token_hash character varying(255) NOT NULL,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    expires_at timestamp without time zone NOT NULL,
+    revoked_at timestamp without time zone
+);
+
+
+--
+-- Name: auth_refresh_tokens_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.auth_refresh_tokens_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: auth_refresh_tokens_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.auth_refresh_tokens_id_seq OWNED BY public.auth_refresh_tokens.id;
+
+
+--
+-- Name: notification_deliveries; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.notification_deliveries (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    policy_id bigint NOT NULL,
+    channel character varying(30) NOT NULL,
+    lead_day integer NOT NULL,
+    target_deadline_date date NOT NULL,
+    status character varying(20) DEFAULT 'pending'::character varying NOT NULL,
+    attempt_count integer DEFAULT 0 NOT NULL,
+    provider_message_id character varying(100),
+    error_message text,
+    scheduled_at timestamp without time zone,
+    sent_at timestamp without time zone,
+    failed_at timestamp without time zone,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: notification_deliveries_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.notification_deliveries_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: notification_deliveries_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.notification_deliveries_id_seq OWNED BY public.notification_deliveries.id;
+
+
+--
+-- Name: password_reset_tokens; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.password_reset_tokens (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    token_hash character varying(255) NOT NULL,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    expires_at timestamp without time zone NOT NULL,
+    used_at timestamp without time zone
+);
+
+
+--
+-- Name: password_reset_tokens_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.password_reset_tokens_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: password_reset_tokens_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.password_reset_tokens_id_seq OWNED BY public.password_reset_tokens.id;
+
+
+--
+-- Name: policies; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.policies (
+    id bigint NOT NULL,
+    slug character varying(160),
+    title character varying(200) NOT NULL,
+    organization character varying(100),
+    policy_type character varying(30),
+    description text,
+    benefit_amount integer,
+    benefit_detail text,
+    target_condition text,
+    region character varying(50) NOT NULL,
+    start_date date,
+    end_date date,
+    official_url character varying(500),
+    policy_comment character varying(300),
+    policy_period character varying(100),
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    apply_url character varying(500)
+);
+
+
+--
+-- Name: policies_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.policies_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: policies_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.policies_id_seq OWNED BY public.policies.id;
+
+
+--
+-- Name: policy_documents; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.policy_documents (
+    id bigint NOT NULL,
+    policy_id bigint NOT NULL,
+    document_name character varying(100) NOT NULL,
+    description character varying(255),
+    is_required boolean DEFAULT true NOT NULL
+);
+
+
+--
+-- Name: policy_documents_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.policy_documents_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: policy_documents_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.policy_documents_id_seq OWNED BY public.policy_documents.id;
+
+
+--
+-- Name: recommendations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.recommendations (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    trip_id bigint,
+    query text,
+    result jsonb,
+    created_at timestamp without time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: recommendations_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.recommendations_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: recommendations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.recommendations_id_seq OWNED BY public.recommendations.id;
+
+
+--
+-- Name: social_accounts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.social_accounts (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    provider character varying(20) NOT NULL,
+    provider_id character varying(100) NOT NULL,
+    provider_nickname character varying(100),
+    created_at timestamp without time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: social_accounts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.social_accounts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: social_accounts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.social_accounts_id_seq OWNED BY public.social_accounts.id;
+
+
+--
+-- Name: trip_days; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.trip_days (
+    id bigint NOT NULL,
+    trip_id bigint NOT NULL,
+    day_number integer NOT NULL,
+    date date NOT NULL
+);
+
+
+--
+-- Name: trip_days_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.trip_days_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: trip_days_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.trip_days_id_seq OWNED BY public.trip_days.id;
+
+
+--
+-- Name: trip_invites; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.trip_invites (
+    id bigint NOT NULL,
+    trip_id bigint NOT NULL,
+    invite_token character varying(100) NOT NULL,
+    created_by bigint NOT NULL,
+    accepted_at timestamp without time zone,
+    expires_at timestamp without time zone NOT NULL,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    role character varying(20) DEFAULT 'editor'::character varying NOT NULL
+);
+
+
+--
+-- Name: trip_invites_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.trip_invites_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: trip_invites_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.trip_invites_id_seq OWNED BY public.trip_invites.id;
+
+
+--
+-- Name: trip_members; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.trip_members (
+    id bigint NOT NULL,
+    trip_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    role character varying(20) DEFAULT 'editor'::character varying NOT NULL,
+    joined_at timestamp without time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: trip_members_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.trip_members_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: trip_members_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.trip_members_id_seq OWNED BY public.trip_members.id;
+
+
+--
+-- Name: trip_places; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.trip_places (
+    id bigint NOT NULL,
+    trip_day_id bigint NOT NULL,
+    place_name character varying(200) NOT NULL,
+    address character varying(500),
+    latitude numeric(10,7),
+    longitude numeric(10,7),
+    visit_time time without time zone,
+    order_num integer,
+    memo text
+);
+
+
+--
+-- Name: trip_places_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.trip_places_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: trip_places_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.trip_places_id_seq OWNED BY public.trip_places.id;
+
+
+--
+-- Name: trip_policies; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.trip_policies (
+    id bigint NOT NULL,
+    trip_id bigint NOT NULL,
+    policy_id bigint NOT NULL,
+    added_at timestamp without time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: trip_policies_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.trip_policies_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: trip_policies_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.trip_policies_id_seq OWNED BY public.trip_policies.id;
+
+
+--
+-- Name: trips; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.trips (
+    id bigint NOT NULL,
+    owner_id bigint NOT NULL,
+    title character varying(200) NOT NULL,
+    start_date date NOT NULL,
+    end_date date NOT NULL,
+    region character varying(100),
+    description text,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL,
+    status character varying(20) DEFAULT 'draft'::character varying NOT NULL
+);
+
+
+--
+-- Name: trips_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.trips_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: trips_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.trips_id_seq OWNED BY public.trips.id;
+
+
+--
+-- Name: user_notification_settings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.user_notification_settings (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    deadline_enabled boolean DEFAULT true NOT NULL,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: user_notification_settings_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.user_notification_settings_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: user_notification_settings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.user_notification_settings_id_seq OWNED BY public.user_notification_settings.id;
+
+
+--
+-- Name: user_saved_policies; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.user_saved_policies (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    policy_id bigint NOT NULL,
+    saved_at timestamp without time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: user_saved_policies_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.user_saved_policies_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: user_saved_policies_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.user_saved_policies_id_seq OWNED BY public.user_saved_policies.id;
+
+
+--
+-- Name: users; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.users (
+    id bigint NOT NULL,
+    email character varying(255) NOT NULL,
+    password_hash character varying(255),
+    nickname character varying(50) NOT NULL,
+    birth_date date,
+    gender character varying(10),
+    region character varying(50),
+    preferred_regions character varying(255),
+    residence_area character varying(50),
+    onboarding_completed boolean DEFAULT false NOT NULL,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL,
+    travel_style character varying(50),
+    travel_budget character varying(50),
+    phone_number character varying(30),
+    phone_verified_at timestamp without time zone
+);
+
+
+--
+-- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.users_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
+
+
+--
+-- Name: auth_refresh_tokens id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.auth_refresh_tokens ALTER COLUMN id SET DEFAULT nextval('public.auth_refresh_tokens_id_seq'::regclass);
+
+
+--
+-- Name: notification_deliveries id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notification_deliveries ALTER COLUMN id SET DEFAULT nextval('public.notification_deliveries_id_seq'::regclass);
+
+
+--
+-- Name: password_reset_tokens id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.password_reset_tokens ALTER COLUMN id SET DEFAULT nextval('public.password_reset_tokens_id_seq'::regclass);
+
+
+--
+-- Name: policies id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.policies ALTER COLUMN id SET DEFAULT nextval('public.policies_id_seq'::regclass);
+
+
+--
+-- Name: policy_documents id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.policy_documents ALTER COLUMN id SET DEFAULT nextval('public.policy_documents_id_seq'::regclass);
+
+
+--
+-- Name: recommendations id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.recommendations ALTER COLUMN id SET DEFAULT nextval('public.recommendations_id_seq'::regclass);
+
+
+--
+-- Name: social_accounts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.social_accounts ALTER COLUMN id SET DEFAULT nextval('public.social_accounts_id_seq'::regclass);
+
+
+--
+-- Name: trip_days id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trip_days ALTER COLUMN id SET DEFAULT nextval('public.trip_days_id_seq'::regclass);
+
+
+--
+-- Name: trip_invites id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trip_invites ALTER COLUMN id SET DEFAULT nextval('public.trip_invites_id_seq'::regclass);
+
+
+--
+-- Name: trip_members id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trip_members ALTER COLUMN id SET DEFAULT nextval('public.trip_members_id_seq'::regclass);
+
+
+--
+-- Name: trip_places id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trip_places ALTER COLUMN id SET DEFAULT nextval('public.trip_places_id_seq'::regclass);
+
+
+--
+-- Name: trip_policies id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trip_policies ALTER COLUMN id SET DEFAULT nextval('public.trip_policies_id_seq'::regclass);
+
+
+--
+-- Name: trips id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trips ALTER COLUMN id SET DEFAULT nextval('public.trips_id_seq'::regclass);
+
+
+--
+-- Name: user_notification_settings id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_notification_settings ALTER COLUMN id SET DEFAULT nextval('public.user_notification_settings_id_seq'::regclass);
+
+
+--
+-- Name: user_saved_policies id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_saved_policies ALTER COLUMN id SET DEFAULT nextval('public.user_saved_policies_id_seq'::regclass);
+
+
+--
+-- Name: users id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
+
+
+--
+-- Name: alembic_version alembic_version_pkc; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.alembic_version
+    ADD CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num);
+
+
+--
+-- Name: auth_refresh_tokens auth_refresh_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.auth_refresh_tokens
+    ADD CONSTRAINT auth_refresh_tokens_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: notification_deliveries notification_deliveries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notification_deliveries
+    ADD CONSTRAINT notification_deliveries_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: notification_deliveries notification_deliveries_user_id_policy_id_channel_lead_day__key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notification_deliveries
+    ADD CONSTRAINT notification_deliveries_user_id_policy_id_channel_lead_day__key UNIQUE (user_id, policy_id, channel, lead_day, target_deadline_date);
+
+
+--
+-- Name: password_reset_tokens password_reset_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.password_reset_tokens
+    ADD CONSTRAINT password_reset_tokens_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: password_reset_tokens password_reset_tokens_token_hash_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.password_reset_tokens
+    ADD CONSTRAINT password_reset_tokens_token_hash_key UNIQUE (token_hash);
+
+
+--
+-- Name: policies policies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.policies
+    ADD CONSTRAINT policies_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: policies policies_slug_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.policies
+    ADD CONSTRAINT policies_slug_key UNIQUE (slug);
+
+
+--
+-- Name: policy_documents policy_documents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.policy_documents
+    ADD CONSTRAINT policy_documents_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: recommendations recommendations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.recommendations
+    ADD CONSTRAINT recommendations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: social_accounts social_accounts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.social_accounts
+    ADD CONSTRAINT social_accounts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: social_accounts social_accounts_provider_provider_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.social_accounts
+    ADD CONSTRAINT social_accounts_provider_provider_id_key UNIQUE (provider, provider_id);
+
+
+--
+-- Name: trip_days trip_days_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trip_days
+    ADD CONSTRAINT trip_days_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: trip_days trip_days_trip_id_date_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trip_days
+    ADD CONSTRAINT trip_days_trip_id_date_key UNIQUE (trip_id, date);
+
+
+--
+-- Name: trip_days trip_days_trip_id_day_number_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trip_days
+    ADD CONSTRAINT trip_days_trip_id_day_number_key UNIQUE (trip_id, day_number);
+
+
+--
+-- Name: trip_invites trip_invites_invite_token_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trip_invites
+    ADD CONSTRAINT trip_invites_invite_token_key UNIQUE (invite_token);
+
+
+--
+-- Name: trip_invites trip_invites_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trip_invites
+    ADD CONSTRAINT trip_invites_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: trip_members trip_members_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trip_members
+    ADD CONSTRAINT trip_members_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: trip_members trip_members_trip_id_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trip_members
+    ADD CONSTRAINT trip_members_trip_id_user_id_key UNIQUE (trip_id, user_id);
+
+
+--
+-- Name: trip_places trip_places_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trip_places
+    ADD CONSTRAINT trip_places_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: trip_policies trip_policies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trip_policies
+    ADD CONSTRAINT trip_policies_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: trip_policies trip_policies_trip_id_policy_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trip_policies
+    ADD CONSTRAINT trip_policies_trip_id_policy_id_key UNIQUE (trip_id, policy_id);
+
+
+--
+-- Name: trips trips_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trips
+    ADD CONSTRAINT trips_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: user_notification_settings user_notification_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_notification_settings
+    ADD CONSTRAINT user_notification_settings_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: user_notification_settings user_notification_settings_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_notification_settings
+    ADD CONSTRAINT user_notification_settings_user_id_key UNIQUE (user_id);
+
+
+--
+-- Name: user_saved_policies user_saved_policies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_saved_policies
+    ADD CONSTRAINT user_saved_policies_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: user_saved_policies user_saved_policies_user_id_policy_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_saved_policies
+    ADD CONSTRAINT user_saved_policies_user_id_policy_id_key UNIQUE (user_id, policy_id);
+
+
+--
+-- Name: users users_email_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key UNIQUE (email);
+
+
+--
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: idx_auth_refresh_tokens_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_auth_refresh_tokens_user_id ON public.auth_refresh_tokens USING btree (user_id);
+
+
+--
+-- Name: idx_policies_slug; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_policies_slug ON public.policies USING btree (slug);
+
+
+--
+-- Name: idx_trip_invites_token; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_trip_invites_token ON public.trip_invites USING btree (invite_token);
+
+
+--
+-- Name: idx_trip_invites_trip_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_trip_invites_trip_id ON public.trip_invites USING btree (trip_id);
+
+
+--
+-- Name: ix_notification_deliveries_policy_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_notification_deliveries_policy_id ON public.notification_deliveries USING btree (policy_id);
+
+
+--
+-- Name: ix_notification_deliveries_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_notification_deliveries_user_id ON public.notification_deliveries USING btree (user_id);
+
+
+--
+-- Name: ix_password_reset_tokens_token_hash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_password_reset_tokens_token_hash ON public.password_reset_tokens USING btree (token_hash);
+
+
+--
+-- Name: ix_password_reset_tokens_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_password_reset_tokens_user_id ON public.password_reset_tokens USING btree (user_id);
+
+
+--
+-- Name: ix_user_saved_policies_policy_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_user_saved_policies_policy_id ON public.user_saved_policies USING btree (policy_id);
+
+
+--
+-- Name: ix_user_saved_policies_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_user_saved_policies_user_id ON public.user_saved_policies USING btree (user_id);
+
+
+--
+-- Name: auth_refresh_tokens auth_refresh_tokens_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.auth_refresh_tokens
+    ADD CONSTRAINT auth_refresh_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: notification_deliveries notification_deliveries_policy_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notification_deliveries
+    ADD CONSTRAINT notification_deliveries_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES public.policies(id);
+
+
+--
+-- Name: notification_deliveries notification_deliveries_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notification_deliveries
+    ADD CONSTRAINT notification_deliveries_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: password_reset_tokens password_reset_tokens_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.password_reset_tokens
+    ADD CONSTRAINT password_reset_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: policy_documents policy_documents_policy_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.policy_documents
+    ADD CONSTRAINT policy_documents_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES public.policies(id) ON DELETE CASCADE;
+
+
+--
+-- Name: recommendations recommendations_trip_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.recommendations
+    ADD CONSTRAINT recommendations_trip_id_fkey FOREIGN KEY (trip_id) REFERENCES public.trips(id);
+
+
+--
+-- Name: recommendations recommendations_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.recommendations
+    ADD CONSTRAINT recommendations_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: social_accounts social_accounts_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.social_accounts
+    ADD CONSTRAINT social_accounts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: trip_days trip_days_trip_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trip_days
+    ADD CONSTRAINT trip_days_trip_id_fkey FOREIGN KEY (trip_id) REFERENCES public.trips(id) ON DELETE CASCADE;
+
+
+--
+-- Name: trip_invites trip_invites_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trip_invites
+    ADD CONSTRAINT trip_invites_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
+
+
+--
+-- Name: trip_invites trip_invites_trip_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trip_invites
+    ADD CONSTRAINT trip_invites_trip_id_fkey FOREIGN KEY (trip_id) REFERENCES public.trips(id) ON DELETE CASCADE;
+
+
+--
+-- Name: trip_members trip_members_trip_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trip_members
+    ADD CONSTRAINT trip_members_trip_id_fkey FOREIGN KEY (trip_id) REFERENCES public.trips(id) ON DELETE CASCADE;
+
+
+--
+-- Name: trip_members trip_members_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trip_members
+    ADD CONSTRAINT trip_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: trip_places trip_places_trip_day_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trip_places
+    ADD CONSTRAINT trip_places_trip_day_id_fkey FOREIGN KEY (trip_day_id) REFERENCES public.trip_days(id) ON DELETE CASCADE;
+
+
+--
+-- Name: trip_policies trip_policies_policy_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trip_policies
+    ADD CONSTRAINT trip_policies_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES public.policies(id);
+
+
+--
+-- Name: trip_policies trip_policies_trip_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trip_policies
+    ADD CONSTRAINT trip_policies_trip_id_fkey FOREIGN KEY (trip_id) REFERENCES public.trips(id) ON DELETE CASCADE;
+
+
+--
+-- Name: trips trips_owner_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trips
+    ADD CONSTRAINT trips_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES public.users(id);
+
+
+--
+-- Name: user_notification_settings user_notification_settings_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_notification_settings
+    ADD CONSTRAINT user_notification_settings_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: user_saved_policies user_saved_policies_policy_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_saved_policies
+    ADD CONSTRAINT user_saved_policies_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES public.policies(id);
+
+
+--
+-- Name: user_saved_policies user_saved_policies_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_saved_policies
+    ADD CONSTRAINT user_saved_policies_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- PostgreSQL database dump complete
+--
+
+\unrestrict lGCJanNJjdBZ57bZVh200f7oU4bCsmimtFKs6VfpOJQ08dTGVHb54tqsmMIZBFq
+

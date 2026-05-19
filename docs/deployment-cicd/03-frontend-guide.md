@@ -31,6 +31,14 @@
 - `/invites/:inviteToken/accept`
 - `/mypage`
 
+## Route Smoke 기준
+
+- Public route: `/`, `/login`, `/signup`는 인증 없이 렌더링되어야 한다.
+- Protected redirect: anonymous user가 `/home`에 접근하면 `/login`으로 이동해야 한다.
+- Authenticated 주요 route: `/home`, `/policies`, `/policies/local-vacation`, `/trips`, `/trips/new`, `/trips/jeju-3-days`, `/ai-results`, `/friend-invite`, `/mypage`.
+- 금지 상태: blank `#root`, horizontal overflow, prototype-only copy, runtime mock mode.
+- DB-backed e2e는 `frontend/e2e-backend/backend-mode.spec.ts`와 `npm run test:e2e` 기준이다.
+
 ## 작업 순서
 
 1. 변경할 route/page를 확인한다.
@@ -79,4 +87,3 @@ UI layout 변경 시 주요 폭에서 확인한다.
 - 로그인 만료/refresh 흐름이 깨지지 않는지 확인한다.
 - `VITE_API_BASE_URL`이 배포 domain을 가리키는지 확인한다.
 - production build output에 sourcemap이 공개되지 않는지 확인한다.
-

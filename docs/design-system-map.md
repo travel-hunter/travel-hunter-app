@@ -40,4 +40,4 @@ This document records how external design references map to the current Travel H
 
 - Wanted source primary blue is a historical reference only. Current product UI uses Prototype red (`#ff5e5b`) as primary.
 - Decorative colors such as travel gradients, policy thumbnails, Kakao yellow, Google white, warning yellow, and success mint may remain outside the primary palette when they carry semantic or brand meaning.
-- Detailed component measurements are tracked in `docs/figma-component-values.md`.
+- This file is the single design reference kept in `docs/`; old Figma import and measurement notes were removed during docs core cleanup.

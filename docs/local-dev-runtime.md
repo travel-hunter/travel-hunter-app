@@ -72,7 +72,7 @@ http://127.0.0.1:4173/
 
 Do not enable LAN/classroom sharing during normal UI development.
 
-When development is complete and other people need to view the app from their devices, use `docs/local-lan-access.md` or Cloudflare Tunnel. That step may require LAN IP, Windows Firewall, CORS, and public hostname settings.
+When development is complete and other people need to view the app from their devices, use the Cloudflare Tunnel flow in `docs/deployment-cicd/07-infrastructure.md`. That step may require public hostname, CORS, and secret/env settings.
 
 ## Quick Checks
 

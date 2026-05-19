@@ -32,11 +32,12 @@ docker compose -f compose.yaml config
 
 # Documentation Checks
 
-- `README.md` files reflect setup and commands.
+- `README.md` and `docs/local-dev-runtime.md` reflect setup and commands.
 - `.env.example` files document required variables and safe defaults.
 - `docs/mvp-api-contract.md` matches current API shape.
 - `PLANS.md` and `CHECKLIST.md` reflect current work state.
-- `.agent/evals` still match real routes and endpoints.
+- `.agent/evals/api-contract-golden.json` still matches real API shape.
+- `docs/deployment-cicd/09-release-checklist.md` still matches release criteria, routes, and tests.
 
 # Output
 

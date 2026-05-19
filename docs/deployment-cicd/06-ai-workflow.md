@@ -4,11 +4,7 @@
 
 AI 도구는 계획과 구현을 분리해서 사용한다. 계획 품질이 필요한 작업과 코드 수정 작업을 같은 실행으로 섞지 않는다.
 
-기준 문서:
-
-```text
-docs/codex-model-workflow.md
-```
+이 문서는 AI/Codex 작업 기준의 단일 문서다.
 
 ## 기본 역할 분리
 
@@ -84,4 +80,3 @@ alembic upgrade head --sql
 ```
 
 마지막으로 `CHECKLIST.md` 또는 PR 본문에 실행 결과와 남은 위험을 기록한다.
-

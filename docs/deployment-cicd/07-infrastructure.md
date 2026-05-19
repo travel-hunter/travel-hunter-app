@@ -47,14 +47,7 @@ compose.tunnel.yaml
 deploy/Caddyfile.tunnel
 ```
 
-직접 80/443 노출이 가능한 VPS 또는 서버:
-
-```text
-compose.vps.yaml
-deploy/Caddyfile
-```
-
-현재 팀 기준은 Cloudflare Tunnel이다.
+현재 팀 기준은 Cloudflare Tunnel이다. 직접 80/443 노출 방식은 배포 기준 문서에서 제외한다.
 
 ## 임시 Docker 이미지 archive
 

@@ -5,7 +5,7 @@
 - 실행 모드: DB-backed-only.
 - Runtime mock mode는 제거됐다.
 - 이 문서는 현재 구현된 사용자 동작과 API/DB 연결을 기능명세 관점으로 정리한다.
-- 제품 요구사항은 `docs/requirements.md`, 기능별 완료 상태표는 `docs/feature-implementation-status.md`, API wire shape는 `docs/mvp-api-contract.md`를 따른다.
+- 제품 요구사항은 `docs/requirements.md`, 현재 구현 요약은 `docs/current-work-spec.md`, API wire shape는 `docs/mvp-api-contract.md`를 따른다.
 
 ## 인증과 계정
 
@@ -90,8 +90,8 @@
 | 프로토타입 기반 앱 UX | 업로드 HTML 프로토타입의 모바일 앱형 흐름을 현재 React 화면에 반영했다. `/` 랜딩은 제거하고 프로토타입 로그인 첫 화면을 실제 auth flow와 연결했다. 홈 대표 혜택 hero, 정책 카드/태그, 정책 상세 혜택 패키지, 일정 상세 혜택 묶음, 공통 배경/카드 톤을 정리하되 실제 DB-backed 기능은 유지한다. |
 | PWA manifest/meta | 앱 이름, theme color, Apple mobile meta, 192/512/maskable icon을 제공한다. Service worker는 아직 추가하지 않는다. |
 | Production sourcemap | Vite production sourcemap은 명시적으로 비활성화되어 있다. |
-| LAN 개발 공유 | 같은 네트워크에서 `0.0.0.0` dev server와 LAN IP로 접근하는 절차를 문서화했다. |
-| VPS/Tunnel staging | public VPS direct mode와 Cloudflare Tunnel mode 산출물을 모두 제공한다. |
+| 로컬 개발 런타임 | Docker `db/backend`와 Vite dev server 기준 실행 절차를 문서화했다. |
+| Cloudflare Tunnel 배포 | `docs/deployment-cicd/`에 GitHub, Docker, Jenkins 계획, release checklist 기준을 모았다. |
 
 ## 조건부 기능과 미구현 범위
 

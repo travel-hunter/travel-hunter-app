@@ -2,7 +2,7 @@ import app.models  # noqa: F401
 from app.db.base import Base
 
 
-def test_erd_v0_3_tables_are_registered() -> None:
+def test_current_schema_tables_are_registered() -> None:
     expected_tables = {
         "users",
         "auth_refresh_tokens",
@@ -25,7 +25,7 @@ def test_erd_v0_3_tables_are_registered() -> None:
     assert expected_tables.issubset(set(Base.metadata.tables))
 
 
-def test_erd_v0_3_decision_columns_are_registered() -> None:
+def test_current_schema_decision_columns_are_registered() -> None:
     users = Base.metadata.tables["users"]
     policies = Base.metadata.tables["policies"]
     trip_invites = Base.metadata.tables["trip_invites"]
