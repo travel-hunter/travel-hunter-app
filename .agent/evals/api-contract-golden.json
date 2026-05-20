@@ -399,10 +399,10 @@
         "currentUserRole": "string enum(owner|editor|viewer)"
       },
       "exampleTripId": "1",
-      "legacyTripAlias": "jeju-3-days",
-      "dbModeTripIdPolicy": "The API returns numeric trip ids as strings; jeju-3-days is accepted only as a legacy seed alias.",
+      "dbModeTripIdPolicy": "The API returns numeric trip ids as strings and accepts only numeric string trip handles.",
       "numericHandlePattern": "^[1-9][0-9]*$",
-      "invalidNumericLikeHandles": ["0", "001", "1.0"]
+      "invalidNumericLikeHandles": ["0", "001", "1.0"],
+      "nonNumericHandleBehavior": "Returns 404 not found."
     },
     {
       "method": "POST",
@@ -447,9 +447,7 @@
         "linkedPolicies": "array of { slug, title, amount, region }",
         "days": "object",
         "currentUserRole": "string enum(owner|editor|viewer)"
-      },
-      "legacyAliasPath": "/api/trips/jeju-3-days",
-      "legacyAliasResponseId": "numeric string"
+      }
     },
     {
       "method": "DELETE",

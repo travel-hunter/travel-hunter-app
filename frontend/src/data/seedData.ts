@@ -78,7 +78,7 @@ export const policies: Policy[] = [
 ];
 
 export const itinerary: Trip = {
-  id: "jeju-3-days",
+  id: "1",
   status: "confirmed",
   title: "제주 3일 여행",
   dates: "2026.06.15 - 06.17",

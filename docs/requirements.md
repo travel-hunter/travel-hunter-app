@@ -2,9 +2,9 @@
 
 ## 문서 기준
 
-- 문서 버전: 2.0
-- 기준 브랜치: `feat/prototype-to-react`
-- 기준 커밋: `4e68285 docs: streamline project documentation` 이후 현재 상태
+- 문서 버전: 2.1
+- 기준 브랜치: `develop`
+- 기준 검증 기준: `80c9876` 위 현재 작업트리
 - 실행 모드: DB-backed-only
 - 대상 독자: PM, 개발자, QA, 디자이너
 
@@ -76,7 +76,7 @@ Travel Hunter는 국내 여행자가 여행 혜택 정책을 찾고, 여행 일�
 | FR-TRIP-003 | 사용자는 일정 상세를 볼 수 있다. | `trip.days` 기준으로 day tab과 장소 타임라인을 동적으로 표시한다. |
 | FR-TRIP-004 | owner는 일정을 삭제할 수 있다. | 삭제 후 목록에서 제거되고 연결 데이터는 cascade 또는 서비스 규칙에 따라 정리된다. |
 | FR-TRIP-005 | owner/editor는 장소를 추가/수정/삭제할 수 있다. | 장소 변경은 `trip_places`에 저장되고 새로고침 후에도 유지된다. viewer는 편집할 수 없다. |
-| FR-TRIP-006 | legacy `jeju-3-days` handle은 호환 조회만 지원한다. | DB mode 응답의 canonical `Trip.id`는 numeric string이다. 신규 편집 흐름은 canonical id를 사용한다. |
+| FR-TRIP-006 | 일정 상세/편집 handle은 numeric string `Trip.id`만 지원한다. | DB mode 응답의 canonical `Trip.id`는 numeric string이며 non-numeric handle은 not found로 처리된다. |
 
 ### 3.5 AI 추천
 

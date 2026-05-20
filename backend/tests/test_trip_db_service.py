@@ -111,7 +111,7 @@ def test_trip_to_api_includes_owner_when_owner_is_not_a_member() -> None:
     assert payload["people"] == ["Test User", "Minseo"]
 
 
-def test_get_trip_resolves_numeric_id_and_legacy_alias(monkeypatch) -> None:
+def test_get_trip_resolves_numeric_id_only(monkeypatch) -> None:
     fake_db = object()
     user = make_user()
     trip = make_trip()
@@ -121,36 +121,23 @@ def test_get_trip_resolves_numeric_id_and_legacy_alias(monkeypatch) -> None:
         "get_accessible_trip_by_id",
         lambda db, trip_id, user_id: trip if db is fake_db and trip_id == 7 and user_id == 1 else None,
     )
-    monkeypatch.setattr(
-        trip_service.trip_repository,
-        "get_seed_alias_trip",
-        lambda db, **kwargs: trip
-        if db is fake_db and kwargs["user_id"] == 1 and kwargs["owner_email"] == "test.user@example.com"
-        else None,
-    )
 
     numeric = trip_service.get_trip("7", fake_db, user)
-    legacy = trip_service.get_trip("jeju-3-days", fake_db, user)
-    missing = trip_service.get_trip("missing-trip", fake_db, user)
+    missing_numeric = trip_service.get_trip("8", fake_db, user)
 
     assert numeric is not None
     assert numeric["id"] == "7"
-    assert legacy is not None
-    assert legacy["id"] == "7"
-    assert missing is None
+    assert missing_numeric is None
 
 
-def test_get_trip_rejects_noncanonical_numeric_handles(monkeypatch) -> None:
+def test_get_trip_rejects_noncanonical_and_non_numeric_handles(monkeypatch) -> None:
     fake_db = object()
     user = make_user()
     calls: list[str] = []
+    non_numeric_handle = "-".join(["jeju", "3", "days"])
 
     def unexpected_numeric_lookup(*_args):
         calls.append("numeric")
-        return None
-
-    def unexpected_alias_lookup(*_args, **_kwargs):
-        calls.append("alias")
         return None
 
     monkeypatch.setattr(
@@ -158,12 +145,9 @@ def test_get_trip_rejects_noncanonical_numeric_handles(monkeypatch) -> None:
         "get_accessible_trip_by_id",
         unexpected_numeric_lookup,
     )
-    monkeypatch.setattr(
-        trip_service.trip_repository,
-        "get_seed_alias_trip",
-        unexpected_alias_lookup,
-    )
 
+    assert trip_service.get_trip(non_numeric_handle, fake_db, user) is None
+    assert trip_service.get_trip("missing-trip", fake_db, user) is None
     assert trip_service.get_trip("001", fake_db, user) is None
     assert trip_service.get_trip("0", fake_db, user) is None
     assert trip_service.get_trip("1.0", fake_db, user) is None

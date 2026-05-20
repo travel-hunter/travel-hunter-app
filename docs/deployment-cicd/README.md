@@ -24,6 +24,8 @@
    - Jenkins credentials, pipeline, 배포 흐름.
 9. `09-release-checklist.md`
    - 배포 전후 점검, smoke test, rollback.
+10. `release-handoff-2026-05-20.md`
+   - 현재 `develop` staging smoke 후보의 검증 증거, 실행 순서, 남은 위험.
 
 ## 역할별 빠른 경로
 
@@ -65,3 +67,7 @@ GitHub에는 Docker 이미지 archive가 아니라 이미지를 재생성할 수
 - 현재 구현 명세: `../current-work-spec.md`
 - 로컬 개발 런타임: `../local-dev-runtime.md`
 - 현재 DB schema: `../db-schema-current.md`, `../db-schema-current.sql`
+
+## 최근 Handoff
+
+- `release-handoff-2026-05-20.md`: numeric trip id 정책 정리 이후 `develop` staging smoke 후보.
