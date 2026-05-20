@@ -36,10 +36,11 @@
 - 2026-05-19 final verification: frontend `npm run typecheck`, `npm test`, `npm run build`, and `npm run test:e2e` passed after updating stale e2e expectations to the current policy CTA, invite, logout, and trip creation flows; backend `python -m pytest tests/test_db_schema.py`, `python -m pytest`, `alembic upgrade head --sql`, compose config checks, and `docker compose -f compose.yaml build` passed.
 - 2026-05-19 PR #17 handoff: `feat/prototype-to-react` was pushed to origin, `develop` PR #17 was opened, GitHub Actions frontend/backend fast lanes passed, reviewers were requested, and `compose.tunnel.yaml` actual-env `config --quiet` plus build passed. Full tunnel `up`, migration, and public health smoke were intentionally left for the release window.
 - 2026-05-19 deployment hardening: Protected routes now wait for session bootstrap before redirecting, and tunnel compose services use `restart: unless-stopped`; frontend typecheck/test, tunnel compose config checks, tunnel build, and `git diff --check` passed.
+- 2026-05-20 branch stabilization: PR #17 merged into `develop` (commit `b5c0557`); PRs #18, #19, #20 subsequently merged; local `develop` pulled to `80c9876`; `git diff --check` passed; doc references verified (all referenced files exist); frontend `npm run typecheck` and `npm run build` passed. Full test suite requires Docker Desktop.
 
 ## 남은 우선순위
 
-- [ ] Complete review and merge PR #17 into `develop` after the latest checks are green.
+- [x] Complete review and merge PR #17 into `develop` after the latest checks are green.
 - [ ] Run Cloudflare Tunnel full staging smoke during the release window.
 - [ ] Verify SMTP delivery in staging.
 - [ ] Verify OAuth provider credentials in staging.
