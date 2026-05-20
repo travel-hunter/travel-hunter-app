@@ -189,23 +189,24 @@ def test_db_trip_create_route_maps_policy_error(monkeypatch) -> None:
     assert response.json() == {"detail": "Policy not found"}
 
 
-def test_db_trip_legacy_alias_returns_numeric_response_id(monkeypatch) -> None:
+def test_db_trip_non_numeric_handle_returns_404(monkeypatch) -> None:
     fake_db = object()
     user = make_user()
+    non_numeric_path = "/api/trips/" + "-".join(["jeju", "3", "days"])
     install_db_route_dependencies(monkeypatch, fake_db, user)
     monkeypatch.setattr(
         trip_routes.trip_service,
         "get_trip",
-        lambda trip_id, _db, _user: trip_payload("7") if trip_id == "jeju-3-days" else None,
+        lambda *_args: None,
     )
 
     try:
-        response = client.get("/api/trips/jeju-3-days")
+        response = client.get(non_numeric_path)
     finally:
         clear_overrides()
 
-    assert response.status_code == 200
-    assert response.json()["id"] == "7"
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Trip not found"}
 
 
 def test_db_trip_detail_missing_returns_404(monkeypatch) -> None:

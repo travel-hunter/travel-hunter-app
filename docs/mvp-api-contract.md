@@ -2,8 +2,8 @@
 
 ## 기준
 
-- 기준일: 2026-05-19
-- 기준 브랜치: `feat/prototype-to-react`
+- 기준일: 2026-05-20
+- 기준 브랜치: `develop`
 - Base URL: `http://localhost:8000/api` (local dev), `https://<domain>/api` (staging/production)
 - 인증: Access Token을 `Authorization: Bearer <token>` 헤더로 전달한다.
 - Refresh Token: HttpOnly cookie (`refresh_token`)로 관리한다.
@@ -461,6 +461,8 @@ OAuth provider callback 처리.
 
 모든 엔드포인트는 인증 필요.
 
+`trip_id` route parameter는 `trips.id`를 문자열화한 numeric string이며 `^[1-9][0-9]*$` 형식만 지원한다. non-numeric handle은 404로 처리한다.
+
 ---
 
 ### GET /trips
@@ -471,7 +473,7 @@ OAuth provider callback 처리.
 ```json
 [
   {
-    "id": "uuid",
+    "id": "1",
     "title": "제주 3일 여행",
     "status": "draft",
     "dates": "2026-07-12 ~ 2026-07-14",
@@ -487,7 +489,7 @@ OAuth provider callback 처리.
     ],
     "days": {
       "1": [
-        { "id": "uuid", "time": "10:00", "label": "공항 도착", "meta": "제주 국제공항" }
+        { "id": "1", "time": "10:00", "label": "공항 도착", "meta": "제주 국제공항" }
       ]
     },
     "currentUserRole": "owner"
@@ -542,7 +544,7 @@ OAuth provider callback 처리.
 
 **Response 200**
 ```json
-{ "tripId": "uuid", "deleted": true }
+{ "tripId": "1", "deleted": true }
 ```
 
 **Errors**
@@ -577,8 +579,8 @@ OAuth provider callback 처리.
 **Response 200**
 ```json
 {
-  "tripId": "uuid",
-  "policyId": "uuid",
+  "tripId": "1",
+  "policyId": "local-vacation",
   "added": true
 }
 ```
@@ -699,7 +701,7 @@ AI 추천 장소 목록 조회.
 ```json
 {
   "id": "uuid",
-  "tripId": "uuid",
+  "tripId": "1",
   "inviteToken": "<token>",
   "inviteUrl": "https://<domain>/invites/<token>/accept",
   "expiresAt": "2026-05-25T00:00:00",

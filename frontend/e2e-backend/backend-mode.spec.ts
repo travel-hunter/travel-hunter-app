@@ -16,17 +16,6 @@ async function login(page: Page) {
   await expect(page).toHaveURL(/\/home$/);
 }
 
-async function getStoredAccessToken(page: Page): Promise<string> {
-  const token = await page.evaluate(() => {
-    const saved = window.localStorage.getItem("travel-hunter-production-auth");
-    if (!saved) return "";
-    return String(JSON.parse(saved).accessToken || "");
-  });
-
-  expect(token).not.toEqual("");
-  return token;
-}
-
 test.describe.configure({ mode: "serial" });
 
 test("backend data source requires login for protected routes", async ({ page }) => {
@@ -133,32 +122,4 @@ test("backend data source creates a trip with selected profile values and policy
 
   await page.goto(`/friend-invite?tripId=${createdTripId}`);
   await expect(page.locator(".invite-link")).toBeVisible();
-});
-
-test("legacy trip alias canonicalizes when the shared DB has a unique seed match", async ({ page, request }) => {
-  await login(page);
-  const accessToken = await getStoredAccessToken(page);
-  const apiBaseUrl = process.env.VITE_API_BASE_URL || "http://127.0.0.1:8001";
-
-  const aliasResponse = await request.get(`${apiBaseUrl}/api/trips/jeju-3-days`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  if (aliasResponse.status() === 404) {
-    test.info().annotations.push({
-      type: "note",
-      description:
-        "Legacy alias failed closed. This is expected when a shared dev DB contains zero or multiple seed-like trip rows.",
-    });
-    return;
-  }
-
-  expect(aliasResponse.ok()).toBeTruthy();
-  const aliasTrip = (await aliasResponse.json()) as { id: string };
-  expect(aliasTrip.id).toMatch(numericTripId);
-
-  await page.goto("/trips/jeju-3-days");
-  await expect(page).toHaveURL(new RegExp(`/trips/${aliasTrip.id}$`));
 });

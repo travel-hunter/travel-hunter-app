@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-The MVP is DB-backed-only and runtime mock mode has been removed. Cloudflare Tunnel is the current deployment baseline, while Jenkins CD is still planned. The current priority is to complete review and merge PR #17 from `feat/prototype-to-react` into `develop` after the latest checks are green. After that, move to staging smoke work when real SMTP, OAuth, Cloudflare, and production env values are ready.
+The MVP is DB-backed-only and runtime mock mode has been removed. Cloudflare Tunnel is the current deployment baseline, while Jenkins CD is still planned. The current priority is to keep the `develop` branch contract clean, then move to staging smoke work when real SMTP, OAuth, Cloudflare, and production env values are ready.
 
 ## Source Of Truth
 
@@ -17,7 +17,7 @@ The MVP is DB-backed-only and runtime mock mode has been removed. Cloudflare Tun
 
 - Do not add `trips.slug`.
 - Keep DB mode `Trip.id` as `str(trips.id)`.
-- Keep `jeju-3-days` as legacy seed alias only.
+- Keep trip route handles numeric string ids only.
 - Keep API DTO fields `camelCase` and DB fields `snake_case`.
 - Keep frontend pages behind the `AppDataApi` boundary.
 - Keep backend routes thin and push business behavior into services.

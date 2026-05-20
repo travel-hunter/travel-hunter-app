@@ -106,7 +106,6 @@ POLICIES = [
 ] + _load_crawled()
 
 TRIP = {
-    "id": "jeju-3-days",
     "title": "제주 3일 여행",
     "dates": "2026.06.15 - 06.17",
     "people": ["테스트 사용자", "민서", "현우"],

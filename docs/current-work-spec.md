@@ -2,11 +2,11 @@
 
 ## 기준
 
-- 기준일: 2026-05-19
-- 기준 검증 커밋: `f6fce98 docs: consolidate project documentation and validation`
-- 브랜치: `feat/prototype-to-react`
+- 기준일: 2026-05-20
+- 기준 검증 기준: `80c9876` 위 현재 작업트리
+- 브랜치: `develop`
 - 원칙: DB-backed-only MVP를 유지하고 runtime mock mode는 다시 추가하지 않는다.
-- 현재 단계: 문서 핵심화, DB schema current 문서화, frontend itinerary refactor 검증을 완료했고, `develop` 대상 PR/CI 단계로 넘기는 중이다.
+- 현재 단계: PR #17, #18, #19, #20이 `develop`에 합류했고, trip route alias 정리와 계약 동기화를 마친 뒤 staging smoke 준비 상태다.
 
 ## 제품 범위
 
@@ -39,6 +39,7 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - 일정 생성 3단계 UX, 동적 기본 날짜, draft autosave.
 - 일정 목록, 삭제 dialog, draft/confirmed 상태 저장.
 - 일정 상세 장소 추가/수정/삭제, 10분 단위 시간 스피너, 시간 없음 저장, drag-and-drop 이동.
+- 일정 route handle은 numeric string `Trip.id`만 지원하며 non-numeric handle은 not found로 처리한다.
 - AI 추천 장소를 일정 타임라인에 추가.
 - 초대 링크 role 저장과 viewer/editor 권한 enforcement.
 - 마감 알림 설정, 연락처 저장, 알림 대상 계산, scheduler/provider/retry/webhook 기반.
@@ -54,6 +55,8 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - DB schema 기준을 `docs/db-schema-current.md`, `docs/db-schema-current.sql`로 교체하고 구버전 schema SQL 참조를 정리했다.
 - frontend itinerary 관련 page를 개별 파일로 분리하면서 기존 route import를 유지했다.
 - `.agent/evals`는 machine-readable API contract 기준인 `api-contract-golden.json`만 남겼다.
+- PR #17, #18, #19, #20이 `develop`에 병합됐고 로컬 `develop` 기준으로 문서/계약 정합성을 다시 맞췄다.
+- 기존 non-numeric 제주 3일 trip handle 지원을 제거하고, seed 여행 데이터는 유지한 채 API 계약과 frontend/backend 테스트를 numeric trip id 기준으로 갱신했다.
 
 ## 현재 조건부 항목
 
@@ -76,18 +79,18 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 ## 최신 검증 기록
 
 - Frontend typecheck: passed.
-- Frontend Vitest: `80 passed`.
-- Frontend e2e: `5 passed`.
+- Frontend Vitest: `82 passed`.
+- Frontend e2e: `4 passed`.
 - Frontend build: passed.
 - Backend schema pytest: `2 passed`.
 - Backend pytest: `218 passed`.
 - Alembic offline SQL: passed.
 - Compose config/build checks: passed.
 - `git diff --check`: passed.
-- 삭제 문서 참조 검색과 secret/env/archive 추적 확인: passed.
+- 삭제 문서 참조, stale trip alias 참조, secret/env/archive 추적 확인: passed.
 
 ## 다음 작업 방향
 
-1. GitHub Actions CI와 review를 통과시켜 `develop` merge 기준을 맞춘다.
-2. 운영 검증 흐름으로 전환할 경우 Cloudflare Tunnel actual env full-up, SMTP staging smoke, OAuth provider smoke 순서로 진행한다.
-3. 기능 개발 흐름을 계속할 경우 홈 추천 목적지 ranking 고도화를 진행한다.
+1. `develop`을 원격 기준과 동기화하고 release handoff에 현재 검증 결과와 보류 사유를 남긴다.
+2. 실제 env가 준비되면 Cloudflare Tunnel actual env full-up, public route smoke, SMTP staging smoke, OAuth provider smoke 순서로 운영 검증을 진행한다.
+3. 운영 검증 대기 중 기능 개발을 계속할 경우 홈 추천 목적지 ranking 고도화를 진행한다.

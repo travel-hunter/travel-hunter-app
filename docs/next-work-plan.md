@@ -2,11 +2,11 @@
 
 ## 기준
 
-- 기준일: 2026-05-19
-- 기준 검증 커밋: `f6fce98 docs: consolidate project documentation and validation`
-- 브랜치: `feat/prototype-to-react`
-- 원격 상태: `develop` 대상 PR 게시 후 GitHub Actions와 review 단계로 넘기는 기준이다.
-- 기준 상태: MyPage 콘텐츠 보강, 문서 핵심화, DB schema current 문서화, frontend refactor 검증이 완료된 PR 준비 상태다.
+- 기준일: 2026-05-20
+- 기준 검증 기준: `80c9876` 위 현재 작업트리
+- 브랜치: `develop`
+- 원격 상태: PR #17, #18, #19, #20이 `develop`에 병합된 뒤 staging smoke 준비로 전환하는 기준이다.
+- 기준 상태: DB-backed-only MVP, numeric trip id 계약, 문서/계약/eval 동기화, frontend/backend 검증이 완료된 상태다.
 
 ## 최근 완료
 
@@ -20,19 +20,23 @@
 - `/mypage`와 정책 목록/상세의 즐겨찾기 상태가 `SessionProvider.savedSlugs` 기준으로 동기화됐다.
 - 미사용 untracked 후보였던 `TripCreateModal.tsx`, `TripItinerary.tsx`는 현재 route/import와 연결되지 않는 임시 파일로 판단해 정리했다.
 - `/mypage` 공지사항/FAQ, 이용약관, 개인정보처리방침 sheet 콘텐츠를 실제 서비스 안내 수준으로 보강했다.
+- PR #17, #18, #19, #20이 `develop`에 병합됐다.
+- 기존 non-numeric 제주 3일 trip handle 지원을 제거하고 `trip_id`는 numeric string `Trip.id`만 지원하도록 계약, backend, frontend, tests, `.agent/evals`를 동기화했다.
+- Frontend `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build`, backend `python -m pytest`, compose config, stale alias search, API eval JSON validation, `git diff --check`가 통과했다.
 
 ## 다음 우선순위
 
 | 우선순위 | 작업 | 성공 기준 |
 |---:|---|---|
-| 1 | GitHub Actions CI와 review | PR CI가 통과하고, 실패 시 같은 브랜치에서 원인을 수정한다. |
-| 2 | `develop` merge 준비 | 삭제 문서 참조, secret/env/archive 추적, API/DB schema drift가 없는 상태로 review를 요청한다. |
-| 3 | Cloudflare Tunnel staging 준비 | 실제 env 값이 준비됐는지 확인하고, 준비되지 않은 항목은 release handoff에 보류 사유로 남긴다. |
-| 4 | Cloudflare Tunnel actual env full-up | 실제 `deploy/.env.tunnel` 값으로 migration, seed, compose up, `/api/health` smoke가 통과한다. |
+| 1 | `develop` 동기화와 release handoff | 원격 `develop`과 로컬 기준이 맞고, 현재 검증 결과와 env 미준비 보류 사유가 handoff에 남는다. |
+| 2 | Cloudflare Tunnel staging env 준비 | 실제 domain, tunnel token, DB, auth, CORS, public base URL 값이 준비됐는지 확인하고 누락값을 명시한다. |
+| 3 | Cloudflare Tunnel actual env full-up | 실제 `deploy/.env.tunnel` 값으로 migration, seed, compose up, `/api/health` smoke가 통과한다. |
+| 4 | public HTTPS route smoke | public HTTPS 기준 `/login`, `/policies`, `/trips`, `/mypage`가 blank root 없이 동작한다. |
 | 5 | SMTP password reset staging smoke | 실제 SMTP provider와 HTTPS staging URL로 reset email 수신, token confirm, 새 비밀번호 로그인이 통과한다. |
 | 6 | Kakao/Google OAuth provider smoke | provider console redirect URI와 runtime env를 맞춘 뒤 실제 social login callback과 session 복구가 통과한다. |
-| 7 | 홈 추천 목적지 ranking 고도화 | 정책 기반 목적지 추천에 마감 임박, 혜택 금액, 사용자 프로필 지역 가중치 같은 기준을 명확히 적용한다. |
-| 8 | 전화번호 OTP 설계/구현 | 알림 수신 전화번호의 실제 검증 흐름과 `phone_verified_at` 갱신 기준을 확정한다. |
+| 7 | SOLAPI Kakao AlimTalk staging smoke | 실제 SOLAPI/Kakao channel/template/env로 발송 요청, retry, webhook 수신이 확인된다. |
+| 8 | 홈 추천 목적지 ranking 고도화 | 정책 기반 목적지 추천에 마감 임박, 혜택 금액, 사용자 프로필 지역 가중치 같은 기준을 명확히 적용한다. |
+| 9 | 전화번호 OTP 설계/구현 | 알림 수신 전화번호의 실제 검증 흐름과 `phone_verified_at` 갱신 기준을 확정한다. |
 
 ## 기능 개발 후보
 
@@ -83,4 +87,5 @@ rg -n "<stale-reference-pattern>" docs README.md PLANS.md CHECKLIST.md .agent
 - Runtime mock mode를 다시 추가하지 않는다.
 - 실제 secret/env 값은 repo에 기록하지 않는다.
 - API DTO는 `camelCase`, DB column은 `snake_case`를 유지한다.
+- trip route handle은 numeric string `Trip.id`만 지원하고 `trips.slug`는 추가하지 않는다.
 - 현재 route URL과 DB-backed source of truth를 유지한다.

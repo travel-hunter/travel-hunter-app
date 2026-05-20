@@ -21,17 +21,8 @@ from app.schemas.trip import (
 )
 
 
-LEGACY_TRIP_ALIAS = str(seed.TRIP["id"])
 INVITE_BASE_URL = "travelhunter.app/i"
 NUMERIC_TRIP_ID_PATTERN = re.compile(r"^[1-9][0-9]*$")
-LEGACY_TRIP_ALIASES = {
-    LEGACY_TRIP_ALIAS: {
-        "owner_email": str(seed.USER["email"]),
-        "title": str(seed.TRIP["title"]),
-        "start_date": date(2026, 6, 15),
-        "end_date": date(2026, 6, 17),
-    }
-}
 TRIP_EDIT_ROLES = {"owner", "editor"}
 
 
@@ -163,16 +154,6 @@ def trip_to_api(trip: Trip, user: User | None = None) -> dict[str, object]:
 def _resolve_trip(db: Session, trip_handle: str, user: User) -> Trip | None:
     if NUMERIC_TRIP_ID_PATTERN.fullmatch(trip_handle):
         return trip_repository.get_accessible_trip_by_id(db, int(trip_handle), user.id)
-    alias = LEGACY_TRIP_ALIASES.get(trip_handle)
-    if alias is not None:
-        return trip_repository.get_seed_alias_trip(
-            db,
-            user_id=user.id,
-            owner_email=str(alias["owner_email"]),
-            title=str(alias["title"]),
-            start_date=alias["start_date"],
-            end_date=alias["end_date"],
-        )
     return None
 
 

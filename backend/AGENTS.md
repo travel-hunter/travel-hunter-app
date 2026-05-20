@@ -20,7 +20,7 @@ These rules apply inside `backend/`. The backend is a FastAPI service backed by 
 - Database and SQLAlchemy fields are `snake_case`.
 - Do not expose `password_hash`, `provider_id`, `refresh_token_hash`, or other secret/internal fields.
 - Policy detail lookup is slug based.
-- Trip lookup uses an opaque string handle. The API returns numeric string ids and accepts `jeju-3-days` only as a legacy seed alias.
+- Trip lookup uses numeric string handles derived from `trips.id`; non-numeric trip handles return not found.
 - Do not add `trips.slug`.
 - For every API shape change, update `docs/mvp-api-contract.md`, Pydantic schemas, route/service behavior, backend tests, frontend types, and `.agent/evals`.
 

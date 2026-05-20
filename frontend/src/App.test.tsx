@@ -142,10 +142,9 @@ describe("Travel Hunter app", () => {
       "/policies/local-vacation",
       "/trips",
       "/trips/new",
-      "/trips/jeju-3-days",
       "/trips/1",
-      "/ai-results?tripId=jeju-3-days",
-      "/friend-invite?tripId=jeju-3-days",
+      "/ai-results?tripId=1",
+      "/friend-invite?tripId=1",
       "/invites/jeju-3d/accept",
       "/mypage",
     ];
@@ -2076,7 +2075,7 @@ describe("Travel Hunter app", () => {
   it("opens an AI recommendation criteria sheet", async () => {
     await login();
     cleanup();
-    renderRoute("/ai-results?tripId=jeju-3-days");
+    renderRoute("/ai-results?tripId=55");
 
     await userEvent.setup().click(await screen.findByRole("button", { name: "추천 기준" }));
 
