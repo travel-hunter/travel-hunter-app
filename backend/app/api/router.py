@@ -1,9 +1,20 @@
 from fastapi import APIRouter
 
-from app.api.routes import auth, health, invites, policies, profile, recommendations, trips, webhooks
+from app.api.routes import (
+    auth,
+    health,
+    invites,
+    ops,
+    policies,
+    profile,
+    recommendations,
+    trips,
+    webhooks,
+)
 
 api_router = APIRouter()
 api_router.include_router(health.router)
+api_router.include_router(ops.router)
 api_router.include_router(auth.router)
 api_router.include_router(profile.router)
 api_router.include_router(policies.router)

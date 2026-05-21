@@ -58,7 +58,7 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - PR #17, #18, #19, #20, #23이 `develop`에 병합됐고 로컬/원격 `develop` 기준으로 문서/계약 정합성을 다시 맞췄다.
 - 기존 non-numeric 제주 3일 trip handle 지원을 제거하고, seed 여행 데이터는 유지한 채 API 계약과 frontend/backend 테스트를 numeric trip id 기준으로 갱신했다.
 - 외주/인프라 담당자용 staging 운영 검증 작업지시서를 `docs/deployment-cicd/staging-ops-work-orders.md`로 추가했다.
-- 여행가는 달 지역 여행할인 모아보기 외부 수집 기반을 추가해 공식 출처 레코드 저장, 원문 보존, 파생 지역/상태/혜택/선호도 필드를 지원한다. 현재 공식 live HTML의 목록/상세 modal 구조는 58건 fetch/parse/upsert smoke로 검증했고, scheduler는 `EXTERNAL_COLLECTION_MIN_PARSED_COUNT` 미달 수집을 실패로 처리해 재시도하며 마지막 시도/성공/parsed count/outcome/error 상태를 내부 관측값으로 남긴다.
+- 여행가는 달 지역 여행할인 모아보기 외부 수집 기반을 추가해 공식 출처 레코드 저장, 원문 보존, 파생 지역/상태/혜택/선호도 필드를 지원한다. 현재 공식 live HTML의 목록/상세 modal 구조는 58건 fetch/parse/upsert smoke로 검증했고, scheduler는 `EXTERNAL_COLLECTION_MIN_PARSED_COUNT` 미달 수집을 실패로 처리해 재시도하며 마지막 시도/성공/parsed count/outcome/error 상태를 내부 관측값으로 남긴다. 운영 확인은 기존 `/api/health` 계약을 유지한 채 `GET /api/ops/external-collection`에서 분리해 확인한다.
 - `external_source_records` 기반 지역 추천 API는 신청 가능 혜택 수, 마감 임박, 명시 금액, 취향 보조 점수, 프로필 지역 최종 tie-breaker를 사용해 지역/목적지 추천 후보를 반환한다.
 
 ## 현재 조건부 항목
