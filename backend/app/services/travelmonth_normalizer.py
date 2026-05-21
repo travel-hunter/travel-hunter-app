@@ -213,6 +213,11 @@ def _parse_date(value: str) -> date:
 
 def _extract_amounts(text: str) -> list[tuple[int, str]]:
     matches: list[tuple[int, str]] = []
+    for match in re.finditer(r"(?<![\d,])(\d+(?:,\d{3})*)\s*(만원|천원|원)", text):
+        number = int(match.group(1).replace(",", ""))
+        unit = match.group(2)
+        multiplier = {"만원": 10000, "천원": 1000, "원": 1}[unit]
+        matches.append((number * multiplier, f"{number}{unit}"))
     for match in re.finditer(r"(?<![\d,])(\d+(?:,\d{3})*)\s*(만\s*원|천\s*원)", text):
         number = int(match.group(1).replace(",", ""))
         unit = match.group(2).replace(" ", "")
