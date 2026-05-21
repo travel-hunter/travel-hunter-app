@@ -22,6 +22,7 @@ class _RegionStats:
     ending_soon_count: int = 0
     estimated_value_krw: int = 0
     style_matched_count: int = 0
+    profile_region_match: bool = False
     nationwide: bool = False
 
 
@@ -30,9 +31,11 @@ def recommend_regions(
     *,
     today: date | None = None,
     style: str | None = None,
+    region: str | None = None,
     limit: int = 3,
 ) -> list[RegionRecommendation]:
     run_date = today or date.today()
+    preferred_region = _normalize_region(region)
     records = external_source_repository.list_regional_benefit_recommendation_records(db)
     regional_stats: dict[str, _RegionStats] = {}
     nationwide_stats = _RegionStats(region=NATIONWIDE_REGION, nationwide=True)
@@ -42,6 +45,9 @@ def recommend_regions(
         if target is None:
             continue
         _add_record(target, record, today=run_date, style=style)
+
+    for stats in regional_stats.values():
+        stats.profile_region_match = preferred_region is not None and stats.region == preferred_region
 
     ranked = sorted(
         regional_stats.values(),
@@ -93,12 +99,20 @@ def _string_values(value: object) -> list[str]:
     return [str(item) for item in value]
 
 
-def _ranking_key(stats: _RegionStats) -> tuple[int, int, int, int, str]:
+def _normalize_region(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    return normalized or None
+
+
+def _ranking_key(stats: _RegionStats) -> tuple[int, int, int, int, int, str]:
     return (
         stats.policy_count,
         stats.ending_soon_count,
         stats.estimated_value_krw,
         stats.style_matched_count,
+        1 if stats.profile_region_match else 0,
         _reverse_string_sort(stats.region),
     )
 

@@ -20,8 +20,8 @@ export function HomePage() {
   const { data: policies, error: policiesError, isLoading: policiesLoading } = useAsyncResource(() => appDataApi.listPolicies(), []);
   const { data: trips, error: tripsError, isLoading: tripsLoading } = useAsyncResource(() => appDataApi.listTrips(), []);
   const { data: regionRecommendations } = useAsyncResource(
-    () => appDataApi.listRegionRecommendations({ style: profile.style, limit: 3 }),
-    [profile.style],
+    () => appDataApi.listRegionRecommendations({ style: profile.style, region: profile.region, limit: 3 }),
+    [profile.region, profile.style],
   );
   const name = currentUser?.nickname ?? previewUser.nickname ?? "여행자";
   const featuredPolicy = getFeaturedPolicy(policies);

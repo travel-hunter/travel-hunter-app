@@ -59,7 +59,7 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - 기존 non-numeric 제주 3일 trip handle 지원을 제거하고, seed 여행 데이터는 유지한 채 API 계약과 frontend/backend 테스트를 numeric trip id 기준으로 갱신했다.
 - 외주/인프라 담당자용 staging 운영 검증 작업지시서를 `docs/deployment-cicd/staging-ops-work-orders.md`로 추가했다.
 - 여행가는 달 지역 여행할인 모아보기 외부 수집 기반을 추가해 공식 출처 레코드 저장, 원문 보존, 파생 지역/상태/혜택/선호도 필드를 지원한다.
-- `external_source_records` 기반 지역 추천 API는 신청 가능 혜택 수, 마감 임박, 명시 금액, 취향 보조 점수를 사용해 지역/목적지 추천 후보를 반환한다.
+- `external_source_records` 기반 지역 추천 API는 신청 가능 혜택 수, 마감 임박, 명시 금액, 취향 보조 점수, 프로필 지역 최종 tie-breaker를 사용해 지역/목적지 추천 후보를 반환한다.
 
 ## 현재 조건부 항목
 
@@ -97,4 +97,4 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 
 1. 실제 env가 준비되면 Cloudflare Tunnel actual env full-up, public route smoke, SMTP staging smoke, OAuth provider smoke 순서로 운영 검증을 진행한다.
 2. SOLAPI Kakao AlimTalk staging smoke는 provider 계정, channel, 승인 템플릿, webhook secret 준비 후 진행한다.
-3. 운영 검증 대기 중 기능 개발을 계속할 경우 홈 추천 목적지 ranking 고도화와 전화번호 OTP 실제 발송 smoke를 별도 의뢰로 진행한다.
+3. 운영 검증 대기 중 기능 개발을 계속할 경우 전화번호 OTP 실제 발송 smoke와 live collector 운영 검증을 별도 의뢰로 진행한다.

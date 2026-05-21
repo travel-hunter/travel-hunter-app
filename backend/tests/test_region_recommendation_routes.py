@@ -16,9 +16,10 @@ def test_region_recommendation_route_returns_public_recommendations(monkeypatch)
     fake_db = object()
     app.dependency_overrides[recommendation_routes.get_optional_db] = lambda: fake_db
 
-    def fake_recommend_regions(db, *, today=None, style=None, limit=3):
+    def fake_recommend_regions(db, *, today=None, style=None, region=None, limit=3):
         assert db is fake_db
         assert style == "맛집"
+        assert region == "부산"
         assert limit == 2
         return [
             RegionRecommendation(
@@ -40,7 +41,7 @@ def test_region_recommendation_route_returns_public_recommendations(monkeypatch)
     )
 
     try:
-        response = client.get("/api/recommendations/regions?style=맛집&limit=2")
+        response = client.get("/api/recommendations/regions?style=맛집&region=부산&limit=2")
     finally:
         clear_overrides()
 

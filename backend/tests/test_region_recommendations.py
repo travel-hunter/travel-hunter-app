@@ -119,6 +119,26 @@ def test_region_recommendations_keep_style_bonus_from_overriding_policy_score(db
     assert recommendations[1].styleMatchedCount == 1
 
 
+def test_region_recommendations_use_profile_region_only_as_tie_breaker(db: Session) -> None:
+    today = date(2026, 5, 21)
+    upsert_external_source_records(
+        db,
+        [
+            make_source("busan-1", region="Busan", title="Busan food support", amount=50000, styles=["맛집"]),
+            make_source("gangwon-1", region="Gangwon", title="Gangwon food support", amount=50000, styles=["맛집"]),
+            make_source("jeju-1", region="Jeju", title="Jeju stronger support", amount=50000, styles=["맛집"]),
+            make_source("jeju-2", region="Jeju", title="Jeju second support", amount=50000, styles=["맛집"]),
+        ],
+    )
+
+    recommendations = recommend_regions(db, today=today, style="맛집", region="Busan", limit=3)
+
+    assert [item.region for item in recommendations] == ["Jeju", "Busan", "Gangwon"]
+    assert recommendations[0].policyCount == 2
+    assert recommendations[1].policyCount == 1
+    assert recommendations[2].policyCount == 1
+
+
 def test_region_recommendations_use_nationwide_only_as_fallback(db: Session) -> None:
     today = date(2026, 5, 21)
     upsert_external_source_records(
