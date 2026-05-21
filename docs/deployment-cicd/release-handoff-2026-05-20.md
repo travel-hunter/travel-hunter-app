@@ -3,6 +3,7 @@
 ## Scope
 
 - Branch: `develop`.
+- Merge commit: `9bdcb73`.
 - Target environment: staging smoke candidate through Cloudflare Tunnel.
 - Product baseline: DB-backed-only MVP; runtime mock mode is removed.
 - API baseline: trip route handles are numeric string `Trip.id` values only.
@@ -13,6 +14,7 @@
 - Removed support for the old non-numeric 제주 trip handle while keeping the 제주 development seed trip data.
 - Updated backend trip resolution, repositories, route/service tests, frontend API boundary calls, route smoke tests, API contract evals, and current planning docs to the numeric-only trip id policy.
 - Refreshed current work status and next-work priorities for the staging smoke path.
+- Synced the handoff through PR #23 into `develop`.
 
 ## Validation Evidence
 
@@ -73,4 +75,3 @@ Minimum public smoke after startup:
 - The candidate is ready for staging bring-up, but not fully release-ready until public HTTPS smoke passes.
 - Provider flows remain unverified in a real staging environment.
 - Jenkins CD is still planned work; current handoff assumes manual Docker Compose operation on the staging/tunnel host.
-- The final pushed `develop` commit should be recorded in the release notes or deployment log after push.

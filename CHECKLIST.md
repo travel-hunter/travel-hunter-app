@@ -40,13 +40,15 @@
 - 2026-05-20 trip alias cleanup: the old non-numeric 제주 3-day trip handle support was removed while keeping the 제주 seed trip data; frontend `npm run typecheck`, `npm test`, `npm run test:e2e`, and `npm run build`, backend `python -m pytest`, API eval JSON validation, compose config, `git diff --check`, and stale alias reference search passed.
 - 2026-05-20 project status docs refresh: `docs/current-work-spec.md`, `docs/next-work-plan.md`, `docs/mvp-api-contract.md`, and `docs/requirements.md` were updated to the `develop` staging-smoke-ready baseline; scoped stale reference search, API eval JSON validation, and `git diff --check` passed.
 - 2026-05-20 release handoff: `docs/deployment-cicd/release-handoff-2026-05-20.md` records the `develop` staging smoke candidate, validation evidence, host-only env inputs, startup commands, and remaining risks.
-- 2026-05-20 develop sync: user approved GitHub push data upload risk, but direct push to `origin/develop` was blocked by repository rules requiring a pull request; use branch `chore/develop-release-handoff-2026-05-20` for the sync PR.
+- 2026-05-20 develop sync: PR #23 merged into `develop` at `9bdcb73`; local `develop` and `origin/develop` are synced.
+- 2026-05-20 staging ops work orders: `docs/deployment-cicd/staging-ops-work-orders.md` was added for non-developer external infra/ops handoff, current status docs were updated to the PR #23 baseline, and documentation validation passed with `git diff --check`, targeted reference search, and assigned-secret scan.
+- 2026-05-20 meeting brief: `docs/meeting-briefs/travel-hunter-dev-status-2026-05-20.md` was revised into a shareable detailed representative/PM status report with only necessary status, completion, remaining-work, decision, risk, and next-step lists; `git diff --check`, source reference search, and assigned-secret scan passed.
 
 ## 남은 우선순위
 
 - [x] Complete review and merge PR #17 into `develop` after the latest checks are green.
 - [x] Prepare staging smoke handoff.
-- [ ] Merge the `chore/develop-release-handoff-2026-05-20` sync PR into `develop`.
+- [x] Merge the `chore/develop-release-handoff-2026-05-20` sync PR into `develop`.
 - [ ] Run Cloudflare Tunnel full staging smoke during the release window.
 - [ ] Verify SMTP delivery in staging.
 - [ ] Verify OAuth provider credentials in staging.

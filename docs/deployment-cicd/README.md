@@ -26,6 +26,8 @@
    - 배포 전후 점검, smoke test, rollback.
 10. `release-handoff-2026-05-20.md`
    - 현재 `develop` staging smoke 후보의 검증 증거, 실행 순서, 남은 위험.
+11. `staging-ops-work-orders.md`
+   - 외주/인프라 담당자용 남은 운영 검증 작업지시서.
 
 ## 역할별 빠른 경로
 
@@ -33,7 +35,7 @@
 - 백엔드 개발자: `01` -> `02` -> `04` -> `05` -> `09`
 - DB 담당자: `01` -> `05` -> `07` -> `09`
 - AI 작업 담당자: `01` -> `06` -> 변경 영역의 프론트/백엔드 문서 -> `09`
-- 배포 담당자: `01` -> `07` -> `08` -> `09`
+- 배포 담당자: `01` -> `07` -> `staging-ops-work-orders` -> `09` -> `08`
 
 ## 기본 운영 결정
 
@@ -71,3 +73,4 @@ GitHub에는 Docker 이미지 archive가 아니라 이미지를 재생성할 수
 ## 최근 Handoff
 
 - `release-handoff-2026-05-20.md`: numeric trip id 정책 정리 이후 `develop` staging smoke 후보.
+- `staging-ops-work-orders.md`: 실제 domain/provider/env 준비 후 남은 운영 검증 지시서.
