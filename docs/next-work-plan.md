@@ -8,6 +8,24 @@
 - 원격 상태: PR #17, #18, #19, #20, #23이 `develop`에 병합됐고 staging smoke 준비로 전환하는 기준이다.
 - 기준 상태: DB-backed-only MVP, numeric trip id 계약, 문서/계약/eval 동기화, frontend/backend 검증이 완료된 상태다.
 
+## Current Local Priority
+
+Cloudflare는 뒤로 미루고, 현재 1순위는 로컬 Docker Compose에서 공식 데이터 수집과 일정 자동 생성 추천 흐름을 끝까지 반복 검증 가능하게 만드는 것이다.
+
+작업명세:
+
+- `docs/superpowers/specs/2026-05-21-local-collection-itinerary-recommendation-smoke-design.md`
+
+성공 기준:
+
+- TravelMonth 공식 페이지 수집이 수동 명령으로 실행된다.
+- 수집 결과가 `external_source_records`에 저장된다.
+- `/api/ops/external-collection/quality`가 저장 품질과 recommendation preview를 보여준다.
+- `/api/recommendations/regions`가 저장 데이터 기반 지역 추천을 반환한다.
+- `/home` 추천 UI가 해당 API를 사용한다.
+- `/trips/new`에서 새 일정을 만들면 `trip_days`, `trip_places`, `recommendations`가 자동 저장된다.
+- `/trips/{id}`와 `/ai-results?tripId={id}`에서 생성 결과를 확인할 수 있다.
+
 ## 최근 완료
 
 - 문서 산출물을 핵심 문서와 `docs/deployment-cicd/` 기준으로 정리했다.

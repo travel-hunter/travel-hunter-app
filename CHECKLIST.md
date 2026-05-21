@@ -61,12 +61,14 @@
 - 2026-05-21 external collection quality report: `GET /api/ops/external-collection/quality` summarizes `external_source_records` counts, freshness, amount/style coverage, region quality, and recommendation preview without live network fetch; RED route tests failed before implementation, targeted ops/recommendation/repository pytest passed with 12 tests, API eval JSON validated, and `git diff --check` passed.
 - 2026-05-21 external collection ops smoke docs: staging ops work orders and the release checklist now include smoke steps for `GET /api/ops/external-collection` and `GET /api/ops/external-collection/quality`, including empty-DB interpretation, no-live-fetch quality semantics, and evidence to keep. Documentation validation used targeted reference search and `git diff --check`.
 - 2026-05-21 staging smoke attempt: `develop` was built with `docker compose --env-file deploy/.env.tunnel -f compose.tunnel.yaml build`, DB was started, Alembic migration and seed passed after synchronizing the existing Docker volume DB role password with the current tunnel env, and backend/Caddy/internal route smoke passed. Internal API checks returned 200 for `/api/health`, `/api/ops/external-collection`, `/api/ops/external-collection/quality`, and `/api/recommendations/regions`; manual TravelMonth live collection parsed/upserted 58 records and quality reported 58 total records with 3 recommendation previews. Public HTTPS smoke is blocked because the local tunnel env still uses a placeholder staging domain and cloudflared reports an invalid tunnel token.
+- 2026-05-21 local collection itinerary smoke target: Cloudflare/provider smoke was split out from the immediate feature goal, and the local completion target was recorded in `docs/superpowers/specs/2026-05-21-local-collection-itinerary-recommendation-smoke-design.md`, `docs/current-work-spec.md`, and `docs/next-work-plan.md`. The next implementation track starts with a local TravelMonth collection command and repeatable local recommendation smoke script.
 
 ## 남은 우선순위
 
 - [x] Complete review and merge PR #17 into `develop` after the latest checks are green.
 - [x] Prepare staging smoke handoff.
 - [x] Merge the `chore/develop-release-handoff-2026-05-20` sync PR into `develop`.
+- [ ] Complete local collection and itinerary recommendation smoke automation.
 - [ ] Run Cloudflare Tunnel full staging smoke during the release window.
 - [ ] Verify SMTP delivery in staging.
 - [ ] Verify OAuth provider credentials in staging.

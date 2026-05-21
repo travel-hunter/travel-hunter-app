@@ -69,6 +69,25 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - SOLAPI 실제 발송은 SOLAPI 계정, Kakao business channel, 승인 템플릿, secret env가 필요하다.
 - 전화번호 OTP 실인증 foundation은 dev/test provider boundary, env-gated SOLAPI SMS provider, hashed OTP 저장, 요청/확인 API, MyPage UI까지 구현됐다. 실제 발송 smoke는 운영 env 준비 후 진행한다.
 
+## Local Collection And Itinerary Recommendation Target
+
+Cloudflare/public HTTPS/provider smoke는 별도 운영 검증으로 남기고, 현재 기능 개발 목표는 로컬 Docker Compose 환경에서 공식 데이터 수집과 일정 자동 생성 추천 흐름을 끝까지 반복 검증 가능하게 만드는 것이다.
+
+기준 흐름:
+
+```text
+TravelMonth 공식 페이지 수집
+-> external_source_records 저장
+-> /api/ops/external-collection/quality 저장 품질 확인
+-> /api/recommendations/regions 지역 추천 확인
+-> /home 추천 UI 확인
+-> /trips/new 일정 생성
+-> trip_days / trip_places 자동 코스 저장
+-> /trips/{id}와 /ai-results?tripId={id}에서 결과 확인
+```
+
+작업명세는 `docs/superpowers/specs/2026-05-21-local-collection-itinerary-recommendation-smoke-design.md`를 기준으로 한다. 다음 구현은 로컬 수동 수집 명령, local recommendation smoke 스크립트, backend/frontend/e2e 검증 보강 순서로 진행한다.
+
 ## 문서 역할
 
 - `docs/requirements.md`: 제품 요구사항.
