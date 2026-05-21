@@ -332,7 +332,7 @@ OAuth provider callback 처리.
 
 ### POST /me/contact/verification/request
 
-알림 연락처 전화번호 인증번호를 요청한다. provider boundary는 dev/test provider를 기본으로 사용하며, 실제 외부 발송 provider는 후속 운영 설정에서 교체한다.
+알림 연락처 전화번호 인증번호를 요청한다. provider boundary는 `PHONE_VERIFICATION_PROVIDER=dev`를 기본으로 사용하며, `solapi`로 설정하면 SOLAPI SMS provider가 같은 요청 경로에서 인증번호를 발송한다.
 
 **Request**
 ```json

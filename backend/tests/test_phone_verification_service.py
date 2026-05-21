@@ -98,6 +98,30 @@ def test_request_contact_verification_saves_phone_and_sends_dev_provider(monkeyp
     assert db.committed is True
 
 
+def test_request_contact_verification_uses_configured_provider_when_not_injected(monkeypatch) -> None:
+    db = FakeDb()
+    user = make_user()
+    provider = FakeProvider()
+    now = datetime(2026, 5, 21, 10, 0, 0)
+
+    monkeypatch.setattr(
+        phone_verification.verification_repository,
+        "create_phone_verification_code",
+        lambda _db, **kwargs: PhoneVerificationCode(id=1, attempt_count=0, created_at=now, **kwargs),
+    )
+    monkeypatch.setattr(phone_verification, "build_phone_verification_provider", lambda: provider)
+
+    phone_verification.request_contact_verification(
+        db,  # type: ignore[arg-type]
+        user,
+        ContactVerificationRequest(phoneNumber="010 1234 5678"),
+        now=now,
+        code_factory=lambda: "123456",
+    )
+
+    assert provider.sent == [("01012345678", "123456")]
+
+
 def test_confirm_contact_verification_marks_phone_verified(monkeypatch) -> None:
     db = FakeDb()
     user = make_user()
