@@ -38,6 +38,12 @@ export type ContactInfo = {
   phoneVerified: boolean;
 };
 
+export type ContactVerificationRequestResponse = {
+  requested: boolean;
+  expiresAt: string;
+  resendAvailableAt: string;
+};
+
 export type PolicyCategory = "추천" | "환급" | "숙박" | "캐시백";
 
 export type Policy = {

@@ -165,3 +165,63 @@ def test_db_patch_contact_clears_empty_phone_number() -> None:
     assert response.status_code == 200
     assert response.json() == {"phoneNumber": None, "phoneVerified": False}
     assert user.phone_number is None
+
+
+def test_db_post_contact_verification_request_returns_expiry(monkeypatch) -> None:
+    user = make_user()
+    fake_db = FakeDb()
+
+    def request_verification(_db, current_user, request):
+        assert current_user is user
+        assert request.phoneNumber == "010 1234 5678"
+        return {
+            "requested": True,
+            "expiresAt": "2026-05-21T10:05:00",
+            "resendAvailableAt": "2026-05-21T10:01:00",
+        }
+
+    monkeypatch.setattr(profile_routes.contact_service, "request_contact_verification", request_verification)
+    app.dependency_overrides[profile_routes.get_current_user] = lambda: user
+    app.dependency_overrides[profile_routes.get_optional_db] = lambda: fake_db
+
+    try:
+        response = client.post(
+            "/api/me/contact/verification/request",
+            json={"phoneNumber": "010 1234 5678"},
+            headers={"Authorization": "Bearer access-token"},
+        )
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "requested": True,
+        "expiresAt": "2026-05-21T10:05:00",
+        "resendAvailableAt": "2026-05-21T10:01:00",
+    }
+
+
+def test_db_post_contact_verification_confirm_returns_contact(monkeypatch) -> None:
+    user = make_user()
+    fake_db = FakeDb()
+
+    def confirm_verification(_db, current_user, request):
+        assert current_user is user
+        assert request.code == "123456"
+        return {"phoneNumber": "01012345678", "phoneVerified": True}
+
+    monkeypatch.setattr(profile_routes.contact_service, "confirm_contact_verification", confirm_verification)
+    app.dependency_overrides[profile_routes.get_current_user] = lambda: user
+    app.dependency_overrides[profile_routes.get_optional_db] = lambda: fake_db
+
+    try:
+        response = client.post(
+            "/api/me/contact/verification/confirm",
+            json={"code": "123456"},
+            headers={"Authorization": "Bearer access-token"},
+        )
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    assert response.json() == {"phoneNumber": "01012345678", "phoneVerified": True}

@@ -330,6 +330,56 @@ OAuth provider callback 처리.
 
 ---
 
+### POST /me/contact/verification/request
+
+알림 연락처 전화번호 인증번호를 요청한다. provider boundary는 dev/test provider를 기본으로 사용하며, 실제 외부 발송 provider는 후속 운영 설정에서 교체한다.
+
+**Request**
+```json
+{ "phoneNumber": "010-1234-5678" }
+```
+
+- `phoneNumber`: optional. 값이 있으면 공백 제거 후 `users.phone_number`에 저장하고 번호 변경 시 `users.phone_verified_at`을 초기화한다.
+- 값이 없으면 기존 저장 연락처로 인증번호를 발급한다.
+
+**Response 200**
+```json
+{
+  "requested": true,
+  "expiresAt": "2026-05-21T10:05:00",
+  "resendAvailableAt": "2026-05-21T10:01:00"
+}
+```
+
+**Errors**
+- 400: 저장 또는 요청된 전화번호 없음
+
+---
+
+### POST /me/contact/verification/confirm
+
+알림 연락처 인증번호를 확인하고 성공 시 `users.phone_verified_at`을 갱신한다.
+
+**Request**
+```json
+{ "code": "123456" }
+```
+
+- `code`: 숫자 4~8자
+
+**Response 200** ??`ContactInfo`
+```json
+{
+  "phoneNumber": "01012345678",
+  "phoneVerified": true
+}
+```
+
+**Errors**
+- 400: 인증번호 없음, 만료, 불일치, 시도 횟수 초과
+
+---
+
 ### GET /me/notification-settings
 
 마감 알림 설정 조회.

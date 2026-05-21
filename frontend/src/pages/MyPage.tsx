@@ -38,6 +38,10 @@ export function MyPage() {
   const [isLoadingContact, setIsLoadingContact] = useState(true);
   const [isSavingContact, setIsSavingContact] = useState(false);
   const [contactError, setContactError] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationMessage, setVerificationMessage] = useState("");
+  const [isRequestingVerification, setIsRequestingVerification] = useState(false);
+  const [isConfirmingVerification, setIsConfirmingVerification] = useState(false);
   const [isNotificationSheetOpen, setIsNotificationSheetOpen] = useState(false);
   const [infoSheetType, setInfoSheetType] = useState<InfoSheetType | null>(null);
 
@@ -202,16 +206,50 @@ export function MyPage() {
   const saveContact = async () => {
     setIsSavingContact(true);
     setContactError("");
+    setVerificationMessage("");
     try {
       const savedContact = await appDataApi.updateContact({
         phoneNumber: contactDraft.trim() ? contactDraft : null,
       });
       setContact(savedContact);
       setContactDraft(savedContact.phoneNumber ?? "");
+      setVerificationCode("");
     } catch {
       setContactError("연락처를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.");
     } finally {
       setIsSavingContact(false);
+    }
+  };
+
+  const requestContactVerification = async () => {
+    setIsRequestingVerification(true);
+    setContactError("");
+    setVerificationMessage("");
+    try {
+      await appDataApi.requestContactVerification({
+        phoneNumber: contactDraft.trim() ? contactDraft : null,
+      });
+      setVerificationMessage("인증번호를 보냈어요.");
+    } catch {
+      setContactError("인증번호를 보내지 못했어요. 연락처를 확인해 주세요.");
+    } finally {
+      setIsRequestingVerification(false);
+    }
+  };
+
+  const confirmContactVerification = async () => {
+    setIsConfirmingVerification(true);
+    setContactError("");
+    try {
+      const verifiedContact = await appDataApi.confirmContactVerification({ code: verificationCode });
+      setContact(verifiedContact);
+      setContactDraft(verifiedContact.phoneNumber ?? "");
+      setVerificationCode("");
+      setVerificationMessage("연락처 인증이 완료됐어요.");
+    } catch {
+      setContactError("인증번호를 확인하지 못했어요.");
+    } finally {
+      setIsConfirmingVerification(false);
     }
   };
 
@@ -380,11 +418,18 @@ export function MyPage() {
             deadlineLabel={deadlineLabel}
             isLoadingContact={isLoadingContact}
             isLoadingNotifications={isLoadingNotifications}
+            isConfirmingVerification={isConfirmingVerification}
+            isRequestingVerification={isRequestingVerification}
             isSavingContact={isSavingContact}
             isSavingNotifications={isSavingNotifications}
             notificationError={notificationError}
+            verificationCode={verificationCode}
+            verificationMessage={verificationMessage}
             onClose={() => setIsNotificationSheetOpen(false)}
             onContactChange={setContactDraft}
+            onConfirmVerification={confirmContactVerification}
+            onRequestVerification={requestContactVerification}
+            onVerificationCodeChange={setVerificationCode}
             onSaveContact={saveContact}
             onToggleDeadline={toggleDeadlineNotifications}
           />
@@ -547,13 +592,20 @@ function NotificationSettingsSheet({
   contactError,
   deadlineEnabled,
   deadlineLabel,
+  isConfirmingVerification,
   isLoadingContact,
   isLoadingNotifications,
+  isRequestingVerification,
   isSavingContact,
   isSavingNotifications,
   notificationError,
+  verificationCode,
+  verificationMessage,
   onClose,
   onContactChange,
+  onConfirmVerification,
+  onRequestVerification,
+  onVerificationCodeChange,
   onSaveContact,
   onToggleDeadline,
 }: {
@@ -562,13 +614,20 @@ function NotificationSettingsSheet({
   contactError: string;
   deadlineEnabled: boolean;
   deadlineLabel: string;
+  isConfirmingVerification: boolean;
   isLoadingContact: boolean;
   isLoadingNotifications: boolean;
+  isRequestingVerification: boolean;
   isSavingContact: boolean;
   isSavingNotifications: boolean;
   notificationError: string;
+  verificationCode: string;
+  verificationMessage: string;
   onClose: () => void;
   onContactChange: (phoneNumber: string) => void;
+  onConfirmVerification: () => void;
+  onRequestVerification: () => void;
+  onVerificationCodeChange: (code: string) => void;
   onSaveContact: () => void;
   onToggleDeadline: () => void;
 }) {
@@ -618,6 +677,33 @@ function NotificationSettingsSheet({
             <Button disabled={isLoadingContact || isSavingContact} onClick={onSaveContact} variant="line">
               {isSavingContact ? "저장 중" : "연락처 저장"}
             </Button>
+            <Button
+              disabled={isLoadingContact || isSavingContact || isRequestingVerification || !contactDraft.trim()}
+              onClick={onRequestVerification}
+              variant="line"
+            >
+              {isRequestingVerification ? "요청 중" : "인증번호 받기"}
+            </Button>
+            <label className="field contact-field">
+              인증번호
+              <input
+                disabled={isLoadingContact || isConfirmingVerification}
+                inputMode="numeric"
+                name="notification-phone-verification-code"
+                onChange={(event) => onVerificationCodeChange(event.target.value)}
+                placeholder="123456"
+                type="text"
+                value={verificationCode}
+              />
+            </label>
+            <Button
+              disabled={isLoadingContact || isConfirmingVerification || !verificationCode.trim()}
+              onClick={onConfirmVerification}
+              variant="line"
+            >
+              {isConfirmingVerification ? "확인 중" : "인증 확인"}
+            </Button>
+            {verificationMessage && <div className="form-success">{verificationMessage}</div>}
             {contactError && <div className="warning-text">{contactError}</div>}
           </div>
 

@@ -3,7 +3,7 @@
 ## 기준
 
 - 기준일: 2026-05-21
-- 기준 Alembic head: `0010_external_source_records`
+- 기준 Alembic head: `0011_phone_verification_codes`
 - PostgreSQL: 16.13
 - SQL 산출물: `docs/db-schema-current.sql`
 - 생성 방식: fresh PostgreSQL DB에 `alembic upgrade head`를 적용한 뒤 `pg_dump --schema-only --no-owner --no-privileges`로 추출했다.
@@ -56,6 +56,7 @@ Migration metadata:
 - `user_notification_settings`
 - `notification_deliveries`
 - `password_reset_tokens`
+- `phone_verification_codes`
 - `external_source_records`
 - `alembic_version`
 
@@ -68,6 +69,21 @@ Migration metadata:
 - `policies.apply_url`
 - `trip_invites.role`
 - `trips.status`
+
+## `phone_verification_codes`
+
+`phone_verification_codes`는 알림 연락처 OTP 실인증을 위한 단기 인증 코드 저장 테이블이다. 원문 인증번호는 저장하지 않고 `code_hash`만 보관하며, dev/test provider boundary가 발송을 담당한다.
+
+주요 컬럼:
+
+- `id`
+- `user_id`
+- `phone_number`
+- `code_hash`
+- `expires_at`
+- `attempt_count`
+- `verified_at`
+- `created_at`
 
 ## `external_source_records`
 

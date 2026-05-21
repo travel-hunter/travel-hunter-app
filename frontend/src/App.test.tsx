@@ -1718,6 +1718,49 @@ describe("Travel Hunter app", () => {
     }
   });
 
+  it("requests and confirms a notification contact verification code from my page", async () => {
+    const savedContact: ContactInfo = {
+      phoneNumber: "01012345678",
+      phoneVerified: false,
+    };
+    const verifiedContact: ContactInfo = {
+      phoneNumber: "01012345678",
+      phoneVerified: true,
+    };
+    const getContactSpy = vi.spyOn(appDataApi, "getContact").mockResolvedValue(savedContact);
+    const requestVerificationSpy = vi.spyOn(appDataApi, "requestContactVerification").mockResolvedValue({
+      requested: true,
+      expiresAt: "2026-05-21T10:05:00",
+      resendAvailableAt: "2026-05-21T10:01:00",
+    });
+    const confirmVerificationSpy = vi.spyOn(appDataApi, "confirmContactVerification").mockResolvedValue(verifiedContact);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/mypage");
+      const user = userEvent.setup();
+
+      await user.click(await screen.findByRole("button", { name: /알림 설정/ }));
+      const dialog = await screen.findByRole("dialog", { name: "알림 설정" });
+      await waitFor(() => expect(dialog).toHaveTextContent("검증 전 연락처입니다"));
+      await user.click(within(dialog).getByRole("button", { name: "인증번호 받기" }));
+
+      await waitFor(() => expect(requestVerificationSpy).toHaveBeenCalledWith({ phoneNumber: "01012345678" }));
+      expect(dialog).toHaveTextContent("인증번호를 보냈어요.");
+      const codeInput = within(dialog).getByRole("textbox", { name: "인증번호" });
+      await user.type(codeInput, "123456");
+      await user.click(within(dialog).getByRole("button", { name: "인증 확인" }));
+
+      await waitFor(() => expect(confirmVerificationSpy).toHaveBeenCalledWith({ code: "123456" }));
+      await waitFor(() => expect(dialog).toHaveTextContent("검증된 연락처입니다"));
+    } finally {
+      getContactSpy.mockRestore();
+      requestVerificationSpy.mockRestore();
+      confirmVerificationSpy.mockRestore();
+    }
+  });
+
   it("shows one trip title in the my page trip summary", async () => {
     const trip: Trip = {
       ...appDataApi.getPreviewTrip(),
