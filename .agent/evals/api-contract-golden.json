@@ -27,6 +27,24 @@
       }
     },
     {
+      "method": "GET",
+      "path": "/api/ops/external-collection",
+      "status": 200,
+      "authRequired": false,
+      "requiredFields": {
+        "schedulerEnabled": "boolean",
+        "runAt": "string",
+        "pollSeconds": "number",
+        "minParsedCount": "number",
+        "lastAttemptedRunDate": "string|null",
+        "lastSuccessfulRunDate": "string|null",
+        "lastParsedCount": "number|null",
+        "lastOutcome": "string|null",
+        "lastError": "string|null"
+      },
+      "dbModeBehavior": "Returns the configured TravelMonth external collection scheduler cadence and the in-memory status snapshot for the active backend process without changing the public /api/health contract."
+    },
+    {
       "method": "POST",
       "path": "/api/auth/login",
       "status": 200,

@@ -50,6 +50,33 @@ DB 연결 상태 포함 서버 헬스 확인. 인증 불필요.
 
 ## 인증 (`/api/auth`)
 
+## Ops
+
+### GET /ops/external-collection
+
+TravelMonth external collection scheduler 운영 확인용 상태를 반환한다. 기존 `/health`와 `/api/health` 응답 계약은 변경하지 않는다. 인증은 1차 운영 검증 범위에서 요구하지 않는다.
+
+**Response 200**
+```json
+{
+  "schedulerEnabled": false,
+  "runAt": "03:00",
+  "pollSeconds": 60,
+  "minParsedCount": 1,
+  "lastAttemptedRunDate": null,
+  "lastSuccessfulRunDate": null,
+  "lastParsedCount": null,
+  "lastOutcome": null,
+  "lastError": null
+}
+```
+
+`lastOutcome`은 현재 backend process의 in-memory scheduler snapshot이며, 값은 `success`, `below_threshold`, `error`, 또는 `null`이다. process 재시작 후에는 마지막 실행 상태가 `null`로 돌아간다.
+
+---
+
+## Auth (`/api/auth`)
+
 ### POST /auth/email-check
 
 회원가입 전 이메일 중복 확인.
