@@ -4,7 +4,11 @@ from app.services.travelmonth_collection import collect_regional_benefits_from_h
 
 
 class FakeDb:
-    pass
+    def __init__(self) -> None:
+        self.commits = 0
+
+    def commit(self) -> None:
+        self.commits += 1
 
 
 def test_collect_regional_benefits_from_html_parses_and_upserts(monkeypatch) -> None:
@@ -45,3 +49,4 @@ def test_collect_regional_benefits_from_html_parses_and_upserts(monkeypatch) -> 
     assert len(captured["sources"]) == 1
     assert result.created_or_updated_count == 1
     assert result.source_name == "여행가는 달"
+    assert db.commits == 1

@@ -34,6 +34,7 @@ def collect_regional_benefits_from_html(
         today=today,
     )
     rows = external_source_repository.upsert_external_source_records(db, sources)
+    db.commit()
     return CollectionResult(
         source_name="여행가는 달",
         source_category="regional_benefit",
