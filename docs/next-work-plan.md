@@ -38,8 +38,8 @@
 | 7 | Jenkins CD staging 자동화 | 수동 Compose 배포 흐름을 Jenkins job으로 재현하고 secret은 credentials로만 관리한다. |
 | 8 | 홈 추천 목적지 ranking 운영 검증 | 정책 수, 마감 임박, 혜택 금액, 취향 보정, 프로필 지역 최종 tie-breaker 기준이 live data에서 기대대로 작동하는지 확인한다. |
 | 9 | 전화번호 OTP 실제 발송 smoke | env-gated SOLAPI SMS provider를 실제 운영 env로 켜고, 비용 제한과 실패 처리 기준에 맞춰 staging smoke를 완료한다. |
-| 10 | 여행가는 달 live collector 운영 모니터링 | 공식 여행가는 달 지역 여행할인 모아보기 live HTML 58건 수집 기준을 유지하고, 정기 수집 실패/구조 변경/0건 parse를 운영 알림과 점검 대상으로 관리한다. |
-| 11 | external collection scheduler cadence | 외부 수집 주기, 재검증 기준, freshness 상태 전환, 실패 재시도 정책을 운영 가능한 cadence로 확정한다. |
+| 10 | 여행가는 달 live collector 운영 모니터링 | 공식 여행가는 달 지역 여행할인 모아보기 live HTML 58건 수집 기준을 유지하고, `EXTERNAL_COLLECTION_MIN_PARSED_COUNT` 미달 수집을 실패로 처리한다. |
+| 11 | external collection scheduler cadence 운영 검증 | 외부 수집 주기, 재검증 기준, freshness 상태 전환, 실패 재시도 정책이 live 운영 데이터에서 기대대로 동작하는지 확인한다. |
 | 12 | external source records 기반 홈 지역 추천 API | `external_source_records`의 지역/상태/혜택/선호도 파생 필드를 사용해 홈 지역 추천 API 후보와 정렬 기준을 구현한다. |
 | 13 | AppDataApi 경유 홈 추천 UI | frontend 홈 추천 UI가 backend 추천 API를 `AppDataApi` 경계로 호출하고 loading/error/empty 상태를 처리한다. |
 
@@ -47,7 +47,7 @@
 
 - 홈 추천 목적지 ranking 운영 검증.
 - 여행가는 달 live collector 운영 모니터링.
-- external collection scheduler cadence.
+- external collection scheduler cadence 운영 검증.
 - external source records 기반 홈 지역 추천 API.
 - AppDataApi 경유 홈 추천 UI.
 - 정책 신청 URL 데이터 품질 보강.
