@@ -19,6 +19,7 @@ from app.schemas.trip import (
     UpdateTripPlaceRequest,
     UpdateTripStatusRequest,
 )
+from app.services import itinerary_recommendations
 
 
 INVITE_BASE_URL = "travelhunter.app/i"
@@ -262,22 +263,31 @@ def create_trip(
     )
     trip_repository.add_trip_member(db, trip_id=trip.id, user_id=user.id, role="owner")
 
+    generated_course = itinerary_recommendations.generate_auto_course(
+        region=region,
+        style=str(payload.get("style") or seed.PROFILE["style"]),
+        start_date=start_date,
+        day_count=duration_days,
+    )
+    generated_places_by_day: dict[int, list[itinerary_recommendations.GeneratedPlace]] = {}
+    for generated_place in generated_course.places:
+        generated_places_by_day.setdefault(generated_place.day_number, []).append(generated_place)
+
     for day_number in range(1, duration_days + 1):
-        places = seed.TRIP["days"].get(day_number, [])
         trip_day = trip_repository.add_trip_day(
             db,
             trip_id=trip.id,
             day_number=day_number,
             date_value=start_date + timedelta(days=day_number - 1),
         )
-        for order_num, place in enumerate(places, start=1):
+        for generated_place in generated_places_by_day.get(day_number, []):
             trip_repository.add_trip_place(
                 db,
                 trip_day_id=trip_day.id,
-                place_name=str(place["label"]),
-                visit_time=_parse_time(str(place["time"])),
-                order_num=order_num,
-                memo=str(place["meta"]),
+                place_name=generated_place.title,
+                visit_time=_parse_time(generated_place.time),
+                order_num=generated_place.order_num,
+                memo=generated_place.meta,
             )
 
     trip_repository.add_recommendation(
@@ -285,7 +295,7 @@ def create_trip(
         user_id=user.id,
         trip_id=trip.id,
         query=f"{title} recommendations",
-        result=seed.RECOMMENDATIONS,
+        result=generated_course.recommendations,
     )
     _ensure_invite(db, trip, user)
     if payload.get("policySlug"):
