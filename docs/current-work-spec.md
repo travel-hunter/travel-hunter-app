@@ -67,7 +67,7 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - Kakao/Google OAuth 실로그인은 provider console redirect URI와 secret 설정이 필요하다.
 - Cloudflare named tunnel full-up은 실제 `CLOUDFLARE_TUNNEL_TOKEN`, staging domain, DB/env 값이 필요하다.
 - SOLAPI 실제 발송은 SOLAPI 계정, Kakao business channel, 승인 템플릿, secret env가 필요하다.
-- 전화번호 OTP 실인증은 아직 후속 설계/구현 범위다.
+- 전화번호 OTP 실인증 foundation은 dev/test provider boundary, hashed OTP 저장, 요청/확인 API, MyPage UI까지 구현됐다. 실제 외부 발송 provider 연동과 staging smoke는 후속 운영 설정 범위다.
 
 ## 문서 역할
 
@@ -97,4 +97,4 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 
 1. 실제 env가 준비되면 Cloudflare Tunnel actual env full-up, public route smoke, SMTP staging smoke, OAuth provider smoke 순서로 운영 검증을 진행한다.
 2. SOLAPI Kakao AlimTalk staging smoke는 provider 계정, channel, 승인 템플릿, webhook secret 준비 후 진행한다.
-3. 운영 검증 대기 중 기능 개발을 계속할 경우 홈 추천 목적지 ranking 고도화와 전화번호 OTP 설계를 별도 의뢰로 진행한다.
+3. 운영 검증 대기 중 기능 개발을 계속할 경우 홈 추천 목적지 ranking 고도화와 전화번호 OTP 실제 발송 provider 연동을 별도 의뢰로 진행한다.

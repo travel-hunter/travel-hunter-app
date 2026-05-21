@@ -3,7 +3,7 @@
 ## 기준
 
 - 기준일: 2026-05-21
-- 기준 Alembic head: `0010_external_source_records`
+- 기준 Alembic head: `0011_phone_verification_codes`
 - PostgreSQL: 16.13
 - SQL 산출물: `docs/db-schema-current.sql`
 - 생성 방식: fresh PostgreSQL DB에 `alembic upgrade head`를 적용한 뒤 `pg_dump --schema-only --no-owner --no-privileges`로 추출했다.

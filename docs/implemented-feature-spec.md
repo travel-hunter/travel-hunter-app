@@ -98,4 +98,4 @@
 - SMTP env와 public base URL이 있어야 password reset email smoke를 완료할 수 있다.
 - Kakao/Google provider secret과 redirect URI가 있어야 실제 OAuth smoke를 완료할 수 있다.
 - SOLAPI key, Kakao channel, 승인 템플릿이 있어야 실제 알림톡 발송을 확인할 수 있다.
-- 전화번호 OTP, 실제 AI 엔진, 지도/장소 검색, 친구 초대 외부 발송, 운영 관리자 화면, 정책 실시간 수집은 후속 범위다.
+- 전화번호 OTP 실제 외부 발송 provider, 실제 AI 엔진, 지도/장소 검색, 친구 초대 외부 발송, 운영 관리자 화면, 정책 실시간 수집은 후속 범위다.

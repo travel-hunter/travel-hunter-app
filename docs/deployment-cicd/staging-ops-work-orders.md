@@ -19,7 +19,7 @@ Travel Hunter는 개발 검증이 끝난 `develop` 기준 staging smoke 후보 �
 | 5 | OAuth smoke | Kakao/Google callback 후 로그인 세션 복구 확인 |
 | 6 | SOLAPI AlimTalk smoke | 승인 템플릿 기준 발송, retry, webhook 상태 확인 |
 | 7 | Jenkins CD 준비 | 수동 배포를 자동 배포로 전환할 계획과 job 준비 |
-| 8 | 후속 기능 개발 의뢰 | 홈 추천 ranking, 전화번호 OTP의 제품 요구사항 확정 |
+| 8 | 후속 기능 개발 의뢰 | 홈 추천 ranking 후속 개선, 전화번호 OTP 실제 발송 provider 연동 기준 확정 |
 
 ## OPS-01. Cloudflare/domain/env 준비
 
@@ -311,21 +311,22 @@ test.user@example.com / password123
 - 개발 PR.
 - ranking 단위 테스트 또는 화면 테스트.
 
-### DEV-02. 전화번호 OTP 설계/구현
+### DEV-02. 전화번호 OTP 실제 발송 provider 연동
 
-목적: 알림을 받을 전화번호가 실제 사용자 번호인지 확인한다.
+목적: dev/test provider boundary로 구현된 전화번호 OTP 흐름을 실제 발송 provider로 교체할 수 있게 운영 설정과 smoke 기준을 확정한다.
 
 의뢰 전 확정할 것:
 
 - OTP provider를 SOLAPI SMS로 할지 다른 인증 provider로 할지.
 - 1일 발송 제한, 재전송 간격, 실패 횟수 제한.
-- 인증 성공 시 `phone_verified_at` 갱신 기준.
+- provider 실패/timeout/retry 정책과 사용자 노출 메시지.
 
 완료 증거:
 
-- API/UI 설계 문서.
+- provider env key 목록과 secret 보관 위치.
 - 개발 PR.
-- 성공/실패/만료/재전송 테스트.
+- 성공/실패/만료/재전송/provider 실패 테스트.
+- staging 실제 발송 smoke 결과.
 
 ## 보고 양식
 
