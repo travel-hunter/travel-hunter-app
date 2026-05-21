@@ -404,9 +404,9 @@ OAuth provider callback 처리.
 **Response 200**
 ```json
 {
-  "regions": ["서울", "제주", "부산", "강원", "경주"],
-  "travelStyles": ["혼자", "커플", "가족", "친구"],
-  "budgets": ["저렴", "중간", "여유"]
+  "regions": ["제주", "부산", "강원", "전국"],
+  "travelStyles": ["휴식", "맛집", "체험", "자연", "사진"],
+  "budgets": ["1인 30만원 이하", "1인 40만원 이하", "1인 60만원 이하", "상관없음"]
 }
 ```
 
@@ -511,8 +511,8 @@ OAuth provider callback 처리.
 {
   "title": "제주 여행",
   "region": "제주",
-  "style": "커플",
-  "description": "우리 첫 제주 여행",
+  "style": "자연",
+  "description": "제주 자연 중심 여행",
   "policySlug": "dgtourcard-2026",
   "durationDays": 3,
   "startDate": "2026-07-12",
