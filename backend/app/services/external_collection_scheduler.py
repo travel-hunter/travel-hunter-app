@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import date, datetime, time
 from zoneinfo import ZoneInfo
 
@@ -16,6 +17,15 @@ from app.services.notification_scheduler import parse_run_at
 
 KST = ZoneInfo("Asia/Seoul")
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ExternalCollectionSchedulerStatus:
+    last_attempted_run_date: date | None = None
+    last_successful_run_date: date | None = None
+    last_parsed_count: int | None = None
+    last_outcome: str | None = None
+    last_error: str | None = None
 
 
 def kst_now() -> datetime:
@@ -54,6 +64,7 @@ class ExternalCollectionScheduler:
         self.collect = collect or (lambda today: run_external_collection_once(today=today))
         self.sleep = sleep
         self.last_successful_run_date: date | None = None
+        self.status = ExternalCollectionSchedulerStatus()
 
     def run_once_if_due(self) -> bool:
         now = self.now_provider()
@@ -63,13 +74,23 @@ class ExternalCollectionScheduler:
         if now.timetz().replace(tzinfo=None) < self.run_at:
             return False
 
+        self.status.last_attempted_run_date = today
         try:
             result = self.collect(today)
-        except Exception:
+        except Exception as exc:
+            self.status.last_parsed_count = None
+            self.status.last_outcome = "error"
+            self.status.last_error = str(exc)
             logger.exception("External collection failed.")
             return False
 
         if result.parsed_count < self.min_parsed_count:
+            self.status.last_parsed_count = result.parsed_count
+            self.status.last_outcome = "below_threshold"
+            self.status.last_error = (
+                f"parsed {result.parsed_count} records, "
+                f"below minimum {self.min_parsed_count}"
+            )
             logger.error(
                 "External collection parsed %s records for %s, below minimum %s.",
                 result.parsed_count,
@@ -79,6 +100,10 @@ class ExternalCollectionScheduler:
             return False
 
         self.last_successful_run_date = today
+        self.status.last_successful_run_date = today
+        self.status.last_parsed_count = result.parsed_count
+        self.status.last_outcome = "success"
+        self.status.last_error = None
         logger.info(
             "External collection completed for %s with %s parsed records.",
             today.isoformat(),

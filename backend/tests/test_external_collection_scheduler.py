@@ -123,6 +123,61 @@ def test_parse_count_below_threshold_does_not_mark_date_as_successful() -> None:
     assert calls == [date(2026, 5, 21), date(2026, 5, 21)]
 
 
+def test_scheduler_status_records_success() -> None:
+    scheduler = external_collection_scheduler.ExternalCollectionScheduler(
+        run_at=time(3, 0),
+        poll_seconds=60,
+        now_provider=lambda: datetime(2026, 5, 21, 3, 0, 0),
+        collect=lambda _today: make_result(parsed_count=58),
+    )
+
+    assert scheduler.run_once_if_due() is True
+
+    assert scheduler.status.last_attempted_run_date == date(2026, 5, 21)
+    assert scheduler.status.last_successful_run_date == date(2026, 5, 21)
+    assert scheduler.status.last_parsed_count == 58
+    assert scheduler.status.last_outcome == "success"
+    assert scheduler.status.last_error is None
+
+
+def test_scheduler_status_records_parse_threshold_failure() -> None:
+    scheduler = external_collection_scheduler.ExternalCollectionScheduler(
+        run_at=time(3, 0),
+        poll_seconds=60,
+        now_provider=lambda: datetime(2026, 5, 21, 3, 0, 0),
+        collect=lambda _today: make_result(parsed_count=0),
+        min_parsed_count=1,
+    )
+
+    assert scheduler.run_once_if_due() is False
+
+    assert scheduler.status.last_attempted_run_date == date(2026, 5, 21)
+    assert scheduler.status.last_successful_run_date is None
+    assert scheduler.status.last_parsed_count == 0
+    assert scheduler.status.last_outcome == "below_threshold"
+    assert scheduler.status.last_error == "parsed 0 records, below minimum 1"
+
+
+def test_scheduler_status_records_collection_error() -> None:
+    def collect(_today: date) -> CollectionResult:
+        raise RuntimeError("official source timeout")
+
+    scheduler = external_collection_scheduler.ExternalCollectionScheduler(
+        run_at=time(3, 0),
+        poll_seconds=60,
+        now_provider=lambda: datetime(2026, 5, 21, 3, 0, 0),
+        collect=collect,
+    )
+
+    assert scheduler.run_once_if_due() is False
+
+    assert scheduler.status.last_attempted_run_date == date(2026, 5, 21)
+    assert scheduler.status.last_successful_run_date is None
+    assert scheduler.status.last_parsed_count is None
+    assert scheduler.status.last_outcome == "error"
+    assert scheduler.status.last_error == "official source timeout"
+
+
 def test_enabled_scheduler_rejects_negative_minimum_parse_count() -> None:
     settings = Settings(
         database_url="postgresql+psycopg://example",
