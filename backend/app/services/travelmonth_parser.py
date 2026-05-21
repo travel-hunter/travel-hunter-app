@@ -16,6 +16,9 @@ from app.services.travelmonth_normalizer import (
 )
 
 
+_VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
+
+
 class _BenefitHtmlParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__()
@@ -79,6 +82,184 @@ class _BenefitHtmlParser(HTMLParser):
         self._current[field] = normalize_text(f"{self._current.get(field, '')} {text}")
 
 
+class _LiveBenefitHtmlParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.records: list[dict[str, object]] = []
+        self.modals: dict[str, dict[str, object]] = {}
+        self._anchor: dict[str, object] | None = None
+        self._anchor_depth = 0
+        self._anchor_p_depth = 0
+        self._anchor_p_text = ""
+        self._anchor_p_texts: list[str] = []
+        self._modal: dict[str, object] | None = None
+        self._modal_depth = 0
+        self._modal_header_depth = 0
+        self._modal_field_stack: list[str] = []
+        self._modal_field_text = ""
+        self._modal_current_label: str | None = None
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attr_map = {key: value for key, value in attrs}
+        class_names = set((attr_map.get("class") or "").split())
+
+        if tag == "a" and attr_map.get("data-log-type") == "benefit" and attr_map.get("data-log-seq"):
+            href = attr_map.get("href") or ""
+            self._anchor = {
+                "external_id": attr_map["data-log-seq"],
+                "detail_anchor": href[1:] if href.startswith("#") else href,
+                "title": attr_map.get("data-action-track-title") or "",
+                "benefit": attr_map.get("data-action-track-recommend") or "",
+                "raw": "",
+                "tags": [],
+            }
+            self._anchor_depth = 1
+            self._anchor_p_depth = 0
+            self._anchor_p_texts = []
+            return
+
+        modal_id = attr_map.get("id") or ""
+        if tag == "div" and modal_id.startswith("modal-benefit-") and "modal-benefit" in class_names:
+            self._modal = {
+                "external_id": modal_id.removeprefix("modal-benefit-"),
+                "modal_id": modal_id,
+                "raw": "",
+                "tags": [],
+            }
+            self._modal_depth = 1
+            self._modal_header_depth = 0
+            self._modal_current_label = None
+            self._modal_field_stack.clear()
+            return
+
+        if self._anchor is not None:
+            if tag not in _VOID_TAGS:
+                self._anchor_depth += 1
+            if tag == "p":
+                self._anchor_p_depth = 1
+                self._anchor_p_text = ""
+            elif self._anchor_p_depth and tag not in _VOID_TAGS:
+                self._anchor_p_depth += 1
+
+        if self._modal is None:
+            return
+
+        if tag not in _VOID_TAGS:
+            self._modal_depth += 1
+        if tag == "header":
+            self._modal_header_depth = 1
+        elif self._modal_header_depth and tag not in _VOID_TAGS:
+            self._modal_header_depth += 1
+
+        if tag == "h3":
+            self._push_modal_field("title")
+        elif tag == "p" and self._modal_header_depth:
+            self._push_modal_field("organizer")
+        elif tag == "li" and self._modal_header_depth:
+            self._push_modal_field("tag")
+        elif tag == "dt":
+            self._push_modal_field("dt")
+        elif tag == "dd":
+            self._push_modal_field("dd")
+        elif tag == "a" and attr_map.get("href") and not self._modal.get("detail_url"):
+            self._modal["detail_url"] = attr_map["href"]
+
+    def handle_endtag(self, tag: str) -> None:
+        if self._anchor is not None:
+            if tag == "p" and self._anchor_p_depth:
+                text = normalize_text(self._anchor_p_text)
+                if text:
+                    self._anchor_p_texts.append(text)
+                self._anchor_p_depth = 0
+                self._anchor_p_text = ""
+            elif self._anchor_p_depth and tag not in _VOID_TAGS:
+                self._anchor_p_depth -= 1
+
+            if tag not in _VOID_TAGS:
+                self._anchor_depth -= 1
+            if self._anchor_depth == 0:
+                self._finalize_anchor()
+
+        if self._modal is None:
+            return
+
+        if self._modal_field_stack and tag in {"h3", "p", "li", "dt", "dd"}:
+            self._finalize_modal_field()
+
+        if self._modal_header_depth and tag not in _VOID_TAGS:
+            self._modal_header_depth -= 1
+
+        if tag not in _VOID_TAGS:
+            self._modal_depth -= 1
+        if self._modal_depth == 0:
+            modal_id = str(self._modal.get("modal_id", ""))
+            if modal_id:
+                self.modals[modal_id] = self._modal
+            self._modal = None
+
+    def handle_data(self, data: str) -> None:
+        text = normalize_text(data)
+        if not text:
+            return
+
+        if self._anchor is not None:
+            self._anchor["raw"] = normalize_text(f"{self._anchor.get('raw', '')} {text}")
+            if self._anchor_p_depth:
+                self._anchor_p_text = normalize_text(f"{self._anchor_p_text} {text}")
+
+        if self._modal is not None:
+            self._modal["raw"] = normalize_text(f"{self._modal.get('raw', '')} {text}")
+            if self._modal_field_stack:
+                self._modal_field_text = normalize_text(f"{self._modal_field_text} {text}")
+
+    def _push_modal_field(self, field: str) -> None:
+        self._modal_field_stack.append(field)
+        self._modal_field_text = ""
+
+    def _finalize_modal_field(self) -> None:
+        if self._modal is None:
+            return
+        field = self._modal_field_stack.pop()
+        text = normalize_text(self._modal_field_text)
+        self._modal_field_text = ""
+        if not text:
+            return
+        if field == "tag":
+            tags = self._modal.setdefault("tags", [])
+            if isinstance(tags, list):
+                tags.append(text.lstrip("#"))
+            return
+        if field == "dt":
+            self._modal_current_label = text
+            return
+        if field == "dd":
+            if self._modal_current_label == "기간":
+                self._modal["period"] = text
+            elif self._modal_current_label == "할인혜택":
+                self._modal["benefit"] = text
+            elif self._modal_current_label == "문의처":
+                self._modal["contact"] = text
+            self._modal_current_label = None
+            return
+        self._modal[field] = text
+
+    def _finalize_anchor(self) -> None:
+        if self._anchor is None:
+            return
+        p_texts = self._anchor_p_texts
+        if len(p_texts) >= 2 and not self._anchor.get("title"):
+            self._anchor["title"] = p_texts[1]
+        if len(p_texts) >= 3:
+            self._anchor["period"] = p_texts[2]
+            self._anchor["status"] = _extract_bracket_status(p_texts[2])
+        if len(p_texts) >= 4:
+            self._anchor["organizer"] = p_texts[3]
+        self.records.append(self._anchor)
+        self._anchor = None
+        self._anchor_depth = 0
+        self._anchor_p_texts = []
+
+
 def parse_regional_benefits(
     html: str,
     *,
@@ -88,9 +269,11 @@ def parse_regional_benefits(
 ) -> list[TravelMonthRegionalBenefitSource]:
     parser = _BenefitHtmlParser()
     parser.feed(html)
+    live_parser = _LiveBenefitHtmlParser()
+    live_parser.feed(html)
 
     records: list[TravelMonthRegionalBenefitSource] = []
-    for raw_record in parser.records:
+    for raw_record in [*parser.records, *_merge_live_records(live_parser)]:
         title = str(raw_record.get("title", ""))
         organizer_text = str(raw_record.get("organizer", ""))
         period_text = str(raw_record.get("period", ""))
@@ -109,9 +292,6 @@ def parse_regional_benefits(
         if not _has_required_fields(
             title=title,
             organizer_text=organizer_text,
-            period_text=period_text,
-            start_date=start_date,
-            end_date=end_date,
             benefit_text=benefit_text,
             collected_page_url=collected_page_url,
         ):
@@ -121,6 +301,8 @@ def parse_regional_benefits(
         region = normalize_region(organizer_text, title=title, benefit_text=benefit_text)
         benefit_value = extract_benefit_value(benefit_text)
         canonical_text = "|".join([title, organizer_text, period_text])
+        external_id = str(raw_record.get("external_id", "")) or stable_hash(canonical_text)
+        canonical_key = str(raw_record.get("canonical_key", "")) or stable_hash(canonical_text)
         confidence = _calculate_confidence(
             {
                 "title": title,
@@ -134,8 +316,8 @@ def parse_regional_benefits(
 
         records.append(
             TravelMonthRegionalBenefitSource(
-                external_id=stable_hash(canonical_text),
-                canonical_key=stable_hash(canonical_text),
+                external_id=external_id,
+                canonical_key=canonical_key,
                 detail_url=detail_url,
                 collected_page_url=collected_page_url,
                 title=title,
@@ -180,13 +362,36 @@ def parse_regional_benefits(
     return records
 
 
+def _merge_live_records(parser: _LiveBenefitHtmlParser) -> list[dict[str, object]]:
+    records: list[dict[str, object]] = []
+    for record in parser.records:
+        detail_anchor = str(record.get("detail_anchor", ""))
+        modal = parser.modals.get(detail_anchor, {})
+        merged = dict(record)
+        for field in ("title", "organizer", "period", "benefit", "contact", "detail_url"):
+            if modal.get(field):
+                merged[field] = modal[field]
+        if modal.get("tags"):
+            merged["tags"] = modal["tags"]
+        if modal.get("raw"):
+            merged["raw"] = normalize_text(f"{record.get('raw', '')} {modal.get('raw', '')}")
+            merged["raw_detail_text"] = modal["raw"]
+        records.append(merged)
+    return records
+
+
+def _extract_bracket_status(value: str) -> str | None:
+    start = value.find("[")
+    end = value.find("]", start + 1)
+    if start == -1 or end == -1:
+        return None
+    return value[start : end + 1]
+
+
 def _has_required_fields(
     *,
     title: str,
     organizer_text: str,
-    period_text: str,
-    start_date: date | None,
-    end_date: date | None,
     benefit_text: str,
     collected_page_url: str,
 ) -> bool:
@@ -194,9 +399,6 @@ def _has_required_fields(
         [
             normalize_text(title),
             normalize_text(organizer_text),
-            normalize_text(period_text),
-            start_date,
-            end_date,
             normalize_text(benefit_text),
             normalize_text(collected_page_url),
         ]
