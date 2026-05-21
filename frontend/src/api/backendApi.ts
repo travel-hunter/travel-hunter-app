@@ -31,7 +31,7 @@ import {
   TripPolicyResponse,
   TripStatusUpdateRequest,
 } from "./dataApi";
-import { ContactInfo, InviteRole, InviteState, NotificationSettings, Policy, Profile, ProfileOptions, Recommendation, Trip, User } from "./types";
+import { ContactInfo, InviteRole, InviteState, NotificationSettings, Policy, Profile, ProfileOptions, Recommendation, RegionRecommendation, Trip, User } from "./types";
 
 const defaultLogin: LoginRequest = {
   email: user.email,
@@ -68,6 +68,13 @@ export const backendApi: AppDataApi = {
   getNotificationSettings: (): Promise<NotificationSettings> => apiClient.get<NotificationSettings>("/api/me/notification-settings"),
   updateNotificationSettings: (settings: Pick<NotificationSettings, "deadlineEnabled">): Promise<NotificationSettings> => apiClient.patch<NotificationSettings>("/api/me/notification-settings", settings),
   listPolicies: (): Promise<Policy[]> => apiClient.get<Policy[]>("/api/policies"),
+  listRegionRecommendations: (options?: { style?: string; limit?: number }): Promise<RegionRecommendation[]> => {
+    const params = new URLSearchParams();
+    if (options?.style) params.set("style", options.style);
+    if (options?.limit !== undefined) params.set("limit", String(options.limit));
+    const query = params.toString();
+    return apiClient.get<RegionRecommendation[]>(`/api/recommendations/regions${query ? `?${query}` : ""}`);
+  },
   getPolicy: (policySlug = "local-vacation"): Promise<Policy> => apiClient.get<Policy>(`/api/policies/${policySlug}`),
   savePolicy: (policySlug: string): Promise<SavePolicyResponse> => apiClient.post<SavePolicyResponse>(`/api/me/saved-policies/${policySlug}`),
   listSavedPolicies: (): Promise<Policy[]> => apiClient.get<Policy[]>("/api/me/saved-policies"),

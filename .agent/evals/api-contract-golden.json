@@ -320,6 +320,27 @@
     },
     {
       "method": "GET",
+      "path": "/api/recommendations/regions",
+      "status": 200,
+      "authRequired": false,
+      "query": {
+        "style": "맛집",
+        "limit": 3
+      },
+      "requiredArrayItemFields": {
+        "region": "string",
+        "title": "string",
+        "reason": "string",
+        "policyCount": "number",
+        "endingSoonCount": "number",
+        "estimatedValueKrw": "number",
+        "score": "number",
+        "styleMatchedCount": "number"
+      },
+      "dbModeBehavior": "Ranks external_source_records regional_benefit rows by active fresh regional policy count, ending-soon count, explicit KRW value, and style as a non-overriding tie breaker; nationwide records are included only as fallback when regional candidates are fewer than limit."
+    },
+    {
+      "method": "GET",
       "path": "/api/policies",
       "status": 200,
       "requiredArrayItemFields": {

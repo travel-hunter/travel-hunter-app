@@ -71,3 +71,16 @@ def list_external_source_records(
         statement = statement.where(ExternalSourceRecord.region == region)
     statement = statement.order_by(ExternalSourceRecord.id)
     return list(db.scalars(statement).all())
+
+
+def list_regional_benefit_recommendation_records(
+    db: Session,
+) -> list[ExternalSourceRecord]:
+    statement = (
+        select(ExternalSourceRecord)
+        .where(ExternalSourceRecord.source_category == "regional_benefit")
+        .where(ExternalSourceRecord.status == "active")
+        .where(ExternalSourceRecord.freshness_status == "fresh")
+        .order_by(ExternalSourceRecord.id)
+    )
+    return list(db.scalars(statement).all())
