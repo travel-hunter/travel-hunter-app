@@ -65,6 +65,70 @@ ALTER SEQUENCE public.auth_refresh_tokens_id_seq OWNED BY public.auth_refresh_to
 
 
 --
+-- Name: external_source_records; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.external_source_records (
+    id bigint NOT NULL,
+    source_name character varying(100) NOT NULL,
+    source_type character varying(50) NOT NULL,
+    source_url character varying(500) NOT NULL,
+    source_category character varying(80) NOT NULL,
+    external_id character varying(160) NOT NULL,
+    canonical_key character varying(160) NOT NULL,
+    detail_url character varying(500),
+    collected_page_url character varying(500) NOT NULL,
+    title character varying(300) NOT NULL,
+    organizer_text character varying(300) NOT NULL,
+    organizers jsonb NOT NULL,
+    region character varying(50),
+    city character varying(80),
+    is_nationwide boolean DEFAULT false NOT NULL,
+    status_text character varying(50),
+    status character varying(30) NOT NULL,
+    start_date date,
+    end_date date,
+    benefit_text text NOT NULL,
+    benefit_value_text character varying(300),
+    extracted_amount_krw integer,
+    extracted_discount_percent integer,
+    benefit_value_type character varying(30) NOT NULL,
+    tags jsonb NOT NULL,
+    contact_text character varying(200),
+    inferred_travel_styles jsonb NOT NULL,
+    confidence integer NOT NULL,
+    field_completeness integer NOT NULL,
+    raw_list_text text NOT NULL,
+    raw_detail_text text NOT NULL,
+    raw_payload jsonb NOT NULL,
+    last_fetched_at timestamp without time zone NOT NULL,
+    last_verified_at timestamp without time zone,
+    freshness_status character varying(30) NOT NULL,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: external_source_records_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.external_source_records_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: external_source_records_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.external_source_records_id_seq OWNED BY public.external_source_records.id;
+
+
+--
 -- Name: notification_deliveries; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -597,6 +661,13 @@ ALTER TABLE ONLY public.auth_refresh_tokens ALTER COLUMN id SET DEFAULT nextval(
 
 
 --
+-- Name: external_source_records id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.external_source_records ALTER COLUMN id SET DEFAULT nextval('public.external_source_records_id_seq'::regclass);
+
+
+--
 -- Name: notification_deliveries id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -715,6 +786,22 @@ ALTER TABLE ONLY public.alembic_version
 
 ALTER TABLE ONLY public.auth_refresh_tokens
     ADD CONSTRAINT auth_refresh_tokens_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: external_source_records external_source_records_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.external_source_records
+    ADD CONSTRAINT external_source_records_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: external_source_records external_source_records_source_name_source_category_canonical_key_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.external_source_records
+    ADD CONSTRAINT external_source_records_source_name_source_category_canonical_key_key UNIQUE (source_name, source_category, canonical_key);
 
 
 --
@@ -938,6 +1025,55 @@ ALTER TABLE ONLY public.users
 --
 
 CREATE INDEX idx_auth_refresh_tokens_user_id ON public.auth_refresh_tokens USING btree (user_id);
+
+
+--
+-- Name: ix_external_source_records_canonical_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_external_source_records_canonical_key ON public.external_source_records USING btree (canonical_key);
+
+
+--
+-- Name: ix_external_source_records_end_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_external_source_records_end_date ON public.external_source_records USING btree (end_date);
+
+
+--
+-- Name: ix_external_source_records_external_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_external_source_records_external_id ON public.external_source_records USING btree (external_id);
+
+
+--
+-- Name: ix_external_source_records_region; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_external_source_records_region ON public.external_source_records USING btree (region);
+
+
+--
+-- Name: ix_external_source_records_source_category; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_external_source_records_source_category ON public.external_source_records USING btree (source_category);
+
+
+--
+-- Name: ix_external_source_records_source_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_external_source_records_source_name ON public.external_source_records USING btree (source_name);
+
+
+--
+-- Name: ix_external_source_records_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_external_source_records_status ON public.external_source_records USING btree (status);
 
 
 --

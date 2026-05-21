@@ -3,10 +3,10 @@
 ## 기준
 
 - 기준일: 2026-05-20
-- 기준 검증 기준: `80c9876` 위 현재 작업트리
+- 기준 검증 기준: `9bdcb73` 및 현재 문서 작업트리
 - 브랜치: `develop`
 - 원칙: DB-backed-only MVP를 유지하고 runtime mock mode는 다시 추가하지 않는다.
-- 현재 단계: PR #17, #18, #19, #20이 `develop`에 합류했고, trip route alias 정리와 계약 동기화를 마친 뒤 staging smoke 준비 상태다.
+- 현재 단계: PR #17, #18, #19, #20, #23이 `develop`에 합류했고, trip route alias 정리와 release handoff를 마친 뒤 staging 운영 검증 준비 상태다.
 
 ## 제품 범위
 
@@ -55,8 +55,10 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - DB schema 기준을 `docs/db-schema-current.md`, `docs/db-schema-current.sql`로 교체하고 구버전 schema SQL 참조를 정리했다.
 - frontend itinerary 관련 page를 개별 파일로 분리하면서 기존 route import를 유지했다.
 - `.agent/evals`는 machine-readable API contract 기준인 `api-contract-golden.json`만 남겼다.
-- PR #17, #18, #19, #20이 `develop`에 병합됐고 로컬 `develop` 기준으로 문서/계약 정합성을 다시 맞췄다.
+- PR #17, #18, #19, #20, #23이 `develop`에 병합됐고 로컬/원격 `develop` 기준으로 문서/계약 정합성을 다시 맞췄다.
 - 기존 non-numeric 제주 3일 trip handle 지원을 제거하고, seed 여행 데이터는 유지한 채 API 계약과 frontend/backend 테스트를 numeric trip id 기준으로 갱신했다.
+- 외주/인프라 담당자용 staging 운영 검증 작업지시서를 `docs/deployment-cicd/staging-ops-work-orders.md`로 추가했다.
+- 여행가는 달 지역 여행할인 모아보기 외부 수집 기반을 추가해 공식 출처 레코드 저장, 원문 보존, 파생 지역/상태/혜택/선호도 필드를 지원한다.
 
 ## 현재 조건부 항목
 
@@ -75,6 +77,7 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - `docs/next-work-plan.md`: 다음 작업 우선순위.
 - `docs/deployment-cicd/README.md`: 팀 배포/CICD 기준 문서.
 - `docs/deployment-cicd/09-release-checklist.md`: 배포 전후 smoke와 rollback 체크리스트.
+- `docs/deployment-cicd/staging-ops-work-orders.md`: 비개발자/외주/인프라 담당자용 남은 운영 검증 작업지시서.
 
 ## 최신 검증 기록
 
@@ -91,6 +94,6 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 
 ## 다음 작업 방향
 
-1. `develop`을 원격 기준과 동기화하고 release handoff에 현재 검증 결과와 보류 사유를 남긴다.
-2. 실제 env가 준비되면 Cloudflare Tunnel actual env full-up, public route smoke, SMTP staging smoke, OAuth provider smoke 순서로 운영 검증을 진행한다.
-3. 운영 검증 대기 중 기능 개발을 계속할 경우 홈 추천 목적지 ranking 고도화를 진행한다.
+1. 실제 env가 준비되면 Cloudflare Tunnel actual env full-up, public route smoke, SMTP staging smoke, OAuth provider smoke 순서로 운영 검증을 진행한다.
+2. SOLAPI Kakao AlimTalk staging smoke는 provider 계정, channel, 승인 템플릿, webhook secret 준비 후 진행한다.
+3. 운영 검증 대기 중 기능 개발을 계속할 경우 홈 추천 목적지 ranking 고도화와 전화번호 OTP 설계를 별도 의뢰로 진행한다.

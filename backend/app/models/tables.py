@@ -11,6 +11,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    JSON,
     Numeric,
     String,
     Text,
@@ -22,6 +23,9 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+
+postgres_json = JSON().with_variant(JSONB(), "postgresql")
 
 
 class User(Base):
@@ -171,6 +175,57 @@ class PolicyDocument(Base):
     is_required: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
 
     policy: Mapped[Policy] = relationship(back_populates="documents")
+
+
+class ExternalSourceRecord(Base):
+    __tablename__ = "external_source_records"
+    __table_args__ = (
+        UniqueConstraint("source_name", "source_category", "canonical_key"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    source_name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    source_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    source_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    source_category: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    external_id: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
+    canonical_key: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
+    detail_url: Mapped[str | None] = mapped_column(String(500))
+    collected_page_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    organizer_text: Mapped[str] = mapped_column(String(300), nullable=False)
+    organizers: Mapped[list[str]] = mapped_column(postgres_json, nullable=False)
+    region: Mapped[str | None] = mapped_column(String(50), index=True)
+    city: Mapped[str | None] = mapped_column(String(80))
+    is_nationwide: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="false"
+    )
+    status_text: Mapped[str | None] = mapped_column(String(50))
+    status: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    start_date: Mapped[date | None] = mapped_column(Date)
+    end_date: Mapped[date | None] = mapped_column(Date, index=True)
+    benefit_text: Mapped[str] = mapped_column(Text, nullable=False)
+    benefit_value_text: Mapped[str | None] = mapped_column(String(300))
+    extracted_amount_krw: Mapped[int | None] = mapped_column(Integer)
+    extracted_discount_percent: Mapped[int | None] = mapped_column(Integer)
+    benefit_value_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    tags: Mapped[list[str]] = mapped_column(postgres_json, nullable=False)
+    contact_text: Mapped[str | None] = mapped_column(String(200))
+    inferred_travel_styles: Mapped[list[str]] = mapped_column(postgres_json, nullable=False)
+    confidence: Mapped[int] = mapped_column(Integer, nullable=False)
+    field_completeness: Mapped[int] = mapped_column(Integer, nullable=False)
+    raw_list_text: Mapped[str] = mapped_column(Text, nullable=False)
+    raw_detail_text: Mapped[str] = mapped_column(Text, nullable=False)
+    raw_payload: Mapped[dict[str, Any]] = mapped_column(postgres_json, nullable=False)
+    last_fetched_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    last_verified_at: Mapped[datetime | None] = mapped_column(DateTime)
+    freshness_status: Mapped[str] = mapped_column(String(30), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
 
 
 class Trip(Base):
@@ -393,7 +448,9 @@ class Recommendation(Base):
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
     trip_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("trips.id"))
     query: Mapped[str | None] = mapped_column(Text)
-    result: Mapped[dict[str, Any] | list[dict[str, Any]] | None] = mapped_column(JSONB)
+    result: Mapped[dict[str, Any] | list[dict[str, Any]] | None] = mapped_column(
+        postgres_json
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
     )

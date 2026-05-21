@@ -22,6 +22,10 @@
 - `local-dev-runtime.md`: 개발 중 기본 실행 방식. Docker는 `db/backend`만 실행하고 frontend는 `127.0.0.1:5173` Vite dev server로 확인한다.
 - `deployment-cicd/README.md`: GitHub, WSL/Docker 개발 환경, 프론트/백/DB/AI 작업 설명서, Jenkins 계획, Cloudflare Tunnel 기준 release checklist.
 
+## 회의와 보고
+
+- `meeting-briefs/travel-hunter-dev-status-2026-05-20.md`: Notion에 붙여넣기 위한 대표/PM 회의용 개발 현황 상세 보고서.
+
 ## 디자인 기준
 
 - `design-system-map.md`: 현재 UI token과 주요 컴포넌트 매핑.
