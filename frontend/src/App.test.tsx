@@ -1248,7 +1248,7 @@ describe("Travel Hunter app", () => {
       cleanup();
       renderRoute("/home");
 
-      await waitFor(() => expect(listRegionRecommendationsSpy).toHaveBeenCalledWith({ style: "맛집", limit: 3 }));
+      await waitFor(() => expect(listRegionRecommendationsSpy).toHaveBeenCalledWith({ style: "맛집", region: "부산", limit: 3 }));
       const destinationRail = screen.getByLabelText("인기 국내 여행지 목록");
       expect(within(destinationRail).getByRole("link", { name: /강원/ })).toHaveAttribute("href", "/trips/new?region=%EA%B0%95%EC%9B%90");
       expect(within(destinationRail).getByText("마감 임박 2개")).toBeInTheDocument();

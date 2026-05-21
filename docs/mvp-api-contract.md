@@ -473,6 +473,7 @@ OAuth provider callback 처리.
 | 이름 | 타입 | 설명 |
 |------|------|------|
 | style | string, optional | `휴식`, `맛집`, `체험`, `자연`, `사진` 같은 장소 취향. 점수 보정에만 사용하며 정책 점수 우선순위를 뒤집지 않는다. |
+| region | string, optional | 사용자 프로필 관심 지역. 정책 수, 마감 임박, 명시 금액, 취향 보정까지 모두 같은 경우에만 최종 tie-breaker로 사용한다. |
 | limit | number, optional | 반환 개수. 기본 3, 1~10. |
 
 **Ranking**
@@ -481,6 +482,7 @@ OAuth provider callback 처리.
 2. 마감 임박 혜택 수
 3. 명시 금액 혜택 가치
 4. 취향 일치 수는 동점권 보조 점수로만 사용
+5. 프로필 지역 일치는 마지막 tie-breaker로만 사용
 
 전국 혜택은 지역 후보가 `limit`보다 부족할 때만 fallback으로 포함한다.
 

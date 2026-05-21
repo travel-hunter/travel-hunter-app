@@ -11,6 +11,7 @@ router = APIRouter(tags=["recommendations"])
 @router.get("/recommendations/regions", response_model=list[RegionRecommendation])
 def list_region_recommendations(
     style: str | None = None,
+    region: str | None = None,
     limit: int = Query(default=3, ge=1, le=10),
     db: Session | None = Depends(get_optional_db),
 ) -> list[RegionRecommendation]:
@@ -19,5 +20,6 @@ def list_region_recommendations(
     return region_recommendation_service.recommend_regions(
         db,
         style=style,
+        region=region,
         limit=limit,
     )

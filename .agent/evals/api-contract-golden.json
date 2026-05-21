@@ -352,6 +352,7 @@
       "authRequired": false,
       "query": {
         "style": "맛집",
+        "region": "부산",
         "limit": 3
       },
       "requiredArrayItemFields": {
@@ -364,7 +365,7 @@
         "score": "number",
         "styleMatchedCount": "number"
       },
-      "dbModeBehavior": "Ranks external_source_records regional_benefit rows by active fresh regional policy count, ending-soon count, explicit KRW value, and style as a non-overriding tie breaker; nationwide records are included only as fallback when regional candidates are fewer than limit."
+      "dbModeBehavior": "Ranks external_source_records regional_benefit rows by active fresh regional policy count, ending-soon count, explicit KRW value, style as a non-overriding tie breaker, and profile region only as the final tie breaker; nationwide records are included only as fallback when regional candidates are fewer than limit."
     },
     {
       "method": "GET",
