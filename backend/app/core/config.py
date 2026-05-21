@@ -57,6 +57,9 @@ class Settings:
     external_collection_poll_seconds: int = int(
         os.getenv("EXTERNAL_COLLECTION_POLL_SECONDS", "60")
     )
+    external_collection_min_parsed_count: int = int(
+        os.getenv("EXTERNAL_COLLECTION_MIN_PARSED_COUNT", "1")
+    )
     kakao_alimtalk_enabled: bool = os.getenv(
         "KAKAO_ALIMTALK_ENABLED", "false"
     ).strip().lower() in {"1", "true", "yes", "on"}

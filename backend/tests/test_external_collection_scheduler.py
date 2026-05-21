@@ -101,6 +101,39 @@ def test_failed_collection_does_not_mark_date_as_successful() -> None:
     assert calls == [date(2026, 5, 21), date(2026, 5, 21)]
 
 
+def test_parse_count_below_threshold_does_not_mark_date_as_successful() -> None:
+    calls: list[date] = []
+
+    def collect(today: date) -> CollectionResult:
+        calls.append(today)
+        if len(calls) == 1:
+            return make_result(parsed_count=0)
+        return make_result(parsed_count=58)
+
+    scheduler = external_collection_scheduler.ExternalCollectionScheduler(
+        run_at=time(3, 0),
+        poll_seconds=60,
+        now_provider=lambda: datetime(2026, 5, 21, 3, 0, 0),
+        collect=collect,
+        min_parsed_count=1,
+    )
+
+    assert scheduler.run_once_if_due() is False
+    assert scheduler.run_once_if_due() is True
+    assert calls == [date(2026, 5, 21), date(2026, 5, 21)]
+
+
+def test_enabled_scheduler_rejects_negative_minimum_parse_count() -> None:
+    settings = Settings(
+        database_url="postgresql+psycopg://example",
+        external_collection_scheduler_enabled=True,
+        external_collection_min_parsed_count=-1,
+    )
+
+    with pytest.raises(ValueError, match="EXTERNAL_COLLECTION_MIN_PARSED_COUNT"):
+        external_collection_scheduler.validate_external_collection_scheduler_settings(settings)
+
+
 def test_run_forever_exits_cleanly_on_cancel() -> None:
     async def run() -> bool:
         async def cancel_on_sleep(_seconds: float) -> None:

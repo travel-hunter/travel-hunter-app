@@ -42,12 +42,14 @@ class ExternalCollectionScheduler:
         *,
         run_at: time,
         poll_seconds: int,
+        min_parsed_count: int = 1,
         now_provider: Callable[[], datetime] = kst_now,
         collect: Callable[[date], CollectionResult] | None = None,
         sleep: Callable[[float], object] = asyncio.sleep,
     ) -> None:
         self.run_at = run_at
         self.poll_seconds = poll_seconds
+        self.min_parsed_count = min_parsed_count
         self.now_provider = now_provider
         self.collect = collect or (lambda today: run_external_collection_once(today=today))
         self.sleep = sleep
@@ -65,6 +67,15 @@ class ExternalCollectionScheduler:
             result = self.collect(today)
         except Exception:
             logger.exception("External collection failed.")
+            return False
+
+        if result.parsed_count < self.min_parsed_count:
+            logger.error(
+                "External collection parsed %s records for %s, below minimum %s.",
+                result.parsed_count,
+                today.isoformat(),
+                self.min_parsed_count,
+            )
             return False
 
         self.last_successful_run_date = today
@@ -102,6 +113,8 @@ def validate_external_collection_scheduler_settings(
         ) from exc
     if settings_obj.external_collection_poll_seconds < 1:
         raise ValueError("EXTERNAL_COLLECTION_POLL_SECONDS must be greater than 0.")
+    if settings_obj.external_collection_min_parsed_count < 0:
+        raise ValueError("EXTERNAL_COLLECTION_MIN_PARSED_COUNT must be 0 or greater.")
 
 
 def build_external_collection_scheduler(
@@ -110,6 +123,7 @@ def build_external_collection_scheduler(
     return ExternalCollectionScheduler(
         run_at=parse_run_at(settings_obj.external_collection_run_at),
         poll_seconds=settings_obj.external_collection_poll_seconds,
+        min_parsed_count=settings_obj.external_collection_min_parsed_count,
     )
 
 
