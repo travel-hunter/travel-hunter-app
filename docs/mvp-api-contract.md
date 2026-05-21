@@ -412,6 +412,46 @@ OAuth provider callback 처리.
 
 ---
 
+## 추천 (`/api/recommendations`)
+
+### GET /recommendations/regions
+
+여행가는 달 등 공식 외부 수집 레코드(`external_source_records`)를 기반으로 지역/목적지 추천 목록을 반환한다. 인증 불필요.
+
+**Query params**
+
+| 이름 | 타입 | 설명 |
+|------|------|------|
+| style | string, optional | `휴식`, `맛집`, `체험`, `자연`, `사진` 같은 장소 취향. 점수 보정에만 사용하며 정책 점수 우선순위를 뒤집지 않는다. |
+| limit | number, optional | 반환 개수. 기본 3, 1~10. |
+
+**Ranking**
+
+1. 신청 가능한 지역 혜택 수
+2. 마감 임박 혜택 수
+3. 명시 금액 혜택 가치
+4. 취향 일치 수는 동점권 보조 점수로만 사용
+
+전국 혜택은 지역 후보가 `limit`보다 부족할 때만 fallback으로 포함한다.
+
+**Response 200** — `RegionRecommendation[]`
+```json
+[
+  {
+    "region": "부산",
+    "title": "부산이 지금 좋아요",
+    "reason": "신청 가능한 지역 혜택 4개 · 마감 임박 2개 · 명시 혜택 최대 100,000원을 기준으로 추천합니다.",
+    "policyCount": 4,
+    "endingSoonCount": 2,
+    "estimatedValueKrw": 100000,
+    "score": 86,
+    "styleMatchedCount": 1
+  }
+]
+```
+
+---
+
 ## 정책 (`/api/policies`)
 
 ### GET /policies

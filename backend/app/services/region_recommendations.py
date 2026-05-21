@@ -1,0 +1,140 @@
+from __future__ import annotations
+
+from collections import defaultdict
+from dataclasses import dataclass
+from datetime import date, timedelta
+
+from sqlalchemy.orm import Session
+
+from app.models import ExternalSourceRecord
+from app.repositories import external_sources as external_source_repository
+from app.schemas.recommendations import RegionRecommendation
+
+
+ENDING_SOON_DAYS = 14
+NATIONWIDE_REGION = "전국"
+
+
+@dataclass
+class _RegionStats:
+    region: str
+    policy_count: int = 0
+    ending_soon_count: int = 0
+    estimated_value_krw: int = 0
+    style_matched_count: int = 0
+    nationwide: bool = False
+
+
+def recommend_regions(
+    db: Session,
+    *,
+    today: date | None = None,
+    style: str | None = None,
+    limit: int = 3,
+) -> list[RegionRecommendation]:
+    run_date = today or date.today()
+    records = external_source_repository.list_regional_benefit_recommendation_records(db)
+    regional_stats: dict[str, _RegionStats] = {}
+    nationwide_stats = _RegionStats(region=NATIONWIDE_REGION, nationwide=True)
+
+    for record in records:
+        target = nationwide_stats if _is_nationwide(record) else _stats_for_region(regional_stats, record.region)
+        if target is None:
+            continue
+        _add_record(target, record, today=run_date, style=style)
+
+    ranked = sorted(
+        regional_stats.values(),
+        key=_ranking_key,
+        reverse=True,
+    )
+    if len(ranked) < limit and nationwide_stats.policy_count > 0:
+        ranked.append(nationwide_stats)
+
+    return [_to_recommendation(stats) for stats in ranked[:limit]]
+
+
+def _stats_for_region(
+    stats_by_region: dict[str, _RegionStats],
+    region: str | None,
+) -> _RegionStats | None:
+    if not region:
+        return None
+    if region == NATIONWIDE_REGION:
+        return None
+    if region not in stats_by_region:
+        stats_by_region[region] = _RegionStats(region=region)
+    return stats_by_region[region]
+
+
+def _is_nationwide(record: ExternalSourceRecord) -> bool:
+    return bool(record.is_nationwide) or record.region == NATIONWIDE_REGION
+
+
+def _add_record(
+    stats: _RegionStats,
+    record: ExternalSourceRecord,
+    *,
+    today: date,
+    style: str | None,
+) -> None:
+    stats.policy_count += 1
+    if record.end_date is not None and today <= record.end_date <= today + timedelta(days=ENDING_SOON_DAYS):
+        stats.ending_soon_count += 1
+    if record.extracted_amount_krw:
+        stats.estimated_value_krw += int(record.extracted_amount_krw)
+    if style and style in _string_values(record.inferred_travel_styles):
+        stats.style_matched_count += 1
+
+
+def _string_values(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value]
+
+
+def _ranking_key(stats: _RegionStats) -> tuple[int, int, int, int, str]:
+    return (
+        stats.policy_count,
+        stats.ending_soon_count,
+        stats.estimated_value_krw,
+        stats.style_matched_count,
+        _reverse_string_sort(stats.region),
+    )
+
+
+def _reverse_string_sort(value: str) -> str:
+    return "".join(chr(0x10FFFF - ord(char)) for char in value)
+
+
+def _to_recommendation(stats: _RegionStats) -> RegionRecommendation:
+    score = min(
+        100,
+        stats.policy_count * 25
+        + stats.ending_soon_count * 10
+        + min(stats.estimated_value_krw // 10000, 25)
+        + min(stats.style_matched_count * 3, 6),
+    )
+    return RegionRecommendation(
+        region=stats.region,
+        title=f"{stats.region}이 지금 좋아요",
+        reason=_reason(stats),
+        policyCount=stats.policy_count,
+        endingSoonCount=stats.ending_soon_count,
+        estimatedValueKrw=stats.estimated_value_krw,
+        score=score,
+        styleMatchedCount=stats.style_matched_count,
+    )
+
+
+def _reason(stats: _RegionStats) -> str:
+    if stats.nationwide:
+        return "지역 후보가 부족할 때 함께 볼 수 있는 전국 혜택이 있습니다."
+    parts = [f"신청 가능한 지역 혜택 {stats.policy_count}개"]
+    if stats.ending_soon_count:
+        parts.append(f"마감 임박 {stats.ending_soon_count}개")
+    if stats.estimated_value_krw:
+        parts.append(f"명시 혜택 최대 {stats.estimated_value_krw:,}원")
+    if stats.style_matched_count:
+        parts.append(f"선택 취향과 맞는 혜택 {stats.style_matched_count}개")
+    return " · ".join(parts) + "를 기준으로 추천합니다."

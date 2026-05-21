@@ -1,4 +1,4 @@
-import { ContactInfo, InviteRole, InviteState, NotificationSettings, Policy, Profile, ProfileOptions, Recommendation, Trip, User } from "./types";
+import { ContactInfo, InviteRole, InviteState, NotificationSettings, Policy, Profile, ProfileOptions, Recommendation, RegionRecommendation, Trip, User } from "./types";
 
 export type LoginRequest = {
   email: string;
@@ -124,6 +124,7 @@ export type AppDataApi = {
   getNotificationSettings: () => Promise<NotificationSettings>;
   updateNotificationSettings: (settings: Pick<NotificationSettings, "deadlineEnabled">) => Promise<NotificationSettings>;
   listPolicies: () => Promise<Policy[]>;
+  listRegionRecommendations: (options?: { style?: string; limit?: number }) => Promise<RegionRecommendation[]>;
   getPolicy: (policySlug?: string) => Promise<Policy>;
   savePolicy: (policySlug: string) => Promise<SavePolicyResponse>;
   listSavedPolicies: () => Promise<Policy[]>;

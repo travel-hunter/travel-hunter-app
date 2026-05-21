@@ -92,6 +92,17 @@ export type Recommendation = {
   reason: string;
 };
 
+export type RegionRecommendation = {
+  region: string;
+  title: string;
+  reason: string;
+  policyCount: number;
+  endingSoonCount: number;
+  estimatedValueKrw: number;
+  score: number;
+  styleMatchedCount: number;
+};
+
 export type InviteRole = "viewer" | "editor";
 
 export type InviteState = {
