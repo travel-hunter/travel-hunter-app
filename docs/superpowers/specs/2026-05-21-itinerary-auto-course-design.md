@@ -116,6 +116,7 @@ The first provider is catalog-backed and deterministic:
 - Replace `seed.TRIP["days"]` place copying with the catalog-backed generator.
 - Add generated places to each `TripDay`.
 - Add one `Recommendation` row containing the generated recommendation list.
+- If no candidates are generated, still add the row with `recommendations.result = []` so `/ai-results?tripId=...` consistently returns an empty list instead of depending on row absence.
 - Commit once after all trip creation side effects are prepared.
 
 The backend must keep DTO fields in camelCase and database fields in snake_case.
@@ -131,6 +132,8 @@ Update place preference options so `travelStyles` include:
 - `체험`
 - `자연`
 - `사진`
+
+The current frontend `backendApi.getProfileOptions()` reads these options from `frontend/src/data/seedData.ts` instead of the live `/api/profile-options` endpoint. Implementation must update both frontend seed options and backend profile options, or intentionally refactor `AppDataApi` to fetch the backend endpoint. For v1, update both option sources and keep the existing API boundary unchanged.
 
 `/trips/new` continues sending `style` in the existing create-trip payload. The backend interprets this value as the place preference style. The trip detail page does not need a new data path because generated places are saved as normal `trip_places`.
 
@@ -166,12 +169,23 @@ The existing `Recommendation` response shape remains unchanged:
 
 Contract documentation must update `profile-options.travelStyles` to `["휴식", "맛집", "체험", "자연", "사진"]`.
 
+Because this changes a public contract value set, implementation must run the local `api-contract-sync` workflow and keep these files aligned:
+
+- `docs/mvp-api-contract.md`
+- `.agent/evals/api-contract-golden.json`
+- `backend/app/data/seed.py`
+- `backend/app/api/routes/profile.py` if the option source changes
+- `frontend/src/data/seedData.ts`
+- `frontend/src/api/types.ts` if option typing is narrowed later
+- relevant backend and frontend tests
+
 ## Edge Cases
 
 - If date range is invalid, keep existing validation behavior.
 - If style is unknown, use same-region entries from any known style.
 - If region is unknown, create trip days but no generated places.
 - If only some candidates are available, fill days in order and leave the rest empty.
+- If no candidates are available, persist `recommendations.result = []`.
 - If the user later edits, deletes, or moves generated places, do not regenerate automatically.
 - If a policy is linked during creation, keep policy linking behavior but do not regenerate the course from policy data in v1.
 
@@ -185,6 +199,7 @@ Backend unit/service tests:
 - Falls back to same-region other-style candidates when the requested style has too few entries.
 - Creates a partial itinerary when catalog candidates are insufficient.
 - Creates trip days with no places when no region candidates exist.
+- Stores an empty `recommendations.result` list when no candidates exist.
 - Stores matching recommendation results for generated places.
 - Does not reintroduce non-numeric trip route handles.
 
