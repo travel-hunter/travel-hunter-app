@@ -111,6 +111,31 @@ curl -fsS https://<staging-domain>/api/health
 
 ## OPS-03. Public HTTPS route smoke
 
+### TravelMonth external collection ops smoke
+
+Purpose: verify the official-source collection scheduler status and the DB-backed collection quality report without changing the public `/api/health` contract.
+
+Run these after OPS-02 has brought up the staging backend:
+
+```bash
+curl -fsS https://<staging-domain>/api/ops/external-collection
+curl -fsS "https://<staging-domain>/api/ops/external-collection/quality?style=맛집&region=부산&limit=3"
+```
+
+Expected result:
+
+- `/api/ops/external-collection` returns the configured scheduler cadence and last run snapshot: `schedulerEnabled`, `runAt`, `pollSeconds`, `minParsedCount`, `lastAttemptedRunDate`, `lastSuccessfulRunDate`, `lastParsedCount`, `lastOutcome`, and `lastError`.
+- If the scheduler is enabled and has already run successfully, `lastOutcome` is `success`, `lastParsedCount` is greater than or equal to `minParsedCount`, and `lastError` is `null`.
+- `/api/ops/external-collection/quality` reads current DB records only. It must not perform a live fetch during this smoke check.
+- After collection has populated the DB, `totalRecords` is greater than 0, `regions` contains regional quality rows when regional records exist, and `recommendationPreview` contains ranked region previews when active/fresh records exist.
+- If the staging DB is empty or collection has not run yet, `totalRecords` may be 0 and `recommendationPreview` may be empty. That means there is no saved collection data yet; it is not an endpoint failure by itself.
+
+Evidence to keep:
+
+- Endpoint JSON output with secrets absent.
+- The staging domain, run time, and whether the DB already had collected records.
+- Any `lastError` value from the scheduler endpoint.
+
 목적: 실제 public HTTPS domain에서 사용자가 핵심 화면을 볼 수 있는지 확인한다.
 
 담당자: QA 또는 외주/인프라 담당자. 화면 오류가 있으면 개발자에게 screenshot과 URL을 전달한다.
