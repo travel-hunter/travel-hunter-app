@@ -38,10 +38,18 @@
 | 7 | Jenkins CD staging 자동화 | 수동 Compose 배포 흐름을 Jenkins job으로 재현하고 secret은 credentials로만 관리한다. |
 | 8 | 홈 추천 목적지 ranking 고도화 | 정책 기반 목적지 추천에 마감 임박, 혜택 금액, 사용자 프로필 지역 가중치 같은 기준을 명확히 적용한다. |
 | 9 | 전화번호 OTP 설계/구현 | 알림 수신 전화번호의 실제 검증 흐름과 `phone_verified_at` 갱신 기준을 확정한다. |
+| 10 | 여행가는 달 live collector PoC | 공식 여행가는 달 지역 여행할인 모아보기 페이지에서 실제 목록/상세 HTML 또는 API 응답을 수집해 `external_source_records` 저장까지 검증한다. |
+| 11 | external collection scheduler cadence | 외부 수집 주기, 재검증 기준, freshness 상태 전환, 실패 재시도 정책을 운영 가능한 cadence로 확정한다. |
+| 12 | external source records 기반 홈 지역 추천 API | `external_source_records`의 지역/상태/혜택/선호도 파생 필드를 사용해 홈 지역 추천 API 후보와 정렬 기준을 구현한다. |
+| 13 | AppDataApi 경유 홈 추천 UI | frontend 홈 추천 UI가 backend 추천 API를 `AppDataApi` 경계로 호출하고 loading/error/empty 상태를 처리한다. |
 
 ## 기능 개발 후보
 
 - 홈 추천 목적지 ranking 기준 고도화.
+- 여행가는 달 live collector PoC.
+- external collection scheduler cadence.
+- external source records 기반 홈 지역 추천 API.
+- AppDataApi 경유 홈 추천 UI.
 - 정책 신청 URL 데이터 품질 보강.
 - 정책 신청 상태 모델 확장.
 - 전화번호 OTP 요청/확인 API와 UI.

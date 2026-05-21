@@ -58,6 +58,7 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - PR #17, #18, #19, #20, #23이 `develop`에 병합됐고 로컬/원격 `develop` 기준으로 문서/계약 정합성을 다시 맞췄다.
 - 기존 non-numeric 제주 3일 trip handle 지원을 제거하고, seed 여행 데이터는 유지한 채 API 계약과 frontend/backend 테스트를 numeric trip id 기준으로 갱신했다.
 - 외주/인프라 담당자용 staging 운영 검증 작업지시서를 `docs/deployment-cicd/staging-ops-work-orders.md`로 추가했다.
+- 여행가는 달 지역 여행할인 모아보기 외부 수집 기반을 추가해 공식 출처 레코드 저장, 원문 보존, 파생 지역/상태/혜택/선호도 필드를 지원한다.
 
 ## 현재 조건부 항목
 
