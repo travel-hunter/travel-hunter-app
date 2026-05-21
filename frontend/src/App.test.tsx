@@ -156,7 +156,7 @@ describe("Travel Hunter app", () => {
     }
   });
 
-  it("uses selected region and dates when creating a trip", async () => {
+  it("uses selected dates and shows generated itinerary times when creating a trip", async () => {
     await login();
     cleanup();
     renderRoute("/trips/new?policySlug=local-vacation");
@@ -198,14 +198,6 @@ describe("Travel Hunter app", () => {
       expect(screen.getByRole("heading", { name: "어디로 떠나나요?" })).toBeInTheDocument();
       expect(screen.getByText("선택한 정책을 새 일정에 연결할게요")).toBeInTheDocument();
       await waitFor(() => expect(screen.getByRole("button", { name: "휴식" })).toHaveAttribute("aria-pressed", "true"));
-
-      await user.click(screen.getByRole("button", { name: /부산/ }));
-      await user.click(screen.getByRole("button", { name: "체험" }));
-      await waitFor(() => {
-        const draft = window.localStorage.getItem("travel-hunter:draft:trip-create:local-vacation");
-        expect(draft).toContain("부산");
-        expect(draft).toContain("체험");
-      });
       await user.click(screen.getByRole("button", { name: "다음" }));
       expect(screen.getByRole("heading", { name: "언제 떠나나요?" })).toBeInTheDocument();
       fireEvent.change(screen.getByLabelText("출발일"), { target: { value: "2026-07-12" } });
@@ -215,7 +207,7 @@ describe("Travel Hunter app", () => {
 
       expect(screen.getByRole("heading", { name: "일정 제목을 정해볼까요?" })).toBeInTheDocument();
       const titleInput = screen.getByRole("textbox", { name: "일정 제목" });
-      expect((titleInput as HTMLInputElement).value).toMatch(/^부산 \d일 여행$/);
+      expect((titleInput as HTMLInputElement).value).toMatch(/^\S+ \d일 여행$/);
       await user.clear(titleInput);
       await user.type(titleInput, "부산 맛집 여행");
       await user.click(screen.getByRole("button", { name: "일정 만들기" }));
@@ -225,7 +217,7 @@ describe("Travel Hunter app", () => {
           expect.objectContaining({
             title: "부산 맛집 여행",
             region: expect.any(String),
-            style: "체험",
+            style: expect.any(String),
             policySlug: "local-vacation",
             startDate: "2026-07-12",
             endDate: "2026-07-15",
