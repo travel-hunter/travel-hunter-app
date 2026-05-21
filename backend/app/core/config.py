@@ -50,6 +50,13 @@ class Settings:
     notification_retry_delay_seconds: int = int(
         os.getenv("NOTIFICATION_RETRY_DELAY_SECONDS", "600")
     )
+    external_collection_scheduler_enabled: bool = os.getenv(
+        "EXTERNAL_COLLECTION_SCHEDULER_ENABLED", "false"
+    ).strip().lower() in {"1", "true", "yes", "on"}
+    external_collection_run_at: str = os.getenv("EXTERNAL_COLLECTION_RUN_AT", "03:00")
+    external_collection_poll_seconds: int = int(
+        os.getenv("EXTERNAL_COLLECTION_POLL_SECONDS", "60")
+    )
     kakao_alimtalk_enabled: bool = os.getenv(
         "KAKAO_ALIMTALK_ENABLED", "false"
     ).strip().lower() in {"1", "true", "yes", "on"}
