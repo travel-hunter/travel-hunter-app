@@ -1,4 +1,4 @@
-import type { Policy } from "../api";
+import type { Policy, RegionRecommendation } from "../api";
 
 export const featuredPolicySlug = "local-vacation";
 
@@ -26,9 +26,21 @@ const destinationCandidates: DestinationCandidate[] = [
 ];
 
 const fallbackDestinations = destinationCandidates.slice(0, 3);
+const fallbackDestinationColors = destinationCandidates.map((candidate) => candidate.color);
 
 function destinationToLink(region: string): string {
   return `/trips/new?region=${encodeURIComponent(region)}`;
+}
+
+function destinationColorForRegion(region: string, index: number): string {
+  const candidate = destinationCandidates.find(
+    (item) =>
+      item.title === region ||
+      item.regionQuery === region ||
+      region.includes(item.regionQuery) ||
+      item.title.includes(region),
+  );
+  return candidate?.color ?? fallbackDestinationColors[index % fallbackDestinationColors.length] ?? "#4DABF7";
 }
 
 function policyDeadlineTime(policy: Pick<Policy, "deadline">): number {
@@ -81,6 +93,21 @@ export function buildHomeDestinations(
   }
 
   return destinations.slice(0, max);
+}
+
+export function buildHomeDestinationsFromRegionRecommendations(
+  recommendations: RegionRecommendation[] | null | undefined,
+  max = 3,
+): HomeDestination[] {
+  return (recommendations ?? []).slice(0, max).map((recommendation, index) => ({
+    title: recommendation.region,
+    badge:
+      recommendation.endingSoonCount > 0
+        ? `마감 임박 ${recommendation.endingSoonCount}개`
+        : `혜택 ${recommendation.policyCount}개`,
+    color: destinationColorForRegion(recommendation.region, index),
+    to: destinationToLink(recommendation.region),
+  }));
 }
 
 export function getDeadlinePolicies(
