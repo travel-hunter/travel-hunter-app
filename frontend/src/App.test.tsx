@@ -166,7 +166,28 @@ describe("Travel Hunter app", () => {
       id: "44",
       title: "부산 맛집 여행",
       dates: "2026.07.12 - 07.15",
-      days: { 1: [], 2: [], 3: [], 4: [] },
+      days: {
+        1: [
+          { id: "441", time: "10:00", label: "자갈치시장", meta: "맛집 · 해산물" },
+          { id: "442", time: "14:00", label: "부평깡통시장", meta: "맛집 · 시장" },
+          { id: "443", time: "18:00", label: "돼지국밥 거리", meta: "맛집 · 향토음식" },
+        ],
+        2: [
+          { id: "444", time: "10:00", label: "해리단길 맛집", meta: "맛집 · 골목" },
+          { id: "445", time: "14:00", label: "기장 해산물 식당", meta: "맛집 · 바다" },
+          { id: "446", time: "18:00", label: "광안리 해변 산책", meta: "휴식 · 해변" },
+        ],
+        3: [
+          { id: "447", time: "10:00", label: "송정 해변 카페", meta: "휴식 · 카페" },
+          { id: "448", time: "14:00", label: "민락수변공원", meta: "휴식 · 야경" },
+          { id: "449", time: "18:00", label: "해운대 블루라인파크", meta: "휴식 · 전망" },
+        ],
+        4: [
+          { id: "450", time: "10:00", label: "온천천 카페 거리", meta: "휴식 · 산책" },
+          { id: "451", time: "14:00", label: "영화의전당", meta: "체험 · 문화" },
+          { id: "452", time: "18:00", label: "부산시민공원 공방", meta: "체험 · 공방" },
+        ],
+      },
     };
     const createTripSpy = vi.spyOn(appDataApi, "createTrip").mockResolvedValue(createdTrip);
     const addPolicySpy = vi.spyOn(appDataApi, "addPolicyToTrip").mockResolvedValue({ tripId: "44", policyId: "local-vacation", added: true });
@@ -176,6 +197,7 @@ describe("Travel Hunter app", () => {
     try {
       expect(screen.getByRole("heading", { name: "어디로 떠나나요?" })).toBeInTheDocument();
       expect(screen.getByText("선택한 정책을 새 일정에 연결할게요")).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByRole("button", { name: "휴식" })).toHaveAttribute("aria-pressed", "true"));
 
       await user.click(screen.getByRole("button", { name: /부산/ }));
       await user.click(screen.getByRole("button", { name: "체험" }));
@@ -211,6 +233,10 @@ describe("Travel Hunter app", () => {
         ),
       );
       expect(window.localStorage.getItem("travel-hunter:draft:trip-create:local-vacation")).toBeNull();
+      await expect(screen.findAllByText("10:00")).resolves.not.toHaveLength(0);
+      await expect(screen.findAllByText("14:00")).resolves.not.toHaveLength(0);
+      await expect(screen.findAllByText("18:00")).resolves.not.toHaveLength(0);
+      expect(getLink("/ai-results?tripId=44")).toBeInTheDocument();
 
       cleanup();
       renderRoute("/trips");
