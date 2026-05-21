@@ -75,6 +75,41 @@ TravelMonth external collection scheduler 운영 확인용 상태를 반환한�
 
 ---
 
+### GET /ops/external-collection/quality
+
+TravelMonth regional benefit 수집 품질 리포트를 반환한다. 현재 DB의 `external_source_records`를 집계하며 live network fetch는 실행하지 않는다.
+
+**Query params**
+
+| name | type | description |
+|------|------|-------------|
+| style | string, optional | 추천 preview에 전달할 취향 보정 값 |
+| region | string, optional | 추천 preview에 전달할 최종 tie-breaker 지역 |
+| limit | number, optional | 추천 preview 개수. 기본 3, 1~10 |
+
+**Response 200**
+```json
+{
+  "sourceName": "여행가는 달",
+  "sourceCategory": "regional_benefit",
+  "totalRecords": 58,
+  "freshRecords": 58,
+  "activeRecords": 58,
+  "regionalRecords": 42,
+  "nationwideRecords": 16,
+  "recordsWithAmount": 21,
+  "recordsWithStyles": 37,
+  "latestFetchedAt": "2026-05-21T00:00:00",
+  "latestVerifiedAt": "2026-05-21T00:00:00",
+  "regions": [],
+  "recommendationPreview": []
+}
+```
+
+`regions`는 지역별 저장 품질 집계이며 `recommendationPreview`는 기존 `GET /recommendations/regions`와 같은 ranking service를 사용한다.
+
+---
+
 ## Auth (`/api/auth`)
 
 ### POST /auth/email-check
