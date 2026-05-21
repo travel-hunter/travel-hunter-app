@@ -1,13 +1,107 @@
-from datetime import datetime, time
+from datetime import date, datetime, timedelta, time
+from typing import get_args
 
+import app.models  # noqa: F401
 from fastapi.testclient import TestClient
+from sqlalchemy import Integer, create_engine
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
+from app.api.routes import ops as ops_routes
+from app.db.base import Base
 from app.main import app
+from app.models import ExternalSourceRecord
+from app.repositories.external_sources import upsert_external_source_records
+from app.schemas.external_sources import TravelMonthRegionalBenefitSource, TravelStyle
 from app.services import external_collection_scheduler
+from app.services.region_recommendations import NATIONWIDE_REGION
 from app.services.travelmonth_collection import CollectionResult
 
 
 client = TestClient(app)
+FETCHED_AT = datetime(2026, 5, 21, 9, 0, 0)
+SOURCE_NAME = TravelMonthRegionalBenefitSource.model_fields["source_name"].default
+STYLE_FOOD = get_args(TravelStyle)[1]
+STYLE_EXPERIENCE = get_args(TravelStyle)[2]
+
+
+def make_source(
+    canonical_key: str,
+    *,
+    region: str,
+    title: str,
+    amount: int | None = None,
+    end_date: date | None = None,
+    styles: list[str] | None = None,
+    is_nationwide: bool = False,
+    status: str = "active",
+    freshness_status: str = "fresh",
+) -> TravelMonthRegionalBenefitSource:
+    return TravelMonthRegionalBenefitSource(
+        source_type="official_campaign",
+        source_url="https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+        source_category="regional_benefit",
+        external_id=canonical_key,
+        canonical_key=canonical_key,
+        detail_url=None,
+        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+        title=title,
+        organizer_text=f"{region} organizer",
+        organizers=[f"{region} organizer"],
+        region=region,
+        city=None,
+        is_nationwide=is_nationwide,
+        status_text="[active]",
+        status=status,
+        start_date=date(2026, 5, 1),
+        end_date=end_date,
+        benefit_text=title,
+        benefit_value_text=f"max {amount}" if amount else None,
+        extracted_amount_krw=amount,
+        extracted_discount_percent=None,
+        benefit_value_type="amount" if amount else "unknown",
+        tags=styles or [],
+        contact_text=None,
+        inferred_travel_styles=styles or [],
+        confidence=90,
+        field_completeness=95,
+        raw_list_text=title,
+        raw_detail_text=title,
+        raw_payload={"periodText": "2026-05-01 ~ 2026-05-31"},
+        last_fetched_at=FETCHED_AT,
+        last_verified_at=FETCHED_AT,
+        freshness_status=freshness_status,
+    )
+
+
+def with_test_db(sources: list[TravelMonthRegionalBenefitSource]):
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    id_column = ExternalSourceRecord.__table__.c.id
+    original_type = id_column.type
+    id_column.type = Integer()
+    Base.metadata.create_all(engine)
+    TestingSessionLocal = sessionmaker(bind=engine)
+    session = TestingSessionLocal()
+    upsert_external_source_records(session, sources)
+    session.commit()
+    app.dependency_overrides[ops_routes.get_optional_db] = lambda: session
+    return session, engine, id_column, original_type
+
+
+def cleanup_test_db(
+    session: Session,
+    engine,
+    id_column,
+    original_type,
+) -> None:
+    app.dependency_overrides.pop(ops_routes.get_optional_db, None)
+    session.close()
+    Base.metadata.drop_all(engine)
+    id_column.type = original_type
 
 
 def test_external_collection_ops_health_returns_scheduler_snapshot() -> None:
@@ -65,3 +159,95 @@ def test_external_collection_ops_health_exposes_active_scheduler_status(
         "lastOutcome": "success",
         "lastError": None,
     }.items() <= response.json().items()
+
+
+def test_external_collection_quality_report_returns_empty_counts() -> None:
+    session, engine, id_column, original_type = with_test_db([])
+    try:
+        response = client.get("/api/ops/external-collection/quality")
+    finally:
+        cleanup_test_db(session, engine, id_column, original_type)
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "sourceName": SOURCE_NAME,
+        "sourceCategory": "regional_benefit",
+        "totalRecords": 0,
+        "freshRecords": 0,
+        "activeRecords": 0,
+        "regionalRecords": 0,
+        "nationwideRecords": 0,
+        "recordsWithAmount": 0,
+        "recordsWithStyles": 0,
+        "latestFetchedAt": None,
+        "latestVerifiedAt": None,
+        "regions": [],
+        "recommendationPreview": [],
+    }
+
+
+def test_external_collection_quality_report_summarizes_saved_records() -> None:
+    today = date(2026, 5, 21)
+    session, engine, id_column, original_type = with_test_db(
+        [
+            make_source(
+                "busan-1",
+                region="Busan",
+                title="Busan food support",
+                amount=50000,
+                end_date=today + timedelta(days=3),
+                styles=[STYLE_FOOD],
+            ),
+            make_source(
+                "busan-2",
+                region="Busan",
+                title="Busan experience support",
+                amount=None,
+                end_date=today + timedelta(days=30),
+                styles=[STYLE_EXPERIENCE],
+            ),
+            make_source(
+                "jeju-1",
+                region="Jeju",
+                title="Jeju stale support",
+                amount=70000,
+                freshness_status="stale",
+            ),
+            make_source(
+                "nationwide-1",
+                region=NATIONWIDE_REGION,
+                title="Nationwide support",
+                amount=10000,
+                is_nationwide=True,
+            ),
+        ]
+    )
+    try:
+        response = client.get(
+            f"/api/ops/external-collection/quality?style={STYLE_FOOD}&region=Busan&limit=2"
+        )
+    finally:
+        cleanup_test_db(session, engine, id_column, original_type)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["totalRecords"] == 4
+    assert payload["freshRecords"] == 3
+    assert payload["activeRecords"] == 4
+    assert payload["regionalRecords"] == 3
+    assert payload["nationwideRecords"] == 1
+    assert payload["recordsWithAmount"] == 3
+    assert payload["recordsWithStyles"] == 2
+    assert payload["latestFetchedAt"] == "2026-05-21T09:00:00"
+    assert payload["latestVerifiedAt"] == "2026-05-21T09:00:00"
+    assert payload["regions"][0] == {
+        "region": "Busan",
+        "totalRecords": 2,
+        "activeFreshRecords": 2,
+        "endingSoonRecords": 1,
+        "recordsWithAmount": 1,
+        "estimatedValueKrw": 50000,
+        "styleCounts": {STYLE_EXPERIENCE: 1, STYLE_FOOD: 1},
+    }
+    assert payload["recommendationPreview"][0]["region"] == "Busan"
+    assert payload["recommendationPreview"][0]["policyCount"] == 2
