@@ -60,6 +60,9 @@ class User(Base):
     password_reset_tokens: Mapped[list[PasswordResetToken]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+    phone_verification_codes: Mapped[list[PhoneVerificationCode]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
     social_accounts: Mapped[list[SocialAccount]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
@@ -110,6 +113,25 @@ class PasswordResetToken(Base):
     used_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     user: Mapped[User] = relationship(back_populates="password_reset_tokens")
+
+
+class PhoneVerificationCode(Base):
+    __tablename__ = "phone_verification_codes"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    phone_number: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    code_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+
+    user: Mapped[User] = relationship(back_populates="phone_verification_codes")
 
 
 class SocialAccount(Base):

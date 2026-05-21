@@ -8,6 +8,9 @@ from app.models import User as UserModel
 from app.schemas.user import (
     ContactInfo,
     ContactUpdate,
+    ContactVerificationConfirm,
+    ContactVerificationRequest,
+    ContactVerificationRequestResponse,
     NicknameSuggestion,
     NicknameUpdate,
     NotificationSettings,
@@ -21,6 +24,7 @@ from app.services import auth as auth_service
 from app.services import contact as contact_service
 from app.services import nicknames as nickname_service
 from app.services import notifications as notification_service
+from app.services.phone_verification import PhoneVerificationError
 from app.services import profile as profile_service
 
 router = APIRouter(tags=["profile"])
@@ -104,6 +108,42 @@ def update_contact(
             contact,
         )
     )
+
+
+@router.post("/me/contact/verification/request", response_model=ContactVerificationRequestResponse)
+def request_contact_verification(
+    verification_request: ContactVerificationRequest,
+    db: Session | None = Depends(get_optional_db),
+    current_user: UserModel | None = Depends(get_current_user),
+) -> ContactVerificationRequestResponse:
+    try:
+        return ContactVerificationRequestResponse(
+            **contact_service.request_contact_verification(
+                _require_db(db),
+                _require_user(current_user),
+                verification_request,
+            )
+        )
+    except PhoneVerificationError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
+
+
+@router.post("/me/contact/verification/confirm", response_model=ContactInfo)
+def confirm_contact_verification(
+    verification_confirm: ContactVerificationConfirm,
+    db: Session | None = Depends(get_optional_db),
+    current_user: UserModel | None = Depends(get_current_user),
+) -> ContactInfo:
+    try:
+        return ContactInfo(
+            **contact_service.confirm_contact_verification(
+                _require_db(db),
+                _require_user(current_user),
+                verification_confirm,
+            )
+        )
+    except PhoneVerificationError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
 
 
 @router.get("/me/notification-settings", response_model=NotificationSettings)

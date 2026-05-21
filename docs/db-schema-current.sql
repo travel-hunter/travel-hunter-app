@@ -204,6 +204,41 @@ ALTER SEQUENCE public.password_reset_tokens_id_seq OWNED BY public.password_rese
 
 
 --
+-- Name: phone_verification_codes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.phone_verification_codes (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    phone_number character varying(30) NOT NULL,
+    code_hash character varying(255) NOT NULL,
+    expires_at timestamp without time zone NOT NULL,
+    attempt_count integer DEFAULT 0 NOT NULL,
+    verified_at timestamp without time zone,
+    created_at timestamp without time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: phone_verification_codes_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.phone_verification_codes_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: phone_verification_codes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.phone_verification_codes_id_seq OWNED BY public.phone_verification_codes.id;
+
+
+--
 -- Name: policies; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -682,6 +717,13 @@ ALTER TABLE ONLY public.password_reset_tokens ALTER COLUMN id SET DEFAULT nextva
 
 
 --
+-- Name: phone_verification_codes id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.phone_verification_codes ALTER COLUMN id SET DEFAULT nextval('public.phone_verification_codes_id_seq'::regclass);
+
+
+--
 -- Name: policies id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -834,6 +876,14 @@ ALTER TABLE ONLY public.password_reset_tokens
 
 ALTER TABLE ONLY public.password_reset_tokens
     ADD CONSTRAINT password_reset_tokens_token_hash_key UNIQUE (token_hash);
+
+
+--
+-- Name: phone_verification_codes phone_verification_codes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.phone_verification_codes
+    ADD CONSTRAINT phone_verification_codes_pkey PRIMARY KEY (id);
 
 
 --
@@ -1126,6 +1176,27 @@ CREATE INDEX ix_password_reset_tokens_user_id ON public.password_reset_tokens US
 
 
 --
+-- Name: ix_phone_verification_codes_expires_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_phone_verification_codes_expires_at ON public.phone_verification_codes USING btree (expires_at);
+
+
+--
+-- Name: ix_phone_verification_codes_phone_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_phone_verification_codes_phone_number ON public.phone_verification_codes USING btree (phone_number);
+
+
+--
+-- Name: ix_phone_verification_codes_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_phone_verification_codes_user_id ON public.phone_verification_codes USING btree (user_id);
+
+
+--
 -- Name: ix_user_saved_policies_policy_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1169,6 +1240,14 @@ ALTER TABLE ONLY public.notification_deliveries
 
 ALTER TABLE ONLY public.password_reset_tokens
     ADD CONSTRAINT password_reset_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: phone_verification_codes phone_verification_codes_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.phone_verification_codes
+    ADD CONSTRAINT phone_verification_codes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --

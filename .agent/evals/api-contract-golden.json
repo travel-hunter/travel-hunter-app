@@ -270,6 +270,33 @@
       "dbModeBehavior": "Requires bearer auth, strips whitespace, stores users.phone_number, clears users.phone_verified_at when the phone number changes, and treats blank/null as no phone number."
     },
     {
+      "method": "POST",
+      "path": "/api/me/contact/verification/request",
+      "status": 200,
+      "request": {
+        "phoneNumber": "010 1234 5678"
+      },
+      "requiredFields": {
+        "requested": "boolean",
+        "expiresAt": "string",
+        "resendAvailableAt": "string"
+      },
+      "dbModeBehavior": "Requires bearer auth, normalizes and stores the requested phone number when supplied, clears users.phone_verified_at when the phone number changes, stores a hashed OTP in phone_verification_codes, and sends through the configured phone verification provider boundary."
+    },
+    {
+      "method": "POST",
+      "path": "/api/me/contact/verification/confirm",
+      "status": 200,
+      "request": {
+        "code": "123456"
+      },
+      "requiredFields": {
+        "phoneNumber": "string|null",
+        "phoneVerified": "boolean"
+      },
+      "dbModeBehavior": "Requires bearer auth, verifies the latest unexpired pending OTP for users.phone_number, limits failed attempts, sets phone_verification_codes.verified_at and users.phone_verified_at on success, and returns ContactInfo."
+    },
+    {
       "method": "GET",
       "path": "/api/me/notification-settings",
       "status": 200,

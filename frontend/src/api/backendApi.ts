@@ -9,6 +9,8 @@ import { apiClient, apiConfig } from "./client";
 import {
   AppDataApi,
   AuthResponse,
+  ContactVerificationConfirmRequest,
+  ContactVerificationRequest,
   ContactUpdateRequest,
   CreateTripRequest,
   DeleteTripResponse,
@@ -31,7 +33,7 @@ import {
   TripPolicyResponse,
   TripStatusUpdateRequest,
 } from "./dataApi";
-import { ContactInfo, InviteRole, InviteState, NotificationSettings, Policy, Profile, ProfileOptions, Recommendation, RegionRecommendation, Trip, User } from "./types";
+import { ContactInfo, ContactVerificationRequestResponse, InviteRole, InviteState, NotificationSettings, Policy, Profile, ProfileOptions, Recommendation, RegionRecommendation, Trip, User } from "./types";
 
 const defaultLogin: LoginRequest = {
   email: user.email,
@@ -65,6 +67,10 @@ export const backendApi: AppDataApi = {
   updateProfile: (profile: Partial<Profile>): Promise<Profile> => apiClient.patch<Profile>("/api/me/profile", profile),
   getContact: (): Promise<ContactInfo> => apiClient.get<ContactInfo>("/api/me/contact"),
   updateContact: (contact: ContactUpdateRequest): Promise<ContactInfo> => apiClient.patch<ContactInfo>("/api/me/contact", contact),
+  requestContactVerification: (request: ContactVerificationRequest): Promise<ContactVerificationRequestResponse> =>
+    apiClient.post<ContactVerificationRequestResponse>("/api/me/contact/verification/request", request),
+  confirmContactVerification: (request: ContactVerificationConfirmRequest): Promise<ContactInfo> =>
+    apiClient.post<ContactInfo>("/api/me/contact/verification/confirm", request),
   getNotificationSettings: (): Promise<NotificationSettings> => apiClient.get<NotificationSettings>("/api/me/notification-settings"),
   updateNotificationSettings: (settings: Pick<NotificationSettings, "deadlineEnabled">): Promise<NotificationSettings> => apiClient.patch<NotificationSettings>("/api/me/notification-settings", settings),
   listPolicies: (): Promise<Policy[]> => apiClient.get<Policy[]>("/api/policies"),

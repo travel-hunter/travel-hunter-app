@@ -11,6 +11,7 @@ def test_current_schema_tables_are_registered() -> None:
         "policies",
         "policy_documents",
         "external_source_records",
+        "phone_verification_codes",
         "trips",
         "trip_days",
         "trip_places",
@@ -33,6 +34,7 @@ def test_current_schema_decision_columns_are_registered() -> None:
     user_notification_settings = Base.metadata.tables["user_notification_settings"]
     notification_deliveries = Base.metadata.tables["notification_deliveries"]
     password_reset_tokens = Base.metadata.tables["password_reset_tokens"]
+    phone_verification_codes = Base.metadata.tables["phone_verification_codes"]
     external_source_records = Base.metadata.tables["external_source_records"]
 
     assert "preferred_regions" in users.c
@@ -51,6 +53,12 @@ def test_current_schema_decision_columns_are_registered() -> None:
     assert "token_hash" in password_reset_tokens.c
     assert "expires_at" in password_reset_tokens.c
     assert "used_at" in password_reset_tokens.c
+    assert "user_id" in phone_verification_codes.c
+    assert "phone_number" in phone_verification_codes.c
+    assert "code_hash" in phone_verification_codes.c
+    assert "expires_at" in phone_verification_codes.c
+    assert "attempt_count" in phone_verification_codes.c
+    assert "verified_at" in phone_verification_codes.c
     expected_external_source_columns = {
         "source_name",
         "source_type",
