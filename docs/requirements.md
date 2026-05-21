@@ -53,7 +53,7 @@ Travel Hunter는 국내 여행자가 여행 혜택 정책을 찾고, 여행 일�
 |---|---|---|
 | FR-USER-001 | 신규 사용자는 관심 지역, 여행 스타일, 예산을 설정할 수 있다. | `/profile-setup` 완료 시 profile 값이 backend에 저장되고 이후 화면에서 반영된다. |
 | FR-USER-002 | 사용자는 마이페이지에서 프로필을 편집할 수 있다. | 편집 sheet에서 지역/스타일/예산을 저장하고 성공 후 요약 카드가 갱신된다. |
-| FR-USER-003 | 사용자는 알림 연락처를 저장하고 OTP로 인증할 수 있다. | 전화번호는 사용자별로 저장/삭제 가능하고, 인증번호 요청/확인 성공 시 `phoneVerified`가 true로 표시된다. 실제 외부 발송 provider는 운영 설정에서 교체한다. |
+| FR-USER-003 | 사용자는 알림 연락처를 저장하고 OTP로 인증할 수 있다. | 전화번호는 사용자별로 저장/삭제 가능하고, 인증번호 요청/확인 성공 시 `phoneVerified`가 true로 표시된다. `PHONE_VERIFICATION_PROVIDER=dev|solapi`로 dev/test 또는 SOLAPI SMS 발송 provider를 선택한다. |
 | FR-USER-004 | 사용자는 정책 마감 알림을 켜거나 끌 수 있다. | 설정은 사용자별로 저장되고 기본 lead day는 D-7, D-1이다. |
 
 ### 3.3 정책 탐색과 저장
@@ -145,7 +145,7 @@ Travel Hunter는 국내 여행자가 여행 혜택 정책을 찾고, 여행 일�
 
 - 실제 AI 추천 엔진.
 - 지도/장소 검색 API와 이동 시간 계산.
-- 전화번호 실인증/OTP.
+- 전화번호 OTP 실제 발송 staging smoke.
 - 친구 초대 email/SMS/Kakao 외부 발송.
 - 운영 관리자 화면.
 - 정책 실시간 수집/동기화.

@@ -72,6 +72,7 @@ class Settings:
     ).strip().lower() in {"1", "true", "yes", "on"}
     solapi_timeout_seconds: float = float(os.getenv("SOLAPI_TIMEOUT_SECONDS", "5"))
     solapi_webhook_secret: str = os.getenv("SOLAPI_WEBHOOK_SECRET", "")
+    phone_verification_provider: str = os.getenv("PHONE_VERIFICATION_PROVIDER", "dev")
     travel_hunter_public_base_url: str = os.getenv(
         "TRAVEL_HUNTER_PUBLIC_BASE_URL", ""
     )

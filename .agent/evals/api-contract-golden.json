@@ -281,7 +281,7 @@
         "expiresAt": "string",
         "resendAvailableAt": "string"
       },
-      "dbModeBehavior": "Requires bearer auth, normalizes and stores the requested phone number when supplied, clears users.phone_verified_at when the phone number changes, stores a hashed OTP in phone_verification_codes, and sends through the configured phone verification provider boundary."
+      "dbModeBehavior": "Requires bearer auth, normalizes and stores the requested phone number when supplied, clears users.phone_verified_at when the phone number changes, stores a hashed OTP in phone_verification_codes, and sends through the configured phone verification provider boundary. PHONE_VERIFICATION_PROVIDER defaults to dev and can be set to solapi for SMS delivery."
     },
     {
       "method": "POST",

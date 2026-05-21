@@ -13,7 +13,8 @@ from app.schemas.user import ContactVerificationConfirm, ContactVerificationRequ
 from app.services.contact import contact_to_api, normalize_phone_number
 from app.services.phone_verification_provider import (
     PhoneVerificationProvider,
-    dev_phone_verification_provider,
+    PhoneVerificationProviderError,
+    build_phone_verification_provider,
 )
 
 CODE_TTL_MINUTES = 5
@@ -40,7 +41,7 @@ def request_contact_verification(
     user: User,
     request: ContactVerificationRequest,
     *,
-    provider: PhoneVerificationProvider = dev_phone_verification_provider,
+    provider: PhoneVerificationProvider | None = None,
     now: datetime | None = None,
     code_factory=generate_verification_code,
 ) -> dict[str, object]:
@@ -61,7 +62,11 @@ def request_contact_verification(
         code_hash=hash_verification_code(code),
         expires_at=expires_at,
     )
-    provider.send_verification_code(phone_number=normalized_phone, code=code)
+    sender = provider or build_phone_verification_provider()
+    try:
+        sender.send_verification_code(phone_number=normalized_phone, code=code)
+    except PhoneVerificationProviderError as error:
+        raise PhoneVerificationError(502, str(error)) from error
     db.commit()
     return {
         "requested": True,

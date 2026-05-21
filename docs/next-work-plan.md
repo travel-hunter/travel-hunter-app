@@ -37,7 +37,7 @@
 | 6 | SOLAPI Kakao AlimTalk staging smoke | 실제 SOLAPI/Kakao channel/template/env로 발송 요청, retry, webhook 수신이 확인된다. |
 | 7 | Jenkins CD staging 자동화 | 수동 Compose 배포 흐름을 Jenkins job으로 재현하고 secret은 credentials로만 관리한다. |
 | 8 | 홈 추천 목적지 ranking 고도화 | 정책 기반 목적지 추천에 마감 임박, 혜택 금액, 사용자 프로필 지역 가중치 같은 기준을 명확히 적용한다. |
-| 9 | 전화번호 OTP 실제 발송 provider 연동 | dev/test provider boundary를 실제 SMS/알림톡 provider로 교체할 수 있는 운영 env, 실패 처리, staging smoke 기준을 확정한다. |
+| 9 | 전화번호 OTP 실제 발송 smoke | env-gated SOLAPI SMS provider를 실제 운영 env로 켜고, 비용 제한과 실패 처리 기준에 맞춰 staging smoke를 완료한다. |
 | 10 | 여행가는 달 live collector PoC | 공식 여행가는 달 지역 여행할인 모아보기 페이지에서 실제 목록/상세 HTML 또는 API 응답을 수집해 `external_source_records` 저장까지 검증한다. |
 | 11 | external collection scheduler cadence | 외부 수집 주기, 재검증 기준, freshness 상태 전환, 실패 재시도 정책을 운영 가능한 cadence로 확정한다. |
 | 12 | external source records 기반 홈 지역 추천 API | `external_source_records`의 지역/상태/혜택/선호도 파생 필드를 사용해 홈 지역 추천 API 후보와 정렬 기준을 구현한다. |
@@ -52,7 +52,7 @@
 - AppDataApi 경유 홈 추천 UI.
 - 정책 신청 URL 데이터 품질 보강.
 - 정책 신청 상태 모델 확장.
-- 전화번호 OTP 실제 발송 provider 연동과 staging smoke.
+- 전화번호 OTP 실제 발송 staging smoke.
 - PWA service worker 1차 적용 여부 결정.
 
 ## 운영 검증 후보
