@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
 import app.models  # noqa: F401
 import pytest
@@ -171,3 +172,29 @@ def test_region_recommendations_ignore_inactive_or_stale_records(db: Session) ->
     recommendations = recommend_regions(db, today=today, limit=3)
 
     assert [item.region for item in recommendations] == ["부산"]
+
+
+def test_region_recommendations_read_records_created_by_travelmonth_collection(db: Session) -> None:
+    from app.services.travelmonth_collection import collect_regional_benefits_from_html
+
+    fixture_path = Path(__file__).parent / "fixtures" / "travelmonth_benefit_sample.html"
+    html = fixture_path.read_text(encoding="utf-8")
+
+    result = collect_regional_benefits_from_html(
+        db,
+        html,
+        fetched_at=FETCHED_AT,
+        today=date(2026, 5, 21),
+    )
+    recommendations = recommend_regions(
+        db,
+        today=date(2026, 5, 21),
+        style="맛집",
+        region="부산",
+        limit=3,
+    )
+
+    assert result.parsed_count > 0
+    assert result.created_or_updated_count > 0
+    assert recommendations
+    assert recommendations[0].policyCount > 0

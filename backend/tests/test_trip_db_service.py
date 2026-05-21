@@ -1,5 +1,10 @@
 from datetime import date, datetime, time, timedelta
 
+import pytest
+from sqlalchemy import BigInteger, Integer, create_engine
+from sqlalchemy.orm import sessionmaker
+
+from app.db.base import Base
 from app.models import Policy, Recommendation, Trip, TripDay, TripInvite, TripMember, TripPlace, TripPolicy
 from app.models import User as UserModel
 from app.schemas.trip import (
@@ -160,6 +165,27 @@ class FakeDb:
 
     def commit(self) -> None:
         self.commits += 1
+
+
+@pytest.fixture
+def sqlite_db_session():
+    engine = create_engine("sqlite:///:memory:")
+    mutated_columns = []
+    for table in Base.metadata.tables.values():
+        for column in table.c:
+            if column.primary_key and isinstance(column.type, BigInteger):
+                mutated_columns.append((column, column.type))
+                column.type = Integer()
+
+    try:
+        Base.metadata.create_all(engine)
+        TestingSessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
+        with TestingSessionLocal() as session:
+            yield session
+        Base.metadata.drop_all(engine)
+    finally:
+        for column, original_type in mutated_columns:
+            column.type = original_type
 
 
 def test_delete_trip_deletes_owned_numeric_trip_and_detaches_recommendations(monkeypatch) -> None:
@@ -685,6 +711,40 @@ def test_create_trip_generates_catalog_places_and_recommendations(monkeypatch) -
     assert recommendation_result[0]["title"] == "성산 일출봉"
     assert recommendation_result[0]["meta"].startswith("Day 1 · 10:00")
     assert fake_db.commits == 1
+
+
+def test_create_trip_persists_generated_days_places_and_recommendations_in_db(sqlite_db_session) -> None:
+    user = UserModel(
+        email="auto-course@example.com",
+        password_hash="hashed",
+        nickname="Auto Course",
+        onboarding_completed=True,
+    )
+    sqlite_db_session.add(user)
+    sqlite_db_session.commit()
+
+    created = trip_service.create_trip(
+        sqlite_db_session,
+        user,
+        CreateTripRequest(
+            region="부산",
+            style="맛집",
+            startDate=date(2026, 7, 12),
+            endDate=date(2026, 7, 14),
+            title="Busan auto-course verification",
+        ),
+    )
+
+    assert created["title"] == "Busan auto-course verification"
+    assert sorted(created["days"].keys()) == [1, 2, 3]
+    for day_places in created["days"].values():
+        assert len(day_places) == 3
+        assert [place["time"] for place in day_places] == ["10:00", "14:00", "18:00"]
+        assert all(place["label"] for place in day_places)
+
+    recommendations = trip_service.list_recommendations(sqlite_db_session, user, created["id"])
+    assert recommendations is not None
+    assert len(recommendations) >= 3
 
 
 def test_create_trip_persists_empty_recommendations_when_catalog_has_no_region(monkeypatch) -> None:
