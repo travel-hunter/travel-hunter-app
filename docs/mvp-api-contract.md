@@ -606,7 +606,7 @@ OAuth provider callback 처리.
 
 ### GET /policies/{policy_slug}
 
-정책 상세. `travelmonth-{externalSourceRecordId}` slug는 active/fresh 공식 수집 혜택 상세로 해석한다.
+정책 상세. `travelmonth-{externalSourceRecordId}` slug는 active/fresh TravelMonth 혜택 상세로 해석한다.
 
 **Response 200** → `Policy`
 
@@ -1016,7 +1016,7 @@ SOLAPI 발송 결과 webhook 수신. `X-Solapi-Secret` 헤더로 검증.
 | people | string[] | 참여자 닉네임 목록 |
 | expectedSaving | string | 예상 절약 금액 표시 |
 | linkedPolicies | LinkedTripPolicy[] | 연결된 정책 목록 |
-| recommendedPolicies | LinkedTripPolicy[] | 일정 지역에 맞춰 추천된 내부 정책 및 active/fresh TravelMonth 공식 수집 혜택 목록. 연결된 내부 정책은 제외하며 각 항목은 `/policies/{slug}` 상세로 이동 가능하다. |
+| recommendedPolicies | LinkedTripPolicy[] | 일정 지역에 맞춰 추천된 정규화 정책 및 active/fresh TravelMonth 혜택 목록. 이미 연결된 정규화 정책은 제외하며 각 항목은 `/policies/{slug}` 상세로 이동 가능하다. |
 | days | object | `{ [dayNumber]: ItineraryPlace[] }` |
 | currentUserRole | string | `"owner" \| "editor" \| "viewer"` |
 

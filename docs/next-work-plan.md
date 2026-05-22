@@ -20,7 +20,7 @@ Cloudflare는 뒤로 미루고, 현재 1순위는 로컬 Docker Compose에서 �
 
 - TravelMonth 공식 페이지 수집이 수동 명령으로 실행된다.
 - 수집 결과가 `external_source_records`에 저장된다.
-- `/api/policies`와 `/policies` 목록이 active/fresh 공식 수집 혜택을 기존 정책과 함께 노출한다.
+- `/api/policies`와 `/policies` 목록이 active/fresh TravelMonth 혜택을 정규화된 정책과 함께 노출한다.
 - `/api/ops/external-collection/quality`가 저장 품질과 recommendation preview를 보여준다.
 - `/api/recommendations/regions`가 저장 데이터 기반 지역 추천을 반환한다.
 - `/home` 추천 UI가 해당 API를 사용한다.
@@ -30,8 +30,8 @@ Cloudflare는 뒤로 미루고, 현재 1순위는 로컬 Docker Compose에서 �
 2026-05-22 보강 기준:
 
 - `/trips/new?region=...`는 홈 추천 지역을 새 일정 생성 지역으로 유지한다.
-- `travelmonth-{id}` 공식 수집 정책 slug는 새 일정 생성 시 참고만 하고 내부 정책 연결 요청에는 포함하지 않는다. raw 수집 레코드는 normalization 전까지 저장/일정 연결 action을 neutral 안내와 함께 임시 제한한다.
-- `/trips/{id}` 추천 정책 카드는 hardcoded article 대신 backend `recommendedPolicies`를 렌더링하고 내부 정책 및 `travelmonth-{id}` 공식 수집 혜택 상세인 `/policies/{slug}`로 이동한다.
+- `travelmonth-{id}` TravelMonth 혜택 slug는 새 일정 생성 시 참고만 하고 normalization 전 정책 연결 요청에는 포함하지 않는다. raw 수집 레코드는 normalization 전까지 저장/일정 연결 action을 neutral 안내와 함께 임시 제한한다.
+- `/trips/{id}` 추천 정책 카드는 hardcoded article 대신 backend `recommendedPolicies`를 렌더링하고 정규화된 정책 및 `travelmonth-{id}` TravelMonth 혜택 상세인 `/policies/{slug}`로 이동한다.
 - `/ai-results?tripId=...`는 현재 일정에 이미 있는 추천 장소를 중복 추가하지 않는다.
 
 ## 최근 완료
