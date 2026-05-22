@@ -10,7 +10,7 @@ from sqlalchemy.pool import StaticPool
 from app.api.routes import ops as ops_routes
 from app.db.base import Base
 from app.main import app
-from app.models import ExternalSourceRecord
+from app.models import ExternalSourceRecord, User
 from app.repositories.external_sources import upsert_external_source_records
 from app.schemas.external_sources import TravelMonthRegionalBenefitSource, TravelStyle
 from app.services import external_collection_scheduler
@@ -23,6 +23,25 @@ FETCHED_AT = datetime(2026, 5, 21, 9, 0, 0)
 SOURCE_NAME = TravelMonthRegionalBenefitSource.model_fields["source_name"].default
 STYLE_FOOD = get_args(TravelStyle)[1]
 STYLE_EXPERIENCE = get_args(TravelStyle)[2]
+
+
+def make_ops_user() -> User:
+    return User(
+        id=1,
+        email="ops@example.com",
+        nickname="Ops User",
+        onboarding_completed=True,
+        created_at=datetime(2026, 5, 21, 0, 0, 0),
+        updated_at=datetime(2026, 5, 21, 0, 0, 0),
+    )
+
+
+def authenticate_ops_user() -> None:
+    app.dependency_overrides[ops_routes.get_current_user] = make_ops_user
+
+
+def clear_ops_user() -> None:
+    app.dependency_overrides.pop(ops_routes.get_current_user, None)
 
 
 def make_source(
@@ -105,7 +124,11 @@ def cleanup_test_db(
 
 
 def test_external_collection_ops_health_returns_scheduler_snapshot() -> None:
-    response = client.get("/api/ops/external-collection")
+    authenticate_ops_user()
+    try:
+        response = client.get("/api/ops/external-collection")
+    finally:
+        clear_ops_user()
 
     assert response.status_code == 200
     assert response.json() == {
@@ -119,6 +142,14 @@ def test_external_collection_ops_health_returns_scheduler_snapshot() -> None:
         "lastOutcome": None,
         "lastError": None,
     }
+
+
+def test_external_collection_ops_health_requires_authentication() -> None:
+    clear_ops_user()
+
+    response = client.get("/api/ops/external-collection")
+
+    assert response.status_code == 401
 
 
 def test_regular_api_health_contract_is_unchanged() -> None:
@@ -149,7 +180,11 @@ def test_external_collection_ops_health_exposes_active_scheduler_status(
         scheduler,
     )
 
-    response = client.get("/api/ops/external-collection")
+    authenticate_ops_user()
+    try:
+        response = client.get("/api/ops/external-collection")
+    finally:
+        clear_ops_user()
 
     assert response.status_code == 200
     assert {
@@ -163,9 +198,11 @@ def test_external_collection_ops_health_exposes_active_scheduler_status(
 
 def test_external_collection_quality_report_returns_empty_counts() -> None:
     session, engine, id_column, original_type = with_test_db([])
+    authenticate_ops_user()
     try:
         response = client.get("/api/ops/external-collection/quality")
     finally:
+        clear_ops_user()
         cleanup_test_db(session, engine, id_column, original_type)
 
     assert response.status_code == 200
@@ -222,11 +259,13 @@ def test_external_collection_quality_report_summarizes_saved_records() -> None:
             ),
         ]
     )
+    authenticate_ops_user()
     try:
         response = client.get(
             f"/api/ops/external-collection/quality?style={STYLE_FOOD}&region=Busan&limit=2"
         )
     finally:
+        clear_ops_user()
         cleanup_test_db(session, engine, id_column, original_type)
 
     assert response.status_code == 200

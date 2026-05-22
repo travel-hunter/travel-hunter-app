@@ -14,6 +14,7 @@
 - [ ] DB migration 변경이 있으면 `alembic upgrade head --sql` 결과를 확인했다.
 - [ ] 운영 DB backup 필요 여부를 확인했다.
 - [ ] `VITE_API_BASE_URL`, `CORS_ORIGINS`, `REFRESH_COOKIE_SECURE` 값이 배포 domain 기준이다.
+- [ ] `docs/security-review/` 하위 모든 체크리스트의 HIGH 항목이 `[x]` 처리됐다.
 
 ## 배포 명령
 

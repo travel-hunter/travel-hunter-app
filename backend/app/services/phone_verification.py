@@ -53,6 +53,16 @@ def request_contact_verification(
     if user.phone_number != normalized_phone:
         user_repository.update_user_contact(db, user, phone_number=normalized_phone)
 
+    latest_pending_code = verification_repository.get_latest_pending_phone_verification_code(
+        db,
+        user_id=int(user.id),
+        phone_number=normalized_phone,
+    )
+    if latest_pending_code is not None and latest_pending_code.created_at is not None:
+        resend_available_at = latest_pending_code.created_at + timedelta(seconds=RESEND_COOLDOWN_SECONDS)
+        if resend_available_at > current_time:
+            raise PhoneVerificationError(429, "Verification code resend is not available yet")
+
     code = code_factory()
     expires_at = current_time + timedelta(minutes=CODE_TTL_MINUTES)
     verification_repository.create_phone_verification_code(

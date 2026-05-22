@@ -54,7 +54,7 @@ DB 연결 상태 포함 서버 헬스 확인. 인증 불필요.
 
 ### GET /ops/external-collection
 
-TravelMonth external collection scheduler 운영 확인용 상태를 반환한다. 기존 `/health`와 `/api/health` 응답 계약은 변경하지 않는다. 인증은 1차 운영 검증 범위에서 요구하지 않는다.
+TravelMonth external collection scheduler 운영 확인용 상태를 반환한다. 기존 `/health`와 `/api/health` 응답 계약은 변경하지 않는다. Bearer 인증이 필요하다.
 
 **Response 200**
 ```json
@@ -78,6 +78,7 @@ TravelMonth external collection scheduler 운영 확인용 상태를 반환한�
 ### GET /ops/external-collection/quality
 
 TravelMonth regional benefit 수집 품질 리포트를 반환한다. 현재 DB의 `external_source_records`를 집계하며 live network fetch는 실행하지 않는다.
+Bearer 인증이 필요하다.
 
 **Query params**
 
@@ -415,6 +416,7 @@ OAuth provider callback 처리.
 
 **Errors**
 - 400: 저장 또는 요청된 전화번호 없음
+- 429: 기존 미인증 OTP 발급 후 60초 이내 재요청
 
 ---
 
