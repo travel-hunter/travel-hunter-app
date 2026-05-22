@@ -111,7 +111,7 @@ export function ItineraryCreatePage() {
   const linkedPolicyLabel = linkablePolicySlug
     ? "선택한 정책을 새 일정에 연결할게요"
     : isCollectedExternalPolicySlug(policySlug)
-      ? "공식 수집 혜택을 참고해 일정을 만들게요"
+      ? "선택한 혜택을 참고해 일정을 만들게요"
       : "";
   const canProceed =
     step === 1
@@ -339,7 +339,7 @@ export function ItineraryCreatePage() {
               </div>
               <div>👥 인원 · 1명</div>
               {linkablePolicySlug && <div className="linked">🎁 연결 정책 · 선택한 정책</div>}
-              {!linkablePolicySlug && isCollectedExternalPolicySlug(policySlug) && <div className="linked">🎁 참고 혜택 · 공식 수집 혜택</div>}
+              {!linkablePolicySlug && isCollectedExternalPolicySlug(policySlug) && <div className="linked">🎁 참고 혜택 · 선택한 혜택</div>}
             </div>
           </section>
         )}

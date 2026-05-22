@@ -301,8 +301,12 @@ describe("Travel Hunter app", () => {
     const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(createdTrip);
 
     try {
+      expect(screen.getByText("선택한 혜택을 참고해 일정을 만들게요")).toBeInTheDocument();
+      expect(document.body).not.toHaveTextContent("공식 수집 혜택");
       await user.click(screen.getByRole("button", { name: "다음" }));
       await user.click(screen.getByRole("button", { name: "다음" }));
+      expect(document.body).toHaveTextContent("참고 혜택 · 선택한 혜택");
+      expect(document.body).not.toHaveTextContent("참고 혜택 · 공식 수집 혜택");
       const titleInput = screen.getByRole("textbox", { name: "일정 제목" });
       await user.clear(titleInput);
       await user.type(titleInput, "공식 혜택 참고 여행");
