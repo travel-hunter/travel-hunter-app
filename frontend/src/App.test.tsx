@@ -1209,6 +1209,82 @@ describe("Travel Hunter app", () => {
     expect(screen.queryByText("지역사랑 휴가지원")).not.toBeInTheDocument();
   });
 
+  it("renders collected official benefits in the policy list without save action", async () => {
+    const collectedPolicy: Policy = {
+      id: "travelmonth-58",
+      slug: "travelmonth-58",
+      label: "부산",
+      tag: "공식 수집",
+      title: "부산 야경투어 여행가는 달 할인",
+      org: "부산관광공사",
+      region: "부산",
+      deadline: "2026-06-30",
+      amount: "최대 2만원",
+      summary: "부산 야경투어 상품 할인",
+      match: 80,
+      category: "숙박",
+      requirements: ["공식 안내에서 신청 조건을 확인하세요."],
+      documents: ["공식 안내 확인"],
+      officialUrl: "https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+      applyUrl: null,
+      sourceType: "external",
+    };
+    const listPoliciesSpy = vi
+      .spyOn(appDataApi, "listPolicies")
+      .mockResolvedValue([collectedPolicy]);
+    const savePolicySpy = vi.spyOn(appDataApi, "savePolicy");
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/policies");
+
+      await waitFor(() => expect(document.body).toHaveTextContent("부산 야경투어 여행가는 달 할인"));
+      expect(getLink("/policies/travelmonth-58")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /부산 야경투어 여행가는 달 할인 즐겨찾기/ })).not.toBeInTheDocument();
+      expect(savePolicySpy).not.toHaveBeenCalled();
+    } finally {
+      listPoliciesSpy.mockRestore();
+      savePolicySpy.mockRestore();
+    }
+  });
+
+  it("renders collected official benefit detail with official CTA only", async () => {
+    const collectedPolicy: Policy = {
+      id: "travelmonth-58",
+      slug: "travelmonth-58",
+      label: "부산",
+      tag: "공식 수집",
+      title: "부산 야경투어 여행가는 달 할인",
+      org: "부산관광공사",
+      region: "부산",
+      deadline: "2026-06-30",
+      amount: "최대 2만원",
+      summary: "부산 야경투어 상품 할인",
+      match: 80,
+      category: "숙박",
+      requirements: ["공식 안내에서 신청 조건을 확인하세요."],
+      documents: ["공식 안내 확인"],
+      officialUrl: "https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+      applyUrl: null,
+      sourceType: "external",
+    };
+    const getPolicySpy = vi.spyOn(appDataApi, "getPolicy").mockResolvedValue(collectedPolicy);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/policies/travelmonth-58");
+
+      await waitFor(() => expect(document.body).toHaveTextContent("부산 야경투어 여행가는 달 할인"));
+      expect(screen.getByRole("link", { name: "공식 안내 확인" })).toHaveAttribute("href", collectedPolicy.officialUrl);
+      expect(screen.queryByRole("button", { name: "저장" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /내 일정에 담기|일정에 담김/ })).not.toBeInTheDocument();
+    } finally {
+      getPolicySpy.mockRestore();
+    }
+  });
+
   it("renders the prototype home rails with real policy links", async () => {
     await login();
     cleanup();
@@ -1227,7 +1303,7 @@ describe("Travel Hunter app", () => {
     await waitFor(() => expect(within(destinationRail).getAllByText(/혜택 \d+개/).length).toBeGreaterThan(0));
     expect(document.body).not.toHaveTextContent("⭐ 4.9");
     await waitFor(() => expect(screen.getByText("💰 이번 달 인기 정책")).toBeInTheDocument());
-    await waitFor(() => expect(document.body).toHaveTextContent("💴"));
+    await waitFor(() => expect(within(screen.getByLabelText("이번 달 혜택 정책 목록")).getAllByRole("link").length).toBeGreaterThan(0));
     await waitFor(() => expect(getLink("/policies/local-vacation")).toBeInTheDocument());
   });
 
@@ -2080,7 +2156,8 @@ describe("Travel Hunter app", () => {
     await user.click(screen.getByRole("button", { name: "1인 30만원 이하" }));
     await user.click(screen.getByRole("button", { name: "추천 홈 보기" }));
 
-    await waitFor(() => expect(document.body).toHaveTextContent("부산 여행"));
+    await waitFor(() => expect(document.body).toHaveTextContent("인기 국내 여행지"));
+    await waitFor(() => expect(screen.getByLabelText("인기 국내 여행지 목록")).toHaveTextContent(/마감 임박|혜택/));
   });
 
   it("saves selected invite roles from the friend invite page", async () => {

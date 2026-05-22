@@ -27,7 +27,7 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - Kakao/Google OAuth authorization code flow entry point.
 - password reset request/confirm flow.
 - 프로필 설정과 마이페이지 프로필 편집.
-- 정책 목록, 카테고리/지역/기간/금액 필터, 정책 저장/해제.
+- 정책 목록, 카테고리/지역/기간/금액 필터, 정책 저장/해제. `/policies` 목록은 DB `policies` 레코드와 active/fresh 공식 수집 혜택(`external_source_records`)을 함께 노출한다.
 - 정책 상세의 지원 내용, 신청 기간, 신청 대상, 필요 서류, 공유, 일정 담기.
 - 정책 상세 CTA 분리:
   - `applyUrl`: `신청하러 가기`
@@ -60,6 +60,7 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - 외주/인프라 담당자용 staging 운영 검증 작업지시서를 `docs/deployment-cicd/staging-ops-work-orders.md`로 추가했다.
 - 여행가는 달 지역 여행할인 모아보기 외부 수집 기반을 추가해 공식 출처 레코드 저장, 원문 보존, 파생 지역/상태/혜택/선호도 필드를 지원한다. 현재 공식 live HTML의 목록/상세 modal 구조는 58건 fetch/parse/upsert smoke로 검증했고, scheduler는 `EXTERNAL_COLLECTION_MIN_PARSED_COUNT` 미달 수집을 실패로 처리해 재시도하며 마지막 시도/성공/parsed count/outcome/error 상태를 내부 관측값으로 남긴다. 운영 확인은 기존 `/api/health` 계약을 유지한 채 `GET /api/ops/external-collection`에서 scheduler 상태를, `GET /api/ops/external-collection/quality`에서 저장 품질과 추천 반영 preview를 분리해 확인한다.
 - `external_source_records` 기반 지역 추천 API는 신청 가능 혜택 수, 마감 임박, 명시 금액, 취향 보조 점수, 프로필 지역 최종 tie-breaker를 사용해 지역/목적지 추천 후보를 반환한다.
+- active/fresh TravelMonth `regional_benefit` 수집 레코드는 `travelmonth-{externalSourceRecordId}` slug와 `sourceType="external"` 정책 DTO로 변환되어 `/api/policies` 및 `/api/policies/{policySlug}`에 노출된다. 외부 수집 혜택은 공식 안내 CTA 중심으로 표시하고 저장/일정 담기는 내부 정책 레코드로 승격하기 전까지 제공하지 않는다.
 
 ## 현재 조건부 항목
 
@@ -78,6 +79,7 @@ Cloudflare/public HTTPS/provider smoke는 별도 운영 검증으로 남기고, 
 ```text
 TravelMonth 공식 페이지 수집
 -> external_source_records 저장
+-> /api/policies 정책 목록에 공식 수집 혜택 노출
 -> /api/ops/external-collection/quality 저장 품질 확인
 -> /api/recommendations/regions 지역 추천 확인
 -> /home 추천 UI 확인

@@ -432,9 +432,11 @@
         "requirements": "array",
         "documents": "array",
         "officialUrl": "string|null",
-        "applyUrl": "string|null"
+        "applyUrl": "string|null",
+        "sourceType": "string"
       },
-      "exampleSlug": "local-vacation"
+      "exampleSlug": "local-vacation",
+      "dbModeBehavior": "Returns DB policies plus active/fresh TravelMonth regional_benefit external_source_records mapped into the same Policy DTO. External collected benefit slugs use travelmonth-{externalSourceRecordId} and sourceType=external."
     },
     {
       "method": "GET",
@@ -448,8 +450,10 @@
         "deadline": "string",
         "amount": "string",
         "officialUrl": "string|null",
-        "applyUrl": "string|null"
-      }
+        "applyUrl": "string|null",
+        "sourceType": "string"
+      },
+      "dbModeBehavior": "Also accepts travelmonth-{externalSourceRecordId} slugs for active/fresh collected TravelMonth benefits."
     },
     {
       "method": "GET",

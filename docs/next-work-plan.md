@@ -20,6 +20,7 @@ Cloudflare는 뒤로 미루고, 현재 1순위는 로컬 Docker Compose에서 �
 
 - TravelMonth 공식 페이지 수집이 수동 명령으로 실행된다.
 - 수집 결과가 `external_source_records`에 저장된다.
+- `/api/policies`와 `/policies` 목록이 active/fresh 공식 수집 혜택을 기존 정책과 함께 노출한다.
 - `/api/ops/external-collection/quality`가 저장 품질과 recommendation preview를 보여준다.
 - `/api/recommendations/regions`가 저장 데이터 기반 지역 추천을 반환한다.
 - `/home` 추천 UI가 해당 API를 사용한다.
@@ -42,6 +43,7 @@ Cloudflare는 뒤로 미루고, 현재 1순위는 로컬 Docker Compose에서 �
 - 기존 non-numeric 제주 3일 trip handle 지원을 제거하고 `trip_id`는 numeric string `Trip.id`만 지원하도록 계약, backend, frontend, tests, `.agent/evals`를 동기화했다.
 - Frontend `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build`, backend `python -m pytest`, compose config, stale alias search, API eval JSON validation, `git diff --check`가 통과했다.
 - `docs/deployment-cicd/staging-ops-work-orders.md`에 외주/인프라 담당자용 남은 운영 검증 작업지시서를 추가했다.
+- `/policies` 목록과 수집 정책 상세가 active/fresh TravelMonth `external_source_records`를 `sourceType="external"` 정책 DTO로 노출하고, 외부 수집 혜택은 공식 안내 CTA 중심으로 표시한다.
 
 ## 다음 우선순위
 

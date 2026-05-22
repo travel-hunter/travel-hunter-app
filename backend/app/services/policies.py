@@ -3,8 +3,10 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from app.data.policy_display import DISPLAY_OVERRIDES, SUPPORTED_CATEGORIES
+from app.models import ExternalSourceRecord
 from app.models import User
 from app.models import Policy as PolicyModel
+from app.repositories import external_sources as external_source_repository
 from app.repositories import policies as policy_repository
 
 
@@ -46,13 +48,66 @@ def policy_to_api(policy: PolicyModel) -> dict[str, object]:
         "documents": [document.document_name for document in policy.documents],
         "officialUrl": policy.official_url,
         "applyUrl": policy.apply_url,
+        "sourceType": "internal",
+    }
+
+
+def external_policy_slug(record: ExternalSourceRecord) -> str:
+    return f"{external_source_repository.EXTERNAL_POLICY_SLUG_PREFIX}{record.id}"
+
+
+def _external_policy_label(record: ExternalSourceRecord) -> str:
+    region = record.region or ("전국" if record.is_nationwide else "")
+    if region:
+        return region[:2]
+    return "공식"
+
+
+def external_source_record_to_policy_api(
+    record: ExternalSourceRecord,
+) -> dict[str, object]:
+    amount = record.benefit_value_text or record.benefit_text or "공식 안내 확인"
+    summary_parts = [
+        value
+        for value in [record.benefit_text, record.raw_detail_text]
+        if value
+    ]
+    summary = summary_parts[0] if summary_parts else "공식 수집 혜택입니다."
+    if len(summary) > 180:
+        summary = f"{summary[:177].rstrip()}..."
+
+    return {
+        "id": external_policy_slug(record),
+        "slug": external_policy_slug(record),
+        "label": _external_policy_label(record),
+        "tag": "공식 수집",
+        "title": record.title,
+        "org": record.organizer_text or record.source_name,
+        "region": record.region or "전국",
+        "deadline": record.end_date.isoformat() if record.end_date else "",
+        "amount": amount,
+        "summary": summary,
+        "match": 80,
+        "category": "숙박",
+        "requirements": ["공식 안내에서 신청 조건을 확인하세요."],
+        "documents": ["공식 안내 확인"],
+        "officialUrl": record.detail_url or record.collected_page_url,
+        "applyUrl": None,
+        "sourceType": "external",
     }
 
 
 def list_policies(db: Session | None = None) -> list[dict[str, object]]:
     if db is None:
         raise RuntimeError("DB session is required.")
-    return [policy_to_api(policy) for policy in policy_repository.list_policies(db)]
+    internal_policies = [
+        policy_to_api(policy) for policy in policy_repository.list_policies(db)
+    ]
+    external_policies = [
+        external_source_record_to_policy_api(record)
+        for record in external_source_repository.list_regional_benefit_recommendation_records(db)
+    ]
+    return [*internal_policies, *external_policies]
 
 
 def get_policy(policy_slug: str, db: Session | None = None) -> dict[str, object] | None:
@@ -61,7 +116,13 @@ def get_policy(policy_slug: str, db: Session | None = None) -> dict[str, object]
 
     policy = policy_repository.get_policy_by_slug(db, policy_slug)
     if policy is None:
-        return None
+        external_record = external_source_repository.get_external_source_record_by_policy_slug(
+            db,
+            policy_slug,
+        )
+        if external_record is None:
+            return None
+        return external_source_record_to_policy_api(external_record)
     return policy_to_api(policy)
 
 

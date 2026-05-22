@@ -570,7 +570,7 @@ OAuth provider callback 처리.
 
 ### GET /policies
 
-전체 정책 목록. 인증 불필요.
+전체 정책 목록. 인증 불필요. DB `policies` 레코드와 공식 외부 수집 레코드 중 active/fresh `external_source_records.source_category="regional_benefit"` 항목을 같은 `Policy` DTO로 반환한다.
 
 **Response 200** → `Policy[]`
 ```json
@@ -591,18 +591,20 @@ OAuth provider callback 처리.
     "requirements": ["만 19세 이상", "국내 거주자"],
     "documents": ["신분증"],
     "officialUrl": "https://example.com/official",
-    "applyUrl": "https://example.com/apply"
+    "applyUrl": "https://example.com/apply",
+    "sourceType": "internal"
   }
 ]
 ```
 
 `category` 허용 값: `"추천" | "환급" | "숙박" | "캐시백"`
+`sourceType` 허용 값: `"internal" | "external"`. `external`은 `external_source_records`에서 변환된 공식 수집 혜택이며, slug는 `travelmonth-{externalSourceRecordId}` 형식이다. 외부 수집 혜택은 공식 안내 URL 중심으로 노출하고 저장/일정 연결은 내부 `policies` 레코드로 승격하기 전까지 제공하지 않는다.
 
 ---
 
 ### GET /policies/{policy_slug}
 
-정책 상세.
+정책 상세. `travelmonth-{externalSourceRecordId}` slug는 active/fresh 공식 수집 혜택 상세로 해석한다.
 
 **Response 200** → `Policy`
 
@@ -991,6 +993,7 @@ SOLAPI 발송 결과 webhook 수신. `X-Solapi-Secret` 헤더로 검증.
 | documents | string[] | 필요 서류 목록 |
 | officialUrl | string \| null | 공식 안내 URL |
 | applyUrl | string \| null | 신청 URL |
+| sourceType | string | `"internal"` \| `"external"`; 생략 시 internal로 간주 |
 
 ### Trip
 

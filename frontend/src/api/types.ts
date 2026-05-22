@@ -63,6 +63,7 @@ export type Policy = {
   documents: string[];
   officialUrl: string | null;
   applyUrl: string | null;
+  sourceType?: "internal" | "external";
 };
 
 export type ItineraryPlace = {

@@ -397,6 +397,7 @@ export function PolicyDetailPage() {
 
   const applicationCta = getPolicyApplicationCta(policy);
   const visual = getPolicyVisual(policy);
+  const isExternalPolicy = policy.sourceType === "external";
   const isPolicySaved = savedSlugs.has(policy.slug);
   const isPolicyInTrip = isPolicyAdded(policy.slug);
   const savePrototypePolicy = async () => {
@@ -440,9 +441,11 @@ export function PolicyDetailPage() {
             <ChevronLeft size={20} />
           </IconButton>
           <div className="row">
-            <button className="icon-btn" disabled={isSavingPolicy} onClick={savePrototypePolicy} type="button" aria-label="저장">
-              <Heart size={18} fill={isPolicySaved ? "currentColor" : "none"} />
-            </button>
+            {!isExternalPolicy && (
+              <button className="icon-btn" disabled={isSavingPolicy} onClick={savePrototypePolicy} type="button" aria-label="저장">
+                <Heart size={18} fill={isPolicySaved ? "currentColor" : "none"} />
+              </button>
+            )}
             <IconButton label="공유" onClick={sharePrototypePolicyLink}>
               <Share2 size={18} />
             </IconButton>
@@ -505,9 +508,11 @@ export function PolicyDetailPage() {
       </div>
 
       <div className="sticky-cta">
-        <Button variant="secondary" onClick={addToTrip}>
-          {isPolicyInTrip ? "일정에 담김" : "📅 내 일정에 담기"}
-        </Button>
+        {!isExternalPolicy && (
+          <Button variant="secondary" onClick={addToTrip}>
+            {isPolicyInTrip ? "일정에 담김" : "📅 내 일정에 담기"}
+          </Button>
+        )}
         {applicationCta.kind !== "unavailable" ? (
           <a className={applicationCta.kind === "apply" ? "btn primary" : "btn secondary"} href={applicationCta.url} rel="noreferrer" target="_blank">
             {applicationCta.label}

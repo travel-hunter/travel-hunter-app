@@ -53,6 +53,7 @@ export function PolicyListCard({
       setIsSaving(false);
     }
   };
+  const canSave = policy.sourceType !== "external" && Boolean(onToggleSave);
 
   return (
     <article className="policy-list-card card">
@@ -70,16 +71,18 @@ export function PolicyListCard({
           </div>
         </div>
       </Link>
-      <button
-        className={isSaved ? "policy-list-heart saved" : "policy-list-heart"}
-        disabled={isSaving}
-        onClick={handleToggle}
-        type="button"
-        aria-label={isSaved ? `${policy.title} 즐겨찾기 해제` : `${policy.title} 즐겨찾기`}
-        aria-pressed={isSaved}
-      >
-        <Heart size={20} fill={isSaved ? "currentColor" : "none"} />
-      </button>
+      {canSave && (
+        <button
+          className={isSaved ? "policy-list-heart saved" : "policy-list-heart"}
+          disabled={isSaving}
+          onClick={handleToggle}
+          type="button"
+          aria-label={isSaved ? `${policy.title} 즐겨찾기 해제` : `${policy.title} 즐겨찾기`}
+          aria-pressed={isSaved}
+        >
+          <Heart size={20} fill={isSaved ? "currentColor" : "none"} />
+        </button>
+      )}
     </article>
   );
 }

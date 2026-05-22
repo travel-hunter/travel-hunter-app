@@ -1,6 +1,7 @@
 from datetime import date
 
 from app.models import Policy as PolicyModel
+from app.models import ExternalSourceRecord
 from app.models import PolicyDocument
 from app.models import User as UserModel
 from app.models import UserSavedPolicy
@@ -64,6 +65,16 @@ def test_db_policy_service_uses_repository_boundary(monkeypatch) -> None:
         "get_policy_by_slug",
         lambda db, slug: policy if db is fake_db and slug == "local-vacation" else None,
     )
+    monkeypatch.setattr(
+        policy_service.external_source_repository,
+        "list_regional_benefit_recommendation_records",
+        lambda db: [] if db is fake_db else [],
+    )
+    monkeypatch.setattr(
+        policy_service.external_source_repository,
+        "get_external_source_record_by_policy_slug",
+        lambda db, slug: None,
+    )
 
     policies = policy_service.list_policies(fake_db)
     detail = policy_service.get_policy("local-vacation", fake_db)
@@ -73,6 +84,85 @@ def test_db_policy_service_uses_repository_boundary(monkeypatch) -> None:
     assert detail is not None
     assert detail["title"] == "Local Vacation Support"
     assert missing is None
+
+
+def make_external_record() -> ExternalSourceRecord:
+    return ExternalSourceRecord(
+        id=58,
+        source_name="여행가는 달",
+        source_type="official",
+        source_category="regional_benefit",
+        external_id="tm-58",
+        canonical_key="busan-photo-benefit",
+        detail_url="https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+        title="부산 야경투어 여행가는 달 할인",
+        organizer_text="부산관광공사",
+        region="부산",
+        is_nationwide=False,
+        status_text="진행중",
+        status="active",
+        end_date=date(2026, 6, 30),
+        benefit_text="부산 야경투어 상품 할인",
+        benefit_value_text="최대 2만원",
+        extracted_amount_krw=20000,
+        tags=["사진", "체험"],
+        inferred_travel_styles=["사진", "체험"],
+        confidence=0.8,
+        field_completeness=0.9,
+        freshness_status="fresh",
+    )
+
+
+def test_db_policy_list_includes_collected_external_benefits(monkeypatch) -> None:
+    fake_db = object()
+    policy = make_policy()
+    external_record = make_external_record()
+
+    monkeypatch.setattr(
+        policy_service.policy_repository,
+        "list_policies",
+        lambda db: [policy] if db is fake_db else [],
+    )
+    monkeypatch.setattr(
+        policy_service.external_source_repository,
+        "list_regional_benefit_recommendation_records",
+        lambda db: [external_record] if db is fake_db else [],
+    )
+
+    payload = policy_service.list_policies(fake_db)
+
+    assert [policy_payload["slug"] for policy_payload in payload] == [
+        "local-vacation",
+        "travelmonth-58",
+    ]
+    collected = payload[1]
+    assert collected["sourceType"] == "external"
+    assert collected["title"] == "부산 야경투어 여행가는 달 할인"
+    assert collected["org"] == "부산관광공사"
+    assert collected["region"] == "부산"
+    assert collected["deadline"] == "2026-06-30"
+    assert collected["amount"] == "최대 2만원"
+    assert collected["officialUrl"] == "https://korean.visitkorea.or.kr/travelmonth/benefit.do"
+    assert collected["applyUrl"] is None
+
+
+def test_db_policy_detail_resolves_collected_external_benefit_slug(monkeypatch) -> None:
+    fake_db = object()
+    external_record = make_external_record()
+
+    monkeypatch.setattr(policy_service.policy_repository, "get_policy_by_slug", lambda *_args: None)
+    monkeypatch.setattr(
+        policy_service.external_source_repository,
+        "get_external_source_record_by_policy_slug",
+        lambda db, slug: external_record if db is fake_db and slug == "travelmonth-58" else None,
+    )
+
+    detail = policy_service.get_policy("travelmonth-58", fake_db)
+
+    assert detail is not None
+    assert detail["slug"] == "travelmonth-58"
+    assert detail["sourceType"] == "external"
 
 
 class FakeDb:
