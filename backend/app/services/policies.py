@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Literal
 from sqlalchemy.orm import Session
 
 from app.data.policy_display import DISPLAY_OVERRIDES, SUPPORTED_CATEGORIES
@@ -15,6 +16,18 @@ LEGACY_CATEGORY_MAP = {
     "환급": "지역할인",
     "캐시백": "지역할인",
 }
+
+
+API_POLICY_SOURCE_TYPES = {"internal", "external"}
+
+
+def _normalize_policy_source_type(policy: PolicyModel) -> Literal["internal", "external"]:
+    if policy.external_source_record_id is not None:
+        return "external"
+    source_type = (policy.source_type or "internal").lower()
+    if source_type in API_POLICY_SOURCE_TYPES:
+        return source_type
+    return "external"
 
 
 def _normalize_policy_category(policy_type: str | None) -> str:
@@ -68,11 +81,7 @@ def policy_to_api(policy: PolicyModel) -> dict[str, object]:
     benefit_prefix = _format_benefit_amount(policy.benefit_amount)
     amount = policy.benefit_detail or benefit_prefix or ""
     category = _normalize_policy_category(policy.policy_type)
-    source_type = (
-        "external"
-        if policy.external_source_record_id is not None
-        else (policy.source_type or "internal")
-    )
+    source_type = _normalize_policy_source_type(policy)
 
     return {
         "id": slug,

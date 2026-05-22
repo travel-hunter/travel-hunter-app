@@ -323,3 +323,34 @@ def test_db_remove_saved_policy_is_idempotent_for_existing_policy(monkeypatch) -
     assert payload == {"policyId": "local-vacation", "saved": False}
     assert removed_rows == [{"user_id": 7, "policy_id": 1}]
     assert fake_db.commits == 1
+
+
+def test_policy_to_api_source_type_normalized_to_internal_external() -> None:
+    policy_with_official_source = make_policy()
+    policy_with_official_source.id = 90
+    policy_with_official_source.slug = "official-source-policy"
+    policy_with_official_source.source_type = "official_campaign"
+    policy_with_official_source.external_source_record_id = None
+
+    policy_with_unknown_source = make_policy()
+    policy_with_unknown_source.id = 91
+    policy_with_unknown_source.slug = "legacy-source-policy"
+    policy_with_unknown_source.source_type = "legacy_source"
+    policy_with_unknown_source.external_source_record_id = None
+
+    policy_with_internal_source = make_policy()
+    policy_with_internal_source.id = 92
+    policy_with_internal_source.slug = "internal-source-policy"
+    policy_with_internal_source.source_type = "internal"
+    policy_with_internal_source.external_source_record_id = None
+
+    policy_with_external_record = make_policy()
+    policy_with_external_record.id = 93
+    policy_with_external_record.slug = "external-linked-policy"
+    policy_with_external_record.source_type = "internal"
+    policy_with_external_record.external_source_record_id = 7
+
+    assert policy_service.policy_to_api(policy_with_official_source)["sourceType"] == "external"
+    assert policy_service.policy_to_api(policy_with_unknown_source)["sourceType"] == "external"
+    assert policy_service.policy_to_api(policy_with_internal_source)["sourceType"] == "internal"
+    assert policy_service.policy_to_api(policy_with_external_record)["sourceType"] == "external"

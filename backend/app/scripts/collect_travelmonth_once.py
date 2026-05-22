@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
+import traceback
 from collections.abc import Sequence
 
 from app.db.session import get_session_factory
@@ -19,6 +19,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=15.0,
         help="HTTP timeout in seconds for the official TravelMonth page fetch.",
     )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Emit traceback details when collection fails.",
+    )
     return parser
 
 
@@ -29,7 +34,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         with session_factory() as db:
             result = collect_regional_benefits_from_live_source(db, timeout=args.timeout)
     except Exception as error:
-        print(json.dumps({"error": str(error)}, ensure_ascii=False, sort_keys=True))
+        payload = {"error": str(error)}
+        if args.verbose:
+            payload["trace"] = traceback.format_exc()
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
         return 1
 
     print(
