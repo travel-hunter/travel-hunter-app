@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections.abc import Sequence
 
 from app.db.session import get_session_factory
@@ -24,8 +25,12 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     session_factory = get_session_factory()
-    with session_factory() as db:
-        result = collect_regional_benefits_from_live_source(db, timeout=args.timeout)
+    try:
+        with session_factory() as db:
+            result = collect_regional_benefits_from_live_source(db, timeout=args.timeout)
+    except Exception as error:
+        print(json.dumps({"error": str(error)}, ensure_ascii=False, sort_keys=True))
+        return 1
 
     print(
         json.dumps(
@@ -43,4 +48,4 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main() or 0)

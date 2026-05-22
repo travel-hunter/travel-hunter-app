@@ -68,7 +68,11 @@ def policy_to_api(policy: PolicyModel) -> dict[str, object]:
     benefit_prefix = _format_benefit_amount(policy.benefit_amount)
     amount = policy.benefit_detail or benefit_prefix or ""
     category = _normalize_policy_category(policy.policy_type)
-    source_type = "external" if policy.external_source_record_id is not None or policy.source_type else "internal"
+    source_type = (
+        "external"
+        if policy.external_source_record_id is not None
+        else (policy.source_type or "internal")
+    )
 
     return {
         "id": slug,

@@ -14,7 +14,17 @@ FreshnessStatus = Literal["fresh", "stale", "expired", "unknown"]
 TravelStyle = Literal["휴식", "맛집", "체험", "자연", "사진"]
 
 
+def _to_camel_case(value: str) -> str:
+    parts = value.split("_")
+    return parts[0] + "".join(part.title() for part in parts[1:])
+
+
 class TravelMonthRegionalBenefitSource(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=_to_camel_case,
+        populate_by_name=True,
+    )
+
     source_name: Literal["여행가는 달"] = "여행가는 달"
     source_type: SourceType = "official_campaign"
     source_url: str = "https://korean.visitkorea.or.kr/travelmonth/benefit.do"

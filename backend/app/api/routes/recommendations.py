@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.db.session import get_optional_db
@@ -16,7 +16,7 @@ def list_region_recommendations(
     db: Session | None = Depends(get_optional_db),
 ) -> list[RegionRecommendation]:
     if db is None:
-        raise RuntimeError("DB session is required.")
+        raise HTTPException(status_code=500, detail="DB session is required.")
     return region_recommendation_service.recommend_regions(
         db,
         style=style,

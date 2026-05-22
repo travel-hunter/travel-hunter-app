@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
@@ -32,7 +32,7 @@ def external_collection_quality_report(
     db: Session | None = Depends(get_optional_db),
 ) -> ExternalCollectionQualityReport:
     if db is None:
-        raise RuntimeError("DB session is required.")
+        raise HTTPException(status_code=500, detail="DB session is required.")
     return external_collection_quality.get_external_collection_quality_report(
         db,
         style=style,
