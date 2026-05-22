@@ -19,7 +19,7 @@ export function DraftRestoreNotice({ message, onDiscard }: DraftRestoreNoticePro
         <p>원하지 않으면 임시 저장 내용을 버릴 수 있어요.</p>
       </div>
       <button className="btn sm line" type="button" onClick={onDiscard}>
-        버리기
+        삭제
       </button>
     </div>
   );

@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.core import security
 from app.data import seed
-from app.models import Trip, TripDay, TripInvite, TripPlace, User
+from app.models import ExternalSourceRecord, Policy, Trip, TripDay, TripInvite, TripPlace, User
+from app.repositories import external_sources as external_source_repository
 from app.repositories import policies as policy_repository
 from app.repositories import trips as trip_repository
 from app.schemas.trip import (
@@ -92,6 +93,90 @@ def _linked_policies(trip: Trip) -> list[dict[str, str]]:
     return linked
 
 
+def _policy_to_trip_policy_candidate(policy: Policy) -> dict[str, object]:
+    slug = policy.slug or str(policy.id)
+    amount = policy.benefit_detail or _format_saving(policy.benefit_amount or 0)
+    return {
+        "slug": slug,
+        "title": policy.title,
+        "amount": amount,
+        "region": policy.region or "",
+        "benefitAmount": policy.benefit_amount or 0,
+        "endDate": policy.end_date,
+        "sortId": policy.id or 0,
+    }
+
+
+def _external_source_record_to_trip_policy_candidate(record: ExternalSourceRecord) -> dict[str, object]:
+    return {
+        "slug": f"{external_source_repository.EXTERNAL_POLICY_SLUG_PREFIX}{record.id}",
+        "title": record.title,
+        "amount": record.benefit_value_text or record.benefit_text,
+        "region": record.region or ("전국" if record.is_nationwide else ""),
+        "benefitAmount": record.extracted_amount_krw or 0,
+        "endDate": record.end_date,
+        "sortId": record.id or 0,
+    }
+
+
+def _recommended_policies(trip: Trip, candidates: list[dict[str, object]] | None = None, limit: int = 2) -> list[dict[str, str]]:
+    if not candidates:
+        return []
+
+    linked_slugs = {
+        link.policy.slug or str(link.policy.id)
+        for link in trip.policies
+        if link.policy is not None
+    }
+    trip_region = (trip.region or "").strip()
+
+    available_candidates = [
+        candidate
+        for candidate in candidates
+        if str(candidate["slug"]) not in linked_slugs
+    ]
+    region_candidates = [candidate for candidate in available_candidates if trip_region and candidate["region"] == trip_region]
+    if region_candidates:
+        available_candidates = region_candidates
+    available_candidates.sort(
+        key=lambda candidate: (
+            0 if trip_region and candidate["region"] == trip_region else 1,
+            0 if candidate["region"] == "전국" else 1,
+            0 if candidate["benefitAmount"] else 1,
+            candidate["endDate"] or date.max,
+            candidate["sortId"],
+        )
+    )
+    return [
+        {
+            "slug": str(candidate["slug"]),
+            "title": str(candidate["title"]),
+            "amount": str(candidate["amount"] or ""),
+            "region": str(candidate["region"] or ""),
+        }
+        for candidate in available_candidates[:limit]
+    ]
+
+
+def _list_recommended_policy_candidates(db: Session) -> list[dict[str, object]]:
+    candidates: list[dict[str, object]] = []
+    try:
+        candidates.extend(
+            _policy_to_trip_policy_candidate(policy)
+            for policy in policy_repository.list_policies(db)
+        )
+    except AttributeError:
+        pass
+    try:
+        candidates.extend(
+            _external_source_record_to_trip_policy_candidate(record)
+            for record in external_source_repository.list_regional_benefit_recommendation_records(db)
+        )
+    except AttributeError:
+        pass
+    return candidates
+
+
 def _trip_role_for_user(trip: Trip, user: User | None) -> str:
     if user is None or trip.owner_id == user.id:
         return "owner"
@@ -106,7 +191,7 @@ def _require_trip_editor(trip: Trip, user: User) -> None:
         raise TripServiceError(403, "Trip edit permission required")
 
 
-def trip_to_api(trip: Trip, user: User | None = None) -> dict[str, object]:
+def trip_to_api(trip: Trip, user: User | None = None, recommended_policies: list[dict[str, object]] | None = None) -> dict[str, object]:
     people: list[str] = []
     seen_people: set[str] = set()
     if trip.owner is not None:
@@ -147,6 +232,7 @@ def trip_to_api(trip: Trip, user: User | None = None) -> dict[str, object]:
         "people": people,
         "expectedSaving": _format_saving(_policy_saving(trip)),
         "linkedPolicies": _linked_policies(trip),
+        "recommendedPolicies": _recommended_policies(trip, recommended_policies),
         "days": days,
         "currentUserRole": _trip_role_for_user(trip, user),
     }
@@ -171,7 +257,7 @@ def _refresh_trip_payload(db: Session, trip_id: int, user: User) -> dict[str, ob
     trip = trip_repository.get_accessible_trip_by_id(db, trip_id, user.id)
     if trip is None:
         raise TripServiceError(404, "Trip not found")
-    return trip_to_api(trip, user)
+    return trip_to_api(trip, user, _list_recommended_policy_candidates(db))
 
 
 def _find_trip_day(trip: Trip, day_number: int) -> TripDay:
@@ -205,14 +291,15 @@ def _ordered_places(trip_day: TripDay) -> list[TripPlace]:
 
 
 def list_trips(db: Session, user: User) -> list[dict[str, object]]:
-    return [trip_to_api(trip, user) for trip in trip_repository.list_accessible_trips(db, user.id)]
+    recommended_policy_candidates = _list_recommended_policy_candidates(db)
+    return [trip_to_api(trip, user, recommended_policy_candidates) for trip in trip_repository.list_accessible_trips(db, user.id)]
 
 
 def get_trip(trip_handle: str, db: Session, user: User) -> dict[str, object] | None:
     trip = _resolve_trip(db, trip_handle, user)
     if trip is None:
         return None
-    return trip_to_api(trip, user)
+    return trip_to_api(trip, user, _list_recommended_policy_candidates(db))
 
 
 def delete_trip(trip_handle: str, db: Session, user: User) -> dict[str, object] | None:
@@ -309,7 +396,7 @@ def create_trip(
     created = trip_repository.get_accessible_trip_by_id(db, trip.id, user.id)
     if created is None:
         raise TripServiceError(404, "Trip not found")
-    return trip_to_api(created, user)
+    return trip_to_api(created, user, _list_recommended_policy_candidates(db))
 
 
 def add_policy_to_trip(

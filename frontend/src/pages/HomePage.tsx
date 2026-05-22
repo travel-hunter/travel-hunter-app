@@ -18,19 +18,19 @@ export function HomePage() {
   const { currentUser, profile } = useSession();
   const previewUser = appDataApi.getPreviewUser();
   const { data: policies, error: policiesError, isLoading: policiesLoading } = useAsyncResource(() => appDataApi.listPolicies(), []);
-  const { data: trips, error: tripsError, isLoading: tripsLoading } = useAsyncResource(() => appDataApi.listTrips(), []);
   const { data: regionRecommendations } = useAsyncResource(
     () => appDataApi.listRegionRecommendations({ style: profile.style, region: profile.region, limit: 3 }),
     [profile.region, profile.style],
   );
   const name = currentUser?.nickname ?? previewUser.nickname ?? "여행자";
   const featuredPolicy = getFeaturedPolicy(policies);
-  const featuredTrip = trips?.[0];
   const deadlinePolicies = getDeadlinePolicies(policies, 4);
   const recommendedDestinations = buildHomeDestinationsFromRegionRecommendations(regionRecommendations);
   const homeDestinations = recommendedDestinations.length > 0 ? recommendedDestinations : buildHomeDestinations(policies);
+  const aiDestination = homeDestinations[0];
   const avatarLabel = name.trim().slice(0, 1).toUpperCase() || "T";
-  const aiCardTo = featuredTrip ? `/trips/${featuredTrip.id}` : "/trips/new";
+  const aiCardTo = aiDestination?.to ?? `/trips/new?region=${encodeURIComponent(profile.region)}`;
+  const aiCardTitle = aiDestination ? `${aiDestination.title} ${profile.style} 코스 만들기` : `${profile.region} ${profile.style} 코스 만들기`;
 
   return (
     <section className="screen with-tabs prototype-app-screen prototype-home-screen">
@@ -86,17 +86,15 @@ export function HomePage() {
       </div>
 
       <div className="prototype-home-ai-title">✨ AI 추천 맞춤 일정</div>
-      {tripsLoading && <LoadingState label="추천 일정을 불러오는 중입니다" />}
-      {tripsError && <ErrorState title="일정을 불러오지 못했어요" message={tripsError} />}
       <Link className="prototype-home-ai-card" to={aiCardTo}>
         <div className="prototype-home-ai-visual">
           <span aria-hidden="true">🏝️</span>
         </div>
         <div className="prototype-home-ai-body">
-          <strong>{featuredTrip ? featuredTrip.title : `${profile.region} ${profile.style} 코스 만들기`}</strong>
+          <strong>{aiCardTitle}</strong>
           <div className="prototype-home-ai-meta">
-            <span className="prototype-home-ai-saving">{featuredTrip ? `예상 절약 ${featuredTrip.expectedSaving}` : "정책과 일정을 함께 추천"}</span>
-            <span className="prototype-home-ai-detail">{featuredTrip ? featuredTrip.dates : `${profile.budget} 기준`}</span>
+            <span className="prototype-home-ai-saving">{aiDestination?.badge ?? "정책과 일정을 함께 추천"}</span>
+            <span className="prototype-home-ai-detail">추천 지역으로 새 일정 만들기</span>
           </div>
         </div>
       </Link>

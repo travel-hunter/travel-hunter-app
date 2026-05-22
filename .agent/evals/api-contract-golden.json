@@ -509,6 +509,7 @@
         "people": "array",
         "expectedSaving": "string",
         "linkedPolicies": "array of { slug, title, amount, region }",
+        "recommendedPolicies": "array of { slug, title, amount, region }",
         "days": "object",
         "currentUserRole": "string enum(owner|editor|viewer)"
       },
@@ -540,6 +541,7 @@
         "people": "array",
         "expectedSaving": "string",
         "linkedPolicies": "array of { slug, title, amount, region }",
+        "recommendedPolicies": "array of { slug, title, amount, region }",
         "days": "object",
         "currentUserRole": "string enum(owner|editor|viewer)"
       },
@@ -559,6 +561,7 @@
         "people": "array",
         "expectedSaving": "string",
         "linkedPolicies": "array of { slug, title, amount, region }",
+        "recommendedPolicies": "array of { slug, title, amount, region }",
         "days": "object",
         "currentUserRole": "string enum(owner|editor|viewer)"
       }

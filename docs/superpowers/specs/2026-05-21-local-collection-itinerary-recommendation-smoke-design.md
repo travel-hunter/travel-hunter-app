@@ -117,6 +117,7 @@ docker compose -f compose.yaml exec backend python -m app.scripts.collect_travel
 - region recommendation API.
 - authenticated trip creation API.
 - created trip detail API.
+- trip detail `recommendedPolicies` and `/api/policies/{slug}` detail resolution.
 - trip recommendations API.
 
 ### Track 3. Backend Integration Coverage
@@ -139,6 +140,24 @@ network 없는 test는 fixture/mock 기반으로 유지한다. live network smok
 - `/trips/new`에서 장소 취향 선택지가 일정 catalog style과 맞다.
 - 새 일정 생성 후 상세에서 day별 장소가 보인다.
 - `/ai-results?tripId={id}`에서 추천 결과가 보인다.
+
+## 2026-05-22 User-Facing Flow Addendum
+
+The local completion target also includes the user-facing handoff between collected policy data, region recommendations, trip creation, and place recommendations.
+
+- `/home` recommendation cards must link to `/trips/new?region=...`.
+- `/trips/new?region=...` must preserve the query region through the final `POST /api/trips` request.
+- `travelmonth-{id}` collected benefit slugs must be treated as official-benefit context only. They must not be sent as `createTrip.policySlug` and must not trigger `addPolicyToTrip`.
+- Newly created trips must still rely on the backend catalog generation path that saves `trip_days`, `trip_places`, and `recommendations`.
+- `/ai-results?tripId=...` must load the current trip timeline as well as recommendations.
+- If a recommendation title is already present in the trip timeline, the UI must show `이미 일정에 있음`, disable the action, and avoid calling `addTripPlace`.
+
+Frontend coverage now needs to include:
+
+- home region query handoff into `/trips/new`.
+- collected external policy slug reference-only behavior.
+- duplicate recommendation add prevention.
+- existing successful recommendation add behavior with an initially empty trip timeline.
 
 ## Risks And Controls
 

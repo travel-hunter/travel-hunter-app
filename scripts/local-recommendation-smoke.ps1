@@ -40,6 +40,13 @@ $RegionPythonLiterals = @{
 $PythonStyleLiteral = if ($StylePythonLiterals.ContainsKey($Style)) { $StylePythonLiterals[$Style] } else { $EffectiveStyle }
 $PythonRegionLiteral = if ($RegionPythonLiterals.ContainsKey($Region)) { $RegionPythonLiterals[$Region] } else { $EffectiveRegion }
 
+if (-not $StyleAliases.ContainsKey($Style) -and $Style -notmatch '^\w+$') {
+  throw "Unknown or unsafe -Style value: $Style"
+}
+if (-not $RegionAliases.ContainsKey($Region) -and $Region -notmatch '^\w+$') {
+  throw "Unknown or unsafe -Region value: $Region"
+}
+
 function Get-ComposeBaseArgs {
   $baseArgs = @("compose")
   if ($EnvFile -ne "") {
@@ -203,6 +210,18 @@ foreach ($dayName in $dayNames) {
 if ($tripResult.recommendations.Count -le 0) {
   throw "Expected trip recommendations to be non-empty"
 }
+$recommendedPolicies = $tripResult.trip.recommendedPolicies
+if ($recommendedPolicies.Count -le 0) {
+  throw "Expected trip recommendedPolicies to be non-empty"
+}
+$recommendedPolicySlug = $recommendedPolicies[0].slug
+if (-not $recommendedPolicySlug) {
+  throw "Expected first recommended policy to include a slug"
+}
+$policyDetail = Read-JsonFromBackend "/api/policies/$recommendedPolicySlug"
+if ($policyDetail.slug -ne $recommendedPolicySlug) {
+  throw "Expected /api/policies/$recommendedPolicySlug to return matching slug, got $($policyDetail.slug)"
+}
 
 Write-Host "== Local recommendation smoke passed =="
-Write-Host ("collection parsedCount={0}, quality totalRecords={1}, region recommendations={2}, tripId={3}" -f $collection.parsedCount, $quality.totalRecords, $regions.Count, $tripResult.trip.id)
+Write-Host ("collection parsedCount={0}, quality totalRecords={1}, region recommendations={2}, tripId={3}, recommendedPolicySlug={4}" -f $collection.parsedCount, $quality.totalRecords, $regions.Count, $tripResult.trip.id, $recommendedPolicySlug)

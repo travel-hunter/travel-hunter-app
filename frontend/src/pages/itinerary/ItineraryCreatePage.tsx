@@ -66,11 +66,22 @@ function tripCreateDraftKey(policySlug: string | undefined): string {
   return createDraftKey(`trip-create:${policySlug ?? "none"}`);
 }
 
+function normalizeRegionParam(value: string | null): string | null {
+  if (!value) return null;
+  return (tripCreateRegions as readonly string[]).includes(value) ? value : null;
+}
+
+function isCollectedExternalPolicySlug(value: string | undefined): boolean {
+  return value?.startsWith("travelmonth-") ?? false;
+}
+
 export function ItineraryCreatePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { profile, updateProfile, addPolicy } = useSession();
   const policySlug = searchParams.get("policySlug") ?? undefined;
+  const requestedRegion = normalizeRegionParam(searchParams.get("region"));
+  const linkablePolicySlug = isCollectedExternalPolicySlug(policySlug) ? undefined : policySlug;
   const defaultTripDatesRef = useRef(getDefaultTripDateRange());
   const defaultTripStartDate = defaultTripDatesRef.current.startDate;
   const defaultTripEndDate = defaultTripDatesRef.current.endDate;
@@ -79,7 +90,8 @@ export function ItineraryCreatePage() {
   const initialProfileRef = useRef({ region: profile.region, style: profile.style });
   const skipNextTripDraftSaveRef = useRef(false);
   const initialDayCount = tripDateDayCount(initialDraft?.startDate ?? defaultTripStartDate, initialDraft?.endDate ?? defaultTripEndDate);
-  const initialRegion = initialDraft?.region || profile.region || "제주";
+  const initialRegion = initialDraft?.region || requestedRegion || profile.region || "제주";
+  const [selectedRegionDraft, setSelectedRegionDraft] = useState(initialRegion);
   const [step, setStep] = useState<1 | 2 | 3>(isValidTripCreateStep(initialDraft?.step) ? initialDraft.step : 1);
   const [startDate, setStartDate] = useState(initialDraft?.startDate ?? defaultTripStartDate);
   const [endDate, setEndDate] = useState(initialDraft?.endDate ?? defaultTripEndDate);
@@ -88,7 +100,7 @@ export function ItineraryCreatePage() {
   const [isDraftReady, setIsDraftReady] = useState(false);
   const [isTripDraftNoticeVisible, setIsTripDraftNoticeVisible] = useState(false);
   const [error, setError] = useState("");
-  const selectedRegion = profile.region.trim() || initialRegion;
+  const selectedRegion = selectedRegionDraft.trim() || initialRegion;
   const dayCount = tripDateDayCount(startDate, endDate);
   const dateRangeError =
     dayCount === null
@@ -96,7 +108,11 @@ export function ItineraryCreatePage() {
       : dayCount < tripCreateMinDays || dayCount > tripCreateMaxDays
         ? "일정 기간은 2일부터 5일까지 선택할 수 있어요."
         : "";
-  const linkedPolicyLabel = policySlug ? "선택한 정책을 새 일정에 연결할게요" : "";
+  const linkedPolicyLabel = linkablePolicySlug
+    ? "선택한 정책을 새 일정에 연결할게요"
+    : isCollectedExternalPolicySlug(policySlug)
+      ? "공식 수집 혜택을 참고해 일정을 만들게요"
+      : "";
   const canProceed =
     step === 1
       ? Boolean(selectedRegion)
@@ -109,6 +125,7 @@ export function ItineraryCreatePage() {
     if (draft && draft.policySlug === (policySlug ?? null)) {
       let appliedDraft = false;
       if (draft.region) {
+        setSelectedRegionDraft(draft.region);
         updateProfile("region", draft.region);
         if (draft.region !== initialProfileRef.current.region) appliedDraft = true;
       }
@@ -135,9 +152,12 @@ export function ItineraryCreatePage() {
         if (draft.durationDays !== 3) appliedDraft = true;
       }
       setIsTripDraftNoticeVisible(appliedDraft);
+    } else if (requestedRegion && requestedRegion !== initialProfileRef.current.region) {
+      setSelectedRegionDraft(requestedRegion);
+      updateProfile("region", requestedRegion);
     }
     setIsDraftReady(true);
-  }, [draftKey, policySlug]);
+  }, [draftKey, policySlug, requestedRegion]);
 
   useEffect(() => {
     if (!isDraftReady) return;
@@ -158,6 +178,7 @@ export function ItineraryCreatePage() {
 
   const selectRegion = (region: string) => {
     const previousAutoTitle = generatedTripTitle(selectedRegion, dayCount);
+    setSelectedRegionDraft(region);
     updateProfile("region", region);
     setTitleDraft((current) => (current.trim() === "" || current === previousAutoTitle ? generatedTripTitle(region, dayCount) : current));
   };
@@ -173,12 +194,14 @@ export function ItineraryCreatePage() {
   const discardTripCreateDraft = () => {
     skipNextTripDraftSaveRef.current = true;
     clearDraft(draftKey);
-    updateProfile("region", initialProfileRef.current.region);
+    const resetRegion = requestedRegion || initialProfileRef.current.region;
+    setSelectedRegionDraft(resetRegion);
+    updateProfile("region", resetRegion);
     updateProfile("style", initialProfileRef.current.style);
     setStep(1);
     setStartDate(defaultTripStartDate);
     setEndDate(defaultTripEndDate);
-    setTitleDraft(generatedTripTitle(initialProfileRef.current.region || "제주", 3));
+    setTitleDraft(generatedTripTitle(resetRegion || "제주", 3));
     setIsTripDraftNoticeVisible(false);
   };
 
@@ -209,13 +232,13 @@ export function ItineraryCreatePage() {
         title,
         region: selectedRegion,
         style: profile.style,
-        policySlug,
+        ...(linkablePolicySlug ? { policySlug: linkablePolicySlug } : {}),
         startDate,
         endDate,
       });
-      if (policySlug) {
-        await appDataApi.addPolicyToTrip(trip.id, policySlug);
-        addPolicy(policySlug);
+      if (linkablePolicySlug) {
+        await appDataApi.addPolicyToTrip(trip.id, linkablePolicySlug);
+        addPolicy(linkablePolicySlug);
       }
       clearDraft(draftKey);
       navigate(`/trips/${trip.id}`);
@@ -241,7 +264,7 @@ export function ItineraryCreatePage() {
       </div>
 
       <div className="prototype-create-content">
-        {policySlug && step === 1 && (
+        {linkedPolicyLabel && step === 1 && (
           <div className="prototype-linked-policy-banner">
             <span aria-hidden="true">🎁</span>
             <strong>{linkedPolicyLabel}</strong>
@@ -315,7 +338,8 @@ export function ItineraryCreatePage() {
                 🗓 일정 · {formatTripCreateDate(startDate)} ~ {formatTripCreateDate(endDate)} ({dayCount ?? "-"}일)
               </div>
               <div>👥 인원 · 1명</div>
-              {policySlug && <div className="linked">🎁 연결 정책 · 선택한 정책</div>}
+              {linkablePolicySlug && <div className="linked">🎁 연결 정책 · 선택한 정책</div>}
+              {!linkablePolicySlug && isCollectedExternalPolicySlug(policySlug) && <div className="linked">🎁 참고 혜택 · 공식 수집 혜택</div>}
             </div>
           </section>
         )}

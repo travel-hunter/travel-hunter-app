@@ -27,6 +27,13 @@ Cloudflare는 뒤로 미루고, 현재 1순위는 로컬 Docker Compose에서 �
 - `/trips/new`에서 새 일정을 만들면 `trip_days`, `trip_places`, `recommendations`가 자동 저장된다.
 - `/trips/{id}`와 `/ai-results?tripId={id}`에서 생성 결과를 확인할 수 있다.
 
+2026-05-22 보강 기준:
+
+- `/trips/new?region=...`는 홈 추천 지역을 새 일정 생성 지역으로 유지한다.
+- `travelmonth-{id}` 공식 수집 정책 slug는 새 일정 생성 시 참고만 하고 내부 정책 연결 요청에는 포함하지 않는다.
+- `/trips/{id}` 추천 정책 카드는 hardcoded article 대신 backend `recommendedPolicies`를 렌더링하고 내부 정책 및 `travelmonth-{id}` 공식 수집 혜택 상세인 `/policies/{slug}`로 이동한다.
+- `/ai-results?tripId=...`는 현재 일정에 이미 있는 추천 장소를 중복 추가하지 않는다.
+
 ## 최근 완료
 
 - 문서 산출물을 핵심 문서와 `docs/deployment-cicd/` 기준으로 정리했다.

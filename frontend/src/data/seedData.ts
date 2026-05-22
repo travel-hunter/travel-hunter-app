@@ -92,6 +92,14 @@ export const itinerary: Trip = {
       region: "전국",
     },
   ],
+  recommendedPolicies: [
+    {
+      slug: "busan-cashback",
+      title: "부산 여행 캐시백",
+      amount: "카드 결제 5% 캐시백",
+      region: "부산",
+    },
+  ],
   currentUserRole: "owner",
   days: {
     1: [

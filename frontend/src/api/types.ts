@@ -88,6 +88,7 @@ export type Trip = {
   people: string[];
   expectedSaving: string;
   linkedPolicies: LinkedTripPolicy[];
+  recommendedPolicies: LinkedTripPolicy[];
   days: Record<number, ItineraryPlace[]>;
   currentUserRole: "owner" | "editor" | "viewer";
 };

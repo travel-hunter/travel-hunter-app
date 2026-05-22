@@ -5,7 +5,7 @@ from sqlalchemy import BigInteger, Integer, create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.db.base import Base
-from app.models import Policy, Recommendation, Trip, TripDay, TripInvite, TripMember, TripPlace, TripPolicy
+from app.models import ExternalSourceRecord, Policy, Recommendation, Trip, TripDay, TripInvite, TripMember, TripPlace, TripPolicy
 from app.models import User as UserModel
 from app.schemas.trip import (
     CreateTripPlaceRequest,
@@ -133,6 +133,101 @@ def test_get_trip_resolves_numeric_id_only(monkeypatch) -> None:
     assert numeric is not None
     assert numeric["id"] == "7"
     assert missing_numeric is None
+
+
+def test_get_trip_includes_region_matched_recommended_policies(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    trip = make_trip()
+    trip.region = "부산"
+    trip.title = "부산 3일 여행"
+    linked_policy = trip.policies[0].policy
+    linked_policy.slug = "local-vacation"
+    linked_policy.title = "지역사랑 휴가지원"
+    linked_policy.region = "전국"
+    recommended_policy = Policy(
+        id=4,
+        slug="busan-cashback",
+        title="부산 여행 캐시백",
+        benefit_detail="카드 결제 5% 캐시백",
+        region="부산",
+        end_date=date(2026, 6, 30),
+    )
+    other_policy = Policy(
+        id=5,
+        slug="gangwon-stay",
+        title="속초 숙박 할인권",
+        benefit_detail="숙박비 50% 할인",
+        region="강원",
+        end_date=date(2026, 6, 30),
+    )
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip if db is fake_db and trip_id == 7 and user_id == 1 else None,
+    )
+    monkeypatch.setattr(
+        trip_service.policy_repository,
+        "list_policies",
+        lambda db: [linked_policy, other_policy, recommended_policy] if db is fake_db else [],
+    )
+
+    payload = trip_service.get_trip("7", fake_db, user)
+
+    assert payload is not None
+    assert payload["recommendedPolicies"] == [
+        {
+            "slug": "busan-cashback",
+            "title": "부산 여행 캐시백",
+            "amount": "카드 결제 5% 캐시백",
+            "region": "부산",
+        }
+    ]
+
+
+def test_get_trip_recommends_region_matched_collected_benefits(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    trip = make_trip()
+    trip.region = "부산"
+    external_record = ExternalSourceRecord(
+        id=58,
+        title="부산 야간관광 여행가는 달 할인",
+        region="부산",
+        is_nationwide=False,
+        benefit_text="부산 야간관광 상품 할인",
+        benefit_value_text="최대 2만원",
+        end_date=date(2026, 6, 30),
+    )
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip if db is fake_db and trip_id == 7 and user_id == 1 else None,
+    )
+    monkeypatch.setattr(
+        trip_service.policy_repository,
+        "list_policies",
+        lambda db: [] if db is fake_db else [],
+    )
+    monkeypatch.setattr(
+        trip_service.external_source_repository,
+        "list_regional_benefit_recommendation_records",
+        lambda db: [external_record] if db is fake_db else [],
+    )
+
+    payload = trip_service.get_trip("7", fake_db, user)
+
+    assert payload is not None
+    assert payload["recommendedPolicies"] == [
+        {
+            "slug": "travelmonth-58",
+            "title": "부산 야간관광 여행가는 달 할인",
+            "amount": "최대 2만원",
+            "region": "부산",
+        }
+    ]
 
 
 def test_get_trip_rejects_noncanonical_and_non_numeric_handles(monkeypatch) -> None:

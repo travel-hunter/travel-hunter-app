@@ -2,7 +2,7 @@
 import userEvent from "@testing-library/user-event";
 import { Link, MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { appDataApi, type ContactInfo, type InviteState, type NotificationSettings, type Policy, type RegionRecommendation, type Trip } from "./api";
+import { appDataApi, type ContactInfo, type InviteState, type LinkedTripPolicy, type NotificationSettings, type Policy, type RegionRecommendation, type Trip } from "./api";
 import { App } from "./app/App";
 import { AppProviders, AppRoot } from "./app/AppRoot";
 
@@ -241,6 +241,84 @@ describe("Travel Hunter app", () => {
     }
   });
 
+  it("uses the home recommendation region query when creating a trip", async () => {
+    await login();
+    cleanup();
+    renderRoute("/trips/new?region=%EB%B6%80%EC%82%B0");
+    const user = userEvent.setup();
+    const createdTrip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "45",
+      title: "부산 추천 여행",
+      dates: "2026.06.15 - 06.17",
+      days: {
+        1: [{ id: "451", time: "10:00", label: "자갈치시장", meta: "맛집 · 해산물" }],
+        2: [],
+        3: [],
+      },
+    };
+    const createTripSpy = vi.spyOn(appDataApi, "createTrip").mockResolvedValue(createdTrip);
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(createdTrip);
+
+    try {
+      await waitFor(() => expect(screen.getByRole("button", { name: /부산/ })).toHaveClass("active"));
+      await user.click(screen.getByRole("button", { name: "다음" }));
+      await user.click(screen.getByRole("button", { name: "다음" }));
+      const titleInput = screen.getByRole("textbox", { name: "일정 제목" });
+      await user.clear(titleInput);
+      await user.type(titleInput, "부산 추천 여행");
+      await user.click(screen.getByRole("button", { name: "일정 만들기" }));
+
+      await waitFor(() =>
+        expect(createTripSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: "부산 추천 여행",
+            region: "부산",
+          }),
+        ),
+      );
+      await waitFor(() => expect(getTripSpy).toHaveBeenCalledWith("45"));
+    } finally {
+      createTripSpy.mockRestore();
+      getTripSpy.mockRestore();
+    }
+  });
+
+  it("does not send collected external policy slugs to trip policy linking", async () => {
+    await login();
+    cleanup();
+    renderRoute("/trips/new?policySlug=travelmonth-58&region=%EB%B6%80%EC%82%B0");
+    const user = userEvent.setup();
+    const createdTrip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "46",
+      title: "공식 혜택 참고 여행",
+      dates: "2026.06.15 - 06.17",
+      days: { 1: [], 2: [], 3: [] },
+    };
+    const createTripSpy = vi.spyOn(appDataApi, "createTrip").mockResolvedValue(createdTrip);
+    const addPolicySpy = vi.spyOn(appDataApi, "addPolicyToTrip").mockResolvedValue({ tripId: "46", policyId: "travelmonth-58", added: true });
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(createdTrip);
+
+    try {
+      await user.click(screen.getByRole("button", { name: "다음" }));
+      await user.click(screen.getByRole("button", { name: "다음" }));
+      const titleInput = screen.getByRole("textbox", { name: "일정 제목" });
+      await user.clear(titleInput);
+      await user.type(titleInput, "공식 혜택 참고 여행");
+      await user.click(screen.getByRole("button", { name: "일정 만들기" }));
+
+      await waitFor(() => expect(createTripSpy).toHaveBeenCalled());
+      expect(createTripSpy.mock.calls[0][0]).not.toHaveProperty("policySlug");
+      expect(addPolicySpy).not.toHaveBeenCalled();
+      await waitFor(() => expect(getTripSpy).toHaveBeenCalledWith("46"));
+    } finally {
+      createTripSpy.mockRestore();
+      addPolicySpy.mockRestore();
+      getTripSpy.mockRestore();
+    }
+  });
+
   it("blocks trip creation until the inline title step is valid", async () => {
     await login();
     cleanup();
@@ -309,7 +387,7 @@ describe("Travel Hunter app", () => {
     expect(screen.getByRole("textbox", { name: "일정 제목" })).toHaveValue("부산 5일 가족 여행");
     expect(screen.getByText(/2026.07.12 ~ 2026.07.16/)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "버리기" }));
+    await user.click(screen.getByRole("button", { name: "삭제" }));
 
     await waitFor(() => expect(screen.queryByText("작성 중이던 일정 조건을 불러왔어요.")).not.toBeInTheDocument());
     expect(window.localStorage.getItem("travel-hunter:draft:trip-create:local-vacation")).toBeNull();
@@ -390,6 +468,63 @@ describe("Travel Hunter app", () => {
     }
   });
 
+  it("links trip detail recommended policy cards to policy detail pages", async () => {
+    const recommendedPolicies: LinkedTripPolicy[] = [
+      {
+        slug: "busan-cashback",
+        title: "부산 여행 캐시백",
+        amount: "카드 결제 5% 캐시백",
+        region: "부산",
+      },
+    ];
+    const trip: Trip & { recommendedPolicies: LinkedTripPolicy[] } = {
+      ...appDataApi.getPreviewTrip(),
+      id: "59",
+      title: "부산 추천 여행",
+      linkedPolicies: [],
+      recommendedPolicies,
+      days: { 1: [] },
+    };
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(trip);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/trips/59");
+
+      const recommendedRegion = await screen.findByRole("region", { name: "이 일정에 어울리는 정책" });
+      expect(within(recommendedRegion).getByRole("link", { name: /부산 여행 캐시백/ })).toHaveAttribute("href", "/policies/busan-cashback");
+      expect(within(recommendedRegion).getByText("카드 결제 5% 캐시백")).toBeInTheDocument();
+      expect(within(recommendedRegion).queryByText("KTX 청년 여행 할인")).not.toBeInTheDocument();
+    } finally {
+      getTripSpy.mockRestore();
+    }
+  });
+
+  it("uses a region empty state instead of the generic policy-list card when no recommended policy exists", async () => {
+    const trip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "60",
+      title: "부산 추천 대기 여행",
+      linkedPolicies: [],
+      recommendedPolicies: [],
+      days: { 1: [] },
+    };
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(trip);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/trips/60");
+
+      const recommendedRegion = await screen.findByRole("region", { name: "이 일정에 어울리는 정책" });
+      expect(within(recommendedRegion).queryByText("이 일정에 맞는 정책을 더 찾아보세요")).not.toBeInTheDocument();
+      expect(within(recommendedRegion).getByText("추천 혜택을 준비 중입니다")).toBeInTheDocument();
+    } finally {
+      getTripSpy.mockRestore();
+    }
+  });
+
   it("puts the just-attached policy first when the trip already has linked policies", async () => {
     const trip: Trip = {
       ...appDataApi.getPreviewTrip(),
@@ -433,8 +568,9 @@ describe("Travel Hunter app", () => {
         </MemoryRouter>,
       );
 
-      await waitFor(() => expect(screen.getByText("지역사랑 휴가지원")).toBeInTheDocument());
-      expect(screen.getByText("부산 여행 캐시백")).toBeInTheDocument();
+      const linkedRegion = await screen.findByRole("region", { name: "연결된 정책" });
+      expect(within(linkedRegion).getByText("지역사랑 휴가지원")).toBeInTheDocument();
+      expect(within(linkedRegion).getByText("부산 여행 캐시백")).toBeInTheDocument();
       const banners = document.querySelectorAll(".benefit-banner");
       expect(banners).toHaveLength(2);
       expect(banners[0]).toHaveAttribute("href", "/policies/local-vacation");
@@ -735,7 +871,7 @@ describe("Travel Hunter app", () => {
       expect(document.querySelector('input[name="place-time"]')).toHaveValue("16:00");
       expect(document.querySelector('input[name="place-label"]')).toHaveValue("Tea house");
 
-      await user.click(screen.getByRole("button", { name: "버리기" }));
+      await user.click(screen.getByRole("button", { name: "삭제" }));
 
       expect(window.localStorage.getItem("travel-hunter:draft:trip-place:55:add:1")).toBeNull();
       expect(screen.queryByText("작성 중이던 장소 내용을 불러왔어요.")).not.toBeInTheDocument();
@@ -927,9 +1063,13 @@ describe("Travel Hunter app", () => {
       title: "AI recommendation trip",
       days: { 1: [], 2: [{ id: "9", time: "", label: recommendation.title, meta: `${recommendation.meta} · ${recommendation.reason}` }] },
     };
+    const initialTrip: Trip = {
+      ...updatedTrip,
+      days: { 1: [], 2: [], 3: [] },
+    };
     const listRecommendationsSpy = vi.spyOn(appDataApi, "listRecommendations").mockResolvedValue([recommendation]);
     const addPlaceSpy = vi.spyOn(appDataApi, "addTripPlace").mockResolvedValue(updatedTrip);
-    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(updatedTrip);
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValueOnce(initialTrip).mockResolvedValue(updatedTrip);
 
     try {
       await login();
@@ -960,6 +1100,44 @@ describe("Travel Hunter app", () => {
     }
   });
 
+  it("prevents adding a recommendation that is already on the trip timeline", async () => {
+    const recommendation = {
+      label: "SEA",
+      title: "월정리 바다 카페",
+      meta: "Day 2 오후에 적합 · 이동 18분",
+      reason: "비가 와도 머물기 좋고 주변 이동이 짧아요.",
+    };
+    const trip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "55",
+      title: "Duplicate recommendation trip",
+      days: {
+        1: [],
+        2: [{ id: "9", time: "14:00", label: recommendation.title, meta: "이미 저장된 장소" }],
+      },
+    };
+    const listRecommendationsSpy = vi.spyOn(appDataApi, "listRecommendations").mockResolvedValue([recommendation]);
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(trip);
+    const addPlaceSpy = vi.spyOn(appDataApi, "addTripPlace").mockResolvedValue(trip);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/ai-results?tripId=55");
+
+      await waitFor(() => expect(listRecommendationsSpy).toHaveBeenCalledWith("55"));
+      await waitFor(() => expect(getTripSpy).toHaveBeenCalledWith("55"));
+      const addButton = await screen.findByRole("button", { name: "이미 일정에 있음" });
+      expect(addButton).toBeDisabled();
+      await userEvent.setup().click(addButton);
+      expect(addPlaceSpy).not.toHaveBeenCalled();
+    } finally {
+      listRecommendationsSpy.mockRestore();
+      getTripSpy.mockRestore();
+      addPlaceSpy.mockRestore();
+    }
+  });
+
   it("keeps users on AI results when adding a recommendation fails", async () => {
     const recommendation = {
       label: "FOOD",
@@ -969,7 +1147,11 @@ describe("Travel Hunter app", () => {
     };
     const listRecommendationsSpy = vi.spyOn(appDataApi, "listRecommendations").mockResolvedValue([recommendation]);
     const addPlaceSpy = vi.spyOn(appDataApi, "addTripPlace").mockRejectedValue(new Error("Trip not found"));
-    const getTripSpy = vi.spyOn(appDataApi, "getTrip");
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue({
+      ...appDataApi.getPreviewTrip(),
+      id: "55",
+      days: { 1: [], 2: [], 3: [] },
+    });
 
     try {
       await login();
@@ -985,7 +1167,6 @@ describe("Travel Hunter app", () => {
 
       await waitFor(() => expect(addPlaceSpy).toHaveBeenCalledWith("55", 1, expect.objectContaining({ label: recommendation.title })));
       await waitFor(() => expect(document.querySelector(".form-error")?.textContent).toContain("추천 장소"));
-      expect(getTripSpy).not.toHaveBeenCalled();
     } finally {
       listRecommendationsSpy.mockRestore();
       addPlaceSpy.mockRestore();
@@ -993,7 +1174,7 @@ describe("Travel Hunter app", () => {
     }
   });
 
-  it("deletes trips from the trips list but not from the home card", async () => {
+  it("deletes trips from the trips list without using the home recommendation card", async () => {
     const trip: Trip = {
       ...appDataApi.getPreviewTrip(),
       id: "77",
@@ -1007,7 +1188,9 @@ describe("Travel Hunter app", () => {
 
     try {
       await login();
-      await waitFor(() => expect(document.body).toHaveTextContent("부산 4일 여행"));
+      const homeAiCard = document.querySelector(".prototype-home-ai-card");
+      expect(homeAiCard).toBeTruthy();
+      expect(homeAiCard).not.toHaveTextContent("부산 4일 여행");
       expect(screen.queryByRole("button", { name: "삭제" })).not.toBeInTheDocument();
 
       cleanup();
@@ -1299,8 +1482,12 @@ describe("Travel Hunter app", () => {
     expect(screen.getByLabelText("이번 달 혜택 정책 목록")).toBeInTheDocument();
     const destinationRail = screen.getByLabelText("인기 국내 여행지 목록");
     expect(destinationRail).toBeInTheDocument();
-    expect(within(destinationRail).getByRole("link", { name: /부산/ })).toHaveAttribute("href", "/trips/new?region=%EB%B6%80%EC%82%B0");
-    await waitFor(() => expect(within(destinationRail).getAllByText(/혜택 \d+개/).length).toBeGreaterThan(0));
+    await waitFor(() => {
+      const destinationLinks = within(destinationRail).getAllByRole("link");
+      expect(destinationLinks.length).toBeGreaterThan(0);
+      expect(destinationLinks[0]).toHaveAttribute("href", expect.stringMatching(/^\/trips\/new\?region=/));
+    });
+    await waitFor(() => expect(within(destinationRail).getAllByText(/(혜택|마감 임박) \d+개/).length).toBeGreaterThan(0));
     expect(document.body).not.toHaveTextContent("⭐ 4.9");
     await waitFor(() => expect(screen.getByText("💰 이번 달 인기 정책")).toBeInTheDocument());
     await waitFor(() => expect(within(screen.getByLabelText("이번 달 혜택 정책 목록")).getAllByRole("link").length).toBeGreaterThan(0));
@@ -1350,6 +1537,49 @@ describe("Travel Hunter app", () => {
       expect(within(destinationRail).getByText("혜택 5개")).toBeInTheDocument();
     } finally {
       getProfileSpy.mockRestore();
+      listRegionRecommendationsSpy.mockRestore();
+    }
+  });
+
+  it("uses a region recommendation CTA for the home AI trip card instead of an existing trip", async () => {
+    const existingTrip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "300",
+      title: "경주 야호",
+      dates: "2026.05.18 - 05.20",
+      expectedSaving: "30만원",
+    };
+    const regionRecommendations: RegionRecommendation[] = [
+      {
+        region: "부산",
+        title: "부산 맛집 추천",
+        reason: "맛집 혜택이 많고 마감 임박 정책이 있습니다.",
+        policyCount: 5,
+        endingSoonCount: 1,
+        estimatedValueKrw: 70000,
+        score: 10,
+        styleMatchedCount: 2,
+      },
+    ];
+    const listTripsSpy = vi.spyOn(appDataApi, "listTrips").mockResolvedValue([existingTrip]);
+    const listRegionRecommendationsSpy = vi.spyOn(appDataApi, "listRegionRecommendations").mockResolvedValue(regionRecommendations);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/home");
+
+      await waitFor(() => expect(listRegionRecommendationsSpy).toHaveBeenCalled());
+      expect(listTripsSpy).not.toHaveBeenCalled();
+      const aiCard = document.querySelector(".prototype-home-ai-card") as HTMLAnchorElement | null;
+      expect(aiCard).toBeTruthy();
+      expect(aiCard).toHaveAttribute("href", "/trips/new?region=%EB%B6%80%EC%82%B0");
+      expect(aiCard).toHaveTextContent("부산");
+      expect(aiCard).not.toHaveTextContent("경주 야호");
+      expect(aiCard).not.toHaveTextContent("2026.05.18 - 05.20");
+      expect(aiCard).not.toHaveTextContent("예상 절약 30만원");
+    } finally {
+      listTripsSpy.mockRestore();
       listRegionRecommendationsSpy.mockRestore();
     }
   });

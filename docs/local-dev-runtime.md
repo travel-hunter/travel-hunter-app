@@ -63,7 +63,7 @@ http://127.0.0.1:4173/
 
 ## Local Collection And Recommendation Smoke
 
-Cloudflare is not required for the local collection/recommendation smoke. The command starts local Compose services, applies migrations and seed data, runs a one-time TravelMonth collection, verifies collection quality and region recommendations, creates an authenticated trip, and checks generated trip days, places, and recommendations.
+Cloudflare is not required for the local collection/recommendation smoke. The command starts local Compose services, applies migrations and seed data, runs a one-time TravelMonth collection, verifies collection quality and region recommendations, creates an authenticated trip, checks generated trip days, places, and recommendations, then confirms the trip's recommended policy slug resolves through the policy detail API.
 
 ```powershell
 .\scripts\local-recommendation-smoke.ps1
@@ -80,6 +80,8 @@ Expected final line:
 ```text
 == Local recommendation smoke passed ==
 ```
+
+The final summary includes `recommendedPolicySlug=...` when the trip detail recommendation can be opened through `/api/policies/{slug}`.
 
 If an existing Docker DB volume was initialized with an older password, either recreate the local volume for a clean smoke run or synchronize the DB role password with the current local env before running migrations. Do not commit real env values.
 

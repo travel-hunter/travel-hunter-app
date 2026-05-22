@@ -38,7 +38,7 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
   - `officialUrl/applyUrl`의 localhost, placeholder, 잘못된 URL 차단.
 - 일정 생성 3단계 UX, 동적 기본 날짜, draft autosave.
 - 일정 목록, 삭제 dialog, draft/confirmed 상태 저장.
-- 일정 상세 장소 추가/수정/삭제, 10분 단위 시간 스피너, 시간 없음 저장, drag-and-drop 이동.
+- 일정 상세 장소 추가/수정/삭제, 10분 단위 시간 스피너, 시간 없음 저장, drag-and-drop 이동. 일정 상세의 추천 정책 카드는 backend `recommendedPolicies` 응답을 사용해 내부 정책과 TravelMonth 공식 수집 혜택 상세 페이지로 이동한다.
 - 일정 route handle은 numeric string `Trip.id`만 지원하며 non-numeric handle은 not found로 처리한다.
 - AI 추천 장소를 일정 타임라인에 추가.
 - 초대 링크 role 저장과 viewer/editor 권한 enforcement.
@@ -88,6 +88,8 @@ TravelMonth 공식 페이지 수집
 -> /trips/{id}와 /ai-results?tripId={id}에서 결과 확인
 ```
 
+2026-05-22 기준으로 `/home` 추천 지역 링크에서 들어온 `/trips/new?region=...`는 새 일정 생성 지역에 반영된다. 홈의 AI 추천 맞춤 일정 카드는 기존 일정 목록의 첫 일정을 재표시하지 않고 지역 추천 또는 정책 지역 fallback 후보를 사용해 `/trips/new?region=...` 새 일정 생성 CTA로 연결한다. `travelmonth-{id}` 수집 정책 slug는 새 일정의 참고 컨텍스트로만 쓰고 내부 `trip_policies` 연결 요청에는 보내지 않는다. 생성된 일정 상세의 추천 정책 카드는 hardcoded article이 아니라 `GET /api/trips/{tripId}`의 `recommendedPolicies`를 렌더링하며 내부 정책과 active/fresh TravelMonth 공식 수집 혜택을 `/policies/{slug}` 상세로 연결한다. `/ai-results?tripId=...`는 현재 trip timeline을 함께 조회해 이미 들어간 장소 후보를 `이미 일정에 있음`으로 표시하고 중복 추가를 막는다.
+
 작업명세는 `docs/superpowers/specs/2026-05-21-local-collection-itinerary-recommendation-smoke-design.md`를 기준으로 한다. 다음 구현은 로컬 수동 수집 명령, local recommendation smoke 스크립트, backend/frontend/e2e 검증 보강 순서로 진행한다.
 
 ## 문서 역할
@@ -104,7 +106,7 @@ TravelMonth 공식 페이지 수집
 ## 최신 검증 기록
 
 - Frontend typecheck: passed.
-- Frontend Vitest: `82 passed`.
+- Frontend Vitest: `83 passed`.
 - Frontend e2e: `4 passed`.
 - Frontend build: passed.
 - Backend schema pytest: `2 passed`.
