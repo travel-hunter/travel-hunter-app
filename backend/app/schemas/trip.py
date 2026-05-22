@@ -54,6 +54,7 @@ class Trip(BaseModel):
     people: list[str]
     expectedSaving: str
     linkedPolicies: list[LinkedTripPolicy]
+    recommendedPolicies: list[LinkedTripPolicy] = Field(default_factory=list)
     days: dict[int, list[ItineraryPlace]]
     currentUserRole: TripRole
 

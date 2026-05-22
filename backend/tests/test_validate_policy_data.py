@@ -18,7 +18,7 @@ def make_policy(**overrides):
         "deadline": "2026-10-31",
         "amount": "최대 30만원 환급",
         "summary": "국내 여행 지원 정책입니다.",
-        "category": "추천",
+        "category": "지역할인",
         "requirements": ["국내 거주자"],
         "documents": ["신분증"],
         "officialUrl": "https://korean.visitkorea.or.kr/travelmonth/benefits/depopulation.do",

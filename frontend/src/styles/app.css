@@ -1277,6 +1277,22 @@
   line-height: 1;
 }
 
+.prototype-home-policy-category {
+  width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: 9999px;
+  padding: 2px 7px;
+  color: #245a73;
+  background: #e9f7fb;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .prototype-home-policy-card > span {
   display: inline-flex;
   align-items: center;
@@ -1370,13 +1386,16 @@
 .prototype-home-ai-body {
   display: grid;
   gap: 6px;
+  min-width: 0;
   padding: 14px 16px 16px;
 }
 
 .prototype-home-ai-body strong {
+  overflow-wrap: anywhere;
   color: #1a1a2e;
   font-size: 15px;
   font-weight: 700;
+  line-height: 1.35;
 }
 
 .prototype-home-ai-meta {
@@ -3925,17 +3944,20 @@
   top: 0;
   z-index: 24;
   height: 43px;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
   gap: 0;
   padding: 0;
   border-bottom: 1px solid #d6d6df;
   background: #f5f5f7;
-  overflow: visible;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .prototype-policy-list-screen .prototype-category-tab {
   min-height: 43px;
+  flex: 0 0 auto;
   position: relative;
   border: 0;
   border-radius: 0;
@@ -3974,6 +3996,7 @@
 
 .prototype-filter-pill {
   min-height: 30px;
+  min-width: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3985,6 +4008,7 @@
   color: #24263a;
   font-size: 12px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .prototype-filter-pill.active {
@@ -4085,6 +4109,36 @@
   min-width: 0;
 }
 
+.policy-list-taxonomy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 6px;
+}
+
+.policy-list-taxonomy span,
+.policy-list-taxonomy em {
+  min-height: 19px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0 7px;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.policy-list-taxonomy span {
+  color: #245a73;
+  background: #e9f7fb;
+}
+
+.policy-list-taxonomy em {
+  color: #e84845;
+  background: #fff0ef;
+}
+
 .policy-list-badges {
   display: flex;
   flex-wrap: wrap;
@@ -4123,18 +4177,22 @@
   font-weight: 700;
   line-height: 1.25;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .policy-list-meta {
   display: flex;
   align-items: center;
   gap: 4px;
+  min-width: 0;
   color: #7d879d;
   font-size: 12px;
   font-weight: 600;
   line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 .policy-list-meta span {
@@ -4870,6 +4928,7 @@
   gap: 10px;
   margin-top: 10px;
   overflow-x: auto;
+  padding-bottom: 2px;
   scrollbar-width: none;
 }
 
@@ -4877,13 +4936,16 @@
   display: none;
 }
 
-.prototype-trip-detail-screen .trip-benefit-grid article {
+.prototype-trip-detail-screen .trip-benefit-grid article,
+.prototype-trip-detail-screen .trip-benefit-grid .prototype-matching-policy-card {
   flex: 0 0 200px;
+  min-width: 0;
   padding: 12px;
   border: 0;
   border-radius: 10px;
-  background: #fff6d6;
+  background: #fff8df;
   box-shadow: none;
+  text-decoration: none;
 }
 
 .matching-card-head {
@@ -4891,6 +4953,7 @@
   align-items: center;
   gap: 6px;
   margin-bottom: 6px;
+  min-width: 0;
 }
 
 .prototype-trip-detail-screen .trip-benefit-grid span {
@@ -4901,17 +4964,23 @@
 .prototype-trip-detail-screen .trip-benefit-grid em {
   display: inline-flex;
   align-items: center;
+  max-width: 150px;
   min-height: 18px;
+  overflow: hidden;
   padding: 2px 8px;
   border-radius: 999px;
   color: #9a6b00;
-  background: #fff6d6;
+  background: #fff;
   font-size: 10px;
   font-style: normal;
   font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .prototype-trip-detail-screen .trip-benefit-grid strong {
+  display: block;
+  overflow-wrap: anywhere;
   color: #1a1a2e;
   font-size: 12px;
   font-weight: 700;
@@ -5401,6 +5470,7 @@
 
 .prototype-trip-detail-screen .place-detail h4 {
   margin: 0;
+  overflow-wrap: anywhere;
   color: #1a1a2e;
   font-size: 14px;
   font-weight: 700;
@@ -5408,6 +5478,7 @@
 
 .prototype-trip-detail-screen .place-detail .meta {
   margin-top: 1px;
+  overflow-wrap: anywhere;
   color: #8c8ca1;
   font-size: 11px;
   line-height: 1.25;
@@ -5494,6 +5565,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   padding: 16px;
 }
 
@@ -5518,12 +5590,14 @@
 
 .prototype-mypage-screen .profile-name {
   margin: 0;
+  overflow-wrap: anywhere;
   color: #0b1024;
   font-size: 17px;
   font-weight: 700;
 }
 
 .prototype-profile-text .meta {
+  overflow-wrap: anywhere;
   color: #8c8ca1;
 }
 
@@ -5565,6 +5639,7 @@
 .prototype-stat-card span {
   display: block;
   margin-top: 2px;
+  overflow-wrap: anywhere;
   color: #8c8ca1;
   font-size: 11px;
   font-weight: 700;
@@ -5583,7 +5658,9 @@
 }
 
 .prototype-section-header h3 {
+  min-width: 0;
   margin: 0;
+  overflow-wrap: anywhere;
   color: #0b1024;
   font-size: 16px;
   font-weight: 700;
@@ -5733,6 +5810,7 @@
 }
 
 .prototype-menu-row strong {
+  overflow-wrap: anywhere;
   font-size: 14px;
   font-weight: 850;
 }

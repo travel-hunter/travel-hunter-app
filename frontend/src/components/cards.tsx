@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Policy, Trip } from "../api";
 import { getTripRegionEmojiFromTitle } from "../data/displayConfig";
 import { dday } from "../utils";
+import { canUsePolicyActions } from "../utils/policyCapabilities";
 import { Tag } from "./ui";
 
 function policyIcon(policy: Policy) {
@@ -53,12 +54,16 @@ export function PolicyListCard({
       setIsSaving(false);
     }
   };
+  const canSave = canUsePolicyActions(policy) && Boolean(onToggleSave);
 
   return (
     <article className="policy-list-card card">
       <Link className="policy-list-card-link" to={`/policies/${policy.slug}`}>
         <div className={`policy-list-icon ${policyIconTone(policy)}`}>{policyIcon(policy)}</div>
         <div className="policy-list-copy">
+          <div className="policy-list-taxonomy">
+            <span>{policy.category}</span>
+          </div>
           <div className="policy-list-badges">
             <span>{policy.amount}</span>
             <em>{dday(policy.deadline)}</em>
@@ -70,16 +75,18 @@ export function PolicyListCard({
           </div>
         </div>
       </Link>
-      <button
-        className={isSaved ? "policy-list-heart saved" : "policy-list-heart"}
-        disabled={isSaving}
-        onClick={handleToggle}
-        type="button"
-        aria-label={isSaved ? `${policy.title} 즐겨찾기 해제` : `${policy.title} 즐겨찾기`}
-        aria-pressed={isSaved}
-      >
-        <Heart size={20} fill={isSaved ? "currentColor" : "none"} />
-      </button>
+      {canSave && (
+        <button
+          className={isSaved ? "policy-list-heart saved" : "policy-list-heart"}
+          disabled={isSaving}
+          onClick={handleToggle}
+          type="button"
+          aria-label={isSaved ? `${policy.title} 즐겨찾기 해제` : `${policy.title} 즐겨찾기`}
+          aria-pressed={isSaved}
+        >
+          <Heart size={20} fill={isSaved ? "currentColor" : "none"} />
+        </button>
+      )}
     </article>
   );
 }

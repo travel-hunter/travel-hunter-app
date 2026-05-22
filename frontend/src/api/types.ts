@@ -44,7 +44,7 @@ export type ContactVerificationRequestResponse = {
   resendAvailableAt: string;
 };
 
-export type PolicyCategory = "추천" | "환급" | "숙박" | "캐시백";
+export type PolicyCategory = "교통" | "숙박" | "여행상품" | "지역할인" | "이벤트" | "기타";
 
 export type Policy = {
   id: string;
@@ -63,6 +63,7 @@ export type Policy = {
   documents: string[];
   officialUrl: string | null;
   applyUrl: string | null;
+  sourceType?: "internal" | "external";
 };
 
 export type ItineraryPlace = {
@@ -87,6 +88,7 @@ export type Trip = {
   people: string[];
   expectedSaving: string;
   linkedPolicies: LinkedTripPolicy[];
+  recommendedPolicies: LinkedTripPolicy[];
   days: Record<number, ItineraryPlace[]>;
   currentUserRole: "owner" | "editor" | "viewer";
 };

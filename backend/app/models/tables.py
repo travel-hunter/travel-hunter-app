@@ -171,6 +171,20 @@ class Policy(Base):
     apply_url: Mapped[str | None] = mapped_column(String(500))
     policy_comment: Mapped[str | None] = mapped_column(String(300))
     policy_period: Mapped[str | None] = mapped_column(String(100))
+    source_type: Mapped[str | None] = mapped_column(String(50), index=True)
+    source_name: Mapped[str | None] = mapped_column(String(100), index=True)
+    source_category: Mapped[str | None] = mapped_column(String(80), index=True)
+    external_source_record_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("external_source_records.id", ondelete="SET NULL"),
+        unique=True,
+        index=True,
+    )
+    source_url: Mapped[str | None] = mapped_column(String(500))
+    source_canonical_key: Mapped[str | None] = mapped_column(String(160), index=True)
+    normalized_at: Mapped[datetime | None] = mapped_column(DateTime)
+    last_verified_at: Mapped[datetime | None] = mapped_column(DateTime)
+    verification_status: Mapped[str | None] = mapped_column(String(30))
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
     )

@@ -105,6 +105,24 @@ Migration metadata:
 - `last_fetched_at` / `last_verified_at` / `freshness_status`
 - `created_at` / `updated_at`
 
+## `policies` source tracking
+
+`policies`는 사용자에게 노출되는 공식 혜택의 정규화 테이블이다. TravelMonth 등 외부 공식 수집 레코드는 원문 근거를 `external_source_records`에 보존한 뒤 active/fresh 항목을 `policies`로 승격한다. 승격된 정책은 저장, 일정 연결, 추천 카드, 상세 페이지에서 일반 정책과 같은 경로를 사용한다.
+
+정규화 출처 추적 컬럼:
+
+- `source_type`
+- `source_name`
+- `source_category`
+- `external_source_record_id`
+- `source_url`
+- `source_canonical_key`
+- `normalized_at`
+- `last_verified_at`
+- `verification_status`
+
+`external_source_record_id`는 `external_source_records.id`를 참조하며, 원문 레코드 삭제 시 정책 row는 유지하고 참조만 `NULL`로 만든다.
+
 ## 운영 기준
 
 - Schema 생성과 변경은 Alembic으로만 수행한다.

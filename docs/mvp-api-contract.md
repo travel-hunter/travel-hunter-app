@@ -54,7 +54,7 @@ DB 연결 상태 포함 서버 헬스 확인. 인증 불필요.
 
 ### GET /ops/external-collection
 
-TravelMonth external collection scheduler 운영 확인용 상태를 반환한다. 기존 `/health`와 `/api/health` 응답 계약은 변경하지 않는다. 인증은 1차 운영 검증 범위에서 요구하지 않는다.
+TravelMonth external collection scheduler 운영 확인용 상태를 반환한다. 기존 `/health`와 `/api/health` 응답 계약은 변경하지 않는다. Bearer 인증이 필요하다.
 
 **Response 200**
 ```json
@@ -78,6 +78,7 @@ TravelMonth external collection scheduler 운영 확인용 상태를 반환한�
 ### GET /ops/external-collection/quality
 
 TravelMonth regional benefit 수집 품질 리포트를 반환한다. 현재 DB의 `external_source_records`를 집계하며 live network fetch는 실행하지 않는다.
+Bearer 인증이 필요하다.
 
 **Query params**
 
@@ -415,6 +416,7 @@ OAuth provider callback 처리.
 
 **Errors**
 - 400: 저장 또는 요청된 전화번호 없음
+- 429: 기존 미인증 OTP 발급 후 60초 이내 재요청
 
 ---
 
@@ -570,7 +572,7 @@ OAuth provider callback 처리.
 
 ### GET /policies
 
-전체 정책 목록. 인증 불필요.
+전체 정책 목록. 인증 불필요. DB `policies` 레코드만 `Policy` DTO로 반환한다. TravelMonth 등 공식 외부 수집 레코드(`external_source_records`)는 수집/검증 원문 근거로 보존하고, active/fresh `regional_benefit` 항목은 collection normalization service가 `policies`로 승격한다. 승격된 TravelMonth 정책은 기존 호환 slug `travelmonth-{externalSourceRecordId}`를 사용한다.
 
 **Response 200** → `Policy[]`
 ```json
@@ -579,7 +581,7 @@ OAuth provider callback 처리.
     "id": "uuid",
     "slug": "dgtourcard-2026",
     "label": "🎫",
-    "tag": "추천",
+    "tag": "지역할인",
     "title": "디지털관광주민증",
     "org": "한국관광공사",
     "region": "전국",
@@ -587,22 +589,24 @@ OAuth provider callback 처리.
     "amount": "최대 30만원",
     "summary": "여행지 할인 혜택 제공",
     "match": 85,
-    "category": "추천",
+    "category": "지역할인",
     "requirements": ["만 19세 이상", "국내 거주자"],
     "documents": ["신분증"],
     "officialUrl": "https://example.com/official",
-    "applyUrl": "https://example.com/apply"
+    "applyUrl": "https://example.com/apply",
+    "sourceType": "internal"
   }
 ]
 ```
 
-`category` 허용 값: `"추천" | "환급" | "숙박" | "캐시백"`
+`category` 허용 값: `"교통" | "숙박" | "여행상품" | "지역할인" | "이벤트" | "기타"`
+`sourceType` 허용 값은 `"internal" | "external"`이며 API 호환과 내부 진단을 위해 유지한다. 사용자 화면은 `internal/external` 같은 구현 구분 문구를 노출하지 않는다. 사용자에게 노출되는 모든 정책은 정규화된 `policies` 레코드이므로 저장/일정 연결 동작을 동일하게 지원한다.
 
 ---
 
 ### GET /policies/{policy_slug}
 
-정책 상세.
+정책 상세. `travelmonth-{externalSourceRecordId}` slug는 정규화된 TravelMonth 정책 상세로 해석한다. migration gap 동안 상세 조회만 기존 raw `external_source_records` fallback을 사용할 수 있지만, 목록/추천/저장/일정 연결 경로는 정규화된 `policies` 기준이다.
 
 **Response 200** → `Policy`
 
@@ -639,6 +643,14 @@ OAuth provider callback 처리.
         "title": "디지털관광주민증",
         "amount": "최대 30만원",
         "region": "전국"
+      }
+    ],
+    "recommendedPolicies": [
+      {
+        "slug": "travelmonth-58",
+        "title": "부산 여행 캐시백",
+        "amount": "카드 결제 5% 캐시백",
+        "region": "부산"
       }
     ],
     "days": {
@@ -986,11 +998,12 @@ SOLAPI 발송 결과 webhook 수신. `X-Solapi-Secret` 헤더로 검증.
 | amount | string | 혜택 금액 표시 |
 | summary | string | 요약 |
 | match | number | 매칭 점수 (0~100) |
-| category | string | `"추천" \| "환급" \| "숙박" \| "캐시백"` |
+| category | string | `"교통" \| "숙박" \| "여행상품" \| "지역할인" \| "이벤트" \| "기타"` |
 | requirements | string[] | 신청 조건 목록 |
 | documents | string[] | 필요 서류 목록 |
-| officialUrl | string \| null | 공식 안내 URL |
+| officialUrl | string \| null | 공식 안내 URL. 사용자 화면 CTA 라벨은 `혜택 안내 보기` |
 | applyUrl | string \| null | 신청 URL |
+| sourceType | string | `"internal"` \| `"external"`; 생략 시 internal로 간주 |
 
 ### Trip
 
@@ -1003,6 +1016,7 @@ SOLAPI 발송 결과 webhook 수신. `X-Solapi-Secret` 헤더로 검증.
 | people | string[] | 참여자 닉네임 목록 |
 | expectedSaving | string | 예상 절약 금액 표시 |
 | linkedPolicies | LinkedTripPolicy[] | 연결된 정책 목록 |
+| recommendedPolicies | LinkedTripPolicy[] | 일정 지역에 맞춰 추천된 정규화 정책 및 active/fresh TravelMonth 혜택 목록. 이미 연결된 정규화 정책은 제외하며 각 항목은 `/policies/{slug}` 상세로 이동 가능하다. |
 | days | object | `{ [dayNumber]: ItineraryPlace[] }` |
 | currentUserRole | string | `"owner" \| "editor" \| "viewer"` |
 

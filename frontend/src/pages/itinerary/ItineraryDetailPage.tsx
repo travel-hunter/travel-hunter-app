@@ -202,6 +202,8 @@ export function ItineraryDetailPage() {
   const tripDdayLabel = trip ? formatTripDday(trip.dates) : "D-day";
   const routeLinkedPolicy = (location.state as TripDetailLocationState | null)?.linkedPolicy ?? null;
   const linkedPolicies = linkedTripPoliciesForDisplay(trip?.linkedPolicies, routeLinkedPolicy);
+  const recommendedPolicies = trip?.recommendedPolicies ?? [];
+  const recommendedPolicyRegion = recommendedPolicies[0]?.region ?? trip?.title.split(" ")[0] ?? "지역";
   const hasLinkedPolicyFallback = linkedPolicies.length === 0 && hasPolicySaving(trip?.expectedSaving);
   const dragSensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -539,20 +541,25 @@ export function ItineraryDetailPage() {
       <section className="trip-benefit-grid" aria-label="이 일정에 어울리는 정책">
         <h2>💡 이 일정에 어울리는 정책</h2>
         <div className="prototype-matching-policy-rail">
-          <article>
-            <div className="matching-card-head">
-              <span>🚆</span>
-              <em>20% 할인</em>
-            </div>
-            <strong>KTX 청년 여행 할인</strong>
-          </article>
-          <article>
-            <div className="matching-card-head">
-              <span>🏨</span>
-              <em>1박 무료 (최대 10만원)</em>
-            </div>
-            <strong>가족 여행 숙박지원</strong>
-          </article>
+          {recommendedPolicies.length > 0 ? (
+            recommendedPolicies.map((policy) => (
+              <Link className="prototype-matching-policy-card" key={policy.slug} to={`/policies/${policy.slug}`}>
+                <div className="matching-card-head">
+                  <span aria-hidden="true">💡</span>
+                  <em>{policy.amount || "정책 확인"}</em>
+                </div>
+                <strong>{policy.title}</strong>
+              </Link>
+            ))
+          ) : (
+            <Link className="prototype-matching-policy-card" to="/policies">
+              <div className="matching-card-head">
+                <span aria-hidden="true">💡</span>
+                <em>{recommendedPolicyRegion} 혜택</em>
+              </div>
+              <strong>{recommendedPolicyRegion} 추천 정책과 혜택을 확인하세요</strong>
+            </Link>
+          )}
         </div>
       </section>
       <div className="prototype-trip-detail-divider" aria-hidden="true" />

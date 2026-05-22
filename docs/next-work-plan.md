@@ -8,12 +8,38 @@
 - 원격 상태: PR #17, #18, #19, #20, #23이 `develop`에 병합됐고 staging smoke 준비로 전환하는 기준이다.
 - 기준 상태: DB-backed-only MVP, numeric trip id 계약, 문서/계약/eval 동기화, frontend/backend 검증이 완료된 상태다.
 
+## Current Local Priority
+
+Cloudflare는 뒤로 미루고, 현재 1순위는 로컬 Docker Compose에서 공식 데이터 수집과 일정 자동 생성 추천 흐름을 끝까지 반복 검증 가능하게 만드는 것이다.
+
+작업명세:
+
+- `docs/superpowers/specs/2026-05-21-local-collection-itinerary-recommendation-smoke-design.md`
+
+성공 기준:
+
+- TravelMonth 공식 페이지 수집이 수동 명령으로 실행된다.
+- 수집 결과가 `external_source_records`에 저장된다.
+- `/api/policies`와 `/policies` 목록이 `policies`로 정규화 승격된 TravelMonth 공식 혜택을 노출한다.
+- `/api/ops/external-collection/quality`가 저장 품질과 recommendation preview를 보여준다.
+- `/api/recommendations/regions`가 저장 데이터 기반 지역 추천을 반환한다.
+- `/home` 추천 UI가 해당 API를 사용한다.
+- `/trips/new`에서 새 일정을 만들면 `trip_days`, `trip_places`, `recommendations`가 자동 저장된다.
+- `/trips/{id}`와 `/ai-results?tripId={id}`에서 생성 결과를 확인할 수 있다.
+
+2026-05-22 보강 기준:
+
+- `/trips/new?region=...`는 홈 추천 지역을 새 일정 생성 지역으로 유지한다.
+- `travelmonth-{id}` TravelMonth 혜택 slug는 정규화된 `policies` 레코드로 저장/일정 연결 요청에 사용할 수 있다. raw 수집 레코드는 원문 근거와 품질 확인용으로 유지하고 사용자 action 경로에는 직접 섞지 않는다.
+- `/trips/{id}` 추천 정책 카드는 hardcoded article 대신 backend `recommendedPolicies`를 렌더링하고 정규화된 정책 및 `travelmonth-{id}` TravelMonth 혜택 상세인 `/policies/{slug}`로 이동한다.
+- `/ai-results?tripId=...`는 현재 일정에 이미 있는 추천 장소를 중복 추가하지 않는다.
+
 ## 최근 완료
 
 - 문서 산출물을 핵심 문서와 `docs/deployment-cicd/` 기준으로 정리했다.
 - DB schema 기준을 `docs/db-schema-current.md`, `docs/db-schema-current.sql`로 교체했다.
 - frontend itinerary page를 개별 page 파일로 분리하고 기존 route import를 유지했다.
-- 정책 상세 CTA가 `신청하러 가기`, `공식 안내 확인`, `신청 링크 준비 중`으로 분리됐다.
+- 정책 상세 CTA가 `신청하러 가기`, `혜택 안내 보기`, `신청 링크 준비 중`으로 분리됐다.
 - 정책 JSON URL validation이 `localhost`, `127.0.0.1`, `example.*`, 빈 문자열, 잘못된 scheme을 잡도록 강화됐다.
 - `/home` 인기 국내 여행지 rail이 정책 데이터 기반으로 생성되고 가짜 별점 문구를 제거했다.
 - `/mypage` 신청 정책 카운트가 `GET /api/me/applied-policies`에 연결됐다.
@@ -24,6 +50,7 @@
 - 기존 non-numeric 제주 3일 trip handle 지원을 제거하고 `trip_id`는 numeric string `Trip.id`만 지원하도록 계약, backend, frontend, tests, `.agent/evals`를 동기화했다.
 - Frontend `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build`, backend `python -m pytest`, compose config, stale alias search, API eval JSON validation, `git diff --check`가 통과했다.
 - `docs/deployment-cicd/staging-ops-work-orders.md`에 외주/인프라 담당자용 남은 운영 검증 작업지시서를 추가했다.
+- `/policies` 목록과 수집 정책 상세는 TravelMonth `external_source_records`에서 정규화 승격된 `policies`를 노출한다. 사용자 화면에는 `internal/external` 같은 구현 구분 라벨을 표시하지 않고, 모든 노출 정책은 공식 혜택으로 동일하게 저장/일정 연결 action을 제공한다.
 
 ## 다음 우선순위
 

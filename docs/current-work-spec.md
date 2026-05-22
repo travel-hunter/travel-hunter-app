@@ -27,18 +27,19 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - Kakao/Google OAuth authorization code flow entry point.
 - password reset request/confirm flow.
 - 프로필 설정과 마이페이지 프로필 편집.
-- 정책 목록, 카테고리/지역/기간/금액 필터, 정책 저장/해제.
-- 정책 상세의 지원 내용, 신청 기간, 신청 대상, 필요 서류, 공유, 일정 담기.
+- 정책 목록, 카테고리/지역/기간/금액 필터, 정책 저장/해제. `/policies` 목록은 DB `policies` 레코드만 노출한다. active/fresh TravelMonth 혜택(`external_source_records`)은 collection normalization service가 `policies`로 승격하며, 승격된 정책은 `travelmonth-{externalSourceRecordId}` slug로 기존 상세 링크 호환성을 유지한다.
+- 정책 상세의 지원 내용, 신청 기간, 신청 대상, 필요 서류, 공유, 일정 담기. TravelMonth 등 공식 수집 혜택은 정규화된 `policies` 레코드로 노출되므로 저장/일정 담기 action을 동일하게 지원한다.
 - 정책 상세 CTA 분리:
   - `applyUrl`: `신청하러 가기`
-  - `officialUrl`: `공식 안내 확인`
+  - `officialUrl`: `혜택 안내 보기`
   - URL 없음: `신청 링크 준비 중`
 - 정책 JSON validation:
   - shape, duplicate slug, deadline, encoding-risk marker 검사.
   - `officialUrl/applyUrl`의 localhost, placeholder, 잘못된 URL 차단.
 - 일정 생성 3단계 UX, 동적 기본 날짜, draft autosave.
 - 일정 목록, 삭제 dialog, draft/confirmed 상태 저장.
-- 일정 상세 장소 추가/수정/삭제, 10분 단위 시간 스피너, 시간 없음 저장, drag-and-drop 이동.
+- 일정 상세 장소 추가/수정/삭제, 10분 단위 시간 스피너, 시간 없음 저장, drag-and-drop 이동. 일정 상세의 추천 정책 카드는 backend `recommendedPolicies` 응답을 사용해 정규화된 정책과 TravelMonth 혜택 상세 페이지로 이동한다.
+- 정책 `category`는 혜택/출처 유형인 `교통`, `숙박`, `여행상품`, `지역할인`, `이벤트`, `기타`만 사용한다. TravelMonth 수집 혜택은 source URL/sourceCategory로 category를 정하고, `travelStyles`는 지역/일정 추천 보정용으로만 사용한다.
 - 일정 route handle은 numeric string `Trip.id`만 지원하며 non-numeric handle은 not found로 처리한다.
 - AI 추천 장소를 일정 타임라인에 추가.
 - 초대 링크 role 저장과 viewer/editor 권한 enforcement.
@@ -58,8 +59,9 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - PR #17, #18, #19, #20, #23이 `develop`에 병합됐고 로컬/원격 `develop` 기준으로 문서/계약 정합성을 다시 맞췄다.
 - 기존 non-numeric 제주 3일 trip handle 지원을 제거하고, seed 여행 데이터는 유지한 채 API 계약과 frontend/backend 테스트를 numeric trip id 기준으로 갱신했다.
 - 외주/인프라 담당자용 staging 운영 검증 작업지시서를 `docs/deployment-cicd/staging-ops-work-orders.md`로 추가했다.
-- 여행가는 달 지역 여행할인 모아보기 외부 수집 기반을 추가해 공식 출처 레코드 저장, 원문 보존, 파생 지역/상태/혜택/선호도 필드를 지원한다. 현재 공식 live HTML의 목록/상세 modal 구조는 58건 fetch/parse/upsert smoke로 검증했고, scheduler는 `EXTERNAL_COLLECTION_MIN_PARSED_COUNT` 미달 수집을 실패로 처리해 재시도하며 마지막 시도/성공/parsed count/outcome/error 상태를 내부 관측값으로 남긴다. 운영 확인은 기존 `/api/health` 계약을 유지한 채 `GET /api/ops/external-collection`에서 scheduler 상태를, `GET /api/ops/external-collection/quality`에서 저장 품질과 추천 반영 preview를 분리해 확인한다.
+- 여행가는 달 지역 여행할인 모아보기 외부 수집 기반을 추가해 공식 출처 레코드 저장, 원문 보존, 파생 지역/상태/혜택/선호도 필드를 지원한다. 현재 공식 live HTML의 목록/상세 modal 구조는 58건 fetch/parse/upsert smoke로 검증했고, scheduler는 `EXTERNAL_COLLECTION_MIN_PARSED_COUNT` 미달 수집을 실패로 처리해 재시도하며 마지막 시도/성공/parsed count/outcome/error 상태를 내부 관측값으로 남긴다. 운영 확인은 기존 `/api/health` 계약을 유지한 채 Bearer 인증이 필요한 `GET /api/ops/external-collection`에서 scheduler 상태를, `GET /api/ops/external-collection/quality`에서 저장 품질과 추천 반영 preview를 분리해 확인한다.
 - `external_source_records` 기반 지역 추천 API는 신청 가능 혜택 수, 마감 임박, 명시 금액, 취향 보조 점수, 프로필 지역 최종 tie-breaker를 사용해 지역/목적지 추천 후보를 반환한다.
+- active/fresh TravelMonth `regional_benefit` 수집 레코드는 수집 직후 `policies`로 정규화 승격된다. `/api/policies` 및 `/api/policies/{policySlug}`는 사용자 노출 정책을 `policies` 기준으로 반환하며, 모든 노출 정책은 공식 혜택으로 동일하게 저장/일정 연결을 지원한다. `external_source_records`는 원문 근거, 품질 리포트, 지역 추천 집계의 source of evidence로 남긴다. 상세 조회에는 migration gap 대응용 raw fallback이 남아 있지만 목록/추천/사용자 action 경로는 정규화 정책을 사용한다.
 
 ## 현재 조건부 항목
 
@@ -68,6 +70,28 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - Cloudflare named tunnel full-up은 실제 `CLOUDFLARE_TUNNEL_TOKEN`, staging domain, DB/env 값이 필요하다.
 - SOLAPI 실제 발송은 SOLAPI 계정, Kakao business channel, 승인 템플릿, secret env가 필요하다.
 - 전화번호 OTP 실인증 foundation은 dev/test provider boundary, env-gated SOLAPI SMS provider, hashed OTP 저장, 요청/확인 API, MyPage UI까지 구현됐다. 실제 발송 smoke는 운영 env 준비 후 진행한다.
+
+## Local Collection And Itinerary Recommendation Target
+
+Cloudflare/public HTTPS/provider smoke는 별도 운영 검증으로 남기고, 현재 기능 개발 목표는 로컬 Docker Compose 환경에서 공식 데이터 수집과 일정 자동 생성 추천 흐름을 끝까지 반복 검증 가능하게 만드는 것이다.
+
+기준 흐름:
+
+```text
+TravelMonth 공식 페이지 수집
+-> external_source_records 저장
+-> /api/policies 정책 목록에 TravelMonth 혜택 노출
+-> /api/ops/external-collection/quality 저장 품질 확인
+-> /api/recommendations/regions 지역 추천 확인
+-> /home 추천 UI 확인
+-> /trips/new 일정 생성
+-> trip_days / trip_places 자동 코스 저장
+-> /trips/{id}와 /ai-results?tripId={id}에서 결과 확인
+```
+
+2026-05-22 기준으로 `/home` 추천 지역 링크에서 들어온 `/trips/new?region=...`는 새 일정 생성 지역에 반영된다. 홈의 AI 추천 맞춤 일정 카드는 기존 일정 목록의 첫 일정을 재표시하지 않고 지역 추천 또는 정책 지역 fallback 후보를 사용해 `/trips/new?region=...` 새 일정 생성 CTA로 연결한다. `travelmonth-{id}` 정책 slug는 정규화된 `policies` 레코드로 저장/일정 연결이 가능하다. 생성된 일정 상세의 추천 정책 카드는 hardcoded article이 아니라 `GET /api/trips/{tripId}`의 `recommendedPolicies`를 렌더링하며 정규화된 정책을 `/policies/{slug}` 상세로 연결한다. `/ai-results?tripId=...`는 현재 trip timeline을 함께 조회해 이미 들어간 장소 후보를 `이미 일정에 있음`으로 표시하고 중복 추가를 막는다.
+
+작업명세는 `docs/superpowers/specs/2026-05-21-local-collection-itinerary-recommendation-smoke-design.md`를 기준으로 한다. 다음 구현은 로컬 수동 수집 명령, local recommendation smoke 스크립트, backend/frontend/e2e 검증 보강 순서로 진행한다.
 
 ## 문서 역할
 
@@ -83,7 +107,7 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 ## 최신 검증 기록
 
 - Frontend typecheck: passed.
-- Frontend Vitest: `82 passed`.
+- Frontend Vitest: `83 passed`.
 - Frontend e2e: `4 passed`.
 - Frontend build: passed.
 - Backend schema pytest: `2 passed`.

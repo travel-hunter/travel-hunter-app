@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
 import app.models  # noqa: F401
 import pytest
@@ -6,7 +7,7 @@ from sqlalchemy import Integer, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.db.base import Base
-from app.models import ExternalSourceRecord
+from app.models import ExternalSourceRecord, Policy
 from app.repositories.external_sources import upsert_external_source_records
 from app.schemas.external_sources import TravelMonthRegionalBenefitSource
 from app.services.region_recommendations import recommend_regions
@@ -18,9 +19,12 @@ FETCHED_AT = datetime(2026, 5, 21, 9, 0, 0)
 @pytest.fixture
 def db() -> Session:
     engine = create_engine("sqlite:///:memory:")
-    id_column = ExternalSourceRecord.__table__.c.id
-    original_type = id_column.type
-    id_column.type = Integer()
+    external_id_column = ExternalSourceRecord.__table__.c.id
+    policy_id_column = Policy.__table__.c.id
+    original_external_id_type = external_id_column.type
+    original_policy_id_type = policy_id_column.type
+    external_id_column.type = Integer()
+    policy_id_column.type = Integer()
     try:
         Base.metadata.create_all(engine)
         TestingSessionLocal = sessionmaker(bind=engine)
@@ -28,7 +32,8 @@ def db() -> Session:
             yield session
         Base.metadata.drop_all(engine)
     finally:
-        id_column.type = original_type
+        external_id_column.type = original_external_id_type
+        policy_id_column.type = original_policy_id_type
 
 
 def make_source(
@@ -171,3 +176,29 @@ def test_region_recommendations_ignore_inactive_or_stale_records(db: Session) ->
     recommendations = recommend_regions(db, today=today, limit=3)
 
     assert [item.region for item in recommendations] == ["부산"]
+
+
+def test_region_recommendations_read_records_created_by_travelmonth_collection(db: Session) -> None:
+    from app.services.travelmonth_collection import collect_regional_benefits_from_html
+
+    fixture_path = Path(__file__).parent / "fixtures" / "travelmonth_benefit_sample.html"
+    html = fixture_path.read_text(encoding="utf-8")
+
+    result = collect_regional_benefits_from_html(
+        db,
+        html,
+        fetched_at=FETCHED_AT,
+        today=date(2026, 5, 21),
+    )
+    recommendations = recommend_regions(
+        db,
+        today=date(2026, 5, 21),
+        style="맛집",
+        region="부산",
+        limit=3,
+    )
+
+    assert result.parsed_count > 0
+    assert result.created_or_updated_count > 0
+    assert recommendations
+    assert recommendations[0].policyCount > 0

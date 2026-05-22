@@ -9,6 +9,7 @@ const frontendDir = path.join(repoRoot, "frontend");
 const pythonCommand = process.env.PYTHON || "python";
 const dockerCommand = process.platform === "win32" ? "docker.exe" : "docker";
 const playwrightCli = path.join(frontendDir, "node_modules", "@playwright", "test", "cli.js");
+const playwrightArgs = process.argv.slice(2);
 const apiPort = process.env.E2E_API_PORT || "8001";
 const frontendPort = process.env.E2E_FRONTEND_PORT || "5174";
 const apiBaseUrl = `http://127.0.0.1:${apiPort}`;
@@ -158,7 +159,7 @@ async function main() {
     console.log("[backend-e2e] Running Playwright backend-mode smoke...");
     const playwrightResult = spawnSync(
       process.execPath,
-      [playwrightCli, "test", "--config", "playwright.backend.config.ts"],
+      [playwrightCli, "test", "--config", "playwright.backend.config.ts", ...playwrightArgs],
       {
         cwd: frontendDir,
         env: {

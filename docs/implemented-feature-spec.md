@@ -26,43 +26,43 @@
 | 프로필 편집 | `/mypage`의 편집 sheet에서 profile 값을 수정한다. | `PATCH /api/me/profile` |
 | 저장 정책 | `/mypage`에서 저장한 정책을 확인하고 삭제한다. | `GET/DELETE /api/me/saved-policies` |
 | 신청 정책 통계 | `/mypage`에서 내 일정에 연결된 정책 수를 확인한다. | `GET /api/me/applied-policies`, `trip_policies` |
-| 알림 연락처 | 카카오 알림톡 연락처를 저장하거나 삭제하고, env-gated dev/SOLAPI SMS provider boundary를 통해 OTP 인증번호 요청/확인을 수행한다. | `GET/PATCH /api/me/contact`, `POST /api/me/contact/verification/request`, `POST /api/me/contact/verification/confirm`, `PHONE_VERIFICATION_PROVIDER`, `users.phone_number`, `users.phone_verified_at`, `phone_verification_codes` |
+| 알림 연락처 | 카카오 알림톡 연락처를 저장하거나 삭제하고, env-gated dev/SOLAPI SMS provider boundary를 통해 OTP 인증번호 요청/확인을 수행한다. 미인증 OTP 발급 후 60초 이내 재요청은 서버에서 429로 차단한다. | `GET/PATCH /api/me/contact`, `POST /api/me/contact/verification/request`, `POST /api/me/contact/verification/confirm`, `PHONE_VERIFICATION_PROVIDER`, `users.phone_number`, `users.phone_verified_at`, `phone_verification_codes` |
 | 마감 알림 설정 | D-7/D-1 정책 알림을 켜거나 끈다. | `GET/PATCH /api/me/notification-settings` |
 
 ## 정책
 
 | 기능 | 사용자 동작 | 연결 |
 |---|---|---|
-| 정책 목록/상세 | `/policies`에서 목록을 보고 `/policies/:slug`에서 상세를 확인한다. | `GET /api/policies`, `GET /api/policies/{policySlug}` |
-| 검색/필터 | 검색어, 지역, 카테고리를 client-side AND 조건으로 적용한다. | frontend filtering |
-| 정책 탐색 바로가기 | `/policies` 상단에서 매칭 높은 정책, 마감 임박 정책, 유형별 모아보기를 먼저 보여주고 `/home`에서도 마감 임박/추천 혜택 레일을 분리해 보여준다. 홈 인기 국내 여행지는 `GET /api/recommendations/regions`를 `AppDataApi` 경유로 호출해 정책 수, 마감 임박, 혜택 금액, 취향 보정, 프로필 지역 최종 tie-breaker 기준으로 표시하고 실패/empty 때는 정책 지역 기반 후보로 fallback한다. | `GET /api/recommendations/regions`, frontend grouping |
+| 정책 목록/상세 | `/policies`에서 DB 정책과 active/fresh TravelMonth 혜택을 함께 보고 `/policies/:slug`에서 상세를 확인한다. 수집 혜택은 `sourceType="external"`과 `travelmonth-{externalSourceRecordId}` slug로 노출하지만 사용자 화면에는 구현 구분 라벨을 표시하지 않고 공식 혜택으로 표현한다. raw 수집 레코드는 normalization 전까지 저장/일정 연결 action을 neutral 안내와 함께 임시 제한한다. | `GET /api/policies`, `GET /api/policies/{policySlug}` |
+| 검색/필터 | 검색어, 지역, 카테고리를 client-side AND 조건으로 적용한다. 카테고리는 `교통`, `숙박`, `여행상품`, `지역할인`, `이벤트`, `기타` 혜택 유형이며 `travelStyles`와 분리한다. | frontend filtering |
+| 정책 탐색 바로가기 | `/policies` 상단에서 매칭 높은 정책, 마감 임박 정책, 유형별 모아보기를 먼저 보여주고 `/home`에서도 마감 임박/추천 혜택 레일을 분리해 보여준다. 홈 인기 국내 여행지와 AI 추천 맞춤 일정 카드는 `GET /api/recommendations/regions`를 `AppDataApi` 경유로 호출해 정책 수, 마감 임박, 혜택 금액, 취향 보정, 프로필 지역 최종 tie-breaker 기준으로 표시하고 실패/empty 때는 정책 지역 기반 후보로 fallback한다. AI 추천 맞춤 일정 카드는 기존 일정 목록의 첫 일정을 노출하지 않고 `/trips/new?region=...` 새 일정 생성 CTA로 연결한다. | `GET /api/recommendations/regions`, frontend grouping |
 | 조건 확인 요약/FAQ | 정책 상세에서 내 관심 지역과 정책 지역, 핵심 신청 조건, 필요 서류를 요약하고 정적 FAQ accordion을 제공한다. 확정 자격 판정은 하지 않는다. | `Policy.requirements`, `Policy.documents`, `Policy.region` |
-| 저장/삭제 | 정책 상세에서 저장하고 마이페이지에서 삭제한다. | `user_saved_policies` |
-| 공식/신청 URL | `applyUrl`은 `신청하러 가기`, `officialUrl`은 `공식 안내 확인`, 둘 다 없으면 `신청 링크 준비 중`으로 구분한다. | `policies.apply_url`, `policies.official_url` |
+| 저장/삭제 | 내부 `policies` 레코드는 정책 상세에서 저장하고 마이페이지에서 삭제한다. raw 수집 레코드는 normalization 전까지 저장 action을 임시 제한한다. | `user_saved_policies` |
+| 공식/신청 URL | `applyUrl`은 `신청하러 가기`, `officialUrl`은 `혜택 안내 보기`, 둘 다 없으면 `신청 링크 준비 중`으로 구분한다. | `policies.apply_url`, `policies.official_url` |
 | 공유 | Web Share API, clipboard, legacy copy 순서로 현재 정책 URL을 공유한다. | frontend utility |
-| 일정 담기 | 정책 상세 sheet에서 일정을 선택해 정책을 담는다. | `POST /api/trips/{tripId}/policies/{policySlug}` |
+| 일정 담기 | 내부 `policies` 레코드는 정책 상세 sheet에서 일정을 선택해 정책을 담는다. raw 수집 레코드는 normalization 전까지 일정 연결 action을 임시 제한한다. | `POST /api/trips/{tripId}/policies/{policySlug}` |
 | 혜택 패키지 요약 | 정책 상세에서 대표 지원, 교통 혜택 후보, 지역 할인 후보를 한 화면에 묶어 보여준다. 확정 자격 판정이 아니라 공식 확인 전 안내 UI로 제공한다. | frontend display |
 
 ## 일정
 
 | 기능 | 사용자 동작 | 연결 |
 |---|---|---|
-| 일정 목록/생성 | `/trips`에서 목록을 보고 `/trips/new`에서 지역, 스타일, 기간으로 일정을 만든다. | `GET/POST /api/trips` |
+| 일정 목록/생성 | `/trips`에서 목록을 보고 `/trips/new`에서 지역, 스타일, 기간으로 일정을 만든다. `/home`의 추천 지역 링크가 넘긴 `/trips/new?region=...` 값은 새 일정 생성 지역으로 유지된다. | `GET/POST /api/trips` |
 | 일정 확정 저장 | `/trips` 카드에서 draft 일정을 확정 선택 후 저장해 DB 상태를 `confirmed`로 바꾼다. | `trips.status`, `PATCH /api/trips/{tripId}/status` |
 | 생성 draft autosave | `/trips/new`의 지역, 스타일, 기간, policySlug draft를 24시간 localStorage에 저장한다. 생성 성공 시 삭제한다. | `frontend/src/utils/draftStorage.ts` |
-| 상세/삭제 | `/trips/:id`에서 상세를 보고 owner는 목록에서 일정을 삭제한다. | `GET/DELETE /api/trips/{tripId}` |
+| 상세/삭제 | `/trips/:id`에서 상세를 보고 owner는 목록에서 일정을 삭제한다. 일정 상세의 추천 정책 카드는 `recommendedPolicies`를 사용해 정규화된 정책과 TravelMonth 혜택 상세 페이지로 연결한다. | `GET/DELETE /api/trips/{tripId}`, `Trip.recommendedPolicies` |
 | 장소 추가/수정/삭제/이동 | owner/editor는 장소를 추가, 수정, 삭제하고 드래그앤드롭으로 같은 Day 순서 변경 또는 다른 Day 이동을 수행한다. 이동 핸들, Day drop target, 이동 중 상태를 표시하고 viewer는 편집할 수 없다. | `trip_places` CRUD/move endpoints |
 | 장소 추가 draft autosave | 장소 추가 sheet의 시간, 장소명, 메모, dayNumber draft를 24시간 localStorage에 저장한다. 저장 성공 또는 닫기 시 삭제한다. | `frontend/src/utils/draftStorage.ts` |
 | 장소 수정 draft autosave | 장소 수정 sheet의 시간, 장소명, 메모 draft를 `placeId` 기준으로 24시간 localStorage에 저장한다. 저장 성공, 닫기, 장소 삭제 시 삭제한다. | `frontend/src/utils/draftStorage.ts` |
 | Draft 복원 안내/폐기 | `/trips/new`와 장소 sheet에서 유효 draft를 불러오면 안내를 표시하고 사용자가 임시 저장 내용을 버릴 수 있다. | frontend localStorage UX |
-| 정책 연결 | 정책 상세에서 선택한 정책을 일정에 연결한다. | `trip_policies` |
+| 정책 연결 | 정규화된 정책 상세에서 선택한 정책을 일정에 연결한다. `travelmonth-{id}` TravelMonth 혜택은 새 일정 생성 참고 컨텍스트로만 쓰고 normalization 전 `trip_policies` 연결 요청에는 보내지 않는다. | `trip_policies`, frontend policy context |
 
 ## AI 추천
 
 | 기능 | 사용자 동작 | 연결 |
 |---|---|---|
 | 추천 조회 | `/ai-results?tripId=...`에서 추천 목록을 본다. | `GET /api/trips/{tripId}/recommendations` |
-| 추천 항목 추가 | 추천 항목을 일정 장소로 추가한다. | `POST /api/trips/{tripId}/days/{dayNumber}/places` |
+| 추천 항목 추가 | 추천 항목을 일정 장소로 추가한다. 이미 현재 일정 timeline에 같은 장소명이 있으면 `/ai-results?tripId=...`에서 `이미 일정에 있음`으로 표시하고 중복 추가를 막는다. | `GET /api/trips/{tripId}`, `POST /api/trips/{tripId}/days/{dayNumber}/places` |
 | 추천 기준 설명 | 추천 기준 아이콘으로 설명 sheet를 연다. | frontend sheet |
 
 ## 초대와 협업

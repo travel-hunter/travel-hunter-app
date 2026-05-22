@@ -75,6 +75,11 @@ def test_request_contact_verification_saves_phone_and_sends_dev_provider(monkeyp
         return code
 
     monkeypatch.setattr(phone_verification.verification_repository, "create_phone_verification_code", create_code)
+    monkeypatch.setattr(
+        phone_verification.verification_repository,
+        "get_latest_pending_phone_verification_code",
+        lambda _db, *, user_id, phone_number: None,
+    )
 
     result = phone_verification.request_contact_verification(
         db,  # type: ignore[arg-type]
@@ -109,6 +114,11 @@ def test_request_contact_verification_uses_configured_provider_when_not_injected
         "create_phone_verification_code",
         lambda _db, **kwargs: PhoneVerificationCode(id=1, attempt_count=0, created_at=now, **kwargs),
     )
+    monkeypatch.setattr(
+        phone_verification.verification_repository,
+        "get_latest_pending_phone_verification_code",
+        lambda _db, *, user_id, phone_number: None,
+    )
     monkeypatch.setattr(phone_verification, "build_phone_verification_provider", lambda: provider)
 
     phone_verification.request_contact_verification(
@@ -120,6 +130,45 @@ def test_request_contact_verification_uses_configured_provider_when_not_injected
     )
 
     assert provider.sent == [("01012345678", "123456")]
+
+
+def test_request_contact_verification_rejects_resend_during_cooldown(monkeypatch) -> None:
+    db = FakeDb()
+    user = make_user()
+    user.phone_number = "01012345678"
+    provider = FakeProvider()
+    now = datetime(2026, 5, 21, 10, 0, 30)
+    existing_code = make_code(
+        code_hash=phone_verification.hash_verification_code("123456"),
+        expires_at=now + timedelta(minutes=5),
+    )
+    existing_code.created_at = datetime(2026, 5, 21, 10, 0, 0)
+
+    monkeypatch.setattr(
+        phone_verification.verification_repository,
+        "get_latest_pending_phone_verification_code",
+        lambda _db, *, user_id, phone_number: existing_code,
+    )
+    monkeypatch.setattr(
+        phone_verification.verification_repository,
+        "create_phone_verification_code",
+        lambda _db, **kwargs: pytest.fail("cooldown should prevent creating a new verification code"),
+    )
+
+    with pytest.raises(phone_verification.PhoneVerificationError) as error:
+        phone_verification.request_contact_verification(
+            db,  # type: ignore[arg-type]
+            user,
+            ContactVerificationRequest(phoneNumber="010 1234 5678"),
+            provider=provider,
+            now=now,
+            code_factory=lambda: "654321",
+        )
+
+    assert error.value.status_code == 429
+    assert error.value.detail == "Verification code resend is not available yet"
+    assert provider.sent == []
+    assert db.committed is False
 
 
 def test_confirm_contact_verification_marks_phone_verified(monkeypatch) -> None:

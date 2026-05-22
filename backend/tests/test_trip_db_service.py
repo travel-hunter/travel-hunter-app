@@ -1,6 +1,11 @@
 from datetime import date, datetime, time, timedelta
 
-from app.models import Policy, Recommendation, Trip, TripDay, TripInvite, TripMember, TripPlace, TripPolicy
+import pytest
+from sqlalchemy import BigInteger, Integer, create_engine
+from sqlalchemy.orm import sessionmaker
+
+from app.db.base import Base
+from app.models import ExternalSourceRecord, Policy, Recommendation, Trip, TripDay, TripInvite, TripMember, TripPlace, TripPolicy
 from app.models import User as UserModel
 from app.schemas.trip import (
     CreateTripPlaceRequest,
@@ -130,6 +135,137 @@ def test_get_trip_resolves_numeric_id_only(monkeypatch) -> None:
     assert missing_numeric is None
 
 
+def test_get_trip_includes_region_matched_recommended_policies(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    trip = make_trip()
+    trip.region = "부산"
+    trip.title = "부산 3일 여행"
+    linked_policy = trip.policies[0].policy
+    linked_policy.slug = "local-vacation"
+    linked_policy.title = "지역사랑 휴가지원"
+    linked_policy.region = "전국"
+    recommended_policy = Policy(
+        id=4,
+        slug="busan-cashback",
+        title="부산 여행 캐시백",
+        benefit_detail="카드 결제 5% 캐시백",
+        region="부산",
+        end_date=date(2026, 6, 30),
+    )
+    other_policy = Policy(
+        id=5,
+        slug="gangwon-stay",
+        title="속초 숙박 할인권",
+        benefit_detail="숙박비 50% 할인",
+        region="강원",
+        end_date=date(2026, 6, 30),
+    )
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip if db is fake_db and trip_id == 7 and user_id == 1 else None,
+    )
+    monkeypatch.setattr(
+        trip_service.policy_repository,
+        "list_policies",
+        lambda db: [linked_policy, other_policy, recommended_policy] if db is fake_db else [],
+    )
+
+    payload = trip_service.get_trip("7", fake_db, user)
+
+    assert payload is not None
+    assert payload["recommendedPolicies"] == [
+        {
+            "slug": "busan-cashback",
+            "title": "부산 여행 캐시백",
+            "amount": "카드 결제 5% 캐시백",
+            "region": "부산",
+        }
+    ]
+
+
+def test_get_trip_recommendations_ignore_raw_collected_benefits(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    trip = make_trip()
+    trip.region = "부산"
+    external_record = ExternalSourceRecord(
+        id=58,
+        title="부산 야간관광 여행가는 달 할인",
+        region="부산",
+        is_nationwide=False,
+        benefit_text="부산 야간관광 상품 할인",
+        benefit_value_text="최대 2만원",
+        end_date=date(2026, 6, 30),
+    )
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip if db is fake_db and trip_id == 7 and user_id == 1 else None,
+    )
+    monkeypatch.setattr(
+        trip_service.policy_repository,
+        "list_policies",
+        lambda db: [] if db is fake_db else [],
+    )
+    payload = trip_service.get_trip("7", fake_db, user)
+
+    assert payload is not None
+    assert payload["recommendedPolicies"] == []
+    return
+
+    assert payload["recommendedPolicies"] == [
+        {
+            "slug": "travelmonth-58",
+            "title": "부산 야간관광 여행가는 달 할인",
+            "amount": "최대 2만원",
+            "region": "부산",
+        }
+    ]
+
+
+def test_get_trip_recommends_normalized_travelmonth_policy(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    trip = make_trip()
+    trip.region = "Busan"
+    normalized_policy = Policy(
+        id=58,
+        slug="travelmonth-58",
+        title="Busan official benefit",
+        benefit_detail="Up to 20,000 KRW",
+        region="Busan",
+        end_date=date(2026, 6, 30),
+        source_category="regional_benefit",
+        external_source_record_id=58,
+    )
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip if db is fake_db and trip_id == 7 and user_id == 1 else None,
+    )
+    monkeypatch.setattr(
+        trip_service.policy_repository,
+        "list_policies",
+        lambda db: [normalized_policy] if db is fake_db else [],
+    )
+    payload = trip_service.get_trip("7", fake_db, user)
+
+    assert payload is not None
+    assert payload["recommendedPolicies"] == [
+        {
+            "slug": "travelmonth-58",
+            "title": "Busan official benefit",
+            "amount": "Up to 20,000 KRW",
+            "region": "Busan",
+        }
+    ]
+
+
 def test_get_trip_rejects_noncanonical_and_non_numeric_handles(monkeypatch) -> None:
     fake_db = object()
     user = make_user()
@@ -160,6 +296,27 @@ class FakeDb:
 
     def commit(self) -> None:
         self.commits += 1
+
+
+@pytest.fixture
+def sqlite_db_session():
+    engine = create_engine("sqlite:///:memory:")
+    mutated_columns = []
+    for table in Base.metadata.tables.values():
+        for column in table.c:
+            if column.primary_key and isinstance(column.type, BigInteger):
+                mutated_columns.append((column, column.type))
+                column.type = Integer()
+
+    try:
+        Base.metadata.create_all(engine)
+        TestingSessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
+        with TestingSessionLocal() as session:
+            yield session
+        Base.metadata.drop_all(engine)
+    finally:
+        for column, original_type in mutated_columns:
+            column.type = original_type
 
 
 def test_delete_trip_deletes_owned_numeric_trip_and_detaches_recommendations(monkeypatch) -> None:
@@ -261,6 +418,41 @@ def test_viewer_member_cannot_update_trip_status(monkeypatch) -> None:
         raise AssertionError("expected TripServiceError")
 
     assert trip.status == "draft"
+    assert fake_db.commits == 0
+
+
+def test_viewer_member_cannot_add_policy_to_trip(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user(2)
+    trip = make_trip()
+    trip.members[0].role = "viewer"
+    policy = Policy(id=4, slug="travelmonth-58", title="Official benefit")
+    added_links: list[dict[str, int]] = []
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda *_args, **_kwargs: trip,
+    )
+    monkeypatch.setattr(
+        trip_service.policy_repository,
+        "get_policy_by_slug",
+        lambda *_args, **_kwargs: policy,
+    )
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "add_trip_policy",
+        lambda _db, **kwargs: added_links.append(kwargs),
+    )
+
+    try:
+        trip_service.add_policy_to_trip(fake_db, user, "7", "travelmonth-58")
+    except trip_service.TripServiceError as error:
+        assert error.status_code == 403
+        assert error.detail == "Trip edit permission required"
+    else:
+        raise AssertionError("expected TripServiceError")
+
+    assert added_links == []
     assert fake_db.commits == 0
 
 
@@ -685,6 +877,40 @@ def test_create_trip_generates_catalog_places_and_recommendations(monkeypatch) -
     assert recommendation_result[0]["title"] == "성산 일출봉"
     assert recommendation_result[0]["meta"].startswith("Day 1 · 10:00")
     assert fake_db.commits == 1
+
+
+def test_create_trip_persists_generated_days_places_and_recommendations_in_db(sqlite_db_session) -> None:
+    user = UserModel(
+        email="auto-course@example.com",
+        password_hash="hashed",
+        nickname="Auto Course",
+        onboarding_completed=True,
+    )
+    sqlite_db_session.add(user)
+    sqlite_db_session.commit()
+
+    created = trip_service.create_trip(
+        sqlite_db_session,
+        user,
+        CreateTripRequest(
+            region="부산",
+            style="맛집",
+            startDate=date(2026, 7, 12),
+            endDate=date(2026, 7, 14),
+            title="Busan auto-course verification",
+        ),
+    )
+
+    assert created["title"] == "Busan auto-course verification"
+    assert sorted(created["days"].keys()) == [1, 2, 3]
+    for day_places in created["days"].values():
+        assert len(day_places) == 3
+        assert [place["time"] for place in day_places] == ["10:00", "14:00", "18:00"]
+        assert all(place["label"] for place in day_places)
+
+    recommendations = trip_service.list_recommendations(sqlite_db_session, user, created["id"])
+    assert recommendations is not None
+    assert len(recommendations) >= 3
 
 
 def test_create_trip_persists_empty_recommendations_when_catalog_has_no_region(monkeypatch) -> None:

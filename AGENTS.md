@@ -47,6 +47,7 @@ At the start of non-trivial work:
 - Any API shape change must update the API contract, frontend types, backend schemas/routes/services, tests, and `.agent/evals` together.
 - Documentation changes must preserve UTF-8 Korean text.
 - Schema creation must use Alembic. Do not use SQLAlchemy `create_all()` for app schema.
+- Before merging to main, all HIGH items in `docs/security-review/` checklists must be resolved (`- [x]`). Run each verification command and record pass/fail in `CHECKLIST.md`.
 
 ## Standard Commands
 

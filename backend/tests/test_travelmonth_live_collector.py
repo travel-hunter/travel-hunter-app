@@ -117,3 +117,42 @@ def test_live_collector_allows_empty_parse_results(monkeypatch) -> None:
 
     assert result.parsed_count == 0
     assert result.created_or_updated_count == 0
+
+
+def test_collect_travelmonth_once_cli_prints_json_summary(monkeypatch, capsys) -> None:
+    from app.scripts import collect_travelmonth_once
+
+    class FakeSession:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    def fake_session_factory():
+        return FakeSession()
+
+    def fake_collect(db, *, timeout):
+        assert isinstance(db, FakeSession)
+        assert timeout == 15.0
+        return CollectionResult(
+            source_name="TravelMonth",
+            source_category="regional_benefit",
+            parsed_count=58,
+            created_or_updated_count=58,
+        )
+
+    monkeypatch.setattr(collect_travelmonth_once, "get_session_factory", lambda: fake_session_factory)
+    monkeypatch.setattr(
+        collect_travelmonth_once,
+        "collect_regional_benefits_from_live_source",
+        fake_collect,
+    )
+
+    exit_code = collect_travelmonth_once.main(["--timeout", "15"])
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert '"sourceCategory": "regional_benefit"' in captured.out
+    assert '"parsedCount": 58' in captured.out
+    assert '"createdOrUpdatedCount": 58' in captured.out

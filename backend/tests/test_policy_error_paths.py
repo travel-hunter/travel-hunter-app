@@ -95,6 +95,48 @@ def test_db_mode_known_policy_slug_preserves_response_contract(monkeypatch) -> N
     assert payload["documents"] == ["ID card", "Accommodation receipt"]
     assert payload["officialUrl"] == "https://www.mcst.go.kr/site/s_notice/press/pressView.jsp?pMenuCD=0302000000&pSeq=22267"
     assert payload["applyUrl"] is None
+    assert payload["sourceType"] == "internal"
+
+
+def test_db_mode_policy_list_can_return_collected_external_benefits(monkeypatch) -> None:
+    fake_db = object()
+    monkeypatch.setattr(
+        policy_service,
+        "list_policies",
+        lambda db: [
+            {
+                "id": "travelmonth-58",
+                "slug": "travelmonth-58",
+                "label": "부산",
+                "tag": "최대 2만원",
+                "title": "부산 야경투어 여행가는 달 할인",
+                "org": "부산관광공사",
+                "region": "부산",
+                "deadline": "2026-06-30",
+                "amount": "최대 2만원",
+                "summary": "부산 야경투어 상품 할인",
+                "match": 80,
+                "category": "지역할인",
+                "requirements": ["공식 안내에서 신청 조건을 확인하세요."],
+                "documents": ["혜택 안내 확인"],
+                "officialUrl": "https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+                "applyUrl": None,
+                "sourceType": "external",
+            }
+        ]
+        if db is fake_db
+        else [],
+    )
+    set_db_dependency_override(fake_db)
+
+    try:
+        response = client.get("/api/policies")
+    finally:
+        clear_db_dependency_override()
+
+    assert response.status_code == 200
+    assert response.json()[0]["slug"] == "travelmonth-58"
+    assert response.json()[0]["sourceType"] == "external"
 
 
 def test_db_policy_service_returns_none_when_repository_misses(monkeypatch) -> None:

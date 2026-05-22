@@ -1,7 +1,7 @@
 import { Bot, ChevronLeft } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { appDataApi, type Recommendation, type TripPlaceRequest } from "../../api";
+import { appDataApi, type Recommendation, type Trip, type TripPlaceRequest } from "../../api";
 import { useAsyncResource } from "../../api/useAsyncResource";
 import { Button, EmptyState, ErrorState, IconButton, LoadingState, Tag, Toast, TopBar } from "../../components/ui";
 import { resolveTripId } from "./_shared";
@@ -25,6 +25,18 @@ function recommendationKey(item: Recommendation, index: number): string {
   return `${item.title}:${item.meta}:${index}`;
 }
 
+function normalizePlaceTitle(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLocaleLowerCase("ko-KR");
+}
+
+function tripHasRecommendation(trip: Trip | null, item: Recommendation): boolean {
+  if (!trip) return false;
+  const recommendationTitle = normalizePlaceTitle(item.title);
+  return Object.values(trip.days).some((places) =>
+    places.some((place) => normalizePlaceTitle(place.label) === recommendationTitle),
+  );
+}
+
 export function AiResultsPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -35,12 +47,18 @@ export function AiResultsPage() {
   const [addingRecommendationKey, setAddingRecommendationKey] = useState<string | null>(null);
   const [isCriteriaOpen, setIsCriteriaOpen] = useState(false);
   const detailPath = activeTripId ? `/trips/${activeTripId}` : "/trips";
-  const { data: recommendations, error, isLoading } = useAsyncResource(async () => {
+  const { data, error, isLoading } = useAsyncResource(async () => {
     const resolvedTripId = await resolveTripId(requestedTripId);
     setActiveTripId(resolvedTripId ?? "");
-    if (!resolvedTripId) return [];
-    return appDataApi.listRecommendations(resolvedTripId);
+    if (!resolvedTripId) return { recommendations: [], trip: null };
+    const [recommendations, trip] = await Promise.all([
+      appDataApi.listRecommendations(resolvedTripId),
+      appDataApi.getTrip(resolvedTripId).catch(() => null),
+    ]);
+    return { recommendations, trip };
   }, [requestedTripId]);
+  const recommendations = data?.recommendations ?? [];
+  const activeTrip = data?.trip ?? null;
 
   const addRecommendationToTrip = async (item: Recommendation, itemKey: string) => {
     if (!activeTripId || addingRecommendationKey) return;
@@ -84,11 +102,12 @@ export function AiResultsPage() {
         {isLoading && <LoadingState label="AI 추천 후보를 불러오는 중입니다" />}
         {error && <ErrorState message={error} />}
         {addError && <p className="form-error">{addError}</p>}
-        {!isLoading && !error && (recommendations?.length ?? 0) === 0 && (
+        {!isLoading && !error && recommendations.length === 0 && (
           <EmptyState title="추천 후보가 아직 없어요" body="일정 조건을 다시 조정하면 더 알맞은 장소를 찾을 수 있어요." action={<Button onClick={() => navigate("/trips/new")}>일정 조건 바꾸기</Button>} />
         )}
-        {(recommendations ?? []).map((item, index) => {
+        {recommendations.map((item, index) => {
           const itemKey = recommendationKey(item, index);
+          const alreadyAdded = tripHasRecommendation(activeTrip, item);
           return (
             <article className="result-card card" key={itemKey}>
               <div className="result-photo">{item.label}</div>
@@ -100,10 +119,12 @@ export function AiResultsPage() {
                 <p className="meta">{item.reason}</p>
                 <Button
                   variant="secondary"
-                  disabled={addingRecommendationKey === itemKey}
-                  onClick={() => void addRecommendationToTrip(item, itemKey)}
+                  disabled={alreadyAdded || addingRecommendationKey === itemKey}
+                  onClick={() => {
+                    if (!alreadyAdded) void addRecommendationToTrip(item, itemKey);
+                  }}
                 >
-                  {addingRecommendationKey === itemKey ? "추가 중" : "일정에 추가"}
+                  {alreadyAdded ? "이미 일정에 있음" : addingRecommendationKey === itemKey ? "추가 중" : "일정에 추가"}
                 </Button>
               </div>
             </article>

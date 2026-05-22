@@ -9,6 +9,9 @@ from app.models import ExternalSourceRecord
 from app.schemas.external_sources import TravelMonthRegionalBenefitSource
 
 
+EXTERNAL_POLICY_SLUG_PREFIX = "travelmonth-"
+
+
 def _assign_record(
     record: ExternalSourceRecord,
     source: TravelMonthRegionalBenefitSource,
@@ -84,6 +87,25 @@ def list_regional_benefit_recommendation_records(
         .order_by(ExternalSourceRecord.id)
     )
     return list(db.scalars(statement).all())
+
+
+def get_external_source_record_by_policy_slug(
+    db: Session,
+    policy_slug: str,
+) -> ExternalSourceRecord | None:
+    if not policy_slug.startswith(EXTERNAL_POLICY_SLUG_PREFIX):
+        return None
+    raw_id = policy_slug.removeprefix(EXTERNAL_POLICY_SLUG_PREFIX)
+    if not raw_id.isdigit():
+        return None
+    statement = (
+        select(ExternalSourceRecord)
+        .where(ExternalSourceRecord.id == int(raw_id))
+        .where(ExternalSourceRecord.source_category == "regional_benefit")
+        .where(ExternalSourceRecord.status == "active")
+        .where(ExternalSourceRecord.freshness_status == "fresh")
+    )
+    return db.scalar(statement)
 
 
 def list_external_source_records_by_category(
