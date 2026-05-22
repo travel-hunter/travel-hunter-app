@@ -10,6 +10,44 @@ from app.repositories import external_sources as external_source_repository
 from app.repositories import policies as policy_repository
 
 
+LEGACY_CATEGORY_MAP = {
+    "추천": "지역할인",
+    "환급": "지역할인",
+    "캐시백": "지역할인",
+}
+
+
+def _normalize_policy_category(policy_type: str | None) -> str:
+    if policy_type in SUPPORTED_CATEGORIES:
+        return policy_type
+    return LEGACY_CATEGORY_MAP.get(policy_type or "", "기타")
+
+
+def _external_policy_category(record: ExternalSourceRecord) -> str:
+    source_parts = [
+        record.collected_page_url,
+        record.detail_url,
+        record.source_category,
+    ]
+    source_text = " ".join(part for part in source_parts if part).lower()
+
+    if "benefits/traffic.do" in source_text:
+        return "교통"
+    if "benefits/stay.do" in source_text:
+        return "숙박"
+    if "benefits/special.do" in source_text:
+        return "여행상품"
+    if "travelmonth/event.do" in source_text:
+        return "이벤트"
+    if "travel-info.do" in source_text:
+        return "기타"
+    if "benefits/depopulation.do" in source_text or "travelmonth/benefit.do" in source_text:
+        return "지역할인"
+    if record.source_category == "regional_benefit":
+        return "지역할인"
+    return "기타"
+
+
 def _format_benefit_amount(value: int | None) -> str | None:
     if value is None:
         return None
@@ -29,7 +67,7 @@ def policy_to_api(policy: PolicyModel) -> dict[str, object]:
     display = DISPLAY_OVERRIDES.get(slug, {})
     benefit_prefix = _format_benefit_amount(policy.benefit_amount)
     amount = policy.benefit_detail or benefit_prefix or ""
-    category = policy.policy_type if policy.policy_type in SUPPORTED_CATEGORIES else "추천"
+    category = _normalize_policy_category(policy.policy_type)
 
     return {
         "id": slug,
@@ -88,7 +126,7 @@ def external_source_record_to_policy_api(
         "amount": amount,
         "summary": summary,
         "match": 80,
-        "category": "숙박",
+        "category": _external_policy_category(record),
         "requirements": ["공식 안내에서 신청 조건을 확인하세요."],
         "documents": ["공식 안내 확인"],
         "officialUrl": record.detail_url or record.collected_page_url,

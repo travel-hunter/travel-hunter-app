@@ -34,7 +34,7 @@
 | 기능 | 사용자 동작 | 연결 |
 |---|---|---|
 | 정책 목록/상세 | `/policies`에서 DB 정책과 active/fresh 공식 수집 혜택을 함께 보고 `/policies/:slug`에서 상세를 확인한다. 수집 혜택은 `sourceType="external"`과 `travelmonth-{externalSourceRecordId}` slug로 노출하며 공식 안내 CTA만 제공한다. | `GET /api/policies`, `GET /api/policies/{policySlug}` |
-| 검색/필터 | 검색어, 지역, 카테고리를 client-side AND 조건으로 적용한다. | frontend filtering |
+| 검색/필터 | 검색어, 지역, 카테고리를 client-side AND 조건으로 적용한다. 카테고리는 `교통`, `숙박`, `여행상품`, `지역할인`, `이벤트`, `기타` 혜택 유형이며 `travelStyles`와 분리한다. | frontend filtering |
 | 정책 탐색 바로가기 | `/policies` 상단에서 매칭 높은 정책, 마감 임박 정책, 유형별 모아보기를 먼저 보여주고 `/home`에서도 마감 임박/추천 혜택 레일을 분리해 보여준다. 홈 인기 국내 여행지와 AI 추천 맞춤 일정 카드는 `GET /api/recommendations/regions`를 `AppDataApi` 경유로 호출해 정책 수, 마감 임박, 혜택 금액, 취향 보정, 프로필 지역 최종 tie-breaker 기준으로 표시하고 실패/empty 때는 정책 지역 기반 후보로 fallback한다. AI 추천 맞춤 일정 카드는 기존 일정 목록의 첫 일정을 노출하지 않고 `/trips/new?region=...` 새 일정 생성 CTA로 연결한다. | `GET /api/recommendations/regions`, frontend grouping |
 | 조건 확인 요약/FAQ | 정책 상세에서 내 관심 지역과 정책 지역, 핵심 신청 조건, 필요 서류를 요약하고 정적 FAQ accordion을 제공한다. 확정 자격 판정은 하지 않는다. | `Policy.requirements`, `Policy.documents`, `Policy.region` |
 | 저장/삭제 | 정책 상세에서 저장하고 마이페이지에서 삭제한다. | `user_saved_policies` |

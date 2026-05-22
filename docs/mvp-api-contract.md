@@ -581,7 +581,7 @@ OAuth provider callback 처리.
     "id": "uuid",
     "slug": "dgtourcard-2026",
     "label": "🎫",
-    "tag": "추천",
+    "tag": "지역할인",
     "title": "디지털관광주민증",
     "org": "한국관광공사",
     "region": "전국",
@@ -589,7 +589,7 @@ OAuth provider callback 처리.
     "amount": "최대 30만원",
     "summary": "여행지 할인 혜택 제공",
     "match": 85,
-    "category": "추천",
+    "category": "지역할인",
     "requirements": ["만 19세 이상", "국내 거주자"],
     "documents": ["신분증"],
     "officialUrl": "https://example.com/official",
@@ -599,7 +599,7 @@ OAuth provider callback 처리.
 ]
 ```
 
-`category` 허용 값: `"추천" | "환급" | "숙박" | "캐시백"`
+`category` 허용 값: `"교통" | "숙박" | "여행상품" | "지역할인" | "이벤트" | "기타"`
 `sourceType` 허용 값: `"internal" | "external"`. `external`은 `external_source_records`에서 변환된 공식 수집 혜택이며, slug는 `travelmonth-{externalSourceRecordId}` 형식이다. 외부 수집 혜택은 공식 안내 URL 중심으로 노출하고 저장/일정 연결은 내부 `policies` 레코드로 승격하기 전까지 제공하지 않는다.
 
 ---
@@ -998,7 +998,7 @@ SOLAPI 발송 결과 webhook 수신. `X-Solapi-Secret` 헤더로 검증.
 | amount | string | 혜택 금액 표시 |
 | summary | string | 요약 |
 | match | number | 매칭 점수 (0~100) |
-| category | string | `"추천" \| "환급" \| "숙박" \| "캐시백"` |
+| category | string | `"교통" \| "숙박" \| "여행상품" \| "지역할인" \| "이벤트" \| "기타"` |
 | requirements | string[] | 신청 조건 목록 |
 | documents | string[] | 필요 서류 목록 |
 | officialUrl | string \| null | 공식 안내 URL |

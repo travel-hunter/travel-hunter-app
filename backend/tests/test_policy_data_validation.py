@@ -18,7 +18,7 @@ def valid_policy(slug: str = "dgtour-jeju") -> dict[str, object]:
         "deadline": "2026-12-31",
         "amount": "혜택 제공",
         "summary": "디지털관광주민증 소지자 대상 지역 방문 혜택입니다.",
-        "category": "추천",
+        "category": "지역할인",
         "requirements": ["디지털관광주민증 발급자"],
         "documents": ["디지털관광주민증"],
         "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",

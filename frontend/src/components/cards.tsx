@@ -60,6 +60,10 @@ export function PolicyListCard({
       <Link className="policy-list-card-link" to={`/policies/${policy.slug}`}>
         <div className={`policy-list-icon ${policyIconTone(policy)}`}>{policyIcon(policy)}</div>
         <div className="policy-list-copy">
+          <div className="policy-list-taxonomy">
+            <span>{policy.category}</span>
+            {policy.sourceType === "external" && <em>공식 수집</em>}
+          </div>
           <div className="policy-list-badges">
             <span>{policy.amount}</span>
             <em>{dday(policy.deadline)}</em>

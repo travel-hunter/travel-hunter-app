@@ -10,4 +10,4 @@ DISPLAY_OVERRIDES = {
     "busan-cashback": {"label": "BS", "tag": "5% 캐시백", "match": 79},
 }
 
-SUPPORTED_CATEGORIES = {"추천", "환급", "숙박", "캐시백"}
+SUPPORTED_CATEGORIES = {"교통", "숙박", "여행상품", "지역할인", "이벤트", "기타"}

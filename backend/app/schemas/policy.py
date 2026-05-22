@@ -3,7 +3,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 
-PolicyCategory = Literal["추천", "환급", "숙박", "캐시백"]
+PolicyCategory = Literal["교통", "숙박", "여행상품", "지역할인", "이벤트", "기타"]
 PolicySourceType = Literal["internal", "external"]
 
 

@@ -44,7 +44,7 @@ export type ContactVerificationRequestResponse = {
   resendAvailableAt: string;
 };
 
-export type PolicyCategory = "추천" | "환급" | "숙박" | "캐시백";
+export type PolicyCategory = "교통" | "숙박" | "여행상품" | "지역할인" | "이벤트" | "기타";
 
 export type Policy = {
   id: string;

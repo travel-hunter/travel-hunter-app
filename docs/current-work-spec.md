@@ -39,6 +39,7 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - 일정 생성 3단계 UX, 동적 기본 날짜, draft autosave.
 - 일정 목록, 삭제 dialog, draft/confirmed 상태 저장.
 - 일정 상세 장소 추가/수정/삭제, 10분 단위 시간 스피너, 시간 없음 저장, drag-and-drop 이동. 일정 상세의 추천 정책 카드는 backend `recommendedPolicies` 응답을 사용해 내부 정책과 TravelMonth 공식 수집 혜택 상세 페이지로 이동한다.
+- 정책 `category`는 혜택/출처 유형인 `교통`, `숙박`, `여행상품`, `지역할인`, `이벤트`, `기타`만 사용한다. TravelMonth 수집 혜택은 source URL/sourceCategory로 category를 정하고, `travelStyles`는 지역/일정 추천 보정용으로만 사용한다.
 - 일정 route handle은 numeric string `Trip.id`만 지원하며 non-numeric handle은 not found로 처리한다.
 - AI 추천 장소를 일정 타임라인에 추가.
 - 초대 링크 role 저장과 viewer/editor 권한 enforcement.

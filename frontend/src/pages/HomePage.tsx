@@ -117,6 +117,7 @@ function PrototypePolicyCard({ policy }: { policy: Policy }) {
       <div className="prototype-home-policy-label" aria-hidden="true">
         {getHomePolicyIcon(policy)}
       </div>
+      <em className="prototype-home-policy-category">{policy.category}</em>
       <span>{policy.amount}</span>
       <strong>{policy.title}</strong>
       <small>

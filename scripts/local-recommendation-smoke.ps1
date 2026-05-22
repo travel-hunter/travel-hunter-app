@@ -222,6 +222,21 @@ $policyDetail = Read-JsonFromBackend "/api/policies/$recommendedPolicySlug"
 if ($policyDetail.slug -ne $recommendedPolicySlug) {
   throw "Expected /api/policies/$recommendedPolicySlug to return matching slug, got $($policyDetail.slug)"
 }
+$policies = Read-JsonFromBackend "/api/policies"
+$externalPolicy = $policies | Where-Object { $_.sourceType -eq "external" } | Select-Object -First 1
+if (-not $externalPolicy) {
+  throw "Expected /api/policies to include at least one collected external policy"
+}
+$externalPolicyDetail = Read-JsonFromBackend "/api/policies/$($externalPolicy.slug)"
+if ($externalPolicyDetail.sourceType -ne "external") {
+  throw "Expected external policy detail to keep sourceType=external"
+}
+if (-not $externalPolicyDetail.officialUrl) {
+  throw "Expected external policy detail to include officialUrl"
+}
+if ($externalPolicyDetail.applyUrl) {
+  throw "Expected collected external policy detail to omit direct applyUrl until promoted internally"
+}
 
 Write-Host "== Local recommendation smoke passed =="
-Write-Host ("collection parsedCount={0}, quality totalRecords={1}, region recommendations={2}, tripId={3}, recommendedPolicySlug={4}" -f $collection.parsedCount, $quality.totalRecords, $regions.Count, $tripResult.trip.id, $recommendedPolicySlug)
+Write-Host ("collection parsedCount={0}, quality totalRecords={1}, region recommendations={2}, tripId={3}, recommendedPolicySlug={4}, externalPolicySlug={5}" -f $collection.parsedCount, $quality.totalRecords, $regions.Count, $tripResult.trip.id, $recommendedPolicySlug, $externalPolicy.slug)

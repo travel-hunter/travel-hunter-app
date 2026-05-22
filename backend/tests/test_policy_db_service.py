@@ -14,7 +14,7 @@ def make_policy() -> PolicyModel:
         slug="local-vacation",
         title="Local Vacation Support",
         organization="Travel Hunter",
-        policy_type="refund",
+        policy_type="지역할인",
         description="Domestic travel support",
         benefit_amount=300000,
         benefit_detail="Up to 300000 KRW",
@@ -49,6 +49,7 @@ def test_policy_to_api_preserves_contract_shape() -> None:
     assert payload["documents"] == ["ID card", "Accommodation receipt"]
     assert payload["officialUrl"] == "https://www.mcst.go.kr/site/s_notice/press/pressView.jsp?pMenuCD=0302000000&pSeq=22267"
     assert payload["applyUrl"] is None
+    assert payload["category"] == "지역할인"
 
 
 def test_db_policy_service_uses_repository_boundary(monkeypatch) -> None:
@@ -143,6 +144,7 @@ def test_db_policy_list_includes_collected_external_benefits(monkeypatch) -> Non
     assert collected["region"] == "부산"
     assert collected["deadline"] == "2026-06-30"
     assert collected["amount"] == "최대 2만원"
+    assert collected["category"] == "지역할인"
     assert collected["officialUrl"] == "https://korean.visitkorea.or.kr/travelmonth/benefit.do"
     assert collected["applyUrl"] is None
 
@@ -163,6 +165,16 @@ def test_db_policy_detail_resolves_collected_external_benefit_slug(monkeypatch) 
     assert detail is not None
     assert detail["slug"] == "travelmonth-58"
     assert detail["sourceType"] == "external"
+
+
+def test_external_policy_category_uses_official_source_not_travel_styles() -> None:
+    record = make_external_record()
+    record.collected_page_url = "https://korean.visitkorea.or.kr/travelmonth/benefits/traffic.do"
+    record.inferred_travel_styles = ["맛집", "사진"]
+
+    payload = policy_service.external_source_record_to_policy_api(record)
+
+    assert payload["category"] == "교통"
 
 
 class FakeDb:

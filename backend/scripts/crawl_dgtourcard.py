@@ -64,16 +64,16 @@ REGION_CODE: dict[str, str] = {
     "전국": "nation",
 }
 
-# 카테고리 매핑 (허용값: "추천" | "환급" | "숙박" | "캐시백")
+# 카테고리 매핑 (허용값: "교통" | "숙박" | "여행상품" | "지역할인" | "이벤트" | "기타")
 CATEGORY_MAP: dict[str, str] = {
-    "할인": "추천",
+    "할인": "지역할인",
     "숙박": "숙박",
-    "캐시백": "캐시백",
-    "환급": "환급",
-    "체험": "추천",
-    "식음": "추천",
-    "교통": "추천",
-    "관광": "추천",
+    "캐시백": "지역할인",
+    "환급": "지역할인",
+    "체험": "여행상품",
+    "식음": "여행상품",
+    "교통": "교통",
+    "관광": "여행상품",
 }
 
 
@@ -96,7 +96,7 @@ def guess_category(text: str) -> str:
     for keyword, cat in CATEGORY_MAP.items():
         if keyword in text:
             return cat
-    return "추천"
+    return "지역할인"
 
 
 class TableParser(HTMLParser):

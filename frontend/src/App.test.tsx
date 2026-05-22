@@ -519,7 +519,8 @@ describe("Travel Hunter app", () => {
 
       const recommendedRegion = await screen.findByRole("region", { name: "이 일정에 어울리는 정책" });
       expect(within(recommendedRegion).queryByText("이 일정에 맞는 정책을 더 찾아보세요")).not.toBeInTheDocument();
-      expect(within(recommendedRegion).getByText("추천 혜택을 준비 중입니다")).toBeInTheDocument();
+      expect(within(recommendedRegion).getByText("부산 추천 정책과 혜택을 확인하세요")).toBeInTheDocument();
+      expect(within(recommendedRegion).getByText("부산 혜택")).toBeInTheDocument();
     } finally {
       getTripSpy.mockRestore();
     }
@@ -1363,7 +1364,7 @@ describe("Travel Hunter app", () => {
     await waitFor(() => expect(document.body).toHaveTextContent("부산 여행 캐시백"));
     expect(screen.queryByText("속초 숙박 할인권")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "적립" }));
+    await user.click(screen.getByRole("button", { name: "지역할인" }));
     await waitFor(() => expect(document.body).toHaveTextContent("부산 여행 캐시백"));
 
     await user.click(screen.getByRole("button", { name: "초기화" }));
@@ -1380,16 +1381,20 @@ describe("Travel Hunter app", () => {
 
     await waitFor(() => expect(document.body).toHaveTextContent("♥ 즐겨찾기"));
     expect(screen.getByRole("button", { name: "전체" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "할인" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "지원금" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "적립" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "교통" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "숙박" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "여행상품" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "지역할인" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "이벤트" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "기타" })).toBeInTheDocument();
     expect(screen.queryByText("정책 탐색 바로가기")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "적립" }));
+    await user.click(screen.getByRole("button", { name: "지역할인" }));
 
     await waitFor(() => expect(document.body).toHaveTextContent("부산 여행 캐시백"));
     expect(document.body).toHaveTextContent("부산 여행 캐시백");
-    expect(screen.queryByText("지역사랑 휴가지원")).not.toBeInTheDocument();
+    expect(document.body).toHaveTextContent("지역사랑 휴가지원");
+    expect(screen.queryByText("속초 숙박 할인권")).not.toBeInTheDocument();
   });
 
   it("renders collected official benefits in the policy list without save action", async () => {
@@ -1405,7 +1410,7 @@ describe("Travel Hunter app", () => {
       amount: "최대 2만원",
       summary: "부산 야경투어 상품 할인",
       match: 80,
-      category: "숙박",
+      category: "지역할인",
       requirements: ["공식 안내에서 신청 조건을 확인하세요."],
       documents: ["공식 안내 확인"],
       officialUrl: "https://korean.visitkorea.or.kr/travelmonth/benefit.do",
@@ -1445,7 +1450,7 @@ describe("Travel Hunter app", () => {
       amount: "최대 2만원",
       summary: "부산 야경투어 상품 할인",
       match: 80,
-      category: "숙박",
+      category: "지역할인",
       requirements: ["공식 안내에서 신청 조건을 확인하세요."],
       documents: ["공식 안내 확인"],
       officialUrl: "https://korean.visitkorea.or.kr/travelmonth/benefit.do",
@@ -1719,7 +1724,7 @@ describe("Travel Hunter app", () => {
       amount: "확인 필요",
       summary: "다른 정책 상세 CTA 상태를 확인하기 위한 정책입니다.",
       match: 72,
-      category: "추천",
+      category: "지역할인",
       requirements: ["국내 여행자"],
       documents: ["신분증"],
       officialUrl: null,
@@ -2147,7 +2152,7 @@ describe("Travel Hunter app", () => {
         amount: "최대 30만원 환급",
         summary: "국내 여행 지원",
         match: 98,
-        category: "환급",
+        category: "지역할인",
         requirements: [],
         documents: [],
         officialUrl: null,
@@ -2293,7 +2298,7 @@ describe("Travel Hunter app", () => {
       amount: "확인 필요",
       summary: "직접 신청 링크가 확인된 정책입니다.",
       match: 70,
-      category: "추천",
+      category: "지역할인",
       requirements: ["공식 공고 확인 필요"],
       documents: ["공식 공고 확인 필요"],
       officialUrl: "https://travel.example/notice",
@@ -2353,7 +2358,7 @@ describe("Travel Hunter app", () => {
       amount: "확인 필요",
       summary: "공식 신청 링크가 아직 확인되지 않은 정책입니다.",
       match: 70,
-      category: "추천",
+      category: "기타",
       requirements: ["공식 공고 확인 필요"],
       documents: ["공식 공고 확인 필요"],
       officialUrl: null,

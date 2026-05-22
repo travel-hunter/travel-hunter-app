@@ -20,19 +20,22 @@ function policyTripErrorMessage(error: unknown): string {
 }
 
 const allFilter = "전체";
-const categoryFilters = [allFilter, "환급", "숙박", "캐시백"] as const;
+const categoryFilters = [allFilter, "교통", "숙박", "여행상품", "지역할인", "이벤트", "기타"] as const;
 const periodFilters = ["전체", "7일 이내", "30일 이내", "3개월 이내"] as const;
 const amountFilters = ["전체", "금액 명시", "10만원 이상", "30만원 이상"] as const;
 type PeriodFilter = (typeof periodFilters)[number];
 type AmountFilter = (typeof amountFilters)[number];
 const policyCategoryTabs: Array<{ label: string; value: (typeof categoryFilters)[number] }> = [
   { label: "전체", value: allFilter },
-  { label: "할인", value: "숙박" },
-  { label: "지원금", value: "환급" },
-  { label: "적립", value: "캐시백" },
+  { label: "교통", value: "교통" },
+  { label: "숙박", value: "숙박" },
+  { label: "여행상품", value: "여행상품" },
+  { label: "지역할인", value: "지역할인" },
+  { label: "이벤트", value: "이벤트" },
+  { label: "기타", value: "기타" },
 ];
-type DiscoveryPolicyCategory = Exclude<PolicyCategory, "추천">;
-const discoveryCategoryFilters: DiscoveryPolicyCategory[] = ["환급", "숙박", "캐시백"];
+type DiscoveryPolicyCategory = PolicyCategory;
+const discoveryCategoryFilters: DiscoveryPolicyCategory[] = ["교통", "숙박", "여행상품", "지역할인", "이벤트", "기타"];
 
 function daysUntilDeadline(deadline: string): number {
   const ms = new Date(deadline).getTime() - Date.now();
