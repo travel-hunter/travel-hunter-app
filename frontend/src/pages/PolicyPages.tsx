@@ -88,6 +88,11 @@ function getPolicyPeriodLabel(policy: Policy) {
   return `2026.05.01 ~ ${policy.deadline.replace(/^~/, "")}`;
 }
 
+function getPolicyDisplayTag(policy: Policy) {
+  if (policy.tag === "공식 수집" || policy.tag === "내부 정책" || policy.tag === "external") return policy.category;
+  return policy.tag;
+}
+
 type PolicyApplicationCta =
   | { kind: "apply"; label: string; url: string }
   | { kind: "official"; label: string; url: string }
@@ -95,7 +100,7 @@ type PolicyApplicationCta =
 
 function getPolicyApplicationCta(policy: Policy): PolicyApplicationCta {
   if (policy.applyUrl) return { kind: "apply", label: "신청하러 가기", url: policy.applyUrl };
-  if (policy.officialUrl) return { kind: "official", label: "공식 안내 확인", url: policy.officialUrl };
+  if (policy.officialUrl) return { kind: "official", label: "혜택 안내 보기", url: policy.officialUrl };
   return {
     kind: "unavailable",
     label: "신청 링크 준비 중",
@@ -400,11 +405,12 @@ export function PolicyDetailPage() {
 
   const applicationCta = getPolicyApplicationCta(policy);
   const visual = getPolicyVisual(policy);
-  const isExternalPolicy = policy.sourceType === "external";
+  const canUsePolicyControls = !policy.slug.startsWith("travelmonth-");
+  const policyControlsHelpId = "policy-detail-controls-help";
   const isPolicySaved = savedSlugs.has(policy.slug);
   const isPolicyInTrip = isPolicyAdded(policy.slug);
   const savePrototypePolicy = async () => {
-    if (!policy || isSavingPolicy) return;
+    if (!policy || isSavingPolicy || !canUsePolicyControls) return;
     setIsSavingPolicy(true);
     try {
       if (isPolicySaved) {
@@ -444,11 +450,16 @@ export function PolicyDetailPage() {
             <ChevronLeft size={20} />
           </IconButton>
           <div className="row">
-            {!isExternalPolicy && (
-              <button className="icon-btn" disabled={isSavingPolicy} onClick={savePrototypePolicy} type="button" aria-label="저장">
-                <Heart size={18} fill={isPolicySaved ? "currentColor" : "none"} />
-              </button>
-            )}
+            <button
+              aria-describedby={!canUsePolicyControls ? policyControlsHelpId : undefined}
+              aria-label="저장"
+              className="icon-btn"
+              disabled={isSavingPolicy || !canUsePolicyControls}
+              onClick={savePrototypePolicy}
+              type="button"
+            >
+              <Heart size={18} fill={isPolicySaved ? "currentColor" : "none"} />
+            </button>
             <IconButton label="공유" onClick={sharePrototypePolicyLink}>
               <Share2 size={18} />
             </IconButton>
@@ -460,7 +471,7 @@ export function PolicyDetailPage() {
       <div className="detail-body">
         <div className="title-block">
           <div className="row">
-            <Tag>{policy.tag}</Tag>
+            <Tag>{getPolicyDisplayTag(policy)}</Tag>
             <Tag tone="warning">{dday(policy.deadline)} 마감</Tag>
           </div>
           <h1>{policy.title}</h1>
@@ -511,11 +522,20 @@ export function PolicyDetailPage() {
       </div>
 
       <div className="sticky-cta">
-        {!isExternalPolicy && (
-          <Button variant="secondary" onClick={addToTrip}>
-            {isPolicyInTrip ? "일정에 담김" : "📅 내 일정에 담기"}
-          </Button>
+        {!canUsePolicyControls && (
+          <p className="helper-text" id={policyControlsHelpId}>
+            이 혜택은 안내 페이지에서 확인한 뒤 일정에 반영해 주세요.
+          </p>
         )}
+        <button
+          aria-describedby={!canUsePolicyControls ? policyControlsHelpId : undefined}
+          className="btn secondary"
+          disabled={!canUsePolicyControls}
+          onClick={canUsePolicyControls ? addToTrip : undefined}
+          type="button"
+        >
+          {isPolicyInTrip ? "일정에 담김" : "📅 내 일정에 담기"}
+        </button>
         {applicationCta.kind !== "unavailable" ? (
           <a className={applicationCta.kind === "apply" ? "btn primary" : "btn secondary"} href={applicationCta.url} rel="noreferrer" target="_blank">
             {applicationCta.label}

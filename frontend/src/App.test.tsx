@@ -1439,13 +1439,13 @@ describe("Travel Hunter app", () => {
     }
   });
 
-  it("renders collected official benefit detail with official CTA only", async () => {
+  it("renders collected official benefit detail with official CTA and disabled control guidance", async () => {
     const collectedPolicy: Policy = {
       id: "travelmonth-58",
       slug: "travelmonth-58",
       label: "부산",
       tag: "공식 수집",
-      title: "부산 야경투어 여행가는 달 할인",
+      title: "부산 여행 캐시백",
       org: "부산관광공사",
       region: "부산",
       deadline: "2026-06-30",
@@ -1460,18 +1460,36 @@ describe("Travel Hunter app", () => {
       sourceType: "external",
     };
     const getPolicySpy = vi.spyOn(appDataApi, "getPolicy").mockResolvedValue(collectedPolicy);
+    const listTripsSpy = vi.spyOn(appDataApi, "listTrips");
+    const savePolicySpy = vi.spyOn(appDataApi, "savePolicy");
+    const addPolicyToTripSpy = vi.spyOn(appDataApi, "addPolicyToTrip");
 
     try {
       await login();
       cleanup();
       renderRoute("/policies/travelmonth-58");
+      const user = userEvent.setup();
 
-      await waitFor(() => expect(document.body).toHaveTextContent("부산 야경투어 여행가는 달 할인"));
-      expect(screen.getByRole("link", { name: "공식 안내 확인" })).toHaveAttribute("href", collectedPolicy.officialUrl);
-      expect(screen.queryByRole("button", { name: "저장" })).not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: /내 일정에 담기|일정에 담김/ })).not.toBeInTheDocument();
+      expect(await screen.findByRole("heading", { name: "부산 여행 캐시백" })).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "혜택 안내 보기" })).toHaveAttribute("href", collectedPolicy.officialUrl);
+      expect(document.body).not.toHaveTextContent("공식 수집");
+      const controlHelp = screen.getByText("이 혜택은 안내 페이지에서 확인한 뒤 일정에 반영해 주세요.");
+      const saveButton = screen.getByRole("button", { name: "저장" });
+      const tripButton = screen.getByRole("button", { name: /내 일정에 담기|일정에 담김/ });
+      expect(saveButton).toBeDisabled();
+      expect(saveButton).toHaveAttribute("aria-describedby", controlHelp.id);
+      expect(tripButton).toBeDisabled();
+      expect(tripButton).toHaveAttribute("aria-describedby", controlHelp.id);
+      await user.click(saveButton);
+      await user.click(tripButton);
+      expect(savePolicySpy).not.toHaveBeenCalled();
+      expect(listTripsSpy).not.toHaveBeenCalled();
+      expect(addPolicyToTripSpy).not.toHaveBeenCalled();
     } finally {
       getPolicySpy.mockRestore();
+      listTripsSpy.mockRestore();
+      savePolicySpy.mockRestore();
+      addPolicyToTripSpy.mockRestore();
     }
   });
 
@@ -2282,7 +2300,7 @@ describe("Travel Hunter app", () => {
     renderRoute("/policies/local-vacation");
 
     const officialUrl = "https://www.mcst.go.kr/site/s_notice/press/pressView.jsp?pMenuCD=0302000000&pSeq=22267";
-    const applicationLink = await screen.findByRole("link", { name: "공식 안내 확인" });
+    const applicationLink = await screen.findByRole("link", { name: "혜택 안내 보기" });
     expect(applicationLink).toHaveAttribute("href", officialUrl);
     expect(applicationLink).toHaveAttribute("target", "_blank");
   });
