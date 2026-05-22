@@ -259,7 +259,16 @@ CREATE TABLE public.policies (
     policy_comment character varying(300),
     policy_period character varying(100),
     created_at timestamp without time zone DEFAULT now() NOT NULL,
-    apply_url character varying(500)
+    apply_url character varying(500),
+    source_type character varying(50),
+    source_name character varying(100),
+    source_category character varying(80),
+    external_source_record_id bigint,
+    source_url character varying(500),
+    source_canonical_key character varying(160),
+    normalized_at timestamp without time zone,
+    last_verified_at timestamp without time zone,
+    verification_status character varying(30)
 );
 
 
@@ -1134,6 +1143,41 @@ CREATE INDEX idx_policies_slug ON public.policies USING btree (slug);
 
 
 --
+-- Name: ix_policies_external_source_record_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX ix_policies_external_source_record_id ON public.policies USING btree (external_source_record_id);
+
+
+--
+-- Name: ix_policies_source_canonical_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_policies_source_canonical_key ON public.policies USING btree (source_canonical_key);
+
+
+--
+-- Name: ix_policies_source_category; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_policies_source_category ON public.policies USING btree (source_category);
+
+
+--
+-- Name: ix_policies_source_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_policies_source_name ON public.policies USING btree (source_name);
+
+
+--
+-- Name: ix_policies_source_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_policies_source_type ON public.policies USING btree (source_type);
+
+
+--
 -- Name: idx_trip_invites_token; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1256,6 +1300,14 @@ ALTER TABLE ONLY public.phone_verification_codes
 
 ALTER TABLE ONLY public.policy_documents
     ADD CONSTRAINT policy_documents_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES public.policies(id) ON DELETE CASCADE;
+
+
+--
+-- Name: policies fk_policies_external_source_record_id_external_source_records; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.policies
+    ADD CONSTRAINT fk_policies_external_source_record_id_external_source_records FOREIGN KEY (external_source_record_id) REFERENCES public.external_source_records(id) ON DELETE SET NULL;
 
 
 --

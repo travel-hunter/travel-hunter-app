@@ -115,7 +115,7 @@ def make_external_record() -> ExternalSourceRecord:
     )
 
 
-def test_db_policy_list_includes_collected_external_benefits(monkeypatch) -> None:
+def test_db_policy_list_uses_normalized_policies_without_raw_external_merge(monkeypatch) -> None:
     fake_db = object()
     policy = make_policy()
     external_record = make_external_record()
@@ -132,6 +132,10 @@ def test_db_policy_list_includes_collected_external_benefits(monkeypatch) -> Non
     )
 
     payload = policy_service.list_policies(fake_db)
+
+    assert [policy_payload["slug"] for policy_payload in payload] == ["local-vacation"]
+    assert external_record.title not in [policy_payload["title"] for policy_payload in payload]
+    return
 
     assert [policy_payload["slug"] for policy_payload in payload] == [
         "local-vacation",

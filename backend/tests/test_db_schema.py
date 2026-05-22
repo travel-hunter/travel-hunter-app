@@ -47,6 +47,23 @@ def test_current_schema_decision_columns_are_registered() -> None:
     assert "saved_at" in user_saved_policies.c
     assert "slug" in policies.c
     assert "apply_url" in policies.c
+    expected_policy_source_columns = {
+        "source_type",
+        "source_name",
+        "source_category",
+        "external_source_record_id",
+        "source_url",
+        "source_canonical_key",
+        "normalized_at",
+        "last_verified_at",
+        "verification_status",
+    }
+    assert expected_policy_source_columns.issubset(set(policies.c.keys()))
+    policy_external_source_fks = {
+        fk.column.table.name
+        for fk in policies.c["external_source_record_id"].foreign_keys
+    }
+    assert "external_source_records" in policy_external_source_fks
     assert "invite_token" in trip_invites.c
     assert "role" in trip_invites.c
     assert "deadline_enabled" in user_notification_settings.c

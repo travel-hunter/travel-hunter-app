@@ -75,11 +75,18 @@ function Invoke-BackendPython {
 }
 
 function Read-JsonFromBackend {
-  param([string]$Path)
+  param(
+    [string]$Path,
+    [string]$Token = ""
+  )
 
   $code = @"
 import urllib.request
-with urllib.request.urlopen("http://127.0.0.1:8000$Path", timeout=15) as response:
+headers = {}
+if "$Token":
+    headers["Authorization"] = "Bearer $Token"
+request = urllib.request.Request("http://127.0.0.1:8000$Path", headers=headers)
+with urllib.request.urlopen(request, timeout=15) as response:
     print(response.read().decode("utf-8"))
 "@
   $rawLines = @(Invoke-BackendPython $code)
@@ -126,6 +133,27 @@ if ($health.status -ne "ok") {
   throw "Expected /api/health status ok, got $($health | ConvertTo-Json -Compress)"
 }
 
+Write-Host "== Smoke auth =="
+$authCode = @"
+import json
+import urllib.request
+
+payload = json.dumps({"email": "test.user@example.com", "password": "password123"}).encode("utf-8")
+request = urllib.request.Request(
+    "http://127.0.0.1:8000/api/auth/login",
+    data=payload,
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+with urllib.request.urlopen(request, timeout=15) as response:
+    print(json.loads(response.read().decode("utf-8"))["accessToken"])
+"@
+$accessTokenLines = @(Invoke-BackendPython $authCode)
+$accessToken = ($accessTokenLines | Where-Object { $_.Trim() -ne "" } | Select-Object -Last 1).Trim()
+if (-not $accessToken) {
+  throw "Smoke auth did not return an access token"
+}
+
 Write-Host "== TravelMonth live collection =="
 $collectionRaw = Invoke-Compose exec -T backend python -m app.scripts.collect_travelmonth_once --timeout 15
 $collection = $collectionRaw | ConvertFrom-Json
@@ -136,7 +164,7 @@ if ($collection.parsedCount -le 0) {
 Write-Host "== Quality report =="
 $encodedStyle = [System.Uri]::EscapeDataString($EffectiveStyle)
 $encodedRegion = [System.Uri]::EscapeDataString($EffectiveRegion)
-$quality = Read-JsonFromBackend "/api/ops/external-collection/quality?style=$encodedStyle&region=$encodedRegion&limit=$Limit"
+$quality = Read-JsonFromBackend "/api/ops/external-collection/quality?style=$encodedStyle&region=$encodedRegion&limit=$Limit" -Token $accessToken
 if ($quality.totalRecords -le 0) {
   throw "Expected quality totalRecords > 0"
 }
@@ -235,7 +263,7 @@ if (-not $externalPolicyDetail.officialUrl) {
   throw "Expected external policy detail to include officialUrl"
 }
 if ($externalPolicyDetail.applyUrl) {
-  throw "Expected collected external policy detail to omit direct applyUrl until promoted internally"
+  throw "Expected collected official benefit detail to omit direct applyUrl unless a direct application URL is known"
 }
 
 Write-Host "== Local recommendation smoke passed =="

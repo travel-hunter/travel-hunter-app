@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Policy, Trip } from "../api";
 import { getTripRegionEmojiFromTitle } from "../data/displayConfig";
 import { dday } from "../utils";
+import { canUsePolicyActions } from "../utils/policyCapabilities";
 import { Tag } from "./ui";
 
 function policyIcon(policy: Policy) {
@@ -53,8 +54,7 @@ export function PolicyListCard({
       setIsSaving(false);
     }
   };
-  // Temporary capability gate: raw collected records are not saveable until promoted into policies.
-  const canSave = policy.sourceType !== "external" && Boolean(onToggleSave);
+  const canSave = canUsePolicyActions(policy) && Boolean(onToggleSave);
 
   return (
     <article className="policy-list-card card">

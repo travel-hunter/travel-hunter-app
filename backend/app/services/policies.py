@@ -68,6 +68,7 @@ def policy_to_api(policy: PolicyModel) -> dict[str, object]:
     benefit_prefix = _format_benefit_amount(policy.benefit_amount)
     amount = policy.benefit_detail or benefit_prefix or ""
     category = _normalize_policy_category(policy.policy_type)
+    source_type = "external" if policy.external_source_record_id is not None or policy.source_type else "internal"
 
     return {
         "id": slug,
@@ -86,7 +87,7 @@ def policy_to_api(policy: PolicyModel) -> dict[str, object]:
         "documents": [document.document_name for document in policy.documents],
         "officialUrl": policy.official_url,
         "applyUrl": policy.apply_url,
-        "sourceType": "internal",
+        "sourceType": source_type,
     }
 
 
@@ -140,14 +141,9 @@ def external_source_record_to_policy_api(
 def list_policies(db: Session | None = None) -> list[dict[str, object]]:
     if db is None:
         raise RuntimeError("DB session is required.")
-    internal_policies = [
+    return [
         policy_to_api(policy) for policy in policy_repository.list_policies(db)
     ]
-    external_policies = [
-        external_source_record_to_policy_api(record)
-        for record in external_source_repository.list_regional_benefit_recommendation_records(db)
-    ]
-    return [*internal_policies, *external_policies]
 
 
 def get_policy(policy_slug: str, db: Session | None = None) -> dict[str, object] | None:

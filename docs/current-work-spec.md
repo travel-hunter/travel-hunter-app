@@ -27,8 +27,8 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - Kakao/Google OAuth authorization code flow entry point.
 - password reset request/confirm flow.
 - 프로필 설정과 마이페이지 프로필 편집.
-- 정책 목록, 카테고리/지역/기간/금액 필터, 정책 저장/해제. `/policies` 목록은 DB `policies` 레코드와 active/fresh TravelMonth 혜택(`external_source_records`)을 함께 노출하되 raw 수집 레코드는 normalization 전까지 저장 action을 임시 제한한다.
-- 정책 상세의 지원 내용, 신청 기간, 신청 대상, 필요 서류, 공유, 일정 담기. raw 수집 레코드는 neutral 안내와 함께 일정 담기 action을 임시 제한한다.
+- 정책 목록, 카테고리/지역/기간/금액 필터, 정책 저장/해제. `/policies` 목록은 DB `policies` 레코드만 노출한다. active/fresh TravelMonth 혜택(`external_source_records`)은 collection normalization service가 `policies`로 승격하며, 승격된 정책은 `travelmonth-{externalSourceRecordId}` slug로 기존 상세 링크 호환성을 유지한다.
+- 정책 상세의 지원 내용, 신청 기간, 신청 대상, 필요 서류, 공유, 일정 담기. TravelMonth 등 공식 수집 혜택은 정규화된 `policies` 레코드로 노출되므로 저장/일정 담기 action을 동일하게 지원한다.
 - 정책 상세 CTA 분리:
   - `applyUrl`: `신청하러 가기`
   - `officialUrl`: `혜택 안내 보기`
@@ -61,7 +61,7 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - 외주/인프라 담당자용 staging 운영 검증 작업지시서를 `docs/deployment-cicd/staging-ops-work-orders.md`로 추가했다.
 - 여행가는 달 지역 여행할인 모아보기 외부 수집 기반을 추가해 공식 출처 레코드 저장, 원문 보존, 파생 지역/상태/혜택/선호도 필드를 지원한다. 현재 공식 live HTML의 목록/상세 modal 구조는 58건 fetch/parse/upsert smoke로 검증했고, scheduler는 `EXTERNAL_COLLECTION_MIN_PARSED_COUNT` 미달 수집을 실패로 처리해 재시도하며 마지막 시도/성공/parsed count/outcome/error 상태를 내부 관측값으로 남긴다. 운영 확인은 기존 `/api/health` 계약을 유지한 채 Bearer 인증이 필요한 `GET /api/ops/external-collection`에서 scheduler 상태를, `GET /api/ops/external-collection/quality`에서 저장 품질과 추천 반영 preview를 분리해 확인한다.
 - `external_source_records` 기반 지역 추천 API는 신청 가능 혜택 수, 마감 임박, 명시 금액, 취향 보조 점수, 프로필 지역 최종 tie-breaker를 사용해 지역/목적지 추천 후보를 반환한다.
-- active/fresh TravelMonth `regional_benefit` 수집 레코드는 `travelmonth-{externalSourceRecordId}` slug와 `sourceType="external"` 정책 DTO로 변환되어 `/api/policies` 및 `/api/policies/{policySlug}`에 노출된다. 사용자 화면에서는 구현 구분 라벨을 표시하지 않고 모든 노출 정책을 공식 혜택으로 표현한다. 다만 raw 수집 레코드는 normalization migration으로 `policies`에 승격되기 전까지 저장/일정 연결 action을 neutral 안내와 함께 임시 제한하며, raw external record 직접 노출 제거는 후속 normalization migration에서 처리한다.
+- active/fresh TravelMonth `regional_benefit` 수집 레코드는 수집 직후 `policies`로 정규화 승격된다. `/api/policies` 및 `/api/policies/{policySlug}`는 사용자 노출 정책을 `policies` 기준으로 반환하며, 모든 노출 정책은 공식 혜택으로 동일하게 저장/일정 연결을 지원한다. `external_source_records`는 원문 근거, 품질 리포트, 지역 추천 집계의 source of evidence로 남긴다. 상세 조회에는 migration gap 대응용 raw fallback이 남아 있지만 목록/추천/사용자 action 경로는 정규화 정책을 사용한다.
 
 ## 현재 조건부 항목
 
@@ -89,7 +89,7 @@ TravelMonth 공식 페이지 수집
 -> /trips/{id}와 /ai-results?tripId={id}에서 결과 확인
 ```
 
-2026-05-22 기준으로 `/home` 추천 지역 링크에서 들어온 `/trips/new?region=...`는 새 일정 생성 지역에 반영된다. 홈의 AI 추천 맞춤 일정 카드는 기존 일정 목록의 첫 일정을 재표시하지 않고 지역 추천 또는 정책 지역 fallback 후보를 사용해 `/trips/new?region=...` 새 일정 생성 CTA로 연결한다. `travelmonth-{id}` 수집 정책 slug는 새 일정의 참고 컨텍스트로만 쓰고 정규화 전 `trip_policies` 연결 요청에는 보내지 않는다. 생성된 일정 상세의 추천 정책 카드는 hardcoded article이 아니라 `GET /api/trips/{tripId}`의 `recommendedPolicies`를 렌더링하며 정규화된 정책과 active/fresh TravelMonth 혜택을 `/policies/{slug}` 상세로 연결한다. `/ai-results?tripId=...`는 현재 trip timeline을 함께 조회해 이미 들어간 장소 후보를 `이미 일정에 있음`으로 표시하고 중복 추가를 막는다.
+2026-05-22 기준으로 `/home` 추천 지역 링크에서 들어온 `/trips/new?region=...`는 새 일정 생성 지역에 반영된다. 홈의 AI 추천 맞춤 일정 카드는 기존 일정 목록의 첫 일정을 재표시하지 않고 지역 추천 또는 정책 지역 fallback 후보를 사용해 `/trips/new?region=...` 새 일정 생성 CTA로 연결한다. `travelmonth-{id}` 정책 slug는 정규화된 `policies` 레코드로 저장/일정 연결이 가능하다. 생성된 일정 상세의 추천 정책 카드는 hardcoded article이 아니라 `GET /api/trips/{tripId}`의 `recommendedPolicies`를 렌더링하며 정규화된 정책을 `/policies/{slug}` 상세로 연결한다. `/ai-results?tripId=...`는 현재 trip timeline을 함께 조회해 이미 들어간 장소 후보를 `이미 일정에 있음`으로 표시하고 중복 추가를 막는다.
 
 작업명세는 `docs/superpowers/specs/2026-05-21-local-collection-itinerary-recommendation-smoke-design.md`를 기준으로 한다. 다음 구현은 로컬 수동 수집 명령, local recommendation smoke 스크립트, backend/frontend/e2e 검증 보강 순서로 진행한다.
 

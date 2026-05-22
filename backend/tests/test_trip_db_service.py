@@ -186,7 +186,7 @@ def test_get_trip_includes_region_matched_recommended_policies(monkeypatch) -> N
     ]
 
 
-def test_get_trip_recommends_region_matched_collected_benefits(monkeypatch) -> None:
+def test_get_trip_recommendations_ignore_raw_collected_benefits(monkeypatch) -> None:
     fake_db = object()
     user = make_user()
     trip = make_trip()
@@ -211,21 +211,57 @@ def test_get_trip_recommends_region_matched_collected_benefits(monkeypatch) -> N
         "list_policies",
         lambda db: [] if db is fake_db else [],
     )
-    monkeypatch.setattr(
-        trip_service.external_source_repository,
-        "list_regional_benefit_recommendation_records",
-        lambda db: [external_record] if db is fake_db else [],
-    )
-
     payload = trip_service.get_trip("7", fake_db, user)
 
     assert payload is not None
+    assert payload["recommendedPolicies"] == []
+    return
+
     assert payload["recommendedPolicies"] == [
         {
             "slug": "travelmonth-58",
             "title": "부산 야간관광 여행가는 달 할인",
             "amount": "최대 2만원",
             "region": "부산",
+        }
+    ]
+
+
+def test_get_trip_recommends_normalized_travelmonth_policy(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    trip = make_trip()
+    trip.region = "Busan"
+    normalized_policy = Policy(
+        id=58,
+        slug="travelmonth-58",
+        title="Busan official benefit",
+        benefit_detail="Up to 20,000 KRW",
+        region="Busan",
+        end_date=date(2026, 6, 30),
+        source_category="regional_benefit",
+        external_source_record_id=58,
+    )
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip if db is fake_db and trip_id == 7 and user_id == 1 else None,
+    )
+    monkeypatch.setattr(
+        trip_service.policy_repository,
+        "list_policies",
+        lambda db: [normalized_policy] if db is fake_db else [],
+    )
+    payload = trip_service.get_trip("7", fake_db, user)
+
+    assert payload is not None
+    assert payload["recommendedPolicies"] == [
+        {
+            "slug": "travelmonth-58",
+            "title": "Busan official benefit",
+            "amount": "Up to 20,000 KRW",
+            "region": "Busan",
         }
     ]
 
@@ -382,6 +418,41 @@ def test_viewer_member_cannot_update_trip_status(monkeypatch) -> None:
         raise AssertionError("expected TripServiceError")
 
     assert trip.status == "draft"
+    assert fake_db.commits == 0
+
+
+def test_viewer_member_cannot_add_policy_to_trip(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user(2)
+    trip = make_trip()
+    trip.members[0].role = "viewer"
+    policy = Policy(id=4, slug="travelmonth-58", title="Official benefit")
+    added_links: list[dict[str, int]] = []
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda *_args, **_kwargs: trip,
+    )
+    monkeypatch.setattr(
+        trip_service.policy_repository,
+        "get_policy_by_slug",
+        lambda *_args, **_kwargs: policy,
+    )
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "add_trip_policy",
+        lambda _db, **kwargs: added_links.append(kwargs),
+    )
+
+    try:
+        trip_service.add_policy_to_trip(fake_db, user, "7", "travelmonth-58")
+    except trip_service.TripServiceError as error:
+        assert error.status_code == 403
+        assert error.detail == "Trip edit permission required"
+    else:
+        raise AssertionError("expected TripServiceError")
+
+    assert added_links == []
     assert fake_db.commits == 0
 
 

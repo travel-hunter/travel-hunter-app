@@ -8,6 +8,7 @@ import { PolicyListCard } from "../components/cards";
 import { Button, EmptyState, ErrorState, IconButton, LinkButton, LoadingState, Tag, Toast } from "../components/ui";
 import { getDeadlinePolicies, getPolicyVisual } from "../data/displayConfig";
 import { dday } from "../utils";
+import { canUsePolicyActions } from "../utils/policyCapabilities";
 import { shareLinkWithFallback } from "../utils/share";
 
 type TripSheetStatus = "closed" | "loading" | "empty" | "ready" | "submitting" | "error" | "success";
@@ -405,7 +406,7 @@ export function PolicyDetailPage() {
 
   const applicationCta = getPolicyApplicationCta(policy);
   const visual = getPolicyVisual(policy);
-  const canUsePolicyControls = !policy.slug.startsWith("travelmonth-");
+  const canUsePolicyControls = canUsePolicyActions(policy);
   const policyControlsHelpId = "policy-detail-controls-help";
   const isPolicySaved = savedSlugs.has(policy.slug);
   const isPolicyInTrip = isPolicyAdded(policy.slug);

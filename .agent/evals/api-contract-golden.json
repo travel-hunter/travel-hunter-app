@@ -437,7 +437,7 @@
       },
       "allowedPolicyCategories": ["교통", "숙박", "여행상품", "지역할인", "이벤트", "기타"],
       "exampleSlug": "local-vacation",
-      "dbModeBehavior": "Returns official-benefit Policy DTOs from DB policies and the backward-compatible active/fresh TravelMonth regional_benefit external_source_records mapping. sourceType remains in the DTO for compatibility/internal diagnostics, but user-facing UI must not expose internal/external wording. Raw collected records may have a neutral temporary save/trip action gate until normalization promotes them into policies; after normalization, exposed policies should share save/trip behavior. Policy category is a benefit/source type; TravelMonth records derive category from source URL/sourceCategory and do not use travelStyles for category filtering."
+      "dbModeBehavior": "Returns official-benefit Policy DTOs from DB policies only. Active/fresh TravelMonth regional_benefit external_source_records are promoted into policies by the collection normalization service and keep backward-compatible travelmonth-{externalSourceRecordId} slugs. sourceType remains in the DTO for compatibility/internal diagnostics, but user-facing UI must not expose internal/external wording and all exposed policies share save/trip behavior. Policy category is a benefit/source type; TravelMonth records derive category from source URL/sourceCategory and do not use travelStyles for category filtering."
     },
     {
       "method": "GET",
@@ -454,7 +454,7 @@
         "applyUrl": "string|null",
         "sourceType": "string"
       },
-      "dbModeBehavior": "Also accepts travelmonth-{externalSourceRecordId} slugs for active/fresh collected TravelMonth benefits."
+      "dbModeBehavior": "Also accepts travelmonth-{externalSourceRecordId} slugs for normalized TravelMonth policies. A temporary raw external_source_records fallback may resolve detail during migration gaps, but list/recommendation surfaces use normalized policies."
     },
     {
       "method": "GET",

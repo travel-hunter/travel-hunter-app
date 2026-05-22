@@ -284,7 +284,7 @@ describe("Travel Hunter app", () => {
     }
   });
 
-  it("does not send collected external policy slugs to trip policy linking", async () => {
+  it("links normalized TravelMonth policy slugs when creating a trip", async () => {
     await login();
     cleanup();
     renderRoute("/trips/new?policySlug=travelmonth-58&region=%EB%B6%80%EC%82%B0");
@@ -301,20 +301,19 @@ describe("Travel Hunter app", () => {
     const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(createdTrip);
 
     try {
-      expect(screen.getByText("선택한 혜택을 참고해 일정을 만들게요")).toBeInTheDocument();
+      expect(screen.getByText("선택한 정책까지 일정에 연결할게요")).toBeInTheDocument();
       expect(document.body).not.toHaveTextContent("공식 수집 혜택");
       await user.click(screen.getByRole("button", { name: "다음" }));
       await user.click(screen.getByRole("button", { name: "다음" }));
-      expect(document.body).toHaveTextContent("참고 혜택 · 선택한 혜택");
-      expect(document.body).not.toHaveTextContent("참고 혜택 · 공식 수집 혜택");
+      expect(document.body).toHaveTextContent("연결 정책 · 선택한 정책");
       const titleInput = screen.getByRole("textbox", { name: "일정 제목" });
       await user.clear(titleInput);
       await user.type(titleInput, "공식 혜택 참고 여행");
       await user.click(screen.getByRole("button", { name: "일정 만들기" }));
 
       await waitFor(() => expect(createTripSpy).toHaveBeenCalled());
-      expect(createTripSpy.mock.calls[0][0]).not.toHaveProperty("policySlug");
-      expect(addPolicySpy).not.toHaveBeenCalled();
+      expect(createTripSpy.mock.calls[0][0]).toEqual(expect.objectContaining({ policySlug: "travelmonth-58" }));
+      expect(addPolicySpy).toHaveBeenCalledWith("46", "travelmonth-58");
       await waitFor(() => expect(getTripSpy).toHaveBeenCalledWith("46"));
     } finally {
       createTripSpy.mockRestore();
@@ -1435,7 +1434,7 @@ describe("Travel Hunter app", () => {
       expect(document.body).toHaveTextContent("부산 여행 캐시백");
       expect(document.body).not.toHaveTextContent("공식 수집");
       expect(document.body).not.toHaveTextContent("external");
-      expect(screen.queryByRole("button", { name: /부산 여행 캐시백 즐겨찾기/ })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /부산 여행 캐시백 즐겨찾기/ })).toBeInTheDocument();
       expect(savePolicySpy).not.toHaveBeenCalled();
     } finally {
       listPoliciesSpy.mockRestore();
@@ -1443,7 +1442,7 @@ describe("Travel Hunter app", () => {
     }
   });
 
-  it("renders collected official benefit detail with official CTA and disabled control guidance", async () => {
+  it("renders normalized official benefit detail with enabled save and trip controls", async () => {
     const collectedPolicy: Policy = {
       id: "travelmonth-58",
       slug: "travelmonth-58",
@@ -1463,10 +1462,17 @@ describe("Travel Hunter app", () => {
       applyUrl: null,
       sourceType: "external",
     };
+    const trip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "201",
+      title: "부산 공식 혜택 여행",
+    };
     const getPolicySpy = vi.spyOn(appDataApi, "getPolicy").mockResolvedValue(collectedPolicy);
-    const listTripsSpy = vi.spyOn(appDataApi, "listTrips");
-    const savePolicySpy = vi.spyOn(appDataApi, "savePolicy");
-    const addPolicyToTripSpy = vi.spyOn(appDataApi, "addPolicyToTrip");
+    const listTripsSpy = vi.spyOn(appDataApi, "listTrips").mockResolvedValue([trip]);
+    const savePolicySpy = vi.spyOn(appDataApi, "savePolicy").mockResolvedValue({ policyId: "travelmonth-58", saved: true });
+    const addPolicyToTripSpy = vi
+      .spyOn(appDataApi, "addPolicyToTrip")
+      .mockResolvedValue({ tripId: "201", policyId: "travelmonth-58", added: true });
 
     try {
       await login();
@@ -1477,18 +1483,16 @@ describe("Travel Hunter app", () => {
       expect(await screen.findByRole("heading", { name: "부산 여행 캐시백" })).toBeInTheDocument();
       expect(screen.getByRole("link", { name: "혜택 안내 보기" })).toHaveAttribute("href", collectedPolicy.officialUrl);
       expect(document.body).not.toHaveTextContent("공식 수집");
-      const controlHelp = screen.getByText("이 혜택은 안내 페이지에서 확인한 뒤 일정에 반영해 주세요.");
       const saveButton = screen.getByRole("button", { name: "저장" });
       const tripButton = screen.getByRole("button", { name: /내 일정에 담기|일정에 담김/ });
-      expect(saveButton).toBeDisabled();
-      expect(saveButton).toHaveAttribute("aria-describedby", controlHelp.id);
-      expect(tripButton).toBeDisabled();
-      expect(tripButton).toHaveAttribute("aria-describedby", controlHelp.id);
+      expect(saveButton).not.toBeDisabled();
+      expect(tripButton).not.toBeDisabled();
       await user.click(saveButton);
       await user.click(tripButton);
-      expect(savePolicySpy).not.toHaveBeenCalled();
-      expect(listTripsSpy).not.toHaveBeenCalled();
-      expect(addPolicyToTripSpy).not.toHaveBeenCalled();
+      await user.click(await screen.findByRole("button", { name: /부산 공식 혜택 여행/ }));
+      expect(savePolicySpy).toHaveBeenCalledWith("travelmonth-58");
+      expect(listTripsSpy).toHaveBeenCalled();
+      await waitFor(() => expect(addPolicyToTripSpy).toHaveBeenCalledWith("201", "travelmonth-58"));
     } finally {
       getPolicySpy.mockRestore();
       listTripsSpy.mockRestore();

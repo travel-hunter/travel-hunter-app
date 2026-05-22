@@ -9,8 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core import security
 from app.data import seed
-from app.models import ExternalSourceRecord, Policy, Trip, TripDay, TripInvite, TripPlace, User
-from app.repositories import external_sources as external_source_repository
+from app.models import Policy, Trip, TripDay, TripInvite, TripPlace, User
 from app.repositories import policies as policy_repository
 from app.repositories import trips as trip_repository
 from app.schemas.trip import (
@@ -164,13 +163,6 @@ def _list_recommended_policy_candidates(db: Session) -> list[dict[str, object]]:
         candidates.extend(
             _policy_to_trip_policy_candidate(policy)
             for policy in policy_repository.list_policies(db)
-        )
-    except AttributeError:
-        pass
-    try:
-        candidates.extend(
-            _external_source_record_to_trip_policy_candidate(record)
-            for record in external_source_repository.list_regional_benefit_recommendation_records(db)
         )
     except AttributeError:
         pass
@@ -406,6 +398,7 @@ def add_policy_to_trip(
     policy_slug: str,
 ) -> dict[str, object]:
     trip = _resolve_required_trip(db, trip_handle, user)
+    _require_trip_editor(trip, user)
     policy = policy_repository.get_policy_by_slug(db, policy_slug)
     if policy is None:
         raise TripServiceError(404, "Policy not found")

@@ -1,4 +1,4 @@
-import { ChevronLeft } from "lucide-react";
+﻿import { ChevronLeft } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { appDataApi } from "../../api";
@@ -71,17 +71,13 @@ function normalizeRegionParam(value: string | null): string | null {
   return (tripCreateRegions as readonly string[]).includes(value) ? value : null;
 }
 
-function isCollectedExternalPolicySlug(value: string | undefined): boolean {
-  return value?.startsWith("travelmonth-") ?? false;
-}
-
 export function ItineraryCreatePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { profile, updateProfile, addPolicy } = useSession();
   const policySlug = searchParams.get("policySlug") ?? undefined;
   const requestedRegion = normalizeRegionParam(searchParams.get("region"));
-  const linkablePolicySlug = isCollectedExternalPolicySlug(policySlug) ? undefined : policySlug;
+  const linkablePolicySlug = policySlug;
   const defaultTripDatesRef = useRef(getDefaultTripDateRange());
   const defaultTripStartDate = defaultTripDatesRef.current.startDate;
   const defaultTripEndDate = defaultTripDatesRef.current.endDate;
@@ -109,10 +105,10 @@ export function ItineraryCreatePage() {
         ? "일정 기간은 2일부터 5일까지 선택할 수 있어요."
         : "";
   const linkedPolicyLabel = linkablePolicySlug
-    ? "선택한 정책을 새 일정에 연결할게요"
-    : isCollectedExternalPolicySlug(policySlug)
-      ? "선택한 혜택을 참고해 일정을 만들게요"
-      : "";
+    ? linkablePolicySlug.startsWith("travelmonth-")
+      ? "선택한 정책까지 일정에 연결할게요"
+      : "선택한 정책을 새 일정에 연결할게요"
+    : "";
   const canProceed =
     step === 1
       ? Boolean(selectedRegion)
@@ -266,7 +262,7 @@ export function ItineraryCreatePage() {
       <div className="prototype-create-content">
         {linkedPolicyLabel && step === 1 && (
           <div className="prototype-linked-policy-banner">
-            <span aria-hidden="true">🎁</span>
+            <span aria-hidden="true">혜택</span>
             <strong>{linkedPolicyLabel}</strong>
           </div>
         )}
@@ -274,7 +270,7 @@ export function ItineraryCreatePage() {
         {step === 1 && (
           <section className="prototype-create-step-panel">
             <h2>어디로 떠나나요?</h2>
-            <p>지역을 선택하면 맞춤 정책을 찾아드려요.</p>
+            <p>지역을 선택하면 맞춤 혜택을 찾아드려요.</p>
             <div className="prototype-region-grid">
               {tripCreateRegions.map((region) => (
                 <button className={selectedRegion === region ? "active" : ""} key={region} onClick={() => selectRegion(region)} type="button">
@@ -317,7 +313,7 @@ export function ItineraryCreatePage() {
               </label>
             </div>
             <div className={dateRangeError ? "prototype-date-summary invalid" : "prototype-date-summary"}>
-              <span>🧳</span>
+              <span>기간</span>
               <strong>{dayCount && !dateRangeError ? `총 ${dayCount}일 여행` : dateRangeError}</strong>
             </div>
           </section>
@@ -329,17 +325,22 @@ export function ItineraryCreatePage() {
             <p>나중에 언제든 변경할 수 있어요.</p>
             <label className="prototype-title-field">
               일정 제목
-              <input name="trip-title" onChange={(event) => setTitleDraft(event.target.value)} placeholder={generatedTripTitle(selectedRegion, dayCount)} value={titleDraft} />
+              <input
+                aria-label="일정 제목"
+                name="trip-title"
+                onChange={(event) => setTitleDraft(event.target.value)}
+                placeholder={generatedTripTitle(selectedRegion, dayCount)}
+                value={titleDraft}
+              />
             </label>
             <div className="prototype-create-summary">
               <span>요약</span>
-              <div>📍 지역 · {selectedRegion}</div>
+              <div>지역 · {selectedRegion}</div>
               <div>
-                🗓 일정 · {formatTripCreateDate(startDate)} ~ {formatTripCreateDate(endDate)} ({dayCount ?? "-"}일)
+                일정 · {formatTripCreateDate(startDate)} ~ {formatTripCreateDate(endDate)} ({dayCount ?? "-"}일)
               </div>
-              <div>👥 인원 · 1명</div>
-              {linkablePolicySlug && <div className="linked">🎁 연결 정책 · 선택한 정책</div>}
-              {!linkablePolicySlug && isCollectedExternalPolicySlug(policySlug) && <div className="linked">🎁 참고 혜택 · 선택한 혜택</div>}
+              <div>인원 · 1명</div>
+              {linkablePolicySlug && <div className="linked">연결 정책 · 선택한 정책</div>}
             </div>
           </section>
         )}

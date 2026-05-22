@@ -6,6 +6,7 @@ from datetime import date, datetime
 from sqlalchemy.orm import Session
 
 from app.repositories import external_sources as external_source_repository
+from app.services import policy_normalization
 from app.services.travelmonth_parser import parse_regional_benefits
 
 
@@ -34,6 +35,8 @@ def collect_regional_benefits_from_html(
         today=today,
     )
     rows = external_source_repository.upsert_external_source_records(db, sources)
+    if rows:
+        policy_normalization.promote_external_benefits_to_policies(db)
     db.commit()
     return CollectionResult(
         source_name="여행가는 달",

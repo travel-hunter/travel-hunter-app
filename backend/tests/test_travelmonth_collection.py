@@ -20,9 +20,16 @@ def test_collect_regional_benefits_from_html_parses_and_upserts(monkeypatch) -> 
         captured["sources"] = source_list
         return source_list
 
+    def fake_promote(db):
+        captured["promoted_db"] = db
+
     monkeypatch.setattr(
         "app.services.travelmonth_collection.external_source_repository.upsert_external_source_records",
         fake_upsert,
+    )
+    monkeypatch.setattr(
+        "app.services.travelmonth_collection.policy_normalization.promote_external_benefits_to_policies",
+        fake_promote,
     )
 
     html = """
@@ -46,6 +53,7 @@ def test_collect_regional_benefits_from_html_parses_and_upserts(monkeypatch) -> 
     )
 
     assert captured["db"] is db
+    assert captured["promoted_db"] is db
     assert len(captured["sources"]) == 1
     assert result.created_or_updated_count == 1
     assert result.source_name == "여행가는 달"

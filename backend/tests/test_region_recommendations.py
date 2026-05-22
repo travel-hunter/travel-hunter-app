@@ -7,7 +7,7 @@ from sqlalchemy import Integer, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.db.base import Base
-from app.models import ExternalSourceRecord
+from app.models import ExternalSourceRecord, Policy
 from app.repositories.external_sources import upsert_external_source_records
 from app.schemas.external_sources import TravelMonthRegionalBenefitSource
 from app.services.region_recommendations import recommend_regions
@@ -19,9 +19,12 @@ FETCHED_AT = datetime(2026, 5, 21, 9, 0, 0)
 @pytest.fixture
 def db() -> Session:
     engine = create_engine("sqlite:///:memory:")
-    id_column = ExternalSourceRecord.__table__.c.id
-    original_type = id_column.type
-    id_column.type = Integer()
+    external_id_column = ExternalSourceRecord.__table__.c.id
+    policy_id_column = Policy.__table__.c.id
+    original_external_id_type = external_id_column.type
+    original_policy_id_type = policy_id_column.type
+    external_id_column.type = Integer()
+    policy_id_column.type = Integer()
     try:
         Base.metadata.create_all(engine)
         TestingSessionLocal = sessionmaker(bind=engine)
@@ -29,7 +32,8 @@ def db() -> Session:
             yield session
         Base.metadata.drop_all(engine)
     finally:
-        id_column.type = original_type
+        external_id_column.type = original_external_id_type
+        policy_id_column.type = original_policy_id_type
 
 
 def make_source(
