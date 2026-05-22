@@ -600,7 +600,7 @@ OAuth provider callback 처리.
 ```
 
 `category` 허용 값: `"교통" | "숙박" | "여행상품" | "지역할인" | "이벤트" | "기타"`
-`sourceType` 허용 값: `"internal" | "external"`. `external`은 `external_source_records`에서 변환된 공식 수집 혜택이며, slug는 `travelmonth-{externalSourceRecordId}` 형식이다. 외부 수집 혜택은 공식 안내 URL 중심으로 노출하고 저장/일정 연결은 내부 `policies` 레코드로 승격하기 전까지 제공하지 않는다.
+`sourceType` 허용 값은 `"internal" | "external"`이며 API 호환과 내부 진단을 위해 유지한다. 사용자 화면은 `internal/external` 같은 구현 구분 문구를 노출하지 않는다. 다만 raw collected record는 normalization migration으로 `policies`에 승격되기 전까지 저장/일정 연결 같은 action에 임시 제한이 있을 수 있다. normalization 이후 사용자에게 노출되는 정책은 동일한 저장/일정 연결 동작을 공유해야 한다.
 
 ---
 
@@ -1001,7 +1001,7 @@ SOLAPI 발송 결과 webhook 수신. `X-Solapi-Secret` 헤더로 검증.
 | category | string | `"교통" \| "숙박" \| "여행상품" \| "지역할인" \| "이벤트" \| "기타"` |
 | requirements | string[] | 신청 조건 목록 |
 | documents | string[] | 필요 서류 목록 |
-| officialUrl | string \| null | 공식 안내 URL |
+| officialUrl | string \| null | 공식 안내 URL. 사용자 화면 CTA 라벨은 `혜택 안내 보기` |
 | applyUrl | string \| null | 신청 URL |
 | sourceType | string | `"internal"` \| `"external"`; 생략 시 internal로 간주 |
 

@@ -1406,7 +1406,7 @@ describe("Travel Hunter app", () => {
       id: "travelmonth-58",
       slug: "travelmonth-58",
       label: "부산",
-      tag: "공식 수집",
+      tag: "최대 2만원",
       title: "부산 여행 캐시백",
       org: "부산관광공사",
       region: "부산",
@@ -1416,7 +1416,7 @@ describe("Travel Hunter app", () => {
       match: 80,
       category: "지역할인",
       requirements: ["공식 안내에서 신청 조건을 확인하세요."],
-      documents: ["공식 안내 확인"],
+      documents: ["혜택 안내 확인"],
       officialUrl: "https://korean.visitkorea.or.kr/travelmonth/benefit.do",
       applyUrl: null,
       sourceType: "external",
@@ -1448,7 +1448,7 @@ describe("Travel Hunter app", () => {
       id: "travelmonth-58",
       slug: "travelmonth-58",
       label: "부산",
-      tag: "공식 수집",
+      tag: "최대 2만원",
       title: "부산 여행 캐시백",
       org: "부산관광공사",
       region: "부산",
@@ -1458,7 +1458,7 @@ describe("Travel Hunter app", () => {
       match: 80,
       category: "지역할인",
       requirements: ["공식 안내에서 신청 조건을 확인하세요."],
-      documents: ["공식 안내 확인"],
+      documents: ["혜택 안내 확인"],
       officialUrl: "https://korean.visitkorea.or.kr/travelmonth/benefit.do",
       applyUrl: null,
       sourceType: "external",
@@ -1897,7 +1897,7 @@ describe("Travel Hunter app", () => {
     await user.click(screen.getByRole("button", { name: /공지사항 \/ FAQ/ }));
     let dialog = await screen.findByRole("dialog", { name: "공지사항 / FAQ" });
     expect(within(dialog).getByText("정책 정보는 어떻게 확인하나요?")).toBeInTheDocument();
-    expect(within(dialog).getByText("신청 버튼과 공식 안내 버튼은 무엇이 다른가요?")).toBeInTheDocument();
+    expect(within(dialog).getByText("신청 버튼과 혜택 안내 보기 버튼은 무엇이 다른가요?")).toBeInTheDocument();
     expect(document.body).not.toHaveTextContent("준비 중이에요.");
     await user.click(within(dialog).getByRole("button", { name: "닫기" }));
 

@@ -104,13 +104,15 @@ def _external_policy_label(record: ExternalSourceRecord) -> str:
 def external_source_record_to_policy_api(
     record: ExternalSourceRecord,
 ) -> dict[str, object]:
-    amount = record.benefit_value_text or record.benefit_text or "공식 안내 확인"
+    amount = record.benefit_value_text or record.benefit_text or "혜택 확인 필요"
+    category = _external_policy_category(record)
+    tag = record.benefit_value_text or record.benefit_text or category
     summary_parts = [
         value
         for value in [record.benefit_text, record.raw_detail_text]
         if value
     ]
-    summary = summary_parts[0] if summary_parts else "공식 수집 혜택입니다."
+    summary = summary_parts[0] if summary_parts else "공식 혜택 안내를 확인해 주세요."
     if len(summary) > 180:
         summary = f"{summary[:177].rstrip()}..."
 
@@ -118,7 +120,7 @@ def external_source_record_to_policy_api(
         "id": external_policy_slug(record),
         "slug": external_policy_slug(record),
         "label": _external_policy_label(record),
-        "tag": "공식 수집",
+        "tag": tag,
         "title": record.title,
         "org": record.organizer_text or record.source_name,
         "region": record.region or "전국",
@@ -126,9 +128,9 @@ def external_source_record_to_policy_api(
         "amount": amount,
         "summary": summary,
         "match": 80,
-        "category": _external_policy_category(record),
+        "category": category,
         "requirements": ["공식 안내에서 신청 조건을 확인하세요."],
-        "documents": ["공식 안내 확인"],
+        "documents": ["혜택 안내 확인"],
         "officialUrl": record.detail_url or record.collected_page_url,
         "applyUrl": None,
         "sourceType": "external",

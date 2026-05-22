@@ -30,7 +30,7 @@ Cloudflare는 뒤로 미루고, 현재 1순위는 로컬 Docker Compose에서 �
 2026-05-22 보강 기준:
 
 - `/trips/new?region=...`는 홈 추천 지역을 새 일정 생성 지역으로 유지한다.
-- `travelmonth-{id}` 공식 수집 정책 slug는 새 일정 생성 시 참고만 하고 내부 정책 연결 요청에는 포함하지 않는다.
+- `travelmonth-{id}` 공식 수집 정책 slug는 새 일정 생성 시 참고만 하고 내부 정책 연결 요청에는 포함하지 않는다. raw 수집 레코드는 normalization 전까지 저장/일정 연결 action을 neutral 안내와 함께 임시 제한한다.
 - `/trips/{id}` 추천 정책 카드는 hardcoded article 대신 backend `recommendedPolicies`를 렌더링하고 내부 정책 및 `travelmonth-{id}` 공식 수집 혜택 상세인 `/policies/{slug}`로 이동한다.
 - `/ai-results?tripId=...`는 현재 일정에 이미 있는 추천 장소를 중복 추가하지 않는다.
 
@@ -39,7 +39,7 @@ Cloudflare는 뒤로 미루고, 현재 1순위는 로컬 Docker Compose에서 �
 - 문서 산출물을 핵심 문서와 `docs/deployment-cicd/` 기준으로 정리했다.
 - DB schema 기준을 `docs/db-schema-current.md`, `docs/db-schema-current.sql`로 교체했다.
 - frontend itinerary page를 개별 page 파일로 분리하고 기존 route import를 유지했다.
-- 정책 상세 CTA가 `신청하러 가기`, `공식 안내 확인`, `신청 링크 준비 중`으로 분리됐다.
+- 정책 상세 CTA가 `신청하러 가기`, `혜택 안내 보기`, `신청 링크 준비 중`으로 분리됐다.
 - 정책 JSON URL validation이 `localhost`, `127.0.0.1`, `example.*`, 빈 문자열, 잘못된 scheme을 잡도록 강화됐다.
 - `/home` 인기 국내 여행지 rail이 정책 데이터 기반으로 생성되고 가짜 별점 문구를 제거했다.
 - `/mypage` 신청 정책 카운트가 `GET /api/me/applied-policies`에 연결됐다.
@@ -50,7 +50,7 @@ Cloudflare는 뒤로 미루고, 현재 1순위는 로컬 Docker Compose에서 �
 - 기존 non-numeric 제주 3일 trip handle 지원을 제거하고 `trip_id`는 numeric string `Trip.id`만 지원하도록 계약, backend, frontend, tests, `.agent/evals`를 동기화했다.
 - Frontend `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build`, backend `python -m pytest`, compose config, stale alias search, API eval JSON validation, `git diff --check`가 통과했다.
 - `docs/deployment-cicd/staging-ops-work-orders.md`에 외주/인프라 담당자용 남은 운영 검증 작업지시서를 추가했다.
-- `/policies` 목록과 수집 정책 상세가 active/fresh TravelMonth `external_source_records`를 `sourceType="external"` 정책 DTO로 노출하고, 외부 수집 혜택은 공식 안내 CTA 중심으로 표시한다.
+- `/policies` 목록과 수집 정책 상세가 active/fresh TravelMonth `external_source_records`를 `sourceType="external"` 정책 DTO로 노출한다. 사용자 화면에는 `internal/external` 같은 구현 구분 라벨을 표시하지 않고, raw 수집 레코드는 normalization 전까지 저장/일정 연결 action을 neutral 안내와 함께 임시 제한한다.
 
 ## 다음 우선순위
 

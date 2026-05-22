@@ -144,6 +144,7 @@ def test_db_policy_list_includes_collected_external_benefits(monkeypatch) -> Non
     assert collected["region"] == "부산"
     assert collected["deadline"] == "2026-06-30"
     assert collected["amount"] == "최대 2만원"
+    assert collected["tag"] == "최대 2만원"
     assert collected["category"] == "지역할인"
     assert collected["officialUrl"] == "https://korean.visitkorea.or.kr/travelmonth/benefit.do"
     assert collected["applyUrl"] is None
@@ -175,6 +176,19 @@ def test_external_policy_category_uses_official_source_not_travel_styles() -> No
     payload = policy_service.external_source_record_to_policy_api(record)
 
     assert payload["category"] == "교통"
+
+
+def test_external_policy_fallback_copy_uses_official_benefit_wording() -> None:
+    record = make_external_record()
+    record.benefit_value_text = None
+    record.benefit_text = None
+
+    payload = policy_service.external_source_record_to_policy_api(record)
+
+    assert payload["amount"] == "혜택 확인 필요"
+    assert payload["tag"] == "지역할인"
+    assert payload["summary"] == "공식 혜택 안내를 확인해 주세요."
+    assert payload["documents"] == ["혜택 안내 확인"]
 
 
 class FakeDb:

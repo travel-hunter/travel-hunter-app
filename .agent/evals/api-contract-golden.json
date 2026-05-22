@@ -437,7 +437,7 @@
       },
       "allowedPolicyCategories": ["교통", "숙박", "여행상품", "지역할인", "이벤트", "기타"],
       "exampleSlug": "local-vacation",
-      "dbModeBehavior": "Returns DB policies plus active/fresh TravelMonth regional_benefit external_source_records mapped into the same Policy DTO. External collected benefit slugs use travelmonth-{externalSourceRecordId} and sourceType=external. Policy category is a benefit/source type; TravelMonth external records derive category from source URL/sourceCategory and do not use travelStyles for category filtering."
+      "dbModeBehavior": "Returns official-benefit Policy DTOs from DB policies and the backward-compatible active/fresh TravelMonth regional_benefit external_source_records mapping. sourceType remains in the DTO for compatibility/internal diagnostics, but user-facing UI must not expose internal/external wording. Raw collected records may have a neutral temporary save/trip action gate until normalization promotes them into policies; after normalization, exposed policies should share save/trip behavior. Policy category is a benefit/source type; TravelMonth records derive category from source URL/sourceCategory and do not use travelStyles for category filtering."
     },
     {
       "method": "GET",

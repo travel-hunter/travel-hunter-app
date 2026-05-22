@@ -27,11 +27,11 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - Kakao/Google OAuth authorization code flow entry point.
 - password reset request/confirm flow.
 - 프로필 설정과 마이페이지 프로필 편집.
-- 정책 목록, 카테고리/지역/기간/금액 필터, 정책 저장/해제. `/policies` 목록은 DB `policies` 레코드와 active/fresh 공식 수집 혜택(`external_source_records`)을 함께 노출한다.
-- 정책 상세의 지원 내용, 신청 기간, 신청 대상, 필요 서류, 공유, 일정 담기.
+- 정책 목록, 카테고리/지역/기간/금액 필터, 정책 저장/해제. `/policies` 목록은 DB `policies` 레코드와 active/fresh 공식 수집 혜택(`external_source_records`)을 함께 노출하되 raw 수집 레코드는 normalization 전까지 저장 action을 임시 제한한다.
+- 정책 상세의 지원 내용, 신청 기간, 신청 대상, 필요 서류, 공유, 일정 담기. raw 수집 레코드는 neutral 안내와 함께 일정 담기 action을 임시 제한한다.
 - 정책 상세 CTA 분리:
   - `applyUrl`: `신청하러 가기`
-  - `officialUrl`: `공식 안내 확인`
+  - `officialUrl`: `혜택 안내 보기`
   - URL 없음: `신청 링크 준비 중`
 - 정책 JSON validation:
   - shape, duplicate slug, deadline, encoding-risk marker 검사.
@@ -61,7 +61,7 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - 외주/인프라 담당자용 staging 운영 검증 작업지시서를 `docs/deployment-cicd/staging-ops-work-orders.md`로 추가했다.
 - 여행가는 달 지역 여행할인 모아보기 외부 수집 기반을 추가해 공식 출처 레코드 저장, 원문 보존, 파생 지역/상태/혜택/선호도 필드를 지원한다. 현재 공식 live HTML의 목록/상세 modal 구조는 58건 fetch/parse/upsert smoke로 검증했고, scheduler는 `EXTERNAL_COLLECTION_MIN_PARSED_COUNT` 미달 수집을 실패로 처리해 재시도하며 마지막 시도/성공/parsed count/outcome/error 상태를 내부 관측값으로 남긴다. 운영 확인은 기존 `/api/health` 계약을 유지한 채 Bearer 인증이 필요한 `GET /api/ops/external-collection`에서 scheduler 상태를, `GET /api/ops/external-collection/quality`에서 저장 품질과 추천 반영 preview를 분리해 확인한다.
 - `external_source_records` 기반 지역 추천 API는 신청 가능 혜택 수, 마감 임박, 명시 금액, 취향 보조 점수, 프로필 지역 최종 tie-breaker를 사용해 지역/목적지 추천 후보를 반환한다.
-- active/fresh TravelMonth `regional_benefit` 수집 레코드는 `travelmonth-{externalSourceRecordId}` slug와 `sourceType="external"` 정책 DTO로 변환되어 `/api/policies` 및 `/api/policies/{policySlug}`에 노출된다. 외부 수집 혜택은 공식 안내 CTA 중심으로 표시하고 저장/일정 담기는 내부 정책 레코드로 승격하기 전까지 제공하지 않는다.
+- active/fresh TravelMonth `regional_benefit` 수집 레코드는 `travelmonth-{externalSourceRecordId}` slug와 `sourceType="external"` 정책 DTO로 변환되어 `/api/policies` 및 `/api/policies/{policySlug}`에 노출된다. 사용자 화면에서는 `internal/external`, `공식 수집`, `내부 정책` 같은 구현 구분을 표시하지 않고 모든 노출 정책을 공식 혜택으로 표현한다. 다만 raw 수집 레코드는 normalization migration으로 `policies`에 승격되기 전까지 저장/일정 연결 action을 neutral 안내와 함께 임시 제한하며, raw external record 직접 노출 제거는 후속 normalization migration에서 처리한다.
 
 ## 현재 조건부 항목
 

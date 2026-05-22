@@ -61,7 +61,7 @@ test("backend data source drives policy, trip, recommendation, invite, and logou
 
   await page.goto("/policies/local-vacation");
   await expect(page.locator("#root")).not.toBeEmpty();
-  await expect(page.getByRole("link", { name: "공식 안내 확인" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "혜택 안내 보기" })).toHaveAttribute(
     "href",
     "https://www.mcst.go.kr/site/s_notice/press/pressView.jsp?pMenuCD=0302000000&pSeq=22267",
   );
@@ -205,7 +205,7 @@ test("home recommendation starts a new trip and reaches recommended policy detai
   expect(policyHref).toMatch(/^\/policies\/.+/);
   await recommendedPolicyLink.click();
   await expect(page).toHaveURL(/\/policies\/.+/);
-  await expect(page.getByRole("link", { name: "공식 안내 확인" }).or(page.getByRole("link", { name: "신청하러 가기" }))).toBeVisible();
+  await expect(page.getByRole("link", { name: "혜택 안내 보기" }).or(page.getByRole("link", { name: "신청하러 가기" }))).toBeVisible();
 });
 
 async function expectNoDocumentOverflow(page: Page) {
