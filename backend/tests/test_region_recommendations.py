@@ -178,6 +178,39 @@ def test_region_recommendations_ignore_inactive_or_stale_records(db: Session) ->
     assert [item.region for item in recommendations] == ["부산"]
 
 
+def test_region_recommendations_prefers_profile_region_over_style_match_on_tie(db: Session) -> None:
+    today = date(2026, 5, 21)
+    upsert_external_source_records(
+        db,
+        [
+            make_source(
+                "busan-1",
+                region="Busan",
+                title="Busan general support",
+                amount=10000,
+                styles=[],
+            ),
+            make_source(
+                "jeju-1",
+                region="Jeju",
+                title="Jeju relax support",
+                amount=10000,
+                styles=["휴식"],
+            ),
+        ],
+    )
+
+    recommendations = recommend_regions(
+        db,
+        today=today,
+        style="휴식",
+        region="Busan",
+        limit=2,
+    )
+
+    assert [item.region for item in recommendations] == ["Busan", "Jeju"]
+
+
 def test_region_recommendations_read_records_created_by_travelmonth_collection(db: Session) -> None:
     from app.services.travelmonth_collection import collect_regional_benefits_from_html
 

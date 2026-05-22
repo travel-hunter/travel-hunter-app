@@ -41,7 +41,7 @@ Status: HIGH resolved — MEDIUM/LOW follow-up remains
 
 ## MEDIUM — 권장 수정
 
-- [ ] **프론트엔드 번들에 하드코딩된 password123**
+- [x] **프론트엔드 번들에 하드코딩된 password123**
   파일: `frontend/src/api/backendApi.ts:38-46`
   문제: `defaultLogin`·`defaultSignup` 객체의 `"password123"` 리터럴이 프로덕션 번들에 포함됨.
   수정: `import.meta.env.VITE_DEV_PASSWORD` 등 환경 변수로 대체하거나 기본값 객체를 dev 빌드에서만 포함.
@@ -62,7 +62,7 @@ Status: HIGH resolved — MEDIUM/LOW follow-up remains
   # 결과가 있어야 한다
   ```
 
-- [ ] **updated_at 컬럼 onupdate 누락**
+- [x] **updated_at 컬럼 onupdate 누락**
   파일: `backend/app/models/tables.py`
   문제: `updated_at` 컬럼이 `server_default=func.now()`만 있고 `onupdate=func.now()` 없음. 행 갱신 시 자동 업데이트 안 됨.
   수정: 각 테이블 `updated_at` 컬럼에 `onupdate=func.now()` 추가.
@@ -76,7 +76,7 @@ Status: HIGH resolved — MEDIUM/LOW follow-up remains
 
 ## LOW — 개선 권장 (병합 차단 아님)
 
-- [ ] **프로필 지역 랭킹 우선순위 낮음**
+- [x] **프로필 지역 랭킹 우선순위 낮음**
   파일: `backend/app/services/region_recommendations.py:109-117`
   문제: `_ranking_key` 튜플에서 `profile_region_match`가 `style_matched_count`보다 낮은 우선순위. 사용자 선호 지역이 스타일보다 덜 반영됨.
   확인:

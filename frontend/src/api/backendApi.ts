@@ -35,22 +35,25 @@ import {
 } from "./dataApi";
 import { ContactInfo, ContactVerificationRequestResponse, InviteRole, InviteState, NotificationSettings, Policy, Profile, ProfileOptions, Recommendation, RegionRecommendation, Trip, User } from "./types";
 
-const defaultLogin: LoginRequest = {
-  email: user.email,
-  password: "password123",
-};
+const getDefaultDevPassword = (): string =>
+  import.meta.env.VITE_DEV_PASSWORD?.trim() || "";
 
-const defaultSignup: SignupRequest = {
+const makeDefaultLogin = (): LoginRequest => ({
   email: user.email,
-  password: "password123",
-};
+  password: getDefaultDevPassword(),
+});
+
+const makeDefaultSignup = (): SignupRequest => ({
+  email: user.email,
+  password: getDefaultDevPassword(),
+});
 
 export const backendApi: AppDataApi = {
   getPreviewUser: (): User => user,
   getProfileOptions: (): ProfileOptions => ({ regions, travelStyles, budgets }),
   getPreviewTrip: (): Trip => itinerary,
-  login: (request = defaultLogin): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/login", request),
-  signup: (request = defaultSignup): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/signup", request),
+  login: (request = makeDefaultLogin()): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/login", request),
+  signup: (request = makeDefaultSignup()): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/signup", request),
   checkEmailAvailability: (request: EmailAvailabilityRequest): Promise<EmailAvailabilityResponse> => apiClient.post<EmailAvailabilityResponse>("/api/auth/email-check", request),
   getNicknameSuggestion: (): Promise<NicknameSuggestionResponse> => apiClient.get<NicknameSuggestionResponse>("/api/me/nickname-suggestion"),
   updateNickname: (request: NicknameUpdateRequest): Promise<User> => apiClient.patch<User>("/api/me/nickname", request),

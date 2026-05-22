@@ -51,7 +51,7 @@ class User(Base):
         DateTime, nullable=False, server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, server_default=func.now()
+        DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
     refresh_tokens: Mapped[list[AuthRefreshToken]] = relationship(
@@ -260,7 +260,7 @@ class ExternalSourceRecord(Base):
         DateTime, nullable=False, server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, server_default=func.now()
+        DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
 
@@ -279,7 +279,7 @@ class Trip(Base):
         DateTime, nullable=False, server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, server_default=func.now()
+        DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
     owner: Mapped[User] = relationship(back_populates="owned_trips")
@@ -407,7 +407,7 @@ class UserNotificationSetting(Base):
         DateTime, nullable=False, server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, server_default=func.now()
+        DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
     user: Mapped[User] = relationship(back_populates="notification_settings")
@@ -450,7 +450,7 @@ class NotificationDelivery(Base):
         DateTime, nullable=False, server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, server_default=func.now()
+        DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
     user: Mapped[User] = relationship(back_populates="notification_deliveries")
