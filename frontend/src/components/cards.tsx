@@ -53,6 +53,7 @@ export function PolicyListCard({
       setIsSaving(false);
     }
   };
+  // Temporary capability gate: raw collected records are not saveable until promoted into policies.
   const canSave = policy.sourceType !== "external" && Boolean(onToggleSave);
 
   return (
@@ -62,7 +63,6 @@ export function PolicyListCard({
         <div className="policy-list-copy">
           <div className="policy-list-taxonomy">
             <span>{policy.category}</span>
-            {policy.sourceType === "external" && <em>공식 수집</em>}
           </div>
           <div className="policy-list-badges">
             <span>{policy.amount}</span>

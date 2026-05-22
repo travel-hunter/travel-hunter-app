@@ -1397,18 +1397,18 @@ describe("Travel Hunter app", () => {
     expect(screen.queryByText("속초 숙박 할인권")).not.toBeInTheDocument();
   });
 
-  it("renders collected official benefits in the policy list without save action", async () => {
+  it("renders collected TravelMonth benefits in the policy list", async () => {
     const collectedPolicy: Policy = {
       id: "travelmonth-58",
       slug: "travelmonth-58",
       label: "부산",
       tag: "공식 수집",
-      title: "부산 야경투어 여행가는 달 할인",
+      title: "부산 여행 캐시백",
       org: "부산관광공사",
       region: "부산",
       deadline: "2026-06-30",
       amount: "최대 2만원",
-      summary: "부산 야경투어 상품 할인",
+      summary: "부산 여행 캐시백 상품 할인",
       match: 80,
       category: "지역할인",
       requirements: ["공식 안내에서 신청 조건을 확인하세요."],
@@ -1427,9 +1427,11 @@ describe("Travel Hunter app", () => {
       cleanup();
       renderRoute("/policies");
 
-      await waitFor(() => expect(document.body).toHaveTextContent("부산 야경투어 여행가는 달 할인"));
-      expect(getLink("/policies/travelmonth-58")).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: /부산 야경투어 여행가는 달 할인 즐겨찾기/ })).not.toBeInTheDocument();
+      await waitFor(() => expect(getLink("/policies/travelmonth-58")).toBeInTheDocument());
+      expect(document.body).toHaveTextContent("부산 여행 캐시백");
+      expect(document.body).not.toHaveTextContent("공식 수집");
+      expect(document.body).not.toHaveTextContent("external");
+      expect(screen.queryByRole("button", { name: /부산 여행 캐시백 즐겨찾기/ })).not.toBeInTheDocument();
       expect(savePolicySpy).not.toHaveBeenCalled();
     } finally {
       listPoliciesSpy.mockRestore();
