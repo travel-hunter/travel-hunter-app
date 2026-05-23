@@ -9,7 +9,7 @@ from app.db.base import Base
 from app.models import ExternalSourceRecord, Policy
 from app.repositories.external_sources import upsert_external_source_records
 from app.repositories.policies import get_policy_by_slug
-from app.schemas.external_sources import TravelMonthRegionalBenefitSource
+from app.schemas.external_sources import ExternalBenefitSource, TravelMonthRegionalBenefitSource
 
 
 def make_source(**overrides) -> TravelMonthRegionalBenefitSource:
@@ -135,3 +135,48 @@ def test_skips_inactive_or_stale_records(db: Session) -> None:
 
     assert result.promoted_count == 0
     assert db.query(Policy).count() == 0
+
+
+def test_upsert_accepts_non_regional_external_source(db: Session) -> None:
+    source = ExternalBenefitSource(
+        source_name="여행가는 달",
+        source_type="official_campaign",
+        source_url="https://korean.visitkorea.or.kr/travelmonth/benefits/traffic.do",
+        source_category="traffic_benefit",
+        external_id="traffic-rail-1",
+        canonical_key="traffic-rail-1",
+        detail_url="https://www.korail.com",
+        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefits/traffic.do",
+        title="TravelMonth rail discount",
+        organizer_text="Korail",
+        organizers=["Korail"],
+        region="Nationwide",
+        city=None,
+        is_nationwide=True,
+        status_text="active",
+        status="active",
+        start_date=None,
+        end_date=None,
+        benefit_text="Theme train fare 50% discount",
+        benefit_value_text="50% discount",
+        extracted_amount_krw=None,
+        extracted_discount_percent=50,
+        benefit_value_type="percent",
+        tags=["traffic", "rail"],
+        contact_text="Korail customer center",
+        inferred_travel_styles=[],
+        confidence=90,
+        field_completeness=90,
+        raw_list_text="Theme train fare 50% discount",
+        raw_detail_text="Theme train fare 50% discount",
+        raw_payload={"source": "traffic"},
+        last_fetched_at="2026-05-23T09:00:00",
+        last_verified_at="2026-05-23T09:00:00",
+        freshness_status="fresh",
+    )
+
+    rows = upsert_external_source_records(db, [source])
+
+    assert len(rows) == 1
+    assert rows[0].source_category == "traffic_benefit"
+    assert rows[0].benefit_value_type == "percent"

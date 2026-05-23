@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import ExternalSourceRecord
-from app.schemas.external_sources import TravelMonthRegionalBenefitSource
+from app.schemas.external_sources import ExternalBenefitSource
 
 
 EXTERNAL_POLICY_SLUG_PREFIX = "travelmonth-"
@@ -14,7 +14,7 @@ EXTERNAL_POLICY_SLUG_PREFIX = "travelmonth-"
 
 def _assign_record(
     record: ExternalSourceRecord,
-    source: TravelMonthRegionalBenefitSource,
+    source: ExternalBenefitSource,
 ) -> ExternalSourceRecord:
     column_names = set(ExternalSourceRecord.__table__.columns.keys())
     for key, value in source.model_dump().items():
@@ -40,7 +40,7 @@ def get_external_source_record(
 
 def upsert_external_source_records(
     db: Session,
-    sources: Iterable[TravelMonthRegionalBenefitSource],
+    sources: Iterable[ExternalBenefitSource],
 ) -> list[ExternalSourceRecord]:
     records: list[ExternalSourceRecord] = []
     for source in sources:
