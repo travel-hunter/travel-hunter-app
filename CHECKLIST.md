@@ -102,9 +102,11 @@ Remaining risks:
 
 ## 2026-05-23 Policy Category Classification
 
-- [ ] `cd backend; python -m pytest tests/test_policy_category_classifier.py tests/test_policy_db_service.py tests/test_policy_normalization.py tests/test_policy_category_reclassification_cli.py -q`
-- [ ] `cd frontend; npm test -- --run src/App.test.tsx -t "transport and travel product category tabs"`
-- [ ] `git diff --check`
+- [x] `cd backend; python -m pytest tests/test_policy_category_classifier.py tests/test_policy_db_service.py tests/test_policy_normalization.py tests/test_policy_category_reclassification_cli.py -q` passed with 27 tests.
+- [x] `cd frontend; npm test -- --run src/App.test.tsx -t "transport and travel product category tabs"` passed with 1 selected test.
+- [x] `cd backend; python -m pytest tests/test_policy_db_service.py tests/test_policy_normalization.py tests/test_trip_db_service.py -q` passed with 57 tests.
+- [x] `git diff --check` passed.
+- Note: pytest emitted a non-blocking Windows cache warning for `.pytest_cache` path creation (`WinError 183`), while all tests passed.
 
 Remaining risks:
 - Keyword rules can over-classify ambiguous policy text.
