@@ -100,6 +100,16 @@ Remaining risks:
 - OPS-02 actual full-up is blocked until real staging domain, Cloudflare tunnel token, DB password, auth secret, and public URL values are entered on the staging host.
 - SMTP, OAuth, SOLAPI, and SMS smoke checks remain blocked until provider console credentials and callback/webhook settings are configured.
 
+## 2026-05-23 Policy Category Classification
+
+- [ ] `cd backend; python -m pytest tests/test_policy_category_classifier.py tests/test_policy_db_service.py tests/test_policy_normalization.py tests/test_policy_category_reclassification_cli.py -q`
+- [ ] `cd frontend; npm test -- --run src/App.test.tsx -t "transport and travel product category tabs"`
+- [ ] `git diff --check`
+
+Remaining risks:
+- Keyword rules can over-classify ambiguous policy text.
+- Existing promoted DB rows require promotion rerun or `python -m app.scripts.reclassify_external_policy_categories --apply`.
+
 ## 남은 우선순위
 
 - [x] Complete review and merge PR #17 into `develop` after the latest checks are green.
