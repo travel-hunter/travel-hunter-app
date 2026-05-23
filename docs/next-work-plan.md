@@ -82,6 +82,12 @@ Cloudflare는 뒤로 미루고, 현재 1순위는 로컬 Docker Compose에서 �
 - 전화번호 OTP 실제 발송 staging smoke.
 - PWA service worker 1차 적용 여부 결정.
 
+## 2026-05-23 진행 메모
+
+- Cloudflare Tunnel staging env 준비 상태를 `docs/deployment-cicd/staging-env-readiness-2026-05-23.md`에 기록했다.
+- 로컬 `deploy/.env.tunnel`은 Git ignore 대상이고 Compose config shape는 통과하지만, 실제 domain, DB password, auth secret, public URLs, Cloudflare tunnel token이 placeholder라 OPS-02 actual full-up은 아직 blocked 상태다.
+- 다음 실행 가능 작업은 staging host에서 실제 env 값을 채운 뒤 `docker compose --env-file deploy/.env.tunnel -f compose.tunnel.yaml config --quiet`를 재실행하는 것이다.
+
 ## 운영 검증 후보
 
 - Cloudflare Tunnel named tunnel full-up.

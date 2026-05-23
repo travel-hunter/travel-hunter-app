@@ -28,6 +28,8 @@
    - 현재 `develop` staging smoke 후보의 검증 증거, 실행 순서, 남은 위험.
 11. `staging-ops-work-orders.md`
    - 외주/인프라 담당자용 남은 운영 검증 작업지시서.
+12. `staging-env-readiness-2026-05-23.md`
+   - 실제 secret 값을 노출하지 않는 Cloudflare Tunnel staging env 준비 상태 점검 기록.
 
 ## 역할별 빠른 경로
 
@@ -74,3 +76,4 @@ GitHub에는 Docker 이미지 archive가 아니라 이미지를 재생성할 수
 
 - `release-handoff-2026-05-20.md`: numeric trip id 정책 정리 이후 `develop` staging smoke 후보.
 - `staging-ops-work-orders.md`: 실제 domain/provider/env 준비 후 남은 운영 검증 지시서.
+- `staging-env-readiness-2026-05-23.md`: local `deploy/.env.tunnel`의 placeholder 상태와 OPS-02 전 blocker 점검 기록.

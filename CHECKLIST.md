@@ -90,6 +90,16 @@ Remaining risks:
 - Official source HTML can change without notice.
 - `traffic_benefit` remains excluded from destination ranking by design.
 
+## 2026-05-23 Staging Env Readiness
+
+- [x] Audited local `deploy/.env.tunnel` without printing secret values; required runtime keys are present but staging domain, DB password, auth secret, public URLs, and Cloudflare tunnel token remain placeholder values.
+- [x] `docker compose --env-file deploy/.env.tunnel -f compose.tunnel.yaml config --quiet` passed.
+- [x] `git check-ignore -v deploy/.env.tunnel deploy/.env.staging deploy/.env.tunnel.example deploy/.env.staging.example` confirmed real env files are ignored.
+
+Remaining risks:
+- OPS-02 actual full-up is blocked until real staging domain, Cloudflare tunnel token, DB password, auth secret, and public URL values are entered on the staging host.
+- SMTP, OAuth, SOLAPI, and SMS smoke checks remain blocked until provider console credentials and callback/webhook settings are configured.
+
 ## 남은 우선순위
 
 - [x] Complete review and merge PR #17 into `develop` after the latest checks are green.
