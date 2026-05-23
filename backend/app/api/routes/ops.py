@@ -27,6 +27,7 @@ def external_collection_ops_health(
 def external_collection_quality_report(
     style: str | None = None,
     region: str | None = None,
+    sourceCategory: str | None = None,
     limit: int = Query(default=3, ge=1, le=10),
     _current_user: User | None = Depends(get_current_user),
     db: Session | None = Depends(get_optional_db),
@@ -37,5 +38,6 @@ def external_collection_quality_report(
         db,
         style=style,
         region=region,
+        source_category=sourceCategory,
         limit=limit,
     )

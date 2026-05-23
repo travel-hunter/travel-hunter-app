@@ -86,6 +86,7 @@ Bearer 인증이 필요하다.
 |------|------|-------------|
 | style | string, optional | 추천 preview에 전달할 취향 보정 값 |
 | region | string, optional | 추천 preview에 전달할 최종 tie-breaker 지역 |
+| sourceCategory | string, optional | `regional_benefit`, `traffic_benefit`, `local_half_trip` 같은 외부 수집 source category 필터 |
 | limit | number, optional | 추천 preview 개수. 기본 3, 1~10 |
 
 **Response 200**

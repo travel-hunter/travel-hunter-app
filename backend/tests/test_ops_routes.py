@@ -12,7 +12,7 @@ from app.db.base import Base
 from app.main import app
 from app.models import ExternalSourceRecord, User
 from app.repositories.external_sources import upsert_external_source_records
-from app.schemas.external_sources import TravelMonthRegionalBenefitSource, TravelStyle
+from app.schemas.external_sources import ExternalBenefitSource, TravelMonthRegionalBenefitSource, TravelStyle
 from app.services import external_collection_scheduler
 from app.services.region_recommendations import NATIONWIDE_REGION
 from app.services.travelmonth_collection import CollectionResult
@@ -55,8 +55,9 @@ def make_source(
     is_nationwide: bool = False,
     status: str = "active",
     freshness_status: str = "fresh",
-) -> TravelMonthRegionalBenefitSource:
-    return TravelMonthRegionalBenefitSource(
+) -> ExternalBenefitSource:
+    return ExternalBenefitSource(
+        source_name=SOURCE_NAME,
         source_type="official_campaign",
         source_url="https://korean.visitkorea.or.kr/travelmonth/benefit.do",
         source_category="regional_benefit",
@@ -93,7 +94,7 @@ def make_source(
     )
 
 
-def with_test_db(sources: list[TravelMonthRegionalBenefitSource]):
+def with_test_db(sources: list[ExternalBenefitSource]):
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -221,6 +222,60 @@ def test_external_collection_quality_report_returns_empty_counts() -> None:
         "regions": [],
         "recommendationPreview": [],
     }
+
+
+def test_external_collection_quality_accepts_source_category_filter() -> None:
+    traffic_source = ExternalBenefitSource(
+        source_name="여행가는 달",
+        source_type="official_campaign",
+        source_url="https://korean.visitkorea.or.kr/travelmonth/benefits/traffic.do",
+        source_category="traffic_benefit",
+        external_id="traffic-1",
+        canonical_key="traffic-1",
+        detail_url=None,
+        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefits/traffic.do",
+        title="Theme train discount",
+        organizer_text="Korail",
+        organizers=["Korail"],
+        region="전국",
+        city=None,
+        is_nationwide=True,
+        status_text="active",
+        status="active",
+        start_date=None,
+        end_date=None,
+        benefit_text="Theme train fare 50% discount",
+        benefit_value_text="50% discount",
+        extracted_amount_krw=None,
+        extracted_discount_percent=50,
+        benefit_value_type="percent",
+        tags=["traffic"],
+        contact_text=None,
+        inferred_travel_styles=[],
+        confidence=90,
+        field_completeness=90,
+        raw_list_text="Theme train fare 50% discount",
+        raw_detail_text="Theme train fare 50% discount",
+        raw_payload={},
+        last_fetched_at=FETCHED_AT,
+        last_verified_at=FETCHED_AT,
+        freshness_status="fresh",
+    )
+    session, engine, id_column, original_type = with_test_db([traffic_source])
+    authenticate_ops_user()
+    try:
+        response = client.get(
+            "/api/ops/external-collection/quality?sourceCategory=traffic_benefit"
+        )
+    finally:
+        clear_ops_user()
+        cleanup_test_db(session, engine, id_column, original_type)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["sourceCategory"] == "traffic_benefit"
+    assert payload["totalRecords"] == 1
+    assert payload["recordsWithAmount"] == 0
 
 
 def test_external_collection_quality_report_summarizes_saved_records() -> None:
