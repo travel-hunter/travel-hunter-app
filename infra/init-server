@@ -1,0 +1,131 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# ========================================================
+# Ubuntu Bootstrap Script
+# ========================================================
+
+# 1. sudo 권한 확인
+
+if ! sudo -v; then
+  echo "sudo 권한이 필요합니다."
+  exit 1
+fi
+
+# 2. 호스트네임 입력 받기
+echo -n "설정할 서버 hostname 입력 (예: dev-server): "
+read -r SETTING_HOSTNAME
+
+if [[ ! "$SETTING_HOSTNAME" =~ ^[a-zA-Z0-9-]+$ ]]; then
+  echo "올바르지 않은 hostname 형식입니다."
+  exit 1
+fi
+
+echo "========================================================"
+echo "시스템 업데이트를 진행합니다..."
+echo "========================================================"
+
+sudo apt-get update
+
+# ========================================================
+# 사용자 생성
+# ========================================================
+
+NEW_USER="deploy"
+USER_PASS="deploy"
+
+if id "$NEW_USER" &>/dev/null; then
+  echo "$NEW_USER 사용자가 이미 존재합니다."
+else
+  echo "$NEW_USER 사용자를 생성합니다..."
+  sudo adduser --disabled-password --gecos "" "$NEW_USER"
+
+  echo "$NEW_USER:$USER_PASS" | sudo chpasswd
+  sudo usermod -aG sudo "$NEW_USER"
+
+  echo "$NEW_USER 사용자 생성 완료."
+fi
+
+# ========================================================
+# hostname / timezone 설정
+# ========================================================
+
+echo "시스템 hostname 및 timezone 설정 중..."
+
+sudo hostnamectl set-hostname "$SETTING_HOSTNAME"
+
+sudo sed -i \
+"s/^127.0.1.1.*/127.0.1.1 $SETTING_HOSTNAME/" \
+/etc/hosts
+
+sudo timedatectl set-timezone Asia/Seoul
+
+echo "hostname 및 timezone 설정 완료."
+
+
+# 5. UFW 방화벽 설치, 포트 개방 및 systemctl 활성화
+echo "UFW 방화벽을 설치하고 설정하는 중..."
+sudo apt-get install -y ufw
+
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+
+sudo ufw allow 22/tcp comment 'SSH'
+sudo ufw allow 80/tcp comment 'HTTP'
+sudo ufw allow 443/tcp comment 'HTTPS'
+
+sudo systemctl enable ufw
+sudo ufw --force enable
+
+echo "UFW 설정 완료."
+
+# ========================================================
+# Docker 설치
+# ========================================================
+
+echo "Docker 설치를 진행합니다..."
+
+# 6-1. 기존 패키지 제거
+for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do
+  sudo apt-get remove -y "$pkg" &>/dev/null || true
+done
+
+# 6-2. 저장소 설정 및 설치
+sudo apt-get install -y ca-certificates curl gnupg
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor --yes -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+echo \
+"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+https://download.docker.com/linux/ubuntu \
+$(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+sudo apt-get install -y \
+docker-ce \
+docker-ce-cli \
+containerd.io \
+docker-buildx-plugin \
+docker-compose-plugin
+
+# 6-3. 권한 및 서비스 설정
+sudo usermod -aG docker "$NEW_USER"
+sudo systemctl enable docker
+sudo systemctl start docker
+
+echo "Docker 설치 완료."
+
+# ========================================================
+# 완료 메시지
+# ========================================================
+
+echo "--------------------------------------------------------"
+echo "Ubuntu bootstrap 완료"
+echo "--------------------------------------------------------"
+echo "hostname : $SETTING_HOSTNAME"
+echo "user     : $NEW_USER"
+echo ""
+echo "재로그인 후 docker 권한이 적용됩니다."
+echo "--------------------------------------------------------"
+
