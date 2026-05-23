@@ -1400,6 +1400,66 @@ describe("Travel Hunter app", () => {
     expect(screen.queryByText("속초 숙박 할인권")).not.toBeInTheDocument();
   });
 
+  it("shows matching policies for transport and travel product category tabs", async () => {
+    const transportPolicy: Policy = {
+      id: "transport-policy",
+      slug: "transport-policy",
+      label: "TR",
+      tag: "교통",
+      title: "남도 기차둘레길 1박 2일 최대 35% 할인행사",
+      org: "한국관광공사",
+      region: "전남",
+      deadline: "2026-05-31",
+      amount: "최대 35%",
+      summary: "남도 기차 여행상품 할인",
+      match: 90,
+      category: "교통",
+      requirements: [],
+      documents: [],
+      officialUrl: "https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+      applyUrl: null,
+      sourceType: "external",
+    };
+    const packagePolicy: Policy = {
+      id: "package-policy",
+      slug: "package-policy",
+      label: "PK",
+      tag: "여행상품",
+      title: "K리그 지역 원정 경기 관람 및 체류여행 패키지 할인",
+      org: "한국관광공사",
+      region: "전국",
+      deadline: "2026-05-31",
+      amount: "할인",
+      summary: "체류여행 패키지 할인",
+      match: 88,
+      category: "여행상품",
+      requirements: [],
+      documents: [],
+      officialUrl: "https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+      applyUrl: null,
+      sourceType: "external",
+    };
+    const policyListSpy = vi.spyOn(appDataApi, "listPolicies").mockResolvedValue([transportPolicy, packagePolicy]);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/policies");
+      const user = userEvent.setup();
+
+      await waitFor(() => expect(document.body).toHaveTextContent("남도 기차둘레길"));
+      await user.click(screen.getByRole("button", { name: "교통" }));
+      expect(document.body).toHaveTextContent("남도 기차둘레길 1박 2일 최대 35% 할인행사");
+      expect(screen.queryByText("K리그 지역 원정 경기 관람 및 체류여행 패키지 할인")).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "여행상품" }));
+      expect(document.body).toHaveTextContent("K리그 지역 원정 경기 관람 및 체류여행 패키지 할인");
+      expect(screen.queryByText("남도 기차둘레길 1박 2일 최대 35% 할인행사")).not.toBeInTheDocument();
+    } finally {
+      policyListSpy.mockRestore();
+    }
+  });
+
   it("renders collected TravelMonth benefits in the policy list", async () => {
     const collectedPolicy: Policy = {
       id: "travelmonth-58",
