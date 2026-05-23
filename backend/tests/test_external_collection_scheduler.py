@@ -228,7 +228,7 @@ def test_run_external_collection_once_opens_and_closes_session(monkeypatch) -> N
 
     monkeypatch.setattr(
         external_collection_scheduler,
-        "collect_regional_benefits_from_live_source",
+        "collect_external_benefits_from_live_sources",
         collect,
     )
 

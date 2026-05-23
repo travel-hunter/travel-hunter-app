@@ -9,10 +9,11 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import Settings, settings
 from app.db.session import get_session_factory
-from app.services.travelmonth_collection import CollectionResult
-from app.services.travelmonth_live_collector import (
-    collect_regional_benefits_from_live_source,
+from app.services.external_benefit_collection import (
+    ExternalBenefitCollectionResult,
+    collect_external_benefits_from_live_sources,
 )
+from app.services.travelmonth_collection import CollectionResult
 from app.services.notification_scheduler import parse_run_at
 
 KST = ZoneInfo("Asia/Seoul")
@@ -37,12 +38,12 @@ def run_external_collection_once(
     *,
     today: date | None = None,
     session_factory: sessionmaker[Session] | None = None,
-) -> CollectionResult:
+) -> ExternalBenefitCollectionResult:
     run_date = today or kst_now().date()
     factory = session_factory or get_session_factory()
     db = factory()
     try:
-        return collect_regional_benefits_from_live_source(db, today=run_date)
+        return collect_external_benefits_from_live_sources(db, today=run_date)
     finally:
         db.close()
 
@@ -100,11 +101,17 @@ class ExternalCollectionScheduler:
             )
             return False
 
+        outcome = getattr(result, "outcome", "success")
         self.last_successful_run_date = today
         self.status.last_successful_run_date = today
         self.status.last_parsed_count = result.parsed_count
-        self.status.last_outcome = "success"
-        self.status.last_error = None
+        self.status.last_outcome = outcome
+        self.status.last_error = (
+            _format_source_errors(result)
+            if outcome == "partial_success"
+            and isinstance(result, ExternalBenefitCollectionResult)
+            else None
+        )
         logger.info(
             "External collection completed for %s with %s parsed records.",
             today.isoformat(),
@@ -172,6 +179,15 @@ def build_external_collection_scheduler(
         poll_seconds=settings_obj.external_collection_poll_seconds,
         min_parsed_count=settings_obj.external_collection_min_parsed_count,
     )
+
+
+def _format_source_errors(result: ExternalBenefitCollectionResult) -> str | None:
+    errors = [
+        f"{source.source_category}: {source.error}"
+        for source in result.sources
+        if source.error
+    ]
+    return "; ".join(errors) if errors else None
 
 
 def start_external_collection_scheduler(
