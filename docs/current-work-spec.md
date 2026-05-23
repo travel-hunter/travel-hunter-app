@@ -27,7 +27,7 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - Kakao/Google OAuth authorization code flow entry point.
 - password reset request/confirm flow.
 - 프로필 설정과 마이페이지 프로필 편집.
-- 정책 목록, 카테고리/지역/기간/금액 필터, 정책 저장/해제. `/policies` 목록은 DB `policies` 레코드만 노출한다. active/fresh TravelMonth 혜택(`external_source_records`)은 collection normalization service가 `policies`로 승격하며, 승격된 정책은 `travelmonth-{externalSourceRecordId}` slug로 기존 상세 링크 호환성을 유지한다.
+- 정책 목록, 카테고리/지역/기간/금액 필터, 정책 저장/해제. `/policies` 목록은 DB `policies` 레코드만 노출한다. active/fresh 공식 외부 혜택(`external_source_records`)은 collection normalization service가 `policies`로 승격하며, 승격된 정책은 `travelmonth-{externalSourceRecordId}` slug로 기존 상세 링크 호환성을 유지한다.
 - 정책 상세의 지원 내용, 신청 기간, 신청 대상, 필요 서류, 공유, 일정 담기. TravelMonth 등 공식 수집 혜택은 정규화된 `policies` 레코드로 노출되므로 저장/일정 담기 action을 동일하게 지원한다.
 - 정책 상세 CTA 분리:
   - `applyUrl`: `신청하러 가기`
@@ -59,9 +59,9 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - PR #17, #18, #19, #20, #23이 `develop`에 병합됐고 로컬/원격 `develop` 기준으로 문서/계약 정합성을 다시 맞췄다.
 - 기존 non-numeric 제주 3일 trip handle 지원을 제거하고, seed 여행 데이터는 유지한 채 API 계약과 frontend/backend 테스트를 numeric trip id 기준으로 갱신했다.
 - 외주/인프라 담당자용 staging 운영 검증 작업지시서를 `docs/deployment-cicd/staging-ops-work-orders.md`로 추가했다.
-- 여행가는 달 지역 여행할인 모아보기 외부 수집 기반을 추가해 공식 출처 레코드 저장, 원문 보존, 파생 지역/상태/혜택/선호도 필드를 지원한다. 현재 공식 live HTML의 목록/상세 modal 구조는 58건 fetch/parse/upsert smoke로 검증했고, scheduler는 `EXTERNAL_COLLECTION_MIN_PARSED_COUNT` 미달 수집을 실패로 처리해 재시도하며 마지막 시도/성공/parsed count/outcome/error 상태를 내부 관측값으로 남긴다. 운영 확인은 기존 `/api/health` 계약을 유지한 채 Bearer 인증이 필요한 `GET /api/ops/external-collection`에서 scheduler 상태를, `GET /api/ops/external-collection/quality`에서 저장 품질과 추천 반영 preview를 분리해 확인한다.
-- `external_source_records` 기반 지역 추천 API는 신청 가능 혜택 수, 마감 임박, 명시 금액, 취향 보조 점수, 프로필 지역 최종 tie-breaker를 사용해 지역/목적지 추천 후보를 반환한다.
-- active/fresh TravelMonth `regional_benefit` 수집 레코드는 수집 직후 `policies`로 정규화 승격된다. `/api/policies` 및 `/api/policies/{policySlug}`는 사용자 노출 정책을 `policies` 기준으로 반환하며, 모든 노출 정책은 공식 혜택으로 동일하게 저장/일정 연결을 지원한다. `external_source_records`는 원문 근거, 품질 리포트, 지역 추천 집계의 source of evidence로 남긴다. 상세 조회에는 migration gap 대응용 raw fallback이 남아 있지만 목록/추천/사용자 action 경로는 정규화 정책을 사용한다.
+- 외부 혜택 수집은 여행가는 달 지역 여행할인, 여행가는 달 교통 혜택, 대한민국 반값여행 지역 혜택을 `external_source_records`에 저장한다. 공식 출처 레코드 저장, 원문 보존, 파생 지역/상태/혜택/선호도 필드를 지원하며, scheduler는 source별 fetch/parse 실패를 분리해 `success`, `partial_success`, `error` outcome을 남긴다. 운영 확인은 기존 `/api/health` 계약을 유지한 채 Bearer 인증이 필요한 `GET /api/ops/external-collection`에서 scheduler 상태를, `GET /api/ops/external-collection/quality`에서 source category별 저장 품질과 추천 반영 preview를 분리해 확인한다.
+- `external_source_records` 기반 지역 추천 API는 신청 가능 혜택 수, 마감 임박, 명시 금액, 취향 보조 점수, 프로필 지역 최종 tie-breaker를 사용해 지역/목적지 추천 후보를 반환한다. 목적지 랭킹에는 `regional_benefit`과 `local_half_trip`만 반영하고, 전국 단위 성격의 `traffic_benefit`은 정책 목록/상세에는 노출하되 지역 추천 점수에서는 제외한다.
+- active/fresh 외부 수집 레코드 중 `regional_benefit`, `traffic_benefit`, `local_half_trip`은 수집 직후 `policies`로 정규화 승격된다. `/api/policies` 및 `/api/policies/{policySlug}`는 사용자 노출 정책을 `policies` 기준으로 반환하며, 모든 노출 정책은 공식 혜택으로 동일하게 저장/일정 연결을 지원한다. `external_source_records`는 원문 근거, 품질 리포트, 지역 추천 집계의 source of evidence로 남긴다. 상세 조회에는 migration gap 대응용 raw fallback이 남아 있지만 목록/추천/사용자 action 경로는 정규화 정책을 사용한다.
 
 ## 현재 조건부 항목
 

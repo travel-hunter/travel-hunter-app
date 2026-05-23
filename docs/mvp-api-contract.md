@@ -77,7 +77,7 @@ TravelMonth external collection scheduler 운영 확인용 상태를 반환한�
 
 ### GET /ops/external-collection/quality
 
-TravelMonth regional benefit 수집 품질 리포트를 반환한다. 현재 DB의 `external_source_records`를 집계하며 live network fetch는 실행하지 않는다.
+외부 공식 혜택 수집 품질 리포트를 반환한다. 현재 DB의 `external_source_records`를 집계하며 live network fetch는 실행하지 않는다.
 Bearer 인증이 필요하다.
 
 **Query params**
@@ -573,7 +573,7 @@ OAuth provider callback 처리.
 
 ### GET /policies
 
-전체 정책 목록. 인증 불필요. DB `policies` 레코드만 `Policy` DTO로 반환한다. TravelMonth 등 공식 외부 수집 레코드(`external_source_records`)는 수집/검증 원문 근거로 보존하고, active/fresh `regional_benefit` 항목은 collection normalization service가 `policies`로 승격한다. 승격된 TravelMonth 정책은 기존 호환 slug `travelmonth-{externalSourceRecordId}`를 사용한다.
+전체 정책 목록. 인증 불필요. DB `policies` 레코드만 `Policy` DTO로 반환한다. TravelMonth, 대한민국 반값여행 등 공식 외부 수집 레코드(`external_source_records`)는 수집/검증 원문 근거로 보존하고, active/fresh `regional_benefit`, `traffic_benefit`, `local_half_trip` 항목은 collection normalization service가 `policies`로 승격한다. 승격된 외부 정책은 기존 호환 slug `travelmonth-{externalSourceRecordId}`를 사용한다.
 
 **Response 200** → `Policy[]`
 ```json
@@ -602,6 +602,7 @@ OAuth provider callback 처리.
 
 `category` 허용 값: `"교통" | "숙박" | "여행상품" | "지역할인" | "이벤트" | "기타"`
 `sourceType` 허용 값은 `"internal" | "external"`이며 API 호환과 내부 진단을 위해 유지한다. 사용자 화면은 `internal/external` 같은 구현 구분 문구를 노출하지 않는다. 사용자에게 노출되는 모든 정책은 정규화된 `policies` 레코드이므로 저장/일정 연결 동작을 동일하게 지원한다.
+`external_source_records.source_category` 중 정책 승격 대상은 `regional_benefit`, `traffic_benefit`, `local_half_trip`이다. 목적지/지역 추천 점수에는 `traffic_benefit`을 제외한다.
 
 ---
 

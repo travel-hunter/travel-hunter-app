@@ -78,6 +78,18 @@
 - 2026-05-22 official benefit normalization Phase 2: active/fresh TravelMonth `regional_benefit` records are promoted into `policies` with source tracking columns and `travelmonth-{externalSourceRecordId}` slugs; `/api/policies` and trip recommendations now use normalized policies instead of raw `external_source_records` merging, while detail keeps a temporary raw fallback for migration gaps. Save/trip attach actions are enabled for normalized official benefits, `/trips/new` links `travelmonth-{id}` policy slugs, and the local collection smoke now authenticates before calling ops quality. Validation passed: backend targeted pytest `55 passed`, backend full `python -m pytest -p no:cacheprovider --basetemp .pytest-tmp` `303 passed`, frontend `npm run typecheck`, frontend `npm test` `94 passed`, `alembic upgrade head --sql`, `python -m json.tool .agent/evals/api-contract-golden.json`, `docker compose -f compose.yaml config --quiet`, `docker compose -f compose.yaml build backend`, and `scripts/local-recommendation-smoke.ps1 -SkipBuild` with `collection parsedCount=58`, `quality totalRecords=58`, `region recommendations=3`, `tripId=77`, `recommendedPolicySlug=busan-cashback`, `externalPolicySlug=travelmonth-1`.
 - 2026-05-22 policy capability/error handling review alignment (`d5db116`): ops/recommendation/policy service hardening to keep review feedback consistent with policy capability filtering and error handling. Validation passed: `python -m pytest tests/test_ops_routes.py tests/test_region_recommendations.py tests/test_policy_db_service.py -q -p no:cacheprovider`, `npm test -- --run src/App.test.tsx -t "renders collected TravelMonth benefits in the policy list"`, and `git diff --check`.
 
+## 2026-05-23 External Benefit Source Expansion
+
+- [ ] `cd backend; python -m pytest tests/test_travelmonth_traffic_parser.py tests/test_dgtourcard_parser.py tests/test_external_benefit_collection.py -q`
+- [ ] `cd backend; python -m pytest tests/test_policy_normalization.py tests/test_region_recommendations.py tests/test_ops_routes.py -q`
+- [ ] `cd backend; python -m pytest`
+- [ ] `cd backend; alembic upgrade head --sql`
+- [ ] `docker compose -f compose.yaml config`
+
+Remaining risks:
+- Official source HTML can change without notice.
+- `traffic_benefit` remains excluded from destination ranking by design.
+
 ## 남은 우선순위
 
 - [x] Complete review and merge PR #17 into `develop` after the latest checks are green.
