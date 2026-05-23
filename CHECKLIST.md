@@ -80,11 +80,11 @@
 
 ## 2026-05-23 External Benefit Source Expansion
 
-- [ ] `cd backend; python -m pytest tests/test_travelmonth_traffic_parser.py tests/test_dgtourcard_parser.py tests/test_external_benefit_collection.py -q`
-- [ ] `cd backend; python -m pytest tests/test_policy_normalization.py tests/test_region_recommendations.py tests/test_ops_routes.py -q`
-- [ ] `cd backend; python -m pytest`
-- [ ] `cd backend; alembic upgrade head --sql`
-- [ ] `docker compose -f compose.yaml config`
+- [x] `cd backend; python -m pytest tests/test_travelmonth_traffic_parser.py tests/test_dgtourcard_parser.py tests/test_external_benefit_collection.py tests/test_policy_normalization.py tests/test_region_recommendations.py tests/test_ops_routes.py -q` passed with 24 tests.
+- [x] `cd backend; python -m pytest` passed with 313 tests.
+- [x] `cd backend; alembic upgrade head --sql` passed.
+- [x] `docker compose -f compose.yaml config` passed.
+- Note: pytest emitted a non-blocking cache warning for `.pytest_cache` path creation on Windows (`WinError 183`), while all tests passed.
 
 Remaining risks:
 - Official source HTML can change without notice.
