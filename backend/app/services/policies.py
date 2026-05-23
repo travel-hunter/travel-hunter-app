@@ -9,6 +9,7 @@ from app.models import User
 from app.models import Policy as PolicyModel
 from app.repositories import external_sources as external_source_repository
 from app.repositories import policies as policy_repository
+from app.services.policy_category_classifier import classify_external_policy_category
 
 
 LEGACY_CATEGORY_MAP = {
@@ -37,33 +38,7 @@ def _normalize_policy_category(policy_type: str | None) -> str:
 
 
 def _external_policy_category(record: ExternalSourceRecord) -> str:
-    if record.source_category == "traffic_benefit":
-        return "교통"
-    if record.source_category == "local_half_trip":
-        return "지역할인"
-
-    source_parts = [
-        record.collected_page_url,
-        record.detail_url,
-        record.source_category,
-    ]
-    source_text = " ".join(part for part in source_parts if part).lower()
-
-    if "benefits/traffic.do" in source_text:
-        return "교통"
-    if "benefits/stay.do" in source_text:
-        return "숙박"
-    if "benefits/special.do" in source_text:
-        return "여행상품"
-    if "travelmonth/event.do" in source_text:
-        return "이벤트"
-    if "travel-info.do" in source_text:
-        return "기타"
-    if "benefits/depopulation.do" in source_text or "travelmonth/benefit.do" in source_text:
-        return "지역할인"
-    if record.source_category == "regional_benefit":
-        return "지역할인"
-    return "기타"
+    return classify_external_policy_category(record).category
 
 
 def _format_benefit_amount(value: int | None) -> str | None:

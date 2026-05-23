@@ -182,6 +182,18 @@ def test_external_policy_category_uses_official_source_not_travel_styles() -> No
     assert payload["category"] == "교통"
 
 
+def test_external_policy_category_scores_text_before_regional_default() -> None:
+    record = make_external_record()
+    record.source_category = "regional_benefit"
+    record.title = "남도 기차둘레길 1박 2일 최대 35% 할인행사"
+    record.benefit_text = "남도 기차 여행상품 최대 35% 할인"
+    record.collected_page_url = "https://korean.visitkorea.or.kr/travelmonth/benefit.do"
+
+    payload = policy_service.external_source_record_to_policy_api(record)
+
+    assert payload["category"] == "교통"
+
+
 def test_external_policy_fallback_copy_uses_official_benefit_wording() -> None:
     record = make_external_record()
     record.benefit_value_text = None
@@ -190,7 +202,7 @@ def test_external_policy_fallback_copy_uses_official_benefit_wording() -> None:
     payload = policy_service.external_source_record_to_policy_api(record)
 
     assert payload["amount"] == "혜택 확인 필요"
-    assert payload["tag"] == "지역할인"
+    assert payload["tag"] == "여행상품"
     assert payload["summary"] == "공식 혜택 안내를 확인해 주세요."
     assert payload["documents"] == ["혜택 안내 확인"]
 

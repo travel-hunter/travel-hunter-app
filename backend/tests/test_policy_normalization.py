@@ -121,6 +121,32 @@ def test_promotion_is_idempotent_by_external_source_record_id(db: Session) -> No
     assert len(db.query(Policy).filter(Policy.external_source_record_id == rows[0].id).all()) == 1
 
 
+def test_promotion_reclassifies_existing_policy_type(db: Session) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                canonical_key="namdo-train",
+                title="남도 기차둘레길 1박 2일 최대 35% 할인행사",
+                benefit_text="남도 기차 여행상품 최대 35% 할인",
+            )
+        ],
+    )
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+
+    result = promote_external_benefits_to_policies(db)
+    policy = db.query(Policy).filter(Policy.external_source_record_id == rows[0].id).one()
+    policy.policy_type = "지역할인"
+    db.flush()
+
+    second = promote_external_benefits_to_policies(db)
+
+    assert result.promoted_count == 1
+    assert second.promoted_count == 1
+    assert policy.policy_type == "교통"
+
+
 def test_skips_inactive_or_stale_records(db: Session) -> None:
     upsert_external_source_records(
         db,

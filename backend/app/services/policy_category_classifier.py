@@ -80,6 +80,14 @@ SOURCE_CATEGORY_BOOSTS: dict[str, tuple[tuple[str, int, str], ...]] = {
     "regional_benefit": (("지역할인", 1, "source_category:regional_benefit"),),
 }
 
+URL_CATEGORY_BOOSTS: dict[str, tuple[str, int]] = {
+    "benefits/traffic.do": ("교통", 8),
+    "benefits/stay.do": ("숙박", 8),
+    "benefits/special.do": ("여행상품", 8),
+    "travelmonth/event.do": ("이벤트", 8),
+    "travel-info.do": ("기타", 8),
+}
+
 
 @dataclass(frozen=True)
 class PolicyCategoryDecision:
@@ -113,6 +121,10 @@ def classify_external_policy_category(record: ExternalSourceRecord) -> PolicyCat
         scores[category] += boost
         _append_unique(matched_keywords[category], reason)
 
+    for category, boost, reason in _url_boosts(record):
+        scores[category] += boost
+        _append_unique(matched_keywords[category], reason)
+
     category = _choose_category(scores)
     return PolicyCategoryDecision(
         category=category,
@@ -133,6 +145,17 @@ def _weighted_texts(record: ExternalSourceRecord) -> Iterable[_WeightedText]:
     yield _WeightedText(record.organizer_text or "", 1, "organizer_text")
     yield _WeightedText(record.detail_url or "", 1, "detail_url")
     yield _WeightedText(record.collected_page_url or "", 1, "collected_page_url")
+
+
+def _url_boosts(record: ExternalSourceRecord) -> Iterable[tuple[str, int, str]]:
+    source_text = " ".join(
+        part
+        for part in [record.detail_url, record.collected_page_url, record.source_url]
+        if part
+    ).lower()
+    for marker, (category, boost) in URL_CATEGORY_BOOSTS.items():
+        if marker in source_text:
+            yield category, boost, f"url:{marker}"
 
 
 def _choose_category(scores: dict[str, int]) -> str:
