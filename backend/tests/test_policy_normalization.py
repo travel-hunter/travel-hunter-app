@@ -9,11 +9,12 @@ from app.db.base import Base
 from app.models import ExternalSourceRecord, Policy
 from app.repositories.external_sources import upsert_external_source_records
 from app.repositories.policies import get_policy_by_slug
-from app.schemas.external_sources import ExternalBenefitSource, TravelMonthRegionalBenefitSource
+from app.schemas.external_sources import ExternalBenefitSource
 
 
-def make_source(**overrides) -> TravelMonthRegionalBenefitSource:
+def make_source(**overrides) -> ExternalBenefitSource:
     data = {
+        "source_name": "여행가는 달",
         "source_type": "official_campaign",
         "source_url": "https://korean.visitkorea.or.kr/travelmonth/benefit.do",
         "source_category": "regional_benefit",
@@ -49,7 +50,7 @@ def make_source(**overrides) -> TravelMonthRegionalBenefitSource:
         "freshness_status": "fresh",
     }
     data.update(overrides)
-    return TravelMonthRegionalBenefitSource(**data)
+    return ExternalBenefitSource(**data)
 
 
 @pytest.fixture
@@ -180,3 +181,46 @@ def test_upsert_accepts_non_regional_external_source(db: Session) -> None:
     assert len(rows) == 1
     assert rows[0].source_category == "traffic_benefit"
     assert rows[0].benefit_value_type == "percent"
+
+
+def test_promotes_traffic_and_half_trip_records_to_policies(db: Session) -> None:
+    traffic = make_source(
+        canonical_key="traffic",
+        external_id="traffic",
+        title="Theme train discount",
+        source_url="https://korean.visitkorea.or.kr/travelmonth/benefits/traffic.do",
+        source_category="traffic_benefit",
+        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefits/traffic.do",
+        detail_url=None,
+        region="전국",
+        benefit_text="Theme train fare 50% discount",
+        benefit_value_text="50% discount",
+        extracted_amount_krw=None,
+        extracted_discount_percent=50,
+        benefit_value_type="percent",
+    )
+    half_trip = make_source(
+        canonical_key="hapcheon-half-trip",
+        external_id="hapcheon-half-trip",
+        title="Hapcheon half trip support",
+        source_name="대한민국 반값여행",
+        source_url="https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+        source_category="local_half_trip",
+        collected_page_url="https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+        region="경남",
+        city="합천",
+        benefit_text="Travel expense 50% refund",
+        benefit_value_text="Up to 200,000 KRW refund",
+        extracted_amount_krw=200000,
+    )
+    upsert_external_source_records(db, [traffic, half_trip])
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+
+    result = promote_external_benefits_to_policies(db)
+
+    policies = db.query(Policy).order_by(Policy.id).all()
+    assert result.promoted_count == 2
+    assert [policy.policy_type for policy in policies] == ["교통", "지역할인"]
+    assert policies[0].official_url == traffic.collected_page_url
+    assert policies[1].source_category == "local_half_trip"

@@ -10,6 +10,15 @@ from app.schemas.external_sources import ExternalBenefitSource
 
 
 EXTERNAL_POLICY_SLUG_PREFIX = "travelmonth-"
+POLICY_PROMOTION_SOURCE_CATEGORIES = (
+    "regional_benefit",
+    "traffic_benefit",
+    "local_half_trip",
+)
+RECOMMENDATION_SOURCE_CATEGORIES = (
+    "regional_benefit",
+    "local_half_trip",
+)
 
 
 def _assign_record(
@@ -81,7 +90,20 @@ def list_regional_benefit_recommendation_records(
 ) -> list[ExternalSourceRecord]:
     statement = (
         select(ExternalSourceRecord)
-        .where(ExternalSourceRecord.source_category == "regional_benefit")
+        .where(ExternalSourceRecord.source_category.in_(RECOMMENDATION_SOURCE_CATEGORIES))
+        .where(ExternalSourceRecord.status == "active")
+        .where(ExternalSourceRecord.freshness_status == "fresh")
+        .order_by(ExternalSourceRecord.id)
+    )
+    return list(db.scalars(statement).all())
+
+
+def list_policy_promotion_records(
+    db: Session,
+) -> list[ExternalSourceRecord]:
+    statement = (
+        select(ExternalSourceRecord)
+        .where(ExternalSourceRecord.source_category.in_(POLICY_PROMOTION_SOURCE_CATEGORIES))
         .where(ExternalSourceRecord.status == "active")
         .where(ExternalSourceRecord.freshness_status == "fresh")
         .order_by(ExternalSourceRecord.id)

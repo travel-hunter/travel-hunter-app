@@ -67,7 +67,7 @@ def _assign_policy_from_external_record(
 
 
 def promote_external_benefits_to_policies(db: Session) -> PolicyPromotionResult:
-    records = external_source_repository.list_regional_benefit_recommendation_records(db)
+    records = external_source_repository.list_policy_promotion_records(db)
     promoted_count = 0
     for record in records:
         policy = _get_policy_for_external_record(db, record)

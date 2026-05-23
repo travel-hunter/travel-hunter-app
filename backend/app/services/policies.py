@@ -37,6 +37,11 @@ def _normalize_policy_category(policy_type: str | None) -> str:
 
 
 def _external_policy_category(record: ExternalSourceRecord) -> str:
+    if record.source_category == "traffic_benefit":
+        return "교통"
+    if record.source_category == "local_half_trip":
+        return "지역할인"
+
     source_parts = [
         record.collected_page_url,
         record.detail_url,
