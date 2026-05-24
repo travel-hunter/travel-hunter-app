@@ -516,3 +516,17 @@ Remaining risks:
 
 Remaining risks:
 - The worktree still contains many unrelated backend/docs/frontend changes from earlier tasks. Commit grouping should separate the design-system cleanup from policy source/audit and API contract changes.
+
+## 2026-05-24 Core Screen Design System Expansion
+
+- [x] Added repo-local Figma/code mappings for DS primitives and core screen patterns.
+- [x] Added `HomeRail`, `HomeSectionHeader`, `AuthFormShell`, `ProfilePanel`, and `ProfileSetupStep` frontend pattern components.
+- [x] Aligned `/home`, `/mypage`, auth/nickname, and `/profile-setup` surfaces with DS pattern components.
+- [x] Restored visible Korean copy on scoped screens and repaired shared `LoadingState`, `ErrorState`, and `ConfirmDialog` copy.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `cd frontend; npm test -- --run src/App.test.tsx` passed: 101 tests.
+- [x] `cd frontend; npm run build` passed.
+- [x] Responsive visual QA passed at 360/390/430/1024/1440 for `/home`, `/mypage`, `/login`, `/signup`, `/nickname-setup`, and `/profile-setup` using Playwright with API route stubs.
+
+Remaining risks:
+- Figma mapping is repo-local documentation until official Code Connect CLI/package wiring is added.
