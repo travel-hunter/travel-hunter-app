@@ -2371,6 +2371,8 @@ describe("Travel Hunter app", () => {
     expect(screen.getByRole("button", { name: /알림 설정/ })).toBeInTheDocument();
     expect(document.querySelector(".ds-profile-panel")).toBeTruthy();
     expect(document.querySelector(".ds-settings-menu")).toBeTruthy();
+    const menuIcons = [...document.querySelectorAll(".prototype-menu-icon")].map((icon) => icon.textContent?.trim() ?? "");
+    expect(menuIcons).toEqual(["", "", "", "", ""]);
 
     await userEvent.setup().click(await screen.findByRole("button", { name: "저장 해제" }));
 

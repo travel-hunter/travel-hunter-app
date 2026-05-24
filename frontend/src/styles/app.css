@@ -6247,7 +6247,12 @@
 }
 
 .prototype-menu-icon {
-  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: #737386;
 }
 
 .prototype-menu-chevron {

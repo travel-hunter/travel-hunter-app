@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Dice5 } from "lucide-react";
+import { Bell, CircleHelp, Dice5, FileText, LogOut, ShieldCheck } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { appDataApi, type ContactInfo, type NotificationSettings, type Policy, type Profile, type Trip } from "../api";
 import { useSession } from "../app/session";
@@ -331,7 +331,7 @@ export function MyPage() {
         <section className="prototype-settings-menu ds-settings-menu" aria-label="설정 메뉴">
           <button className="prototype-menu-row" onClick={() => setIsNotificationSheetOpen(true)} type="button">
             <span className="prototype-menu-icon" aria-hidden="true">
-              알림
+              <Bell size={18} />
             </span>
             <strong>알림 설정</strong>
             <span className="prototype-menu-chevron" aria-hidden="true">
@@ -340,7 +340,7 @@ export function MyPage() {
           </button>
           <button className="prototype-menu-row" onClick={() => setInfoSheetType("faq")} type="button">
             <span className="prototype-menu-icon" aria-hidden="true">
-              FAQ
+              <CircleHelp size={18} />
             </span>
             <strong>공지사항 / FAQ</strong>
             <span className="prototype-menu-chevron" aria-hidden="true">
@@ -349,7 +349,7 @@ export function MyPage() {
           </button>
           <button className="prototype-menu-row" onClick={() => setInfoSheetType("terms")} type="button">
             <span className="prototype-menu-icon" aria-hidden="true">
-              약관
+              <FileText size={18} />
             </span>
             <strong>이용약관</strong>
             <span className="prototype-menu-chevron" aria-hidden="true">
@@ -358,7 +358,7 @@ export function MyPage() {
           </button>
           <button className="prototype-menu-row" onClick={() => setInfoSheetType("privacy")} type="button">
             <span className="prototype-menu-icon" aria-hidden="true">
-              보안
+              <ShieldCheck size={18} />
             </span>
             <strong>개인정보처리방침</strong>
             <span className="prototype-menu-chevron" aria-hidden="true">
@@ -367,7 +367,7 @@ export function MyPage() {
           </button>
           <button className="prototype-menu-row danger" onClick={signOut} type="button">
             <span className="prototype-menu-icon" aria-hidden="true">
-              종료
+              <LogOut size={18} />
             </span>
             <strong>로그아웃</strong>
             <span className="prototype-menu-chevron" aria-hidden="true">

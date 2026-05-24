@@ -548,3 +548,19 @@ Remaining risks:
 Remaining risks:
 - Database policy records were not bulk edited. If future rendered policy data shows mojibake, trace the exact policy record and source URL before correcting stored data.
 - Docker frontend build still reports the existing npm audit notice for one moderate severity dependency issue; this was not introduced or changed by the mojibake cleanup.
+
+## 2026-05-24 My Page Settings Menu Text Fix
+
+- [x] Reproduced the issue on `/mypage` at 360px: settings rows showed duplicated visible text such as `알림알림 설정` because the decorative icon slot contained text labels.
+- [x] Added a regression assertion that `.prototype-menu-icon` does not contribute visible text content.
+- [x] Replaced the settings-row text labels with `lucide-react` icons and centered the icon slot.
+- [x] `cd frontend; npm test -- --run src/App.test.tsx -t "shows saved policies on my page"` failed before the fix and passed after the fix.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `cd frontend; npm run build` passed.
+- [x] `docker compose -f compose.yaml up -d --build frontend` passed.
+- [x] Backend health passed: `http://127.0.0.1:8000/api/health` returned HTTP 200 with `database=connected`.
+- [x] Frontend health passed: `http://127.0.0.1:4173` returned HTTP 200.
+- [x] Browser visual verification passed at 360px for `/mypage`; settings rows now render as `알림 설정`, `공지사항 / FAQ`, `이용약관`, `개인정보처리방침`, and `로그아웃` without horizontal overflow.
+
+Remaining risks:
+- Visual verification used the Docker-served app and an authenticated test user. Other profile data states were not exhaustively reviewed because the bug was isolated to static settings-menu labels.
