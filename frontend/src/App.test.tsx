@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { appDataApi, type ContactInfo, type InviteState, type LinkedTripPolicy, type NotificationSettings, type Policy, type RegionRecommendation, type Trip } from "./api";
 import { App } from "./app/App";
 import { AppProviders, AppRoot } from "./app/AppRoot";
+import { AuthFormShell, HomeRail, ProfilePanel, ProfileSetupStep } from "./components/patterns";
 import { StatusPanel, SurfaceCard, Tag } from "./components/ui";
 
 const testEmail = "test.user@example.com";
@@ -66,6 +67,38 @@ describe("design-system primitives", () => {
 
     expect(screen.getByText("카드 내용").closest(".ds-card")).toHaveClass("confirmed", "test-card");
     expect(screen.getByText("편집 가능").closest(".ds-status-panel")).toHaveClass("draft");
+  });
+});
+
+describe("design-system pattern contracts", () => {
+  it("renders mapped pattern components with stable classes", () => {
+    render(
+      <MemoryRouter>
+        <AuthFormShell title="로그인" body="계속하려면 로그인하세요">
+          <button type="button">계속</button>
+        </AuthFormShell>
+        <HomeRail title="이번 주 혜택">
+          <a href="/policies">정책 보기</a>
+        </HomeRail>
+        <ProfilePanel title="프로필" meta="test@example.com">
+          <span>프로필 내용</span>
+        </ProfilePanel>
+        <ProfileSetupStep eyebrow="1/3" title="관심 지역" body="지역을 선택하세요">
+          <button type="button">제주</button>
+        </ProfileSetupStep>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("로그인").closest(".ds-auth-form-shell")).toBeTruthy();
+    expect(screen.getByText("이번 주 혜택").closest(".ds-home-rail")).toBeTruthy();
+    expect(screen.getByText("프로필").closest(".ds-profile-panel")).toBeTruthy();
+    expect(screen.getByText("관심 지역").closest(".ds-profile-setup-step")).toBeTruthy();
+  });
+
+  it("keeps Figma mapping files in the repo", async () => {
+    const fs = await import("node:fs");
+    expect(fs.existsSync("../frontend/figma/README.md")).toBe(true);
+    expect(fs.existsSync("../frontend/figma/travel-hunter-ds-v1.figma.tsx")).toBe(true);
   });
 });
 
