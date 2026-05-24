@@ -17,7 +17,7 @@ These rules apply inside `frontend/`. The app is a React, TypeScript, Vite, and 
 - Preserve the production app experience. Do not reintroduce prototype wrappers, phone status bars, or explanatory prototype copy.
 - Public routes include `/`, `/login`, and `/signup`.
 - Protected routes must redirect anonymous users to `/login`.
-- Authenticated smoke routes include `/home`, `/policies`, `/policies/local-vacation`, `/trips`, `/trips/new`, `/trips/1`, `/ai-results?tripId=1`, `/friend-invite?tripId=1`, and `/mypage`.
+- Authenticated smoke routes include `/home`, `/policies`, `/policies/dgtour-%EB%B0%80%EC%96%91-1`, `/trips`, `/trips/new`, `/trips/1`, `/ai-results?tripId=1`, `/friend-invite?tripId=1`, and `/mypage`.
 - Check responsive behavior at 360, 390, 430, 1024, and 1440 px widths when UI layout changes.
 - Avoid horizontal overflow, blank root rendering, and text clipping.
 

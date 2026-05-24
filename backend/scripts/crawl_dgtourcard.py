@@ -30,7 +30,7 @@ DEFAULT_TARGET_PATH = "/dgtourcard/tour50.do"
 DEFAULT_TARGET_URL = f"{DEFAULT_BASE_URL}{DEFAULT_TARGET_PATH}"
 DEFAULT_OUTPUT_PATH = Path(__file__).parent.parent / "app" / "data" / "dgtourcard_policies.json"
 DEFAULT_DEADLINE = "2026-12-31"
-DEFAULT_EXISTING_SLUGS = ("local-vacation", "sokcho-stay", "busan-cashback")
+DEFAULT_EXISTING_SLUGS: tuple[str, ...] = ()
 
 HEADERS = {
     "User-Agent": (

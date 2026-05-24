@@ -147,6 +147,34 @@ def test_promotion_reclassifies_existing_policy_type(db: Session) -> None:
     assert policy.policy_type == "교통"
 
 
+def test_promotion_derives_missing_percent_value_from_title(db: Session) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                canonical_key="welchon-percent-title",
+                external_id="welchon-percent-title",
+                title="웰촌 체험상품 30% 할인",
+                benefit_text="행사 기간 중 온라인 체험상품 예약 결제 후 사용 완료 참여자 26년 4월 중순부터 5월 말",
+                benefit_value_text=None,
+                extracted_amount_krw=None,
+                extracted_discount_percent=None,
+                benefit_value_type="unknown",
+            )
+        ],
+    )
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+
+    promote_external_benefits_to_policies(db)
+
+    policy = get_policy_by_slug(db, f"travelmonth-{rows[0].id}")
+    assert policy is not None
+    assert policy.benefit_detail == "최대 30%"
+    assert policy.benefit_amount is None
+    assert policy.policy_comment == "행사 기간 중 온라인 체험상품 예약 결제 후 사용 완료 참여자 26년 4월 중순부터 5월 말"
+
+
 def test_skips_inactive_or_stale_records(db: Session) -> None:
     upsert_external_source_records(
         db,

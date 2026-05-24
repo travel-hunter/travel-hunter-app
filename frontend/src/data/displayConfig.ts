@@ -1,6 +1,6 @@
 import type { Policy, RegionRecommendation } from "../api";
 
-export const featuredPolicySlug = "local-vacation";
+export const featuredPolicySlug = "";
 
 export type HomeDestination = {
   title: string;
@@ -119,11 +119,7 @@ export function getDeadlinePolicies(
     .slice(0, limit);
 }
 
-const homePolicyIcons: Record<string, string> = {
-  "local-vacation": "💴",
-  "sokcho-stay": "🏖️",
-  "busan-cashback": "🎁",
-};
+const homePolicyIcons: Record<string, string> = {};
 
 export function getFeaturedPolicy(policies: Policy[] | null | undefined): Policy | undefined {
   return policies?.find((policy) => policy.slug === featuredPolicySlug) ?? policies?.[0];
@@ -140,7 +136,6 @@ export type PolicyVisual = {
 };
 
 const policyVisuals: Record<string, PolicyVisual> = {
-  "local-vacation": { emoji: "🏖️", from: "#ffe0e0", to: "#ff8a7a" },
   "nongchon-stay": { emoji: "🌂", from: "#d9f7f2", to: "#80dccd" },
   "rail-youth": { emoji: "🚆", from: "#dff0ff", to: "#8ac7ff" },
   "hotel-sale": { emoji: "🏨", from: "#f5ddff", to: "#d39cff" },

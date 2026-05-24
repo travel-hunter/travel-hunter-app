@@ -2,10 +2,10 @@
 
 ## 기준
 
-- 기준일: 2026-05-20
+- 기준일: 2026-05-23
 - 기준 검증 기준: `9bdcb73` 및 현재 문서 작업트리
 - 브랜치: `develop`
-- 원격 상태: PR #17, #18, #19, #20, #23이 `develop`에 병합됐고 staging smoke 준비로 전환하는 기준이다.
+- 원격 상태: `develop` 병합 이후 로컬에서 공식 혜택 수집/승격, 더미 정책 삭제, 정책 UI/테스트/문서 정합성 복구를 이어가는 기준이다.
 - 기준 상태: DB-backed-only MVP, numeric trip id 계약, 문서/계약/eval 동기화, frontend/backend 검증이 완료된 상태다.
 
 ## Current Local Priority
@@ -46,7 +46,7 @@ Cloudflare는 뒤로 미루고, 현재 1순위는 로컬 Docker Compose에서 �
 - `/mypage`와 정책 목록/상세의 즐겨찾기 상태가 `SessionProvider.savedSlugs` 기준으로 동기화됐다.
 - 미사용 untracked 후보였던 `TripCreateModal.tsx`, `TripItinerary.tsx`는 현재 route/import와 연결되지 않는 임시 파일로 판단해 정리했다.
 - `/mypage` 공지사항/FAQ, 이용약관, 개인정보처리방침 sheet 콘텐츠를 실제 서비스 안내 수준으로 보강했다.
-- PR #17, #18, #19, #20, #23이 `develop`에 병합됐다.
+- legacy dummy policy(`local-vacation`, `sokcho-stay`, `busan-cashback`)는 runtime seed에서 제거됐고, 현재 예시 정책은 수집 데이터에 존재하는 `dgtour-밀양-1`을 사용한다.
 - 기존 non-numeric 제주 3일 trip handle 지원을 제거하고 `trip_id`는 numeric string `Trip.id`만 지원하도록 계약, backend, frontend, tests, `.agent/evals`를 동기화했다.
 - Frontend `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build`, backend `python -m pytest`, compose config, stale alias search, API eval JSON validation, `git diff --check`가 통과했다.
 - `docs/deployment-cicd/staging-ops-work-orders.md`에 외주/인프라 담당자용 남은 운영 검증 작업지시서를 추가했다.

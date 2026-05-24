@@ -17,7 +17,7 @@ client = TestClient(app)
 def make_seed_like_policy() -> PolicyModel:
     policy = PolicyModel(
         id=1,
-        slug="local-vacation",
+        slug="fixture-policy",
         title="Local Vacation Support",
         organization="Travel Hunter",
         policy_type="unsupported",
@@ -77,20 +77,20 @@ def test_db_mode_known_policy_slug_preserves_response_contract(monkeypatch) -> N
     monkeypatch.setattr(
         policy_service.policy_repository,
         "get_policy_by_slug",
-        lambda db, slug: policy if db is fake_db and slug == "local-vacation" else None,
+        lambda db, slug: policy if db is fake_db and slug == "fixture-policy" else None,
     )
     set_db_dependency_override(fake_db)
 
     try:
-        response = client.get("/api/policies/local-vacation")
+        response = client.get("/api/policies/fixture-policy")
     finally:
         clear_db_dependency_override()
 
     payload = response.json()
 
     assert response.status_code == 200
-    assert payload["id"] == "local-vacation"
-    assert payload["slug"] == "local-vacation"
+    assert payload["id"] == "fixture-policy"
+    assert payload["slug"] == "fixture-policy"
     assert payload["amount"] == "Up to 300000 cashback"
     assert payload["documents"] == ["ID card", "Accommodation receipt"]
     assert payload["officialUrl"] == "https://www.mcst.go.kr/site/s_notice/press/pressView.jsp?pMenuCD=0302000000&pSeq=22267"
@@ -166,7 +166,7 @@ def test_db_saved_policy_requires_user(monkeypatch) -> None:
     app.dependency_overrides[policy_routes.get_current_user] = lambda: None
 
     try:
-        response = client.post("/api/me/saved-policies/local-vacation")
+        response = client.post("/api/me/saved-policies/fixture-policy")
     finally:
         clear_db_dependency_override()
 
@@ -204,12 +204,12 @@ def test_db_saved_policy_returns_existing_response_shape(monkeypatch) -> None:
     app.dependency_overrides[policy_routes.get_current_user] = lambda: user
 
     try:
-        response = client.post("/api/me/saved-policies/local-vacation")
+        response = client.post("/api/me/saved-policies/fixture-policy")
     finally:
         clear_db_dependency_override()
 
     assert response.status_code == 200
-    assert response.json() == {"policyId": "local-vacation", "saved": True}
+    assert response.json() == {"policyId": "fixture-policy", "saved": True}
 
 
 def test_db_list_saved_policies_requires_user(monkeypatch) -> None:
@@ -246,7 +246,7 @@ def test_db_list_saved_policies_returns_policy_list(monkeypatch) -> None:
         clear_db_dependency_override()
 
     assert response.status_code == 200
-    assert response.json()[0]["slug"] == "local-vacation"
+    assert response.json()[0]["slug"] == "fixture-policy"
 
 
 def test_db_list_applied_policies_requires_user(monkeypatch) -> None:
@@ -283,7 +283,7 @@ def test_db_list_applied_policies_returns_policy_list(monkeypatch) -> None:
         clear_db_dependency_override()
 
     assert response.status_code == 200
-    assert response.json()[0]["slug"] == "local-vacation"
+    assert response.json()[0]["slug"] == "fixture-policy"
 
 
 def test_db_remove_saved_policy_requires_user(monkeypatch) -> None:
@@ -292,7 +292,7 @@ def test_db_remove_saved_policy_requires_user(monkeypatch) -> None:
     app.dependency_overrides[policy_routes.get_current_user] = lambda: None
 
     try:
-        response = client.delete("/api/me/saved-policies/local-vacation")
+        response = client.delete("/api/me/saved-policies/fixture-policy")
     finally:
         clear_db_dependency_override()
 
@@ -314,9 +314,9 @@ def test_db_remove_saved_policy_returns_existing_response_shape(monkeypatch) -> 
     app.dependency_overrides[policy_routes.get_current_user] = lambda: user
 
     try:
-        response = client.delete("/api/me/saved-policies/local-vacation")
+        response = client.delete("/api/me/saved-policies/fixture-policy")
     finally:
         clear_db_dependency_override()
 
     assert response.status_code == 200
-    assert response.json() == {"policyId": "local-vacation", "saved": False}
+    assert response.json() == {"policyId": "fixture-policy", "saved": False}

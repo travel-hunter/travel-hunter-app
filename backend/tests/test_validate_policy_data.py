@@ -11,7 +11,7 @@ def write_policies(tmp_path, policies):
 
 def make_policy(**overrides):
     policy = {
-        "slug": "local-vacation",
+        "slug": "fixture-policy",
         "title": "지역사랑 휴가지원",
         "org": "한국관광공사",
         "region": "전국",

@@ -162,8 +162,8 @@ def normalize_status(
     return "active"
 
 
-def extract_benefit_value(benefit_text: str) -> BenefitValue:
-    text = normalize_text(benefit_text)
+def extract_benefit_value(benefit_text: str, *, title: str | None = None) -> BenefitValue:
+    text = normalize_text(" ".join(value for value in [title, benefit_text] if value))
     amount_matches = _extract_amounts(text)
     percent_matches = [int(value) for value in re.findall(r"(\d{1,3})\s*%", text)]
 

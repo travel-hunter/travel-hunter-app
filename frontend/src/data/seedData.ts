@@ -20,62 +20,7 @@ export const user: User = {
   updatedAt: "2026-05-04T00:00:00Z",
 };
 
-export const policies: Policy[] = [
-  {
-    id: "local-vacation",
-    slug: "local-vacation",
-    label: "TH",
-    tag: "최대 30만원",
-    title: "지역사랑 휴가지원",
-    org: "한국관광공사",
-    region: "전국",
-    deadline: "2026-10-31",
-    amount: "최대 30만원 환급",
-    summary: "국내 1박 이상 여행 시 숙박, 교통, 체험비 일부를 환급해주는 지원 정책입니다.",
-    match: 98,
-    category: "지역할인",
-    requirements: ["국내 거주자", "숙박 1박 이상", "영수증 제출"],
-    documents: ["신분증 사본", "숙박 영수증", "교통비 증빙"],
-    officialUrl: "https://www.mcst.go.kr/site/s_notice/press/pressView.jsp?pMenuCD=0302000000&pSeq=22267",
-    applyUrl: null,
-  },
-  {
-    id: "sokcho-stay",
-    slug: "sokcho-stay",
-    label: "SC",
-    tag: "50% 할인",
-    title: "속초 숙박 할인권",
-    org: "속초시",
-    region: "강원",
-    deadline: "2026-08-15",
-    amount: "숙박비 50% 할인",
-    summary: "강원권 평일 숙박 예약 시 지역 숙소에서 사용할 수 있는 할인권을 제공합니다.",
-    match: 86,
-    category: "숙박",
-    requirements: ["평일 숙박", "지역 숙소", "사전 예약"],
-    documents: ["예약 내역", "결제 영수증"],
-    officialUrl: "https://www.sokcho.go.kr/sc/portal",
-    applyUrl: null,
-  },
-  {
-    id: "busan-cashback",
-    slug: "busan-cashback",
-    label: "BS",
-    tag: "5% 캐시백",
-    title: "부산 여행 캐시백",
-    org: "부산관광재단",
-    region: "부산",
-    deadline: "2026-09-30",
-    amount: "카드 결제 5% 캐시백",
-    summary: "부산 지역 제휴 매장에서 결제하면 여행 경비 일부를 캐시백으로 돌려받습니다.",
-    match: 79,
-    category: "지역할인",
-    requirements: ["제휴 카드", "부산 결제", "월 한도 적용"],
-    documents: ["카드 결제 내역"],
-    officialUrl: "https://www.busan.go.kr/nbnews/1713613",
-    applyUrl: null,
-  },
-];
+export const policies: Policy[] = [];
 
 export const itinerary: Trip = {
   id: "1",
@@ -84,22 +29,8 @@ export const itinerary: Trip = {
   dates: "2026.06.15 - 06.17",
   people: ["테스트 사용자", "민서", "현우"],
   expectedSaving: "12만원",
-  linkedPolicies: [
-    {
-      slug: "local-vacation",
-      title: "지역사랑 휴가지원",
-      amount: "최대 30만원",
-      region: "전국",
-    },
-  ],
-  recommendedPolicies: [
-    {
-      slug: "busan-cashback",
-      title: "부산 여행 캐시백",
-      amount: "카드 결제 5% 캐시백",
-      region: "부산",
-    },
-  ],
+  linkedPolicies: [],
+  recommendedPolicies: [],
   currentUserRole: "owner",
   days: {
     1: [
@@ -145,6 +76,6 @@ export const regions = ["제주", "부산", "강원", "전국"] as const;
 export const travelStyles = ["휴식", "맛집", "체험", "자연", "사진"] as const;
 export const budgets = ["1인 30만원 이하", "1인 40만원 이하", "1인 60만원 이하", "상관없음"] as const;
 
-export function getPolicy(policySlug = "local-vacation") {
-  return policies.find((policy) => policy.slug === policySlug || policy.id === policySlug) ?? policies[0];
+export function getPolicy(policySlug?: string) {
+  return policies.find((policy) => policy.slug === policySlug || policy.id === policySlug);
 }

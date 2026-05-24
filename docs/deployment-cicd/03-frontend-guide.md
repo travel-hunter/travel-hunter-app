@@ -35,7 +35,7 @@
 
 - Public route: `/`, `/login`, `/signup`는 인증 없이 렌더링되어야 한다.
 - Protected redirect: anonymous user가 `/home`에 접근하면 `/login`으로 이동해야 한다.
-- Authenticated 주요 route: `/home`, `/policies`, `/policies/local-vacation`, `/trips`, `/trips/new`, `/trips/1`, `/ai-results?tripId=1`, `/friend-invite?tripId=1`, `/mypage`.
+- Authenticated 주요 route: `/home`, `/policies`, `/policies/dgtour-%EB%B0%80%EC%96%91-1`, `/trips`, `/trips/new`, `/trips/1`, `/ai-results?tripId=1`, `/friend-invite?tripId=1`, `/mypage`.
 - 금지 상태: blank `#root`, horizontal overflow, prototype-only copy, runtime mock mode.
 - DB-backed e2e는 `frontend/e2e-backend/backend-mode.spec.ts`와 `npm run test:e2e` 기준이다.
 

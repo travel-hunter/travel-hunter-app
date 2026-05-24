@@ -436,12 +436,12 @@
         "sourceType": "string"
       },
       "allowedPolicyCategories": ["교통", "숙박", "여행상품", "지역할인", "이벤트", "기타"],
-      "exampleSlug": "local-vacation",
+      "exampleSlug": "dgtour-\uBC00\uC591-1",
       "dbModeBehavior": "Returns official-benefit Policy DTOs from DB policies only. Active/fresh TravelMonth regional_benefit external_source_records are promoted into policies by the collection normalization service and keep backward-compatible travelmonth-{externalSourceRecordId} slugs. sourceType remains in the DTO for compatibility/internal diagnostics, but user-facing UI must not expose internal/external wording and all exposed policies share save/trip behavior. Policy category is a benefit/source type; TravelMonth records derive category from source URL/sourceCategory and do not use travelStyles for category filtering."
     },
     {
       "method": "GET",
-      "path": "/api/policies/local-vacation",
+      "path": "/api/policies/dgtour-%EB%B0%80%EC%96%91-1",
       "status": 200,
       "requiredFields": {
         "id": "string",
@@ -480,7 +480,7 @@
     },
     {
       "method": "POST",
-      "path": "/api/me/saved-policies/local-vacation",
+      "path": "/api/me/saved-policies/dgtour-%EB%B0%80%EC%96%91-1",
       "status": 200,
       "requiredFields": {
         "policyId": "string",
@@ -490,7 +490,7 @@
     },
     {
       "method": "DELETE",
-      "path": "/api/me/saved-policies/local-vacation",
+      "path": "/api/me/saved-policies/dgtour-%EB%B0%80%EC%96%91-1",
       "status": 200,
       "requiredFields": {
         "policyId": "string",
@@ -584,13 +584,24 @@
     },
     {
       "method": "POST",
-      "path": "/api/trips/1/policies/local-vacation",
+      "path": "/api/trips/1/policies/dgtour-%EB%B0%80%EC%96%91-1",
       "status": 200,
       "requiredFields": {
         "tripId": "string",
         "policyId": "string",
         "added": "boolean"
       }
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/trips/1/policies/dgtour-%EB%B0%80%EC%96%91-1",
+      "status": 200,
+      "requiredFields": {
+        "tripId": "string",
+        "policyId": "string",
+        "added": "boolean"
+      },
+      "dbModeBehavior": "Requires owner/editor access, removes the trip-policy link idempotently, and returns added=false. Viewer access returns 403 Trip edit permission required."
     },
     {
       "method": "PATCH",
@@ -606,7 +617,7 @@
         "days": "object",
         "currentUserRole": "string enum(owner|editor|viewer)"
       },
-      "dbModeBehavior": "Requires owner/editor access, stores trips.status, and returns the updated Trip. Viewer access returns 403 Trip edit permission required."
+      "dbModeBehavior": "Requires owner/editor access, stores trips.status, and returns the updated Trip. Accepts both confirmed and draft. The frontend trip list displays draft/confirmed status without an inline confirmation panel; the detail page can cancel confirmation by sending draft. Viewer access returns 403 Trip edit permission required."
     },
     {
       "method": "PATCH",

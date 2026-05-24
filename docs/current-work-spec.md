@@ -2,11 +2,11 @@
 
 ## 기준
 
-- 기준일: 2026-05-20
+- 기준일: 2026-05-23
 - 기준 검증 기준: `9bdcb73` 및 현재 문서 작업트리
 - 브랜치: `develop`
 - 원칙: DB-backed-only MVP를 유지하고 runtime mock mode는 다시 추가하지 않는다.
-- 현재 단계: PR #17, #18, #19, #20, #23이 `develop`에 합류했고, trip route alias 정리와 release handoff를 마친 뒤 staging 운영 검증 준비 상태다.
+- 현재 단계: `develop` 기준 통합 이후 공식 혜택 수집/승격, 더미 정책 삭제, 정책 분류/필터/상세 UI 보정, stale 문서·테스트 정합성 복구를 진행 중이다.
 
 ## 제품 범위
 
@@ -37,8 +37,8 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
   - shape, duplicate slug, deadline, encoding-risk marker 검사.
   - `officialUrl/applyUrl`의 localhost, placeholder, 잘못된 URL 차단.
 - 일정 생성 3단계 UX, 동적 기본 날짜, draft autosave.
-- 일정 목록, 삭제 dialog, draft/confirmed 상태 저장.
-- 일정 상세 장소 추가/수정/삭제, 10분 단위 시간 스피너, 시간 없음 저장, drag-and-drop 이동. 일정 상세의 추천 정책 카드는 backend `recommendedPolicies` 응답을 사용해 정규화된 정책과 TravelMonth 혜택 상세 페이지로 이동한다.
+- 일정 목록, 삭제 dialog, draft/confirmed 상태 표시. 목록 카드는 상태 변경 액션을 노출하지 않고 `benefit`, `confirmed`, `draft` 의미 기반 태그 톤으로 혜택/상태 배지를 표시한다.
+- 일정 상세 장소 추가/수정/삭제, 10분 단위 시간 스피너, 시간 없음 저장, drag-and-drop 이동. `draft` 일정 상세는 owner/editor가 `확정하기`로 일정을 확정할 수 있고, 작성 중 상태 카드는 노랑 계열로 표시한다. `confirmed` 일정 상세는 초록 계열 상태 카드로 편집 잠금을 보여주고, owner/editor에게도 편집 컨트롤을 잠그며 `확정취소`로 `draft` 상태로 되돌린 뒤 다시 편집할 수 있다. 일정 상세의 추천 정책 카드는 backend `recommendedPolicies` 응답을 사용해 정규화된 정책과 TravelMonth 혜택 상세 페이지로 이동한다.
 - 정책 `category`는 혜택/출처 유형인 `교통`, `숙박`, `여행상품`, `지역할인`, `이벤트`, `기타`만 사용한다. 외부 수집 혜택은 title/benefit/tags/source metadata를 점수화하는 deterministic classifier로 category를 정하고, `travelStyles`는 지역/일정 추천 보정용으로만 사용한다.
 - 일정 route handle은 numeric string `Trip.id`만 지원하며 non-numeric handle은 not found로 처리한다.
 - AI 추천 장소를 일정 타임라인에 추가.
@@ -56,7 +56,9 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - DB schema 기준을 `docs/db-schema-current.md`, `docs/db-schema-current.sql`로 교체하고 구버전 schema SQL 참조를 정리했다.
 - frontend itinerary 관련 page를 개별 파일로 분리하면서 기존 route import를 유지했다.
 - `.agent/evals`는 machine-readable API contract 기준인 `api-contract-golden.json`만 남겼다.
-- PR #17, #18, #19, #20, #23이 `develop`에 병합됐고 로컬/원격 `develop` 기준으로 문서/계약 정합성을 다시 맞췄다.
+- legacy dummy policy(`local-vacation`, `sokcho-stay`, `busan-cashback`)는 runtime seed와 frontend fallback에서 제거했고, DB seed는 남아 있는 legacy row와 연결 row를 삭제한다.
+- 정책 예시는 현재 수집/승격 데이터에 존재하는 `dgtour-밀양-1`을 기준으로 갱신했다.
+- PolicyList/PolicyDetail/App 테스트는 삭제된 더미 정책에 의존하지 않도록 현재 수집 정책 또는 명시적 API mock fixture를 사용한다.
 - 기존 non-numeric 제주 3일 trip handle 지원을 제거하고, seed 여행 데이터는 유지한 채 API 계약과 frontend/backend 테스트를 numeric trip id 기준으로 갱신했다.
 - 외주/인프라 담당자용 staging 운영 검증 작업지시서를 `docs/deployment-cicd/staging-ops-work-orders.md`로 추가했다.
 - 외부 혜택 수집은 여행가는 달 지역 여행할인, 여행가는 달 교통 혜택, 대한민국 반값여행 지역 혜택을 `external_source_records`에 저장한다. 공식 출처 레코드 저장, 원문 보존, 파생 지역/상태/혜택/선호도 필드를 지원하며, scheduler는 source별 fetch/parse 실패를 분리해 `success`, `partial_success`, `error` outcome을 남긴다. 운영 확인은 기존 `/api/health` 계약을 유지한 채 Bearer 인증이 필요한 `GET /api/ops/external-collection`에서 scheduler 상태를, `GET /api/ops/external-collection/quality`에서 source category별 저장 품질과 추천 반영 preview를 분리해 확인한다.
@@ -107,11 +109,11 @@ TravelMonth 공식 페이지 수집
 ## 최신 검증 기록
 
 - Frontend typecheck: passed.
-- Frontend Vitest: `83 passed`.
+- Frontend App Vitest: `94 passed` (`npm test -- --run src/App.test.tsx`).
 - Frontend e2e: `4 passed`.
 - Frontend build: passed.
 - Backend schema pytest: `2 passed`.
-- Backend pytest: `218 passed`.
+- Backend pytest: 이전 기준 `218 passed`; 이번 stale 정리에서는 전체 backend pytest를 재실행하지 않았다.
 - Alembic offline SQL: passed.
 - Compose config/build checks: passed.
 - `git diff --check`: passed.

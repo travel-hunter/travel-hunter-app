@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.models import ExternalSourceRecord, Policy
 from app.repositories import external_sources as external_source_repository
 from app.services.policies import _external_policy_category
+from app.services.travelmonth_normalizer import extract_benefit_value
 
 
 DEFAULT_TARGET_CONDITION = "공식 혜택 안내에서 조건을 확인하세요."
@@ -39,13 +40,15 @@ def _assign_policy_from_external_record(
     policy: Policy,
     record: ExternalSourceRecord,
 ) -> Policy:
+    benefit_value = extract_benefit_value(record.benefit_text or "", title=record.title)
+    benefit_detail = record.benefit_value_text or benefit_value.value_text or record.benefit_text
     policy.slug = _policy_slug_for_external_record(record)
     policy.title = record.title
     policy.organization = record.organizer_text or record.source_name
     policy.policy_type = _external_policy_category(record)
     policy.description = record.raw_detail_text or record.benefit_text
-    policy.benefit_amount = record.extracted_amount_krw
-    policy.benefit_detail = record.benefit_value_text or record.benefit_text
+    policy.benefit_amount = record.extracted_amount_krw or benefit_value.amount_krw
+    policy.benefit_detail = benefit_detail
     policy.target_condition = record.contact_text or DEFAULT_TARGET_CONDITION
     policy.region = record.region or "전국"
     policy.start_date = record.start_date
