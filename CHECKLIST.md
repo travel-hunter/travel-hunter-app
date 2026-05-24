@@ -612,3 +612,20 @@ Remaining risks:
 
 Remaining risks:
 - Backend `Trip.status` and status update API remain for compatibility, but the current `/trips` list no longer exposes status labels or controls.
+
+## 2026-05-24 My Page DS Card And Tab Alignment
+
+- [x] Added implementation plan under `docs/superpowers/plans/2026-05-24-mypage-ds-card-tabs.md`.
+- [x] Added DS-style my page patterns for section headers and favorite policy cards.
+- [x] Replaced the `/mypage` favorite policy row with `FavoritePolicyCard`, using a compact one-character marker, truncating title/amount copy, and a non-wrapping remove button.
+- [x] Normalized bottom tab grid sizing with `repeat(4, minmax(0, 1fr))`, explicit auto width, and centered tab content.
+- [x] Updated the my page saved-policy regression test for the DS card contract.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `cd frontend; npm test -- --run src/App.test.tsx -t "shows saved policies on my page and removes them"` passed after the expected initial red test and implementation.
+- [x] `cd frontend; npm test -- --run src/App.test.tsx` passed with 102 tests.
+- [x] `cd frontend; npm run build` passed.
+- [x] `docker compose -f compose.yaml up -d --build` passed.
+- [x] Visual Playwright verification passed on Docker `/mypage` at 390px: 1 DS favorite card, 0 overflowing cards, 0 split thumb markers, 4 bottom tabs, and tab widths `[94, 94, 94, 94]`. Screenshot saved under `tmp/mypage-ds-card-tabs/`.
+
+Remaining risks:
+- Visual verification used one saved policy in the local Docker database. Empty and error states are covered by existing tests but were not separately screenshot-reviewed in this pass.

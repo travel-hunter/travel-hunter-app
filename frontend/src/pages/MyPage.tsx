@@ -3,7 +3,7 @@ import { Bell, CircleHelp, Dice5, FileText, LogOut, ShieldCheck } from "lucide-r
 import { Link, useNavigate } from "react-router-dom";
 import { appDataApi, type ContactInfo, type NotificationSettings, type Policy, type Profile, type Trip } from "../api";
 import { useSession } from "../app/session";
-import { ProfilePanel } from "../components/patterns";
+import { FavoritePolicyCard, ProfilePanel, ProfileSectionHeader } from "../components/patterns";
 import { Button, EmptyState, ErrorState, LoadingState } from "../components/ui";
 
 const profileOptions = appDataApi.getProfileOptions();
@@ -268,11 +268,8 @@ export function MyPage() {
           <ProfileStat label="신청 정책" value={isLoadingAppliedPolicies ? "..." : String(appliedPolicyCount)} tone="accent" />
         </section>
 
-        <section className="prototype-favorite-section" aria-labelledby="favorite-policy-title">
-          <div className="prototype-section-header">
-            <h3 id="favorite-policy-title">즐겨찾기 정책 ({isLoadingSavedPolicies ? "..." : savedPolicyCount})</h3>
-            <Link to="/policies">정책 찾기</Link>
-          </div>
+        <section className="prototype-favorite-section" aria-label="즐겨찾기 정책">
+          <ProfileSectionHeader title={`즐겨찾기 정책 (${isLoadingSavedPolicies ? "..." : savedPolicyCount})`} actionLabel="정책 찾기" to="/policies" />
           {isLoadingSavedPolicies && <LoadingState compact label="즐겨찾기 정책을 불러오는 중입니다" />}
           {!isLoadingSavedPolicies && savedPolicyError && (
             <ErrorState
@@ -303,26 +300,13 @@ export function MyPage() {
           {!isLoadingSavedPolicies && !savedPolicyError && savedPolicies.length > 0 && (
             <div className="prototype-favorite-list">
               {savedPolicies.map((policy) => (
-                <article className="prototype-favorite-row" key={policy.slug}>
-                  <Link className="prototype-favorite-link" to={`/policies/${policy.slug}`}>
-                    <span className="prototype-policy-thumb" aria-hidden="true">
-                      {policyIcon(policy)}
-                    </span>
-                    <span>
-                      <strong>{policy.title}</strong>
-                      <small>{policy.amount}</small>
-                    </span>
-                  </Link>
-                  <button
-                    aria-label="저장 해제"
-                    className="prototype-favorite-remove"
-                    disabled={removingPolicySlug === policy.slug}
-                    onClick={() => removeSavedPolicy(policy)}
-                    type="button"
-                  >
-                    {removingPolicySlug === policy.slug ? "..." : "해제"}
-                  </button>
-                </article>
+                <FavoritePolicyCard
+                  icon={policyIcon(policy)}
+                  isRemoving={removingPolicySlug === policy.slug}
+                  key={policy.slug}
+                  onRemove={() => removeSavedPolicy(policy)}
+                  policy={policy}
+                />
               ))}
             </div>
           )}
@@ -434,10 +418,10 @@ function ProfileStat({ label, tone, value }: { label: string; tone: "primary" | 
 }
 
 function policyIcon(policy: Policy) {
-  if (policy.category === "숙박") return "숙박";
-  if (policy.category === "교통" || policy.title.includes("KTX")) return "교통";
-  if (policy.title.includes("맛집")) return "맛집";
-  return "혜택";
+  if (policy.category === "숙박") return "숙";
+  if (policy.category === "교통" || policy.title.includes("KTX")) return "교";
+  if (policy.title.includes("맛집")) return "맛";
+  return "혜";
 }
 
 const infoSheetContent: Record<InfoSheetType, { title: string; intro: string; sections: Array<{ heading: string; body: string }> }> = {

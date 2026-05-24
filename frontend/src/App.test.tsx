@@ -2412,6 +2412,11 @@ describe("Travel Hunter app", () => {
     expect(screen.getByRole("button", { name: /알림 설정/ })).toBeInTheDocument();
     expect(document.querySelector(".ds-profile-panel")).toBeTruthy();
     expect(document.querySelector(".ds-settings-menu")).toBeTruthy();
+    const favoriteCard = document.querySelector(".ds-favorite-policy-card");
+    expect(favoriteCard).toBeTruthy();
+    expect(favoriteCard?.querySelector(".ds-favorite-policy-thumb")?.textContent?.trim()).toMatch(/^.$/);
+    expect(favoriteCard?.querySelector(".ds-favorite-policy-copy")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "저장 해제" })).toHaveClass("ds-favorite-policy-remove");
     const menuIcons = [...document.querySelectorAll(".prototype-menu-icon")].map((icon) => icon.textContent?.trim() ?? "");
     expect(menuIcons).toEqual(["", "", "", "", ""]);
 
