@@ -3,6 +3,7 @@ import { Dice5 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { appDataApi, type ContactInfo, type NotificationSettings, type Policy, type Profile, type Trip } from "../api";
 import { useSession } from "../app/session";
+import { ProfilePanel } from "../components/patterns";
 import { Button, EmptyState, ErrorState, LoadingState } from "../components/ui";
 
 const profileOptions = appDataApi.getProfileOptions();
@@ -10,7 +11,7 @@ type InfoSheetType = "faq" | "terms" | "privacy";
 
 export function MyPage() {
   const navigate = useNavigate();
-  const { currentUser, likedPolicy, logout, profile, saveNickname, saveProfile, removeSavedSlug, savedSlugs } = useSession();
+  const { currentUser, likedPolicy, logout, profile, removeSavedSlug, saveNickname, saveProfile, savedSlugs } = useSession();
   const previewUser = appDataApi.getPreviewUser();
   const name = currentUser?.nickname ?? previewUser.nickname;
   const [savedPolicies, setSavedPolicies] = useState<Policy[]>([]);
@@ -66,32 +67,20 @@ export function MyPage() {
     ]).then(([savedResult, tripsResult, appliedResult, notifResult, contactResult]) => {
       if (!isCurrent) return;
 
-      if (savedResult.status === "fulfilled") {
-        setSavedPolicies(savedResult.value);
-      } else {
-        setSavedPolicyError("저장한 정책을 불러오지 못했어요.");
-      }
+      if (savedResult.status === "fulfilled") setSavedPolicies(savedResult.value);
+      else setSavedPolicyError("저장한 정책을 불러오지 못했어요.");
       setIsLoadingSavedPolicies(false);
 
-      if (tripsResult.status === "fulfilled") {
-        setTrips(tripsResult.value);
-      } else {
-        setTripError("일정 정보를 불러오지 못했어요");
-      }
+      if (tripsResult.status === "fulfilled") setTrips(tripsResult.value);
+      else setTripError("일정 정보를 불러오지 못했어요.");
       setIsLoadingTrips(false);
 
-      if (appliedResult.status === "fulfilled") {
-        setAppliedPolicyCount(appliedResult.value.length);
-      } else {
-        setAppliedPolicyCount(0);
-      }
+      if (appliedResult.status === "fulfilled") setAppliedPolicyCount(appliedResult.value.length);
+      else setAppliedPolicyCount(0);
       setIsLoadingAppliedPolicies(false);
 
-      if (notifResult.status === "fulfilled") {
-        setNotificationSettings(notifResult.value);
-      } else {
-        setNotificationError("알림 설정을 불러오지 못했어요.");
-      }
+      if (notifResult.status === "fulfilled") setNotificationSettings(notifResult.value);
+      else setNotificationError("알림 설정을 불러오지 못했어요.");
       setIsLoadingNotifications(false);
 
       if (contactResult.status === "fulfilled") {
@@ -191,9 +180,7 @@ export function MyPage() {
     setIsSavingNotifications(true);
     setNotificationError("");
     try {
-      const savedSettings = await appDataApi.updateNotificationSettings({
-        deadlineEnabled: nextSettings.deadlineEnabled,
-      });
+      const savedSettings = await appDataApi.updateNotificationSettings({ deadlineEnabled: nextSettings.deadlineEnabled });
       setNotificationSettings(savedSettings);
     } catch {
       setNotificationSettings(previousSettings);
@@ -208,14 +195,12 @@ export function MyPage() {
     setContactError("");
     setVerificationMessage("");
     try {
-      const savedContact = await appDataApi.updateContact({
-        phoneNumber: contactDraft.trim() ? contactDraft : null,
-      });
+      const savedContact = await appDataApi.updateContact({ phoneNumber: contactDraft.trim() ? contactDraft : null });
       setContact(savedContact);
       setContactDraft(savedContact.phoneNumber ?? "");
       setVerificationCode("");
     } catch {
-      setContactError("연락처를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.");
+      setContactError("연락처를 저장하지 못했어요.");
     } finally {
       setIsSavingContact(false);
     }
@@ -226,9 +211,7 @@ export function MyPage() {
     setContactError("");
     setVerificationMessage("");
     try {
-      await appDataApi.requestContactVerification({
-        phoneNumber: contactDraft.trim() ? contactDraft : null,
-      });
+      await appDataApi.requestContactVerification({ phoneNumber: contactDraft.trim() ? contactDraft : null });
       setVerificationMessage("인증번호를 보냈어요.");
     } catch {
       setContactError("인증번호를 보내지 못했어요. 연락처를 확인해 주세요.");
@@ -245,7 +228,7 @@ export function MyPage() {
       setContact(verifiedContact);
       setContactDraft(verifiedContact.phoneNumber ?? "");
       setVerificationCode("");
-      setVerificationMessage("연락처 인증이 완료됐어요.");
+      setVerificationMessage("연락처 인증이 완료되었어요.");
     } catch {
       setContactError("인증번호를 확인하지 못했어요.");
     } finally {
@@ -257,27 +240,27 @@ export function MyPage() {
   const tripCount = tripError ? 0 : trips.length;
   const deadlineEnabled = notificationSettings?.deadlineEnabled ?? true;
   const deadlineLeadDays = notificationSettings?.deadlineLeadDays ?? [7, 1];
-  const deadlineLabel = deadlineEnabled
-    ? `정책 ${deadlineLeadDays.map((day) => `D-${day}`).join(", ")} 알림`
-    : "마감 알림을 받지 않음";
+  const deadlineLabel = deadlineEnabled ? `정책 ${deadlineLeadDays.map((day) => `D-${day}`).join(", ")} 알림` : "마감 알림을 받지 않음";
 
   return (
     <section className="screen with-tabs prototype-mypage-screen">
       <div className="prototype-mypage-title">마이</div>
 
       <div className="content stack padded prototype-mypage-content">
-        <section className="prototype-profile-card" aria-label="프로필">
+        <ProfilePanel title="프로필" meta={currentUser?.email ?? previewUser.email}>
           <div className="prototype-profile-main">
             <div className="avatar large">{name.trim().charAt(0) || "T"}</div>
             <div className="prototype-profile-text">
               <h2 className="profile-name">{name}</h2>
-              <div className="meta">{currentUser?.email ?? previewUser.email}</div>
+              <div className="meta">
+                {profile.region} · {profile.style} · {profile.budget}
+              </div>
             </div>
           </div>
           <Button variant="ghost" onClick={openProfileEditor}>
             편집
           </Button>
-        </section>
+        </ProfilePanel>
 
         <section className="prototype-stat-grid" aria-label="나의 활동 요약">
           <ProfileStat label="내 일정" value={isLoadingTrips ? "..." : String(tripCount)} tone="primary" />
@@ -287,7 +270,7 @@ export function MyPage() {
 
         <section className="prototype-favorite-section" aria-labelledby="favorite-policy-title">
           <div className="prototype-section-header">
-            <h3 id="favorite-policy-title">❤️ 즐겨찾기 정책 ({isLoadingSavedPolicies ? "..." : savedPolicyCount})</h3>
+            <h3 id="favorite-policy-title">즐겨찾기 정책 ({isLoadingSavedPolicies ? "..." : savedPolicyCount})</h3>
             <Link to="/policies">정책 찾기</Link>
           </div>
           {isLoadingSavedPolicies && <LoadingState compact label="즐겨찾기 정책을 불러오는 중입니다" />}
@@ -337,7 +320,7 @@ export function MyPage() {
                     onClick={() => removeSavedPolicy(policy)}
                     type="button"
                   >
-                    {removingPolicySlug === policy.slug ? "..." : "♥"}
+                    {removingPolicySlug === policy.slug ? "..." : "해제"}
                   </button>
                 </article>
               ))}
@@ -345,10 +328,10 @@ export function MyPage() {
           )}
         </section>
 
-        <section className="prototype-settings-menu" aria-label="설정 메뉴">
+        <section className="prototype-settings-menu ds-settings-menu" aria-label="설정 메뉴">
           <button className="prototype-menu-row" onClick={() => setIsNotificationSheetOpen(true)} type="button">
             <span className="prototype-menu-icon" aria-hidden="true">
-              🔔
+              알림
             </span>
             <strong>알림 설정</strong>
             <span className="prototype-menu-chevron" aria-hidden="true">
@@ -357,7 +340,7 @@ export function MyPage() {
           </button>
           <button className="prototype-menu-row" onClick={() => setInfoSheetType("faq")} type="button">
             <span className="prototype-menu-icon" aria-hidden="true">
-              ❔
+              FAQ
             </span>
             <strong>공지사항 / FAQ</strong>
             <span className="prototype-menu-chevron" aria-hidden="true">
@@ -366,7 +349,7 @@ export function MyPage() {
           </button>
           <button className="prototype-menu-row" onClick={() => setInfoSheetType("terms")} type="button">
             <span className="prototype-menu-icon" aria-hidden="true">
-              📄
+              약관
             </span>
             <strong>이용약관</strong>
             <span className="prototype-menu-chevron" aria-hidden="true">
@@ -375,7 +358,7 @@ export function MyPage() {
           </button>
           <button className="prototype-menu-row" onClick={() => setInfoSheetType("privacy")} type="button">
             <span className="prototype-menu-icon" aria-hidden="true">
-              🔒
+              보안
             </span>
             <strong>개인정보처리방침</strong>
             <span className="prototype-menu-chevron" aria-hidden="true">
@@ -384,7 +367,7 @@ export function MyPage() {
           </button>
           <button className="prototype-menu-row danger" onClick={signOut} type="button">
             <span className="prototype-menu-icon" aria-hidden="true">
-              ↪
+              종료
             </span>
             <strong>로그아웃</strong>
             <span className="prototype-menu-chevron" aria-hidden="true">
@@ -416,9 +399,9 @@ export function MyPage() {
             contactError={contactError}
             deadlineEnabled={deadlineEnabled}
             deadlineLabel={deadlineLabel}
+            isConfirmingVerification={isConfirmingVerification}
             isLoadingContact={isLoadingContact}
             isLoadingNotifications={isLoadingNotifications}
-            isConfirmingVerification={isConfirmingVerification}
             isRequestingVerification={isRequestingVerification}
             isSavingContact={isSavingContact}
             isSavingNotifications={isSavingNotifications}
@@ -429,9 +412,9 @@ export function MyPage() {
             onContactChange={setContactDraft}
             onConfirmVerification={confirmContactVerification}
             onRequestVerification={requestContactVerification}
-            onVerificationCodeChange={setVerificationCode}
             onSaveContact={saveContact}
             onToggleDeadline={toggleDeadlineNotifications}
+            onVerificationCodeChange={setVerificationCode}
           />
         )}
 
@@ -451,14 +434,13 @@ function ProfileStat({ label, tone, value }: { label: string; tone: "primary" | 
 }
 
 function policyIcon(policy: Policy) {
-  if (policy.slug.includes("vacation")) return "🏖️";
-  if (policy.slug.includes("rail") || policy.title.includes("KTX")) return "🚆";
-  if (policy.slug.includes("cashback")) return "🎁";
-  if (policy.slug.includes("food") || policy.title.includes("맛집")) return "🍽️";
-  return "💙";
+  if (policy.category === "숙박") return "숙박";
+  if (policy.category === "교통" || policy.title.includes("KTX")) return "교통";
+  if (policy.title.includes("맛집")) return "맛집";
+  return "혜택";
 }
 
-const updatedInfoSheetContent: Record<InfoSheetType, { title: string; intro: string; sections: Array<{ heading: string; body: string }> }> = {
+const infoSheetContent: Record<InfoSheetType, { title: string; intro: string; sections: Array<{ heading: string; body: string }> }> = {
   faq: {
     title: "공지사항 / FAQ",
     intro: "트래블헌터 이용 전에 자주 확인하는 안내를 모았어요.",
@@ -469,23 +451,11 @@ const updatedInfoSheetContent: Record<InfoSheetType, { title: string; intro: str
       },
       {
         heading: "신청 버튼과 혜택 안내 보기 버튼은 무엇이 다른가요?",
-        body: "신청하러 가기는 접수 화면으로 바로 이동하는 링크이고, 혜택 안내 보기는 주관 기관의 상세 안내 페이지로 이동하는 링크입니다.",
+        body: "신청 버튼은 접수 화면으로 바로 이동하는 링크이고, 혜택 안내 보기는 기관의 상세 안내 페이지로 이동하는 링크입니다.",
       },
       {
         heading: "즐겨찾기는 어디에 저장되나요?",
-        body: "관심 있는 정책의 하트를 누르면 마이페이지 즐겨찾기 정책에 저장되고, 정책 목록과 상세 화면의 하트 상태도 함께 동기화됩니다.",
-      },
-      {
-        heading: "일정에 정책을 담으면 무엇이 좋나요?",
-        body: "여행 일정 안에서 연결된 정책, 준비 서류, 추천 혜택을 함께 확인할 수 있어 신청 전 점검 흐름을 놓치지 않을 수 있습니다.",
-      },
-      {
-        heading: "마감 알림은 언제 받을 수 있나요?",
-        body: "알림 설정에서 마감 알림을 켜고 연락처를 저장하면 D-7, D-1 기준으로 알림 발송 대상에 포함됩니다. 실제 발송은 운영 설정이 준비된 환경에서 동작합니다.",
-      },
-      {
-        heading: "정책 신청 가능 여부가 확정되나요?",
-        body: "트래블헌터는 신청 준비를 돕는 서비스입니다. 실제 신청 가능 여부, 예산 소진, 제출 서류 인정 여부는 반드시 공식 안내에서 최종 확인해야 합니다.",
+        body: "관심 정책의 하트를 누르면 마이페이지 즐겨찾기 정책에 저장되고 목록과 상세 화면 상태가 함께 동기화됩니다.",
       },
     ],
   },
@@ -499,23 +469,11 @@ const updatedInfoSheetContent: Record<InfoSheetType, { title: string; intro: str
       },
       {
         heading: "정보의 성격",
-        body: "앱에 표시되는 정책 정보는 사용자의 탐색을 돕기 위한 요약 정보이며, 법적 효력이나 신청 자격 확정을 의미하지 않습니다.",
+        body: "앱에 표시되는 정책 정보는 사용자의 탐색을 돕기 위한 요약 정보이며, 실제 신청 가능 여부는 공식 안내에서 최종 확인해야 합니다.",
       },
       {
         heading: "사용자 책임",
-        body: "사용자는 정책 신청 전 공식 안내 페이지에서 신청 기간, 대상 조건, 예산 소진 여부, 제출 서류를 직접 확인해야 합니다.",
-      },
-      {
-        heading: "계정 이용",
-        body: "사용자는 본인 계정 정보를 안전하게 관리해야 하며, 타인의 계정 접근이나 서비스 운영을 방해하는 행위를 해서는 안 됩니다.",
-      },
-      {
-        heading: "서비스 변경",
-        body: "MVP와 베타 운영 기간에는 정책 데이터, 화면 구성, 알림 방식, 추천 기준이 개선 과정에서 변경될 수 있습니다.",
-      },
-      {
-        heading: "외부 서비스",
-        body: "공식 신청 페이지, OAuth 로그인, 알림톡 발송 등 외부 서비스는 해당 제공자의 운영 정책과 장애 상황에 영향을 받을 수 있습니다.",
+        body: "사용자는 신청 전 공식 안내 페이지에서 신청 기간, 대상 조건, 예산 소진 여부, 제출 서류를 직접 확인해야 합니다.",
       },
     ],
   },
@@ -525,34 +483,22 @@ const updatedInfoSheetContent: Record<InfoSheetType, { title: string; intro: str
     sections: [
       {
         heading: "수집 항목",
-        body: "이메일, 닉네임, 프로필 선호 정보, 저장 정책, 여행 일정, 초대 참여 정보, 알림 연락처를 기능 제공 범위에서 처리합니다.",
+        body: "이메일, 닉네임, 프로필 선호 정보, 저장한 정책, 여행 일정, 초대 참여 정보, 알림 연락처를 기능 제공 범위에서 처리합니다.",
       },
       {
         heading: "이용 목적",
-        body: "로그인, 회원 식별, 맞춤 정책 표시, 일정 관리, 즐겨찾기 동기화, 마감 알림 설정과 같은 사용자 기능 제공에 사용합니다.",
-      },
-      {
-        heading: "알림 연락처",
-        body: "전화번호는 사용자가 직접 저장한 경우에만 마감 알림 후보 계산과 알림 발송 준비에 사용하며, 인증 절차는 후속 기능에서 분리해 제공합니다.",
-      },
-      {
-        heading: "보관 기준",
-        body: "서비스 이용 중에는 기능 제공을 위해 보관하고, 사용자가 삭제하거나 탈퇴하는 경우 관련 법령과 운영 정책에 따라 삭제 또는 분리 보관합니다.",
-      },
-      {
-        heading: "외부 연동",
-        body: "OAuth 로그인, 이메일 발송, SOLAPI 알림톡 발송은 필요한 경우 외부 제공자와 연동되며, 실제 운영 secret이 설정된 환경에서만 활성화됩니다.",
+        body: "로그인, 회원 식별, 맞춤 정책 표시, 일정 관리, 즐겨찾기 동기화, 마감 알림 설정 기능 제공에 사용합니다.",
       },
       {
         heading: "보호 조치",
-        body: "비밀번호와 reset token은 원문을 저장하지 않고 해시로 관리하며, 실제 secret과 운영 환경값은 저장소에 기록하지 않습니다.",
+        body: "비밀번호와 재설정 토큰은 원문으로 저장하지 않고, 실제 운영 secret과 환경값은 저장소에 기록하지 않습니다.",
       },
     ],
   },
 };
 
 function InfoSheet({ onClose, type }: { onClose: () => void; type: InfoSheetType }) {
-  const content = updatedInfoSheetContent[type];
+  const content = infoSheetContent[type];
 
   return (
     <div className="sheet-backdrop" role="presentation" onMouseDown={onClose}>
@@ -605,9 +551,9 @@ function NotificationSettingsSheet({
   onContactChange,
   onConfirmVerification,
   onRequestVerification,
-  onVerificationCodeChange,
   onSaveContact,
   onToggleDeadline,
+  onVerificationCodeChange,
 }: {
   contact: ContactInfo | null;
   contactDraft: string;
@@ -627,12 +573,12 @@ function NotificationSettingsSheet({
   onContactChange: (phoneNumber: string) => void;
   onConfirmVerification: () => void;
   onRequestVerification: () => void;
-  onVerificationCodeChange: (code: string) => void;
   onSaveContact: () => void;
   onToggleDeadline: () => void;
+  onVerificationCodeChange: (code: string) => void;
 }) {
   const contactStatus = isLoadingContact
-    ? "연락처를 불러오는 중"
+    ? "연락처를 불러오는 중입니다"
     : contact?.phoneNumber
       ? contact.phoneVerified
         ? "검증된 연락처입니다"
@@ -677,11 +623,7 @@ function NotificationSettingsSheet({
             <Button disabled={isLoadingContact || isSavingContact} onClick={onSaveContact} variant="line">
               {isSavingContact ? "저장 중" : "연락처 저장"}
             </Button>
-            <Button
-              disabled={isLoadingContact || isSavingContact || isRequestingVerification || !contactDraft.trim()}
-              onClick={onRequestVerification}
-              variant="line"
-            >
+            <Button disabled={isLoadingContact || isSavingContact || isRequestingVerification || !contactDraft.trim()} onClick={onRequestVerification} variant="line">
               {isRequestingVerification ? "요청 중" : "인증번호 받기"}
             </Button>
             <label className="field contact-field">
@@ -696,11 +638,7 @@ function NotificationSettingsSheet({
                 value={verificationCode}
               />
             </label>
-            <Button
-              disabled={isLoadingContact || isConfirmingVerification || !verificationCode.trim()}
-              onClick={onConfirmVerification}
-              variant="line"
-            >
+            <Button disabled={isLoadingContact || isConfirmingVerification || !verificationCode.trim()} onClick={onConfirmVerification} variant="line">
               {isConfirmingVerification ? "확인 중" : "인증 확인"}
             </Button>
             {verificationMessage && <div className="form-success">{verificationMessage}</div>}
@@ -711,7 +649,7 @@ function NotificationSettingsSheet({
             <div className="setting-row">
               <div>
                 <strong>마감 알림</strong>
-                <div className="meta">{isLoadingNotifications ? "알림 설정을 불러오는 중" : deadlineLabel}</div>
+                <div className="meta">{isLoadingNotifications ? "알림 설정을 불러오는 중입니다" : deadlineLabel}</div>
               </div>
               <button
                 aria-checked={deadlineEnabled}
@@ -793,27 +731,9 @@ function ProfileEditSheet({
               {nicknameError}
             </p>
           )}
-          <ProfileEditChoices
-            label="관심 지역"
-            selected={draft.region}
-            values={profileOptions.regions}
-            onSelect={(region) => onChange({ ...draft, region })}
-            disabled={isSaving}
-          />
-          <ProfileEditChoices
-            label="여행 스타일"
-            selected={draft.style}
-            values={profileOptions.travelStyles}
-            onSelect={(style) => onChange({ ...draft, style })}
-            disabled={isSaving}
-          />
-          <ProfileEditChoices
-            label="예산"
-            selected={draft.budget}
-            values={profileOptions.budgets}
-            onSelect={(budget) => onChange({ ...draft, budget })}
-            disabled={isSaving}
-          />
+          <ProfileEditChoices label="관심 지역" selected={draft.region} values={profileOptions.regions} onSelect={(region) => onChange({ ...draft, region })} disabled={isSaving} />
+          <ProfileEditChoices label="여행 스타일" selected={draft.style} values={profileOptions.travelStyles} onSelect={(style) => onChange({ ...draft, style })} disabled={isSaving} />
+          <ProfileEditChoices label="예산" selected={draft.budget} values={profileOptions.budgets} onSelect={(budget) => onChange({ ...draft, budget })} disabled={isSaving} />
           {error && <p className="form-error">{error}</p>}
         </div>
         <div className="sheet-actions">
@@ -829,15 +749,15 @@ function ProfileEditSheet({
 function ProfileEditChoices({
   disabled = false,
   label,
-  values,
-  selected,
   onSelect,
+  selected,
+  values,
 }: {
   disabled?: boolean;
   label: string;
-  values: readonly string[];
-  selected: string;
   onSelect: (value: string) => void;
+  selected: string;
+  values: readonly string[];
 }) {
   return (
     <div>

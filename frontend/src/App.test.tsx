@@ -2362,6 +2362,15 @@ describe("Travel Hunter app", () => {
     cleanup();
     renderRoute("/mypage");
     await waitFor(() => expect(getLink(examplePolicyPath)).toBeInTheDocument());
+    expect(screen.getAllByText("마이").length).toBeGreaterThan(0);
+    expect(screen.getByText("프로필")).toBeInTheDocument();
+    expect(screen.getByText("내 일정")).toBeInTheDocument();
+    expect(screen.getByText("즐겨찾기")).toBeInTheDocument();
+    expect(screen.getByText("신청 정책")).toBeInTheDocument();
+    expect(screen.getByText(/즐겨찾기 정책/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /알림 설정/ })).toBeInTheDocument();
+    expect(document.querySelector(".ds-profile-panel")).toBeTruthy();
+    expect(document.querySelector(".ds-settings-menu")).toBeTruthy();
 
     await userEvent.setup().click(await screen.findByRole("button", { name: "저장 해제" }));
 

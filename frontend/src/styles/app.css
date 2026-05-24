@@ -1453,6 +1453,30 @@
   color: var(--color-text-primary);
 }
 
+.ds-profile-panel {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.ds-profile-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.ds-profile-panel-head h2 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 18px;
+}
+
+.ds-settings-menu {
+  display: grid;
+  gap: var(--space-2);
+}
+
 .prototype-home-policy-rail,
 .prototype-home-destination-rail {
   display: flex;

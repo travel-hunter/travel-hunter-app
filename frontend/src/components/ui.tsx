@@ -31,17 +31,7 @@ export function Button({
   );
 }
 
-export function LinkButton({
-  children,
-  to,
-  variant = "primary",
-  full = false,
-}: {
-  children: ReactNode;
-  to: string;
-  variant?: ButtonVariant;
-  full?: boolean;
-}) {
+export function LinkButton({ children, to, variant = "primary", full = false }: { children: ReactNode; to: string; variant?: ButtonVariant; full?: boolean }) {
   return (
     <Link className={classNames("btn", variant, full && "full")} to={to}>
       {children}
@@ -96,15 +86,7 @@ export function StatusPanel({
   );
 }
 
-export function TopBar({
-  title,
-  left,
-  right,
-}: {
-  title: string;
-  left?: ReactNode;
-  right?: ReactNode;
-}) {
+export function TopBar({ title, left, right }: { title: string; left?: ReactNode; right?: ReactNode }) {
   return (
     <div className="top-bar">
       <div>{left}</div>
@@ -177,7 +159,7 @@ export function ErrorState({
   message,
   action,
   compact = false,
-  title = "잠깐 문제가 생겼어요",
+  title = "문제가 생겼어요",
 }: {
   message: string;
   action?: ReactNode;
