@@ -112,6 +112,112 @@ Remaining risks:
 - Keyword rules can over-classify ambiguous policy text.
 - Existing promoted DB rows require promotion rerun or `python -m app.scripts.reclassify_external_policy_categories --apply`.
 
+## 2026-05-23 Policy Category URL State
+
+- [x] RED check: `cd frontend; npm test -- --run src/App.test.tsx -t "restores the policy category tab from the URL"` failed before implementation because the `여행상품` tab did not have the `active` class.
+- [x] GREEN check: `cd frontend; npm test -- --run src/App.test.tsx -t "restores the policy category tab from the URL"` passed with 5 selected tests.
+- [x] Regression check: `cd frontend; npm test -- --run src/App.test.tsx -t "category"` passed with 3 selected tests.
+- [x] `cd frontend; npm run typecheck` passed.
+
+Remaining risks:
+- Only the top-level policy category tab is URL-backed in this change; region, period, amount, and saved-only filters remain local state.
+
+## 2026-05-23 Policy Region Filter Simplification
+
+- [x] RED check: `cd frontend; npm test -- --run src/App.test.tsx -t "primary regions"` failed before implementation because the old region filter rendered every region directly and had no `지역 필터` group, `주요 지역`, or `전체 지역 보기` affordance.
+- [x] GREEN check: `cd frontend; npm test -- --run src/App.test.tsx -t "primary regions"` passed with 2 selected tests.
+- [x] Regression check: `cd frontend; npm test -- --run src/App.test.tsx -t 'category'` passed with 3 selected tests.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `docker compose -f compose.yaml config --quiet` passed.
+- [x] `docker compose -f compose.yaml build` passed; frontend image build ran `npm run typecheck && vite build`.
+- [x] `docker compose -f compose.yaml up -d --force-recreate` passed.
+- [x] Runtime smoke passed: `GET http://127.0.0.1:8000/api/health` returned `database: connected`, frontend `http://127.0.0.1:4173` returned HTTP 200, and Compose reported DB/backend healthy with frontend running.
+
+Remaining risks:
+- Primary regions are computed from visible policy counts and profile region, so some familiar regions such as 부산 can move behind `전체 지역 보기` when other regions have more current policies.
+
+## 2026-05-23 Policy Benefit Detail Structure
+
+- [x] RED check: `cd frontend; npm test -- --run src/App.test.tsx -t "scannable detail groups"` failed before implementation because the support detail still rendered the long summary in `.highlight-box .meta`.
+- [x] GREEN check: `cd frontend; npm test -- --run src/App.test.tsx -t "scannable detail groups"` passed with 1 selected test.
+- [x] Regression check: `cd frontend; npm test -- --run src/App.test.tsx` passed with 90 tests.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `git diff --check` passed with line-ending warnings only.
+- [x] `docker compose -f compose.yaml config --quiet` passed.
+- [x] `docker compose -f compose.yaml build` passed; frontend image build ran `npm run typecheck && vite build`.
+- [x] `docker compose -f compose.yaml up -d --force-recreate` passed.
+- [x] Runtime smoke passed: `GET http://127.0.0.1:8000/api/health` returned `database: connected`, frontend `http://127.0.0.1:4173` returned HTTP 200, Compose reported DB/backend healthy with frontend running, and the in-app browser loaded `Travel Hunter` with the app root mounted.
+
+Remaining risks:
+- Benefit grouping is heuristic frontend display logic. Backend/source-level structured benefit fields are still a future improvement.
+- Source summaries with unusual punctuation can still require parser normalization for perfect grouping.
+
+## 2026-05-23 TravelMonth Benefit Value Normalization
+
+- [x] Investigation confirmed `travelmonth-44` had the concise discount only in `title` (`웰촌 체험상품 30% 할인`) while `benefit_text`, `policy.benefit_detail`, and API `amount` contained the long condition sentence.
+- [x] RED check: `cd backend; python -m pytest tests/test_travelmonth_normalizer.py tests/test_policy_normalization.py -q` failed because `extract_benefit_value` did not accept title input and promotion fell back to the long condition sentence.
+- [x] GREEN check: `cd backend; python -m pytest tests/test_travelmonth_normalizer.py tests/test_policy_normalization.py -q` passed with 19 tests.
+- [x] Regression check: `cd backend; python -m pytest tests/test_travelmonth_parser.py tests/test_policy_db_service.py tests/test_region_recommendations.py -q` passed with 29 tests.
+- [x] Frontend RED check: `cd frontend; npm test -- --run src/App.test.tsx -t "trailing benefit period"` failed because the mixed condition/period sentence rendered as one `운영 기간` item and no `이용 조건` group.
+- [x] Frontend GREEN check: `cd frontend; npm test -- --run src/App.test.tsx -t "trailing benefit period"` passed with 1 selected test.
+- [x] Frontend regression check: `cd frontend; npm test -- --run src/App.test.tsx` passed with 91 tests.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `git diff --check` passed with line-ending warnings only.
+- [x] `docker compose -f compose.yaml config --quiet` passed.
+- [x] `docker compose -f compose.yaml build` passed; frontend image build ran `npm run typecheck && vite build`.
+- [x] `docker compose -f compose.yaml up -d --force-recreate` passed.
+- [x] Re-ran policy promotion in the backend container; `promoted_count` was 47.
+- [x] Runtime smoke passed: `GET http://127.0.0.1:8000/api/health` returned `database: connected`, frontend `http://127.0.0.1:4173` returned HTTP 200, and Compose reported DB/backend healthy with frontend running.
+- [x] `GET http://127.0.0.1:8000/api/policies/travelmonth-44` now returns `title: 웰촌 체험상품 30% 할인`, `amount: 최대 30%`, and the original condition sentence only in `summary`.
+- [x] In-app browser check for `/policies/travelmonth-44` showed `최대 30% 혜택`, `운영 기간: 26년 4월 중순부터 5월 말`, and `이용 조건: 행사 기간 중 온라인 체험상품 예약 결제 후 사용 완료 참여자`.
+
+Remaining risks:
+- Existing stored source records keep their old `benefit_value_text` until collection is rerun; re-running policy promotion repairs user-facing policies from the stored title signal.
+- If a future source title contains non-benefit percentages, the parser can overstate the benefit. Current known TravelMonth titles use percent wording as a benefit signal.
+
+## 2026-05-23 Policy Detail Sticky CTA Gap
+
+- [x] Investigation found the policy detail screen inherited `.service-layout .screen { padding-bottom: 100px; }`, which produced a 100px gap between `.sticky-cta` and `.bottom-tabs` at the bottom of the scroll container.
+- [x] RED check: `cd frontend; npm run test:e2e -- --grep "sticky CTA"` failed with measured `gap: 100`.
+- [x] GREEN check: `cd frontend; npm run test:e2e -- --grep "sticky CTA"` passed after removing the inherited bottom padding only for `.prototype-policy-detail-screen`.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `git diff --check` passed with line-ending warnings only.
+- [x] `docker compose -f compose.yaml config --quiet` passed.
+- [x] `docker compose -f compose.yaml build` passed; frontend image build ran `npm run typecheck && vite build`.
+- [x] `docker compose -f compose.yaml up -d --force-recreate` passed.
+- [x] Runtime smoke passed: `GET http://127.0.0.1:8000/api/health` returned `database: connected`, frontend `http://127.0.0.1:4173` returned HTTP 200, and Compose reported DB/backend healthy with frontend running.
+- [x] In-app browser check for `/policies/travelmonth-44` after scrolling measured CTA bottom and bottom tab top gap at 1px from rounding, visually attached above the bottom tabs.
+
+Remaining risks:
+- This fix is scoped to policy detail screens; other screens still intentionally keep their bottom padding for bottom tab clearance.
+
+## 2026-05-23 Trip Linked Policy Removal
+
+- [x] RED check: `cd backend; python -m pytest tests/test_trip_db_service.py -q -k "remove_policy_from_trip"; python -m pytest tests/test_trip_db_routes.py -q -k "remove_policy_from_trip"` failed before the repository/service/route delete path existed.
+- [x] Backend GREEN/regression check: `cd backend; python -m pytest tests/test_trip_db_service.py tests/test_trip_db_routes.py -q -k "policy"` passed with 9 tests.
+- [x] Frontend delete regression check: `cd frontend; npm test -- --run src/App.test.tsx -t "removes a linked policy"` passed after clearing the stale expected-saving fallback.
+- [x] Full frontend regression check: `cd frontend; npm test -- --run src/App.test.tsx` passed with 92 tests.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `docker compose -f compose.yaml config` passed.
+- [x] `docker compose -f compose.yaml build` passed; frontend image build ran `npm run typecheck && vite build`.
+- [x] `docker compose -f compose.yaml up -d --force-recreate` passed.
+- [x] Runtime smoke passed: `GET http://127.0.0.1:8000/api/health` returned `database: connected`, frontend `http://127.0.0.1:4173` returned HTTP 200, and Compose reported DB/backend healthy with frontend running.
+- [x] Browser smoke for `/trips/36` confirmed the linked policy card still links to `/policies/local-vacation` and exposes a visible `삭제` button with accessible name `지역사랑 휴가지원 연결 삭제`.
+
+Remaining risks:
+- The delete endpoint returns the existing `TripPolicyResponse` shape instead of a fully recalculated `Trip`; the frontend clears the local saving fallback when the last linked policy is removed.
+
+## 2026-05-23 Policy Requirement Detail Sections
+
+- [x] RED check: `cd frontend; npm test -- --run src/App.test.tsx -t "splits policy requirements"` failed because `혜택 적용 조건` and `확인 필요 사항` sections did not exist and all `requirements` were rendered under `신청 대상`.
+- [x] GREEN check: `cd frontend; npm test -- --run src/App.test.tsx -t "splits policy requirements"` passed with 1 selected test after frontend-only requirement grouping and explanatory copy were added.
+- [x] Policy detail regression check: `cd frontend; npm test -- --run src/App.test.tsx -t "policy detail section order"` passed with 26 selected tests.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] Full frontend regression check: `cd frontend; npm test -- --run src/App.test.tsx` passed with 93 tests.
+
+Remaining risks:
+- Requirement grouping is heuristic display logic over the existing `requirements` string array. It improves the current UI without changing API shape, but source-level structured eligibility/usage/confirmation fields remain a future backend/data normalization improvement.
+
 ## 남은 우선순위
 
 - [x] Complete review and merge PR #17 into `develop` after the latest checks are green.
@@ -127,3 +233,286 @@ Remaining risks:
 - Historical validation logs, prototype notes, and VPS-era runbook details are intentionally kept only in Git history.
 - Documentation-only cleanup does not require frontend/backend test suites unless a code, API, schema, or runtime behavior changes.
 - For release handoff, run the release gate in `docs/deployment-cicd/09-release-checklist.md` and record only the final evidence here, in the PR, or in the handoff note.
+
+## 2026-05-23 Policy Source Audit And Sokcho Correction
+
+- [x] Design saved to `docs/superpowers/specs/2026-05-23-policy-source-audit-design.md`.
+- [x] Implementation plan saved to `docs/superpowers/plans/2026-05-23-policy-source-audit.md`.
+- [x] RED check: `cd backend; python -m pytest tests/test_policy_source_audit.py -q` failed first because `scripts.audit_policy_sources` did not exist.
+- [x] RED seed check: the same command then failed because `sokcho-stay` still used `속초 숙박 할인권` and the old portal-root source.
+- [x] RED stale-document check: the same command then failed because reseeding an existing policy kept old `예약 내역` / `결제 영수증` documents.
+- [x] GREEN check: `cd backend; python -m pytest tests/test_policy_source_audit.py -q` passed with 7 tests.
+- [x] Targeted backend regression: `cd backend; python -m pytest tests/test_policy_source_audit.py tests/test_validate_policy_data.py tests/test_policy_data_validation.py -q` passed with 12 tests.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `docker compose -f compose.yaml build` passed; frontend image build ran `npm run typecheck && vite build`.
+- [x] `docker compose -f compose.yaml up -d --force-recreate` passed and DB/backend reported healthy.
+- [x] Reseeded the running Docker DB with `docker compose -f compose.yaml exec -T backend python -m app.db.seed`.
+- [x] Runtime smoke passed: `GET http://127.0.0.1:8000/api/health` returned `database: connected`.
+- [x] Runtime API check for `GET http://127.0.0.1:8000/api/policies/sokcho-stay` returned `title: 속초 워케이션 숙박 지원`, `tag: 워케이션`, official URL `https://www.sokcho.go.kr/sc/portal/sokchonews/pressrelease?articleSeq=806017`, apply URL `https://naver.me/FK5QrxZe`, requirements `주중 워케이션 / 참여 숙소 / 사전 신청 / 여행자 보험 가입 시 할인`, and documents `신청 내역 / 숙박 예약 정보 / 여행자 보험 가입 여부`.
+- [x] Current API policy list audit checked 74 loaded policies; none were classified as `invalid_source` or `missing_source`. All 74 are `needs_review` because the offline audit did not fetch or compare source page body text.
+
+Remaining risks:
+- The Sokcho official URL is the closest Sokcho city-site detail page found for this policy shape, but it is a 2025 notice. A 2026 current-program page exists outside the Sokcho city domain, so a future source-enrichment pass should decide whether to prefer current third-party operating pages or strict city-domain official notices.
+- The new audit utility validates URL/source quality offline by default. Full `verified` status requires supplying extracted source text or adding a controlled fetch/extraction step.
+
+## 2026-05-23 Legacy Dummy Policy Removal
+
+- [x] RED check: `cd backend; python -m pytest tests/test_policy_source_audit.py -q` failed because backend seed data still included `local-vacation`, `sokcho-stay`, `busan-cashback` and the dgtour crawler still reserved those slugs.
+- [x] Removed the three hardcoded dummy policies from backend seed data and frontend development fallback data.
+- [x] Added reseed cleanup so existing DB rows for `local-vacation`, `sokcho-stay`, and `busan-cashback` are deleted together with trip links, saved policies, notification deliveries, and policy documents.
+- [x] Removed the three legacy dummy slugs from frontend featured policy/icon/visual fallback settings and from dgtour crawler reserved slugs.
+- [x] GREEN check: `cd backend; python -m pytest tests/test_policy_source_audit.py -q` passed with 8 tests.
+- [x] Targeted backend regression: `cd backend; python -m pytest tests/test_policy_source_audit.py tests/test_validate_policy_data.py tests/test_policy_data_validation.py -q` passed with 13 tests.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `git diff --check` passed with line-ending warnings only.
+- [x] `docker compose -f compose.yaml config --quiet` passed.
+- [x] `docker compose -f compose.yaml build` passed; frontend image build ran `npm run typecheck && vite build`.
+- [x] `docker compose -f compose.yaml up -d --force-recreate` passed with DB/backend healthy and frontend running.
+- [x] Reseeded the running Docker DB with `docker compose -f compose.yaml exec -T backend python -m app.db.seed`.
+- [x] Runtime DB check returned 0 rows for `local-vacation`, `sokcho-stay`, and `busan-cashback`.
+- [x] Runtime API check for `GET http://127.0.0.1:8000/api/policies` returned 71 policies and no legacy dummy slugs.
+- [x] Runtime smoke passed: backend health and frontend root returned HTTP 200.
+
+Remaining risks:
+- Historical note: this risk was addressed by the later stale-reference cleanup section; general backend test fixtures now use neutral `fixture-*` slugs, while legacy slug mentions remain only in deletion assertions and archived/history context.
+
+## 2026-05-23 Dgtour Generic Benefit Display
+
+- [x] Root cause check found `dgtour-밀양-1` stores a generic `amount` value of `혜택 제공`; policy detail fallback then rendered it as `혜택 제공 혜택`.
+- [x] RED check: `cd frontend; npm test -- --run src/App.test.tsx -t "dgtour summary"` failed with `혜택 제공 혜택` in the support section.
+- [x] Detail display now treats generic amount values such as `혜택 제공` as labels, not benefit sentences, and uses the policy summary as the core benefit item.
+- [x] GREEN check: `cd frontend; npm test -- --run src/App.test.tsx -t "dgtour summary"` passed with 1 selected test.
+- [x] Related CTA fixture check: `cd frontend; npm test -- --run src/App.test.tsx -t "official policy link"` passed with 3 selected tests.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `docker compose -f compose.yaml build frontend` passed; frontend image build ran `npm run typecheck && vite build`.
+- [x] `docker compose -f compose.yaml up -d --force-recreate frontend` passed with DB/backend healthy and frontend running.
+- [x] Runtime Playwright smoke for `/policies/dgtour-%EB%B0%80%EC%96%91-1` showed `디지털관광주민증 혜택` and the policy summary under `핵심 혜택`, and `containsBad=false` for `혜택 제공 혜택`.
+
+Remaining risks:
+- None for the dgtour generic benefit display. A later stale-cleanup pass updated the full App test suite away from removed runtime dummy policy routes.
+
+## 2026-05-23 Current Spec Stale Cleanup
+
+- [x] Implementation plan saved to `docs/superpowers/plans/2026-05-23-current-spec-stale-cleanup.md`.
+- [x] API golden examples now use the real collected policy `dgtour-밀양-1` instead of removed dummy policy `local-vacation`.
+- [x] Frontend route smoke/e2e examples now use `/policies/dgtour-%EB%B0%80%EC%96%91-1`.
+- [x] `frontend/src/App.test.tsx` no longer navigates runtime detail flows to `/policies/local-vacation`; policy-list tests use explicit fixtures and link assertions tolerate encoded Korean slugs.
+- [x] Current work and next work docs were updated to the 2026-05-23 post-dummy-removal state.
+- [x] RED check observed before cleanup: `cd frontend; npm test -- --run src/App.test.tsx` failed with stale `/api/policies/local-vacation` 404s.
+- [x] GREEN check: `cd frontend; npm test -- --run src/App.test.tsx --reporter=dot` passed with 94 tests.
+
+Remaining risks:
+- Some backend unit tests and historical plan/spec documents still mention legacy dummy slugs as synthetic fixtures, deletion/audit assertions, or archived context. Those are not runtime seed records.
+
+## 2026-05-23 Remaining Stale Reference Cleanup
+
+- [x] `frontend/AGENTS.md` authenticated smoke route now points at the real collected policy path `/policies/dgtour-%EB%B0%80%EC%96%91-1` instead of `/policies/local-vacation`.
+- [x] General backend unit tests now use neutral fixture slugs (`fixture-policy`, `fixture-busan-cashback`) instead of removed runtime dummy policy slugs.
+- [x] Legacy dummy slug references remain only where intentional: DB reseed cleanup constants, policy source audit deletion assertions, current docs that explain dummy removal, `CHECKLIST.md` historical logs, and archived plan/spec examples.
+- [x] Historical source-audit and itinerary plan/spec documents now include notes that old dummy slug examples are superseded or archival.
+- [x] `cd backend; python -m pytest tests/test_policy_db_service.py tests/test_policy_error_paths.py tests/test_trip_db_routes.py tests/test_trip_db_service.py tests/test_notification_dispatch.py tests/test_notification_delivery_service.py tests/test_kakao_alimtalk.py tests/test_validate_policy_data.py -q` passed with 128 tests.
+- [x] `cd backend; python -m pytest -p no:cacheprovider --basetemp .pytest-tmp -q` passed with 335 tests.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `cd frontend; npm test -- --run src/App.test.tsx --reporter=dot` passed with 94 tests.
+- [x] Initial `cd frontend; npm run test:e2e` found an overly strict sticky CTA assertion comparing `0` with JavaScript `-0`; the test now uses numeric closeness for the same zero-gap layout invariant.
+- [x] `cd frontend; npm run test:e2e` passed with 8 Playwright backend-mode tests.
+- [x] `docker compose -f compose.yaml config --quiet` passed.
+- [x] `docker compose -f compose.yaml build` passed; frontend image build ran `npm run typecheck && vite build`.
+- [x] `docker compose -f compose.yaml up -d --force-recreate` passed with DB/backend healthy and frontend running.
+- [x] Docker runtime checks passed: backend `/api/health` returned `database=connected`, frontend root returned HTTP 200, and the running DB returned 0 rows for `local-vacation`, `sokcho-stay`, and `busan-cashback`.
+- [x] `python -m json.tool .agent/evals/api-contract-golden.json` passed.
+- [x] `git diff --check` passed with line-ending warnings only.
+
+Remaining risks:
+- No known remaining validation gap for the stale-reference cleanup and Docker/E2E gate. Historical log entries still mention old dummy slugs by design.
+
+## 2026-05-23 Trip Confirmation Lock
+
+- [x] Design spec saved to `docs/superpowers/specs/2026-05-23-trip-confirmation-lock-design.md`.
+- [x] Implementation plan saved to `docs/superpowers/plans/2026-05-23-trip-confirmation-lock.md`.
+- [x] RED check observed: `cd frontend; npm test -- --run src/App.test.tsx -t "confirmed trip"` failed before implementation because confirmed trip detail still exposed edit controls and no confirmation-cancel action existed.
+- [x] Trip detail now treats `confirmed` trips as read-only for owner/editor users, hides place/policy edit controls, and exposes `확정취소` to restore `draft` status through the existing trip status API.
+- [x] Focused GREEN check: `cd frontend; npm test -- --run src/App.test.tsx -t "confirmed trip"` passed with 2 selected tests.
+- [x] Full frontend regression check: `cd frontend; npm test -- --run src/App.test.tsx --reporter=dot` passed with 96 tests.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `cd frontend; npm run test:e2e` passed with 9 Playwright backend-mode tests, including the confirmed-trip lock/cancel flow.
+- [x] `python -m json.tool .agent\evals\api-contract-golden.json` passed.
+- [x] `docker compose -f compose.yaml config --quiet` passed.
+- [x] `git diff --check` passed with line-ending warnings only.
+- [x] Browser smoke on `http://127.0.0.1:5173/trips/{createdId}` verified a confirmed trip hides add/drag controls, exposes `확정취소`, and restores `.dashed` plus `.drag-handle` controls after canceling confirmation.
+- [x] `docker compose -f compose.yaml build frontend` passed; frontend image build ran `npm run typecheck && vite build`.
+- [x] `docker compose -f compose.yaml up -d --force-recreate frontend` passed with DB/backend healthy and frontend running.
+- [x] Runtime smoke passed: backend `/api/health` returned `database=connected` and frontend `http://127.0.0.1:4173` returned HTTP 200.
+
+Remaining risks:
+- No known remaining validation gap for the trip confirmation lock behavior.
+
+## 2026-05-23 Trip Detail Confirm Action
+
+- [x] Trip detail now exposes a `확정하기` action for owner/editor users when a trip is still `draft`.
+- [x] The action uses the existing `appDataApi.updateTripStatus(trip.id, { status: "confirmed" })` boundary and then reuses the confirmed-trip read-only lock state.
+- [x] Viewer users still do not see trip confirmation controls in trip detail.
+- [x] `cd frontend; npm test -- --run src/App.test.tsx -t "draft trip detail"` passed with 7 selected tests, including the new detail confirm regression.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `cd frontend; npm test -- --run src/App.test.tsx --reporter=dot` passed with 97 tests.
+- [x] `docker compose -f compose.yaml build frontend` passed; frontend image build ran `npm run typecheck && vite build`.
+- [x] `docker compose -f compose.yaml up -d --force-recreate frontend` passed with DB/backend healthy and frontend running.
+- [x] Runtime smoke passed: backend `/api/health` returned `database=connected`, frontend `http://127.0.0.1:4173/` returned HTTP 200, and Playwright verified `확정하기` appears on a draft detail, switches to `확정취소`, and locks edit controls after confirmation.
+- [x] Smoke-created trip `89` was deleted after verification.
+
+Remaining risks:
+- No known remaining validation gap for the trip detail confirm action.
+
+## 2026-05-23 Trip Detail Status Card Color
+
+- [x] B wireframe direction selected: `draft` detail status uses yellow styling and `confirmed` detail status uses green styling, matching the `/trips` list status language.
+- [x] RED check: `cd frontend; npm test -- --run src/App.test.tsx -t "confirms draft trip detail"` failed because the draft detail status panel had only `trip-status-panel` and no `draft` state class.
+- [x] Trip detail status panel now renders `trip-status-panel draft` for 작성 중 and `trip-status-panel confirmed` for 확정됨.
+- [x] Scoped CSS gives draft a yellow background/left rule and confirmed a green background/left rule; the status action buttons now match each state color.
+- [x] Focused GREEN check: `cd frontend; npm test -- --run src/App.test.tsx -t "confirms draft trip detail"` passed with 3 selected tests.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `docker compose -f compose.yaml build frontend` passed; frontend image build ran `npm run typecheck && vite build`.
+- [x] `docker compose -f compose.yaml up -d --force-recreate frontend` passed with DB/backend healthy and frontend running.
+- [x] Runtime Playwright smoke verified draft panel `background=rgb(255, 249, 232)`, `borderLeftColor=rgb(225, 161, 0)`, and confirm button brown; after confirmation, panel `background=rgb(238, 249, 241)`, `borderLeftColor=rgb(31, 139, 76)`, and cancel button white/green.
+- [x] Smoke-created trip `91` was deleted after verification.
+
+Remaining risks:
+- No known remaining validation gap for the trip detail status card color.
+
+## 2026-05-23 Trip List Status Display
+
+- [x] `/trips` itinerary cards no longer render the `.trip-confirm-panel` confirmation/save block.
+- [x] Draft itinerary cards now render the status tag with `tag yellow` while confirmed cards keep the existing confirmed status styling.
+- [x] Removed now-unused list confirmation state and stale `.trip-confirm-panel` / `.trip-confirm-check` CSS.
+- [x] `cd frontend; npm test -- --run src/App.test.tsx -t "draft trips"` passed with 6 selected tests.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `python -m json.tool .agent\evals\api-contract-golden.json` passed.
+- [x] `cd frontend; npm test -- --run src/App.test.tsx --reporter=dot` passed with 96 tests.
+- [x] `cd frontend; npm run test:e2e` passed with 9 Playwright backend-mode tests.
+- [x] `docker compose -f compose.yaml config --quiet` passed.
+- [x] `git diff --check` passed with line-ending warnings only.
+- [x] `docker compose -f compose.yaml build frontend` passed; frontend image build ran `npm run typecheck && vite build`.
+- [x] `docker compose -f compose.yaml up -d --force-recreate frontend` passed with DB/backend healthy and frontend running.
+- [x] Runtime smoke passed: backend `/api/health` returned `database=connected`, frontend `http://127.0.0.1:4173` returned HTTP 200, and browser DOM showed `panelCount=0`, `checkCount=0`, and draft status tag `className=tag yellow`.
+
+Remaining risks:
+- No known remaining validation gap for the trip list status display.
+
+## 2026-05-23 Figma Design System Foundations
+
+- [x] Design spec saved to `docs/superpowers/specs/2026-05-23-travel-hunter-figma-design-system-design.md`.
+- [x] Implementation plan saved to `docs/superpowers/plans/2026-05-23-travel-hunter-figma-design-system.md`.
+- [x] Figma file created: `Travel Hunter DS v1` at `https://www.figma.com/design/bvSkBGlFoFvgnlnVoWYfEk`.
+- [x] Figma discovery verified the file had one blank page, zero local variables, zero text styles, and zero effect styles before creation.
+- [x] Phase 1 foundations created 4 variable collections: primitives, color, spacing, radius.
+- [x] Phase 1 foundations created 67 variables: 33 primitive colors, 22 semantic colors, 7 spacing/size values, and 5 radius values.
+- [x] Semantic color variables use primitive variable aliases; validation found 22 aliases and 0 broken aliases.
+- [x] Validation found 0 missing WEB code syntax entries and 0 non-primitive variables without scopes.
+- [x] Text styles created: Title, Section Title, Card Title, Body, Meta, Badge.
+- [x] Effect styles created: Shadow/xs, Shadow/sm, Shadow/md.
+- [x] Figma build state saved to `.agent/figma-design-system-state.json`.
+
+Remaining risks:
+- No code CSS refactor has been applied yet. Some newly defined semantic CSS variable names, such as `--status-draft-bg` and `--color-bg-card`, are Figma/code handoff targets and still need a later frontend token cleanup before Dev Mode and CSS are fully aligned.
+- Phase 2 file structure and component pages are pending user checkpoint approval.
+
+## 2026-05-23 Figma Design System Phase 2 Structure
+
+- [x] Phase 2 created the Figma page skeleton with 11 pages: Cover, Getting Started, Foundations, component separator, Status, Button, Tag Badge, Card, Bottom Tab, screen separator, and Screens / Trips.
+- [x] Cover page now has a branded `Travel Hunter DS v1` 1440 x 900 frame.
+- [x] Getting Started page now documents the token -> component -> screen workflow and the code alignment note.
+- [x] Foundations page now documents color, typography, spacing, radius, and elevation sections from the Phase 1 tokens/styles.
+- [x] Component placeholder pages were added for Status, Button, Tag Badge, Card, and Bottom Tab to mark the Phase 3 creation order.
+- [x] Screens / Trips now has a handoff placeholder for comparing `/trips` and trip detail states after components exist.
+- [x] Figma validation returned `requiredPagesPresent=true`, `pageCount=11`, and no missing required pages.
+- [x] Figma build state updated in `.agent/figma-design-system-state.json`.
+
+Remaining risks:
+- Component variants are not created yet. Per the Figma design-system workflow, Phase 3 should start with the Status component family and stop for review after its screenshot.
+- Several Figma semantic CSS names remain handoff targets until the frontend token cleanup adds matching CSS variables.
+
+## 2026-05-23 Figma Design System Phase 3 Status
+
+- [x] Searched available Figma design-system assets for reusable status/tag/panel components; no reusable component or token result was returned.
+- [x] Status page placeholder was replaced with `Status / Documentation`, including usage rules for Draft, Confirmed, Benefit, and Danger states.
+- [x] Created `Status Tag` component set with 4 variants: Draft, Confirmed, Benefit, Danger.
+- [x] Created `Status Panel` component set with 2 variants: Draft and Confirmed.
+- [x] Status Tag uses state-specific Korean labels: `작성 중`, `확정됨`, `예상 혜택`, `삭제 필요`.
+- [x] Status Panel uses draft/confirmed Korean copy and action labels: `확정하기`, `확정취소`.
+- [x] Visual validation screenshot exposed an issue where shared text properties forced all variants to the same label; those text properties were removed and state-specific labels were restored.
+- [x] Visual validation screenshot exposed a Korean body rendering issue in the confirmed panel; panel body text now uses `NanumGothic Regular` fallback for reliable Korean rendering.
+- [x] Final Figma structural validation returned `Status Tag` variant count 4 and `Status Panel` variant count 2.
+- [x] Figma build state updated in `.agent/figma-design-system-state.json`.
+
+Remaining risks:
+- Status components are ready for review, but no code CSS/component refactor has been applied yet.
+- The next Phase 3 component should be Button after user approval of the Status component screenshot.
+
+## 2026-05-23 Figma Design System Phase 3 Button
+
+- [x] Searched available Figma design-system assets for reusable button components; no reusable component or token result was returned.
+- [x] Button page placeholder was replaced with `Button / Documentation`.
+- [x] Created `Button` component set with 16 variants.
+- [x] Button axes are `Size=Small/Medium`, `Style=Primary/Secondary/Quiet/Danger`, and `State=Default/Disabled`.
+- [x] Button labels use the `Label` text component property so instances can change action text.
+- [x] Button variants bind fills, text colors, strokes, padding, and radius to the Phase 1 foundation variables.
+- [x] Visual validation screenshot confirmed visible size differences, style differences, and disabled-state dimming.
+- [x] Final Figma structural validation returned variant count 16 and the expected component property definitions.
+- [x] Figma build state updated in `.agent/figma-design-system-state.json`.
+
+Remaining risks:
+- Button components are ready for review, but no code CSS/component refactor has been applied yet.
+- The next Phase 3 component should be Tag/Badge, then Card, then Bottom Tab.
+
+## 2026-05-23 Figma Design System Phase 3 Remaining Components And Screen
+
+- [x] Created `Tag Badge / Documentation` and `Tag Badge` component set with 4 variants: Neutral, Primary, Benefit, Muted.
+- [x] Tag Badge labels use `NanumGothic Bold` after visual validation showed Inter Korean text did not render reliably in the screenshot.
+- [x] Created `Card / Documentation` and `Card` component set with 4 variants: Base, Draft, Confirmed, Benefit.
+- [x] Card text uses `NanumGothic` after visual validation showed Korean title/tag rendering gaps with Inter.
+- [x] Created `Bottom Tab / Documentation` and `Bottom Tab Item` component set with 2 variants: Inactive and Active.
+- [x] Created `Screens / Trips` comparison frame for draft yellow and confirmed green state language across cards, benefit summary, and bottom tabs.
+- [x] Final Figma QA found 11 pages, 6 component sets, 67 variables, 6 text styles, and 3 effect styles.
+- [x] Final Figma QA found all required component sets present: Status Tag, Status Panel, Button, Tag Badge, Card, Bottom Tab Item.
+- [x] Final Figma QA found no missing WEB code syntax and no non-primitive variables missing scopes.
+- [x] Figma build state updated in `.agent/figma-design-system-state.json`.
+
+Remaining risks:
+- Figma design-system creation is complete for the agreed v1 scope. Code cleanup is still a separate implementation task: frontend CSS tokens should be aligned with the newly defined semantic Figma tokens before applying component-level refactors.
+
+## 2026-05-23 Figma Semantic Token Code Alignment
+
+- [x] Added Figma handoff semantic CSS variables to `frontend/src/styles/tokens.css`: `--color-bg-*`, `--color-text-*`, `--color-border-*`, `--color-action-*`, and `--status-*`.
+- [x] Replaced hardcoded trip status panel and status tag colors in `frontend/src/styles/app.css` with the new semantic variables.
+- [x] Confirmed no remaining hardcoded Figma status hex values in `frontend/src/styles/app.css` for `#fff9e8`, `#e1a100`, `#7a4b00`, `#b66f00`, `#eef9f1`, `#1f8b4c`, `#15803d`, `#e0f2fe`, or `#0369a1`.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] Focused frontend regression: `cd frontend; npm test -- --run src/App.test.tsx -t "draft trips"` passed with 7 selected tests, including the draft trip badge and draft-detail confirmation lock flow.
+
+Remaining risks:
+- CSS token alignment is intentionally scoped to the trip/status surfaces covered by the Figma v1 work. Many older app surfaces still use historical literal colors and should be cleaned up in separate, lower-risk passes.
+
+## 2026-05-23 Policy-Wide Design System Refactor
+
+- [x] Added shared frontend UI primitives for semantic surfaces and status panels: `SurfaceCard`, `StatusPanel`, and typed tag tones.
+- [x] Aligned policy list/detail, trip list/detail, and bottom tab surfaces with the Figma v1 design language without changing API contracts or backend data flow.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] Focused frontend regression passed: `design-system`, `viewer trips as read-only`, `draft trips`, `policy list`, `dgtour summary`, `normalized official benefit detail`, and `benefit summaries`.
+- [x] `cd frontend; npm run build` passed.
+- [x] `git diff --check` passed for touched frontend files; Git reported existing CRLF normalization warnings only.
+- [x] Responsive visual QA passed at 360, 390, 430, 1024, and 1440px for `/policies`, `/policies/dgtour-%EB%B0%80%EC%96%91-1`, `/trips`, and one real trip detail route. Checks covered horizontal overflow, bottom-tab vertical centering, DS card presence, policy detail benefit/requirement cards, trip status panel, and sticky CTA alignment above bottom tabs.
+
+Remaining risks:
+- Visual QA used a local Vite preview on `127.0.0.1:51846` with Chromium local web-security disabled because the running backend CORS configuration only allowed the Docker frontend origin. The rendered app still used the running FastAPI/PostgreSQL backend and the built frontend assets.
+
+## 2026-05-24 Frontend Design Cleanup Review
+
+- [x] Removed temporary visual QA artifact `frontend/tmp-policy-detail.png`.
+- [x] Repaired mojibake in visible bottom-tab labels and policy/trip card copy in `frontend/src/components/AppLayout.tsx` and `frontend/src/components/cards.tsx`.
+- [x] Confirmed no remaining mojibake pattern matches in those two files.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] Focused frontend regressions passed: `policy list` and `draft trips`.
+- [x] `docker compose -f compose.yaml up -d --build frontend` passed; frontend image build ran `npm run typecheck && vite build`.
+- [x] Runtime smoke passed: backend `/api/health` returned `database=connected`, Docker backend/db are healthy, and frontend `http://127.0.0.1:4173` returned HTTP 200.
+
+Remaining risks:
+- The worktree still contains many unrelated backend/docs/frontend changes from earlier tasks. Commit grouping should separate the design-system cleanup from policy source/audit and API contract changes.

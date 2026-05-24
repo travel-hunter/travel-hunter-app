@@ -13,15 +13,13 @@ export function ItineraryListPage() {
   const [deletingTripId, setDeletingTripId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState("");
   const [deleteCandidateTrip, setDeleteCandidateTrip] = useState<Trip | null>(null);
-  const [confirmingStatusTripId, setConfirmingStatusTripId] = useState<string | null>(null);
-  const [statusErrors, setStatusErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (loadedTrips) setTrips(loadedTrips);
   }, [loadedTrips]);
 
   const requestDeleteTrip = (trip: Trip) => {
-    if (deletingTripId || confirmingStatusTripId) return;
+    if (deletingTripId) return;
     setDeleteCandidateTrip(trip);
     setDeleteError("");
   };
@@ -48,23 +46,6 @@ export function ItineraryListPage() {
     }
   };
 
-  const confirmTripStatus = async (trip: Trip) => {
-    if (deletingTripId || confirmingStatusTripId) return;
-    setConfirmingStatusTripId(trip.id);
-    setStatusErrors((current) => ({ ...current, [trip.id]: "" }));
-    try {
-      const nextTrip = await appDataApi.updateTripStatus(trip.id, { status: "confirmed" });
-      setTrips((current) => current.map((item) => (item.id === trip.id ? nextTrip : item)));
-    } catch {
-      setStatusErrors((current) => ({
-        ...current,
-        [trip.id]: "일정 확정 상태를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.",
-      }));
-    } finally {
-      setConfirmingStatusTripId(null);
-    }
-  };
-
   return (
     <section className="screen with-tabs prototype-trip-list-screen">
       <div className="prototype-screen-head">
@@ -86,10 +67,7 @@ export function ItineraryListPage() {
             key={trip.id}
             trip={trip}
             addedPolicy={addedPolicy}
-            confirmStatusError={statusErrors[trip.id]}
-            isConfirmingStatus={confirmingStatusTripId === trip.id}
             isDeleting={deletingTripId === trip.id}
-            onConfirmStatus={confirmTripStatus}
             onDelete={requestDeleteTrip}
           />
         ))}

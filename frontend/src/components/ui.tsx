@@ -2,6 +2,12 @@ import { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "line" | "danger";
+type Tone = "default" | "primary" | "warning" | "yellow" | "green" | "gray" | "benefit" | "confirmed" | "draft" | "danger";
+type SurfaceTone = "default" | "draft" | "confirmed" | "benefit" | "danger";
+
+function classNames(...parts: Array<string | false | null | undefined>) {
+  return parts.filter(Boolean).join(" ");
+}
 
 export function Button({
   children,
@@ -19,7 +25,7 @@ export function Button({
   disabled?: boolean;
 }) {
   return (
-    <button className={`btn ${variant} ${full ? "full" : ""}`} disabled={disabled} onClick={onClick} type={type}>
+    <button className={classNames("btn", variant, full && "full")} disabled={disabled} onClick={onClick} type={type}>
       {children}
     </button>
   );
@@ -37,14 +43,57 @@ export function LinkButton({
   full?: boolean;
 }) {
   return (
-    <Link className={`btn ${variant} ${full ? "full" : ""}`} to={to}>
+    <Link className={classNames("btn", variant, full && "full")} to={to}>
       {children}
     </Link>
   );
 }
 
-export function Tag({ children, tone = "default" }: { children: ReactNode; tone?: "default" | "primary" | "warning" | "gray" }) {
-  return <span className={`tag ${tone}`}>{children}</span>;
+export function Tag({ children, tone = "default" }: { children: ReactNode; tone?: Tone }) {
+  return <span className={classNames("tag", tone)}>{children}</span>;
+}
+
+export function SurfaceCard({
+  children,
+  tone = "default",
+  className,
+  as: Component = "div",
+}: {
+  children: ReactNode;
+  tone?: SurfaceTone;
+  className?: string;
+  as?: "article" | "section" | "div";
+}) {
+  return <Component className={classNames("ds-card", tone !== "default" && tone, className)}>{children}</Component>;
+}
+
+export function StatusPanel({
+  tone,
+  badge,
+  title,
+  body,
+  action,
+  className,
+  ariaLabel,
+}: {
+  tone: "draft" | "confirmed" | "benefit" | "danger";
+  badge: string;
+  title: string;
+  body?: string;
+  action?: ReactNode;
+  className?: string;
+  ariaLabel?: string;
+}) {
+  return (
+    <section className={classNames("ds-status-panel", tone, className)} aria-label={ariaLabel ?? title}>
+      <div>
+        <span className={classNames("ds-status-badge", tone)}>{badge}</span>
+        <strong>{title}</strong>
+        {body && <p className="meta">{body}</p>}
+      </div>
+      {action && <div className="ds-status-action">{action}</div>}
+    </section>
+  );
 }
 
 export function TopBar({

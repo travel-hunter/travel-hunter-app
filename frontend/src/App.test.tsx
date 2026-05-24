@@ -5,12 +5,68 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { appDataApi, type ContactInfo, type InviteState, type LinkedTripPolicy, type NotificationSettings, type Policy, type RegionRecommendation, type Trip } from "./api";
 import { App } from "./app/App";
 import { AppProviders, AppRoot } from "./app/AppRoot";
+import { StatusPanel, SurfaceCard, Tag } from "./components/ui";
 
 const testEmail = "test.user@example.com";
 const testPassword = "password123";
+const examplePolicySlug = "dgtour-\uBC00\uC591-1";
+const examplePolicyPath = `/policies/${encodeURIComponent(examplePolicySlug)}`;
+const examplePolicyTitle = "\uBC00\uC591 \uB514\uC9C0\uD138\uAD00\uAD11\uC8FC\uBBFC\uC99D \uD61C\uD0DD";
+const examplePolicyDraftKey = `travel-hunter:draft:trip-create:${examplePolicySlug}`;
+const examplePolicyDetail: Policy = {
+  id: examplePolicySlug,
+  slug: examplePolicySlug,
+  label: "MY",
+  tag: "지역할인",
+  title: examplePolicyTitle,
+  org: "한국관광공사",
+  region: "경남",
+  deadline: "2026-12-31",
+  amount: "디지털관광주민증 혜택",
+  summary: "디지털관광주민증 소지자 대상 밀양 지역 방문 혜택을 제공합니다.",
+  match: 75,
+  category: "지역할인",
+  requirements: ["디지털관광주민증 발급자", "밀양 방문"],
+  documents: ["디지털관광주민증"],
+  officialUrl: "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+  applyUrl: null,
+  sourceType: "external",
+};
 
 beforeEach(() => {
   window.localStorage.clear();
+});
+
+describe("design-system primitives", () => {
+  it("renders design-system tags with semantic tone classes", () => {
+    render(
+      <MemoryRouter>
+        <div>
+          <Tag tone="draft">작성 중</Tag>
+          <Tag tone="confirmed">확정됨</Tag>
+          <Tag tone="benefit">예상 혜택</Tag>
+        </div>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("작성 중")).toHaveClass("tag", "draft");
+    expect(screen.getByText("확정됨")).toHaveClass("tag", "confirmed");
+    expect(screen.getByText("예상 혜택")).toHaveClass("tag", "benefit");
+  });
+
+  it("renders surface cards and status panels with design-system classes", () => {
+    render(
+      <MemoryRouter>
+        <SurfaceCard tone="confirmed" className="test-card">
+          <span>카드 내용</span>
+        </SurfaceCard>
+        <StatusPanel tone="draft" badge="작성 중" title="편집 가능" body="확정 전까지 수정할 수 있습니다." />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("카드 내용").closest(".ds-card")).toHaveClass("confirmed", "test-card");
+    expect(screen.getByText("편집 가능").closest(".ds-status-panel")).toHaveClass("draft");
+  });
 });
 
 function renderRoute(route: string) {
@@ -24,7 +80,11 @@ function renderRoute(route: string) {
 }
 
 function getLink(href: string) {
-  const link = document.querySelector(`a[href="${href}"]`);
+  const expectedHref = decodeURIComponent(href);
+  const link = Array.from(document.querySelectorAll("a")).find((candidate) => {
+    const candidateHref = candidate.getAttribute("href") ?? "";
+    return candidateHref === href || decodeURIComponent(candidateHref) === expectedHref;
+  });
   expect(link).toBeTruthy();
   return link as HTMLAnchorElement;
 }
@@ -139,7 +199,7 @@ describe("Travel Hunter app", () => {
       "/profile-setup",
       "/home",
       "/policies",
-      "/policies/local-vacation",
+      examplePolicyPath,
       "/trips",
       "/trips/new",
       "/trips/1",
@@ -159,7 +219,7 @@ describe("Travel Hunter app", () => {
   it("uses selected dates and shows generated itinerary times when creating a trip", async () => {
     await login();
     cleanup();
-    renderRoute("/trips/new?policySlug=local-vacation");
+    renderRoute(`/trips/new?policySlug=${encodeURIComponent(examplePolicySlug)}`);
     const user = userEvent.setup();
     const createdTrip: Trip = {
       ...appDataApi.getPreviewTrip(),
@@ -190,7 +250,7 @@ describe("Travel Hunter app", () => {
       },
     };
     const createTripSpy = vi.spyOn(appDataApi, "createTrip").mockResolvedValue(createdTrip);
-    const addPolicySpy = vi.spyOn(appDataApi, "addPolicyToTrip").mockResolvedValue({ tripId: "44", policyId: "local-vacation", added: true });
+    const addPolicySpy = vi.spyOn(appDataApi, "addPolicyToTrip").mockResolvedValue({ tripId: "44", policyId: examplePolicySlug, added: true });
     const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(createdTrip);
     const listTripsSpy = vi.spyOn(appDataApi, "listTrips").mockResolvedValue([createdTrip]);
 
@@ -218,13 +278,13 @@ describe("Travel Hunter app", () => {
             title: "부산 맛집 여행",
             region: expect.any(String),
             style: expect.any(String),
-            policySlug: "local-vacation",
+            policySlug: examplePolicySlug,
             startDate: "2026-07-12",
             endDate: "2026-07-15",
           }),
         ),
       );
-      expect(window.localStorage.getItem("travel-hunter:draft:trip-create:local-vacation")).toBeNull();
+      expect(window.localStorage.getItem(examplePolicyDraftKey)).toBeNull();
       await expect(screen.findAllByText("10:00")).resolves.not.toHaveLength(0);
       await expect(screen.findAllByText("14:00")).resolves.not.toHaveLength(0);
       await expect(screen.findAllByText("18:00")).resolves.not.toHaveLength(0);
@@ -346,17 +406,17 @@ describe("Travel Hunter app", () => {
   it("restores the trip creation draft after remounting the page", async () => {
     await login();
     cleanup();
-    renderRoute("/trips/new?policySlug=local-vacation");
+    renderRoute(`/trips/new?policySlug=${encodeURIComponent(examplePolicySlug)}`);
     const user = userEvent.setup();
 
     await user.click(screen.getByRole("button", { name: /부산/ }));
     await user.click(screen.getByRole("button", { name: "다음" }));
     fireEvent.change(screen.getByLabelText("도착일"), { target: { value: "2026-07-16" } });
-    await waitFor(() => expect(window.localStorage.getItem("travel-hunter:draft:trip-create:local-vacation")).toContain("부산"));
-    await waitFor(() => expect(window.localStorage.getItem("travel-hunter:draft:trip-create:local-vacation")).toContain("2026-07-16"));
+    await waitFor(() => expect(window.localStorage.getItem(examplePolicyDraftKey)).toContain("부산"));
+    await waitFor(() => expect(window.localStorage.getItem(examplePolicyDraftKey)).toContain("2026-07-16"));
 
     cleanup();
-    renderRoute("/trips/new?policySlug=local-vacation");
+    renderRoute(`/trips/new?policySlug=${encodeURIComponent(examplePolicySlug)}`);
 
     await waitFor(() => expect(screen.getByRole("heading", { name: "언제 떠나나요?" })).toBeInTheDocument());
     expect(screen.getByLabelText("도착일")).toHaveValue("2026-07-16");
@@ -366,7 +426,7 @@ describe("Travel Hunter app", () => {
     await login();
     cleanup();
     window.localStorage.setItem(
-      "travel-hunter:draft:trip-create:local-vacation",
+      examplePolicyDraftKey,
       JSON.stringify({
         version: 1,
         savedAt: Date.now(),
@@ -377,12 +437,12 @@ describe("Travel Hunter app", () => {
           endDate: "2026-07-16",
           title: "부산 5일 가족 여행",
           step: 3,
-          policySlug: "local-vacation",
+          policySlug: examplePolicySlug,
         },
       }),
     );
 
-    renderRoute("/trips/new?policySlug=local-vacation");
+    renderRoute(`/trips/new?policySlug=${encodeURIComponent(examplePolicySlug)}`);
     const user = userEvent.setup();
 
     await waitFor(() => expect(screen.getByText("작성 중이던 일정 조건을 불러왔어요.")).toBeInTheDocument());
@@ -393,7 +453,7 @@ describe("Travel Hunter app", () => {
     await user.click(screen.getByRole("button", { name: "삭제" }));
 
     await waitFor(() => expect(screen.queryByText("작성 중이던 일정 조건을 불러왔어요.")).not.toBeInTheDocument());
-    expect(window.localStorage.getItem("travel-hunter:draft:trip-create:local-vacation")).toBeNull();
+    expect(window.localStorage.getItem(examplePolicyDraftKey)).toBeNull();
     expect(screen.getByRole("heading", { name: "어디로 떠나나요?" })).toBeInTheDocument();
   });
 
@@ -435,6 +495,8 @@ describe("Travel Hunter app", () => {
     const trip: Trip = {
       ...appDataApi.getPreviewTrip(),
       id: "56",
+      status: "draft",
+      currentUserRole: "owner",
       title: "부산 정책 여행",
       linkedPolicies: [
         {
@@ -444,8 +506,8 @@ describe("Travel Hunter app", () => {
           region: "부산",
         },
         {
-          slug: "local-vacation",
-          title: "지역사랑 휴가지원",
+          slug: examplePolicySlug,
+          title: examplePolicyTitle,
           amount: "최대 30만원",
           region: "전국",
         },
@@ -460,10 +522,11 @@ describe("Travel Hunter app", () => {
       renderRoute("/trips/56");
 
       await waitFor(() => expect(screen.getByText("부산 워케이션 지원")).toBeInTheDocument());
-      expect(screen.getByText("지역사랑 휴가지원")).toBeInTheDocument();
+      expect(screen.getByText(examplePolicyTitle)).toBeInTheDocument();
       expect(document.querySelectorAll(".benefit-banner")).toHaveLength(2);
       expect(getLink("/policies/busan-digital-nomad")).toBeInTheDocument();
-      expect(getLink("/policies/local-vacation")).toBeInTheDocument();
+      expect(getLink(examplePolicyPath)).toBeInTheDocument();
+      expect(screen.getAllByRole("button", { name: /연결 삭제/ })).toHaveLength(2);
       expect(document.body).toHaveTextContent("최대 10만원 · 부산");
       expect(document.body).toHaveTextContent("최대 30만원 · 전국");
     } finally {
@@ -471,11 +534,53 @@ describe("Travel Hunter app", () => {
     }
   });
 
+  it("removes a linked policy from the trip detail card", async () => {
+    const trip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "61",
+      status: "draft",
+      currentUserRole: "owner",
+      title: "정책 삭제 여행",
+      linkedPolicies: [
+        {
+          slug: examplePolicySlug,
+          title: examplePolicyTitle,
+          amount: "최대 30만원",
+          region: "전국",
+        },
+      ],
+      days: { 1: [] },
+    };
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(trip);
+    const removePolicySpy = vi
+      .spyOn(appDataApi, "removePolicyFromTrip")
+      .mockResolvedValue({ tripId: "61", policyId: examplePolicySlug, added: false });
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/trips/61");
+
+      const linkedRegion = await screen.findByRole("region", { name: "연결된 정책" });
+      expect(within(linkedRegion).getByText(examplePolicyTitle)).toBeInTheDocument();
+
+      await userEvent.setup().click(within(linkedRegion).getByRole("button", { name: `${examplePolicyTitle} 연결 삭제` }));
+
+      await waitFor(() => expect(removePolicySpy).toHaveBeenCalledWith("61", examplePolicySlug));
+      await waitFor(() => expect(within(linkedRegion).queryByText(examplePolicyTitle)).not.toBeInTheDocument());
+      expect(within(linkedRegion).getByText("연결된 정책이 없어요")).toBeInTheDocument();
+      expect(document.body).toHaveTextContent("정책 연결을 해제했어요.");
+    } finally {
+      getTripSpy.mockRestore();
+      removePolicySpy.mockRestore();
+    }
+  });
+
   it("links trip detail recommended policy cards to policy detail pages", async () => {
     const recommendedPolicies: LinkedTripPolicy[] = [
       {
-        slug: "busan-cashback",
-        title: "부산 여행 캐시백",
+        slug: "busan-card-cashback",
+        title: "부산 카드 캐시백",
         amount: "카드 결제 5% 캐시백",
         region: "부산",
       },
@@ -496,7 +601,7 @@ describe("Travel Hunter app", () => {
       renderRoute("/trips/59");
 
       const recommendedRegion = await screen.findByRole("region", { name: "이 일정에 어울리는 정책" });
-      expect(within(recommendedRegion).getByRole("link", { name: /부산 여행 캐시백/ })).toHaveAttribute("href", "/policies/busan-cashback");
+      expect(within(recommendedRegion).getByRole("link", { name: /부산 카드 캐시백/ })).toHaveAttribute("href", "/policies/busan-card-cashback");
       expect(within(recommendedRegion).getByText("카드 결제 5% 캐시백")).toBeInTheDocument();
       expect(within(recommendedRegion).queryByText("KTX 청년 여행 할인")).not.toBeInTheDocument();
     } finally {
@@ -537,8 +642,8 @@ describe("Travel Hunter app", () => {
       expectedSaving: "30만원",
       linkedPolicies: [
         {
-          slug: "busan-cashback",
-          title: "부산 여행 캐시백",
+          slug: "busan-card-cashback",
+          title: "부산 카드 캐시백",
           amount: "카드 결제 5% 캐시백",
           region: "부산",
         },
@@ -557,8 +662,8 @@ describe("Travel Hunter app", () => {
               pathname: "/trips/58",
               state: {
                 linkedPolicy: {
-                  slug: "local-vacation",
-                  title: "지역사랑 휴가지원",
+                  slug: examplePolicySlug,
+                  title: examplePolicyTitle,
                   amount: "최대 30만원",
                   region: "전국",
                 },
@@ -573,12 +678,13 @@ describe("Travel Hunter app", () => {
       );
 
       const linkedRegion = await screen.findByRole("region", { name: "연결된 정책" });
-      expect(within(linkedRegion).getByText("지역사랑 휴가지원")).toBeInTheDocument();
-      expect(within(linkedRegion).getByText("부산 여행 캐시백")).toBeInTheDocument();
+      expect(within(linkedRegion).getByText(examplePolicyTitle)).toBeInTheDocument();
+      expect(within(linkedRegion).getByText("부산 카드 캐시백")).toBeInTheDocument();
       const banners = document.querySelectorAll(".benefit-banner");
       expect(banners).toHaveLength(2);
-      expect(banners[0]).toHaveAttribute("href", "/policies/local-vacation");
-      expect(banners[1]).toHaveAttribute("href", "/policies/busan-cashback");
+      const links = linkedRegion.querySelectorAll(".linked-policy-card-main");
+      expect(decodeURIComponent(links[0].getAttribute("href") ?? "")).toBe(decodeURIComponent(examplePolicyPath));
+      expect(links[1]).toHaveAttribute("href", "/policies/busan-card-cashback");
     } finally {
       getTripSpy.mockRestore();
     }
@@ -605,8 +711,8 @@ describe("Travel Hunter app", () => {
               pathname: "/trips/57",
               state: {
                 linkedPolicy: {
-                  slug: "local-vacation",
-                  title: "지역사랑 휴가지원",
+                  slug: examplePolicySlug,
+                  title: examplePolicyTitle,
                   amount: "최대 30만원",
                   region: "전국",
                 },
@@ -620,8 +726,8 @@ describe("Travel Hunter app", () => {
         </MemoryRouter>,
       );
 
-      await waitFor(() => expect(screen.getByText("지역사랑 휴가지원")).toBeInTheDocument());
-      expect(document.querySelector(".benefit-banner")).toHaveAttribute("href", "/policies/local-vacation");
+      await waitFor(() => expect(screen.getByText(examplePolicyTitle)).toBeInTheDocument());
+      expect(decodeURIComponent(document.querySelector(".linked-policy-card-main")?.getAttribute("href") ?? "")).toBe(decodeURIComponent(examplePolicyPath));
       expect(document.body).toHaveTextContent("최대 30만원 · 전국");
       expect(screen.queryByText("연결된 정책이 없어요")).not.toBeInTheDocument();
     } finally {
@@ -678,6 +784,8 @@ describe("Travel Hunter app", () => {
     const initialTrip: Trip = {
       ...appDataApi.getPreviewTrip(),
       id: "55",
+      status: "draft",
+      currentUserRole: "owner",
       title: "Jeju editable trip",
       days: { 1: [{ id: "1", time: "09:00", label: "Sunrise peak", meta: "Nature" }] },
     };
@@ -757,6 +865,8 @@ describe("Travel Hunter app", () => {
     const initialTrip: Trip = {
       ...appDataApi.getPreviewTrip(),
       id: "55",
+      status: "draft",
+      currentUserRole: "owner",
       title: "Jeju editable trip",
       days: { 1: [{ id: "1", time: "09:00", label: "Sunrise peak", meta: "Nature" }] },
     };
@@ -796,6 +906,8 @@ describe("Travel Hunter app", () => {
     const initialTrip: Trip = {
       ...appDataApi.getPreviewTrip(),
       id: "55",
+      status: "draft",
+      currentUserRole: "owner",
       title: "Jeju editable trip",
       days: { 1: [] },
     };
@@ -849,6 +961,8 @@ describe("Travel Hunter app", () => {
     const initialTrip: Trip = {
       ...appDataApi.getPreviewTrip(),
       id: "55",
+      status: "draft",
+      currentUserRole: "owner",
       title: "Jeju editable trip",
       days: { 1: [] },
     };
@@ -891,6 +1005,8 @@ describe("Travel Hunter app", () => {
     const initialTrip: Trip = {
       ...appDataApi.getPreviewTrip(),
       id: "55",
+      status: "draft",
+      currentUserRole: "owner",
       title: "Jeju editable trip",
       days: { 1: [] },
     };
@@ -941,8 +1057,8 @@ describe("Travel Hunter app", () => {
 
       await waitFor(() => expect(document.body).toHaveTextContent("Sunrise peak"));
       expect(document.body).toHaveTextContent("보기 권한으로 참여 중입니다");
-      expect(document.querySelector(".dashed")).toHaveAttribute("hidden");
-      expect(document.querySelector(".place-actions")).toHaveAttribute("hidden");
+      expect(document.querySelector(".dashed")).not.toBeInTheDocument();
+      expect(document.querySelector(".place-actions")).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Sunrise peak 순서 이동" })).not.toBeInTheDocument();
     } finally {
       getTripSpy.mockRestore();
@@ -953,6 +1069,8 @@ describe("Travel Hunter app", () => {
     const initialTrip: Trip = {
       ...appDataApi.getPreviewTrip(),
       id: "55",
+      status: "draft",
+      currentUserRole: "owner",
       title: "Movable trip",
       days: {
         1: [
@@ -1024,6 +1142,8 @@ describe("Travel Hunter app", () => {
     const trip: Trip = {
       ...appDataApi.getPreviewTrip(),
       id: "55",
+      status: "draft",
+      currentUserRole: "owner",
       title: "Move failure trip",
       days: {
         1: [
@@ -1265,7 +1385,7 @@ describe("Travel Hunter app", () => {
     }
   });
 
-  it("saves a draft trip confirmation from the trips list", async () => {
+  it("renders draft trips without list confirmation controls and with a yellow draft badge", async () => {
     const trip: Trip = {
       ...appDataApi.getPreviewTrip(),
       id: "91",
@@ -1281,29 +1401,23 @@ describe("Travel Hunter app", () => {
       cleanup();
       renderRoute("/trips");
       await screen.findByText("Draft trip");
-      const user = userEvent.setup();
-      const saveButton = document.querySelector(".trip-confirm-panel button") as HTMLButtonElement;
-      expect(saveButton).toBeDisabled();
-
-      await user.click(document.querySelector(".trip-confirm-check input") as HTMLInputElement);
+      expect(document.querySelector(".trip-confirm-panel")).not.toBeInTheDocument();
       expect(updateStatusSpy).not.toHaveBeenCalled();
-      expect(saveButton).not.toBeDisabled();
-
-      await user.click(saveButton);
-      await waitFor(() => expect(updateStatusSpy).toHaveBeenCalledWith("91", { status: "confirmed" }));
-      await waitFor(() => expect(document.querySelector(".trip-confirm-panel")).not.toBeInTheDocument());
-      expect(document.body).toHaveTextContent("확정됨");
+      const statusTags = Array.from(document.querySelectorAll(".itinerary-policy-row .tag"));
+      expect(statusTags[1]).toHaveTextContent("작성 중");
+      expect(statusTags[0]).toHaveClass("benefit");
+      expect(statusTags[1]).toHaveClass("draft");
     } finally {
       listTripsSpy.mockRestore();
       updateStatusSpy.mockRestore();
     }
   });
 
-  it("keeps draft status visible when trip confirmation saving fails", async () => {
+  it("does not call trip confirmation from the trips list", async () => {
     const trip: Trip = {
       ...appDataApi.getPreviewTrip(),
       id: "92",
-      title: "Draft trip with error",
+      title: "Draft trip without list action",
       status: "draft",
       currentUserRole: "owner",
     };
@@ -1314,14 +1428,10 @@ describe("Travel Hunter app", () => {
       await login();
       cleanup();
       renderRoute("/trips");
-      await screen.findByText("Draft trip with error");
-      const user = userEvent.setup();
-      await user.click(document.querySelector(".trip-confirm-check input") as HTMLInputElement);
-      await user.click(document.querySelector(".trip-confirm-panel button") as HTMLButtonElement);
-
-      await waitFor(() => expect(updateStatusSpy).toHaveBeenCalledWith("92", { status: "confirmed" }));
-      expect(document.querySelector(".trip-confirm-panel")).toBeInTheDocument();
-      expect(document.querySelector(".warning-text.full-row")?.textContent).toContain("일정 확정 상태");
+      await screen.findByText("Draft trip without list action");
+      expect(screen.getAllByText("작성 중").length).toBeGreaterThan(0);
+      expect(document.querySelector(".trip-confirm-check")).not.toBeInTheDocument();
+      expect(updateStatusSpy).not.toHaveBeenCalled();
     } finally {
       listTripsSpy.mockRestore();
       updateStatusSpy.mockRestore();
@@ -1352,31 +1462,298 @@ describe("Travel Hunter app", () => {
     }
   });
 
+  it("locks confirmed trip detail editing until confirmation is canceled", async () => {
+    const confirmedTrip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "94",
+      title: "Confirmed detail trip",
+      status: "confirmed",
+      currentUserRole: "owner",
+      linkedPolicies: [{ slug: examplePolicySlug, title: examplePolicyTitle, amount: "10,000원 할인", region: "경남" }],
+      days: {
+        1: [{ id: "p1", time: "09:00", label: "Locked beach", meta: "확정 일정 장소" }],
+      },
+    };
+    const draftTrip: Trip = { ...confirmedTrip, status: "draft" };
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(confirmedTrip);
+    const updateStatusSpy = vi.spyOn(appDataApi, "updateTripStatus").mockResolvedValue(draftTrip);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/trips/94");
+
+      await waitFor(() => expect(screen.getAllByText("Confirmed detail trip").length).toBeGreaterThan(0));
+      expect(screen.getByRole("button", { name: "확정취소" })).toBeInTheDocument();
+      expect(document.body).toHaveTextContent("확정된 일정은 편집할 수 없어요");
+      expect(document.querySelector(".dashed")).not.toBeInTheDocument();
+      expect(document.querySelector(".drag-handle")).not.toBeInTheDocument();
+      expect(document.querySelector(".place-actions")).not.toBeInTheDocument();
+      expect(document.querySelector(".linked-policy-remove")).not.toBeInTheDocument();
+
+      await userEvent.setup().click(screen.getByRole("button", { name: "확정취소" }));
+
+      await waitFor(() => expect(updateStatusSpy).toHaveBeenCalledWith("94", { status: "draft" }));
+      await waitFor(() => expect(document.querySelector(".dashed")).toBeInTheDocument());
+      expect(document.querySelector(".drag-handle")).toBeInTheDocument();
+      expect(document.querySelector(".place-actions")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "확정취소" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "확정하기" })).toBeInTheDocument();
+    } finally {
+      getTripSpy.mockRestore();
+      updateStatusSpy.mockRestore();
+    }
+  });
+
+  it("confirms draft trip detail and locks editing controls", async () => {
+    const draftTrip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "96",
+      title: "Draft detail trip",
+      status: "draft",
+      currentUserRole: "owner",
+      linkedPolicies: [{ slug: examplePolicySlug, title: examplePolicyTitle, amount: "10,000원 할인", region: "경남" }],
+      days: {
+        1: [{ id: "p1", time: "09:00", label: "Editable beach", meta: "작성 중 장소" }],
+      },
+    };
+    const confirmedTrip: Trip = { ...draftTrip, status: "confirmed" };
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(draftTrip);
+    const updateStatusSpy = vi.spyOn(appDataApi, "updateTripStatus").mockResolvedValue(confirmedTrip);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/trips/96");
+
+      await waitFor(() => expect(screen.getAllByText("Draft detail trip").length).toBeGreaterThan(0));
+      expect(screen.getByRole("region", { name: "일정 확정 상태" })).toHaveClass("draft");
+      expect(screen.getByRole("button", { name: "확정하기" })).toBeInTheDocument();
+      expect(document.querySelector(".dashed")).toBeInTheDocument();
+      expect(document.querySelector(".drag-handle")).toBeInTheDocument();
+      expect(document.querySelector(".place-actions")).toBeInTheDocument();
+      expect(document.querySelector(".linked-policy-remove")).toBeInTheDocument();
+
+      await userEvent.setup().click(screen.getByRole("button", { name: "확정하기" }));
+
+      await waitFor(() => expect(updateStatusSpy).toHaveBeenCalledWith("96", { status: "confirmed" }));
+      await waitFor(() => expect(document.body).toHaveTextContent("확정된 일정은 편집할 수 없어요"));
+      expect(screen.getByRole("region", { name: "일정 확정 상태" })).toHaveClass("confirmed");
+      expect(document.querySelector(".dashed")).not.toBeInTheDocument();
+      expect(document.querySelector(".drag-handle")).not.toBeInTheDocument();
+      expect(document.querySelector(".place-actions")).not.toBeInTheDocument();
+      expect(document.querySelector(".linked-policy-remove")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "확정취소" })).toBeInTheDocument();
+    } finally {
+      getTripSpy.mockRestore();
+      updateStatusSpy.mockRestore();
+    }
+  });
+
+  it("does not show confirmation cancel controls for confirmed viewer trips", async () => {
+    const trip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "95",
+      title: "Confirmed viewer trip",
+      status: "confirmed",
+      currentUserRole: "viewer",
+      days: {
+        1: [{ id: "p1", time: "09:00", label: "Viewer locked place", meta: "읽기 전용" }],
+      },
+    };
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(trip);
+    const updateStatusSpy = vi.spyOn(appDataApi, "updateTripStatus").mockResolvedValue({ ...trip, status: "draft" });
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/trips/95");
+
+      await waitFor(() => expect(screen.getAllByText("Confirmed viewer trip").length).toBeGreaterThan(0));
+      expect(screen.queryByRole("button", { name: "확정취소" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "확정하기" })).not.toBeInTheDocument();
+      expect(updateStatusSpy).not.toHaveBeenCalled();
+    } finally {
+      getTripSpy.mockRestore();
+      updateStatusSpy.mockRestore();
+    }
+  });
+
   it("filters policies by region and prototype category tabs", async () => {
+    const policies: Policy[] = [
+      examplePolicyDetail,
+      {
+        ...examplePolicyDetail,
+        id: "gangneung-stay",
+        slug: "gangneung-stay",
+        label: "GN",
+        tag: "숙박",
+        title: "강릉 숙박 할인권",
+        region: "강원",
+        category: "숙박",
+        summary: "강릉 숙박 혜택",
+      },
+      {
+        ...examplePolicyDetail,
+        id: "busan-card-cashback",
+        slug: "busan-card-cashback",
+        label: "BS",
+        tag: "지역할인",
+        title: "부산 카드 캐시백",
+        region: "부산",
+        category: "지역할인",
+        summary: "부산 지역 결제 혜택",
+      },
+    ];
+    const listPoliciesSpy = vi.spyOn(appDataApi, "listPolicies").mockResolvedValue(policies);
+
+    try {
     await login();
     cleanup();
     renderRoute("/policies");
     const user = userEvent.setup();
 
-    await waitFor(() => expect(document.body).toHaveTextContent("지역사랑 휴가지원"));
-    expect(document.body).toHaveTextContent("속초 숙박 할인권");
-    expect(document.body).toHaveTextContent("부산 여행 캐시백");
+    await waitFor(() => expect(document.body).toHaveTextContent(examplePolicyTitle));
+    expect(document.body).toHaveTextContent("강릉 숙박 할인권");
+    expect(document.body).toHaveTextContent("부산 카드 캐시백");
 
     await user.click(screen.getByRole("button", { name: "🌎 지역" }));
-    await user.click(screen.getByRole("button", { name: "부산" }));
-    await waitFor(() => expect(document.body).toHaveTextContent("부산 여행 캐시백"));
-    expect(screen.queryByText("속초 숙박 할인권")).not.toBeInTheDocument();
+    const regionFilter = screen.getByRole("group", { name: "지역 필터" });
+    const visibleBusanFilter = within(regionFilter).queryByRole("button", { name: "부산" });
+    if (visibleBusanFilter) {
+      await user.click(visibleBusanFilter);
+    } else {
+      await user.click(within(regionFilter).getByRole("button", { name: "전체 지역 보기" }));
+      await user.click(within(regionFilter).getByRole("button", { name: "부산" }));
+    }
+    await waitFor(() => expect(document.body).toHaveTextContent("부산 카드 캐시백"));
+    expect(screen.queryByText("강릉 숙박 할인권")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "지역할인" }));
-    await waitFor(() => expect(document.body).toHaveTextContent("부산 여행 캐시백"));
+    await waitFor(() => expect(document.body).toHaveTextContent("부산 카드 캐시백"));
 
     await user.click(screen.getByRole("button", { name: "초기화" }));
-    await waitFor(() => expect(document.body).toHaveTextContent("지역사랑 휴가지원"));
-    expect(document.body).toHaveTextContent("속초 숙박 할인권");
-    expect(getLink("/policies/local-vacation")).toBeInTheDocument();
+    await waitFor(() => expect(document.body).toHaveTextContent(examplePolicyTitle));
+    expect(document.body).toHaveTextContent("강릉 숙박 할인권");
+    expect(getLink(examplePolicyPath)).toBeInTheDocument();
+    } finally {
+      listPoliciesSpy.mockRestore();
+    }
+  });
+
+  it("shows primary regions first and reveals the full region list on demand", async () => {
+    const regionalPolicies: Policy[] = [
+      {
+        id: "nationwide",
+        slug: "nationwide",
+        label: "ALL",
+        tag: "지역할인",
+        title: "전국 여행 할인",
+        org: "한국관광공사",
+        region: "전국",
+        deadline: "2026-06-30",
+        amount: "할인",
+        summary: "전국 혜택",
+        match: 92,
+        category: "지역할인",
+        requirements: [],
+        documents: [],
+        officialUrl: null,
+        applyUrl: null,
+        sourceType: "internal",
+      },
+      {
+        id: "jeju",
+        slug: "jeju",
+        label: "JEJU",
+        tag: "숙박",
+        title: "제주 숙박 할인",
+        org: "제주관광공사",
+        region: "제주",
+        deadline: "2026-06-30",
+        amount: "할인",
+        summary: "제주 혜택",
+        match: 91,
+        category: "숙박",
+        requirements: [],
+        documents: [],
+        officialUrl: null,
+        applyUrl: null,
+        sourceType: "internal",
+      },
+      ...["부산", "부산", "서울", "서울", "강원", "강원", "경기", "전남", "대구", "광주"].map((region, index) => ({
+        id: `region-${index}`,
+        slug: `region-${index}`,
+        label: region,
+        tag: "지역할인",
+        title: `${region} 지역 혜택`,
+        org: `${region}관광공사`,
+        region,
+        deadline: "2026-06-30",
+        amount: "할인",
+        summary: `${region} 혜택`,
+        match: 80 - index,
+        category: "지역할인" as const,
+        requirements: [],
+        documents: [],
+        officialUrl: null,
+        applyUrl: null,
+        sourceType: "internal" as const,
+      })),
+    ];
+    const policyListSpy = vi.spyOn(appDataApi, "listPolicies").mockResolvedValue(regionalPolicies);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/policies");
+      const user = userEvent.setup();
+
+      await waitFor(() => expect(document.body).toHaveTextContent("전국 여행 할인"));
+      await user.click(screen.getByRole("button", { name: "🌎 지역" }));
+      const regionFilter = screen.getByRole("group", { name: "지역 필터" });
+
+      expect(within(regionFilter).getByText("주요 지역")).toBeInTheDocument();
+      expect(within(regionFilter).getByRole("button", { name: "전체 지역 보기" })).toBeInTheDocument();
+      expect(within(regionFilter).queryByRole("button", { name: "광주" })).not.toBeInTheDocument();
+
+      await user.click(within(regionFilter).getByRole("button", { name: "전체 지역 보기" }));
+      await user.click(within(regionFilter).getByRole("button", { name: "광주" }));
+
+      await waitFor(() => expect(document.body).toHaveTextContent("광주 지역 혜택"));
+      expect(screen.queryByText("전국 여행 할인")).not.toBeInTheDocument();
+    } finally {
+      policyListSpy.mockRestore();
+    }
   });
 
   it("renders the prototype policy list tabs and compact cards", async () => {
+    const policies: Policy[] = [
+      examplePolicyDetail,
+      {
+        ...examplePolicyDetail,
+        id: "busan-card-cashback",
+        slug: "busan-card-cashback",
+        label: "BS",
+        tag: "지역할인",
+        title: "부산 카드 캐시백",
+        region: "부산",
+        category: "지역할인",
+      },
+      {
+        ...examplePolicyDetail,
+        id: "gangneung-stay",
+        slug: "gangneung-stay",
+        label: "GN",
+        tag: "숙박",
+        title: "강릉 숙박 할인권",
+        region: "강원",
+        category: "숙박",
+      },
+    ];
+    const listPoliciesSpy = vi.spyOn(appDataApi, "listPolicies").mockResolvedValue(policies);
+
+    try {
     await login();
     cleanup();
     renderRoute("/policies");
@@ -1394,10 +1771,13 @@ describe("Travel Hunter app", () => {
 
     await user.click(screen.getByRole("button", { name: "지역할인" }));
 
-    await waitFor(() => expect(document.body).toHaveTextContent("부산 여행 캐시백"));
-    expect(document.body).toHaveTextContent("부산 여행 캐시백");
-    expect(document.body).toHaveTextContent("지역사랑 휴가지원");
-    expect(screen.queryByText("속초 숙박 할인권")).not.toBeInTheDocument();
+    await waitFor(() => expect(document.body).toHaveTextContent("부산 카드 캐시백"));
+    expect(document.body).toHaveTextContent("부산 카드 캐시백");
+    expect(document.body).toHaveTextContent(examplePolicyTitle);
+    expect(screen.queryByText("강릉 숙박 할인권")).not.toBeInTheDocument();
+    } finally {
+      listPoliciesSpy.mockRestore();
+    }
   });
 
   it("shows matching policies for transport and travel product category tabs", async () => {
@@ -1460,18 +1840,72 @@ describe("Travel Hunter app", () => {
     }
   });
 
+  it("restores the policy category tab from the URL", async () => {
+    const transportPolicy: Policy = {
+      id: "transport-policy",
+      slug: "transport-policy",
+      label: "TR",
+      tag: "교통",
+      title: "남도 기차둘레길 1박 2일 최대 35% 할인행사",
+      org: "한국관광공사",
+      region: "전남",
+      deadline: "2026-05-31",
+      amount: "최대 35%",
+      summary: "남도 기차 여행상품 할인",
+      match: 90,
+      category: "교통",
+      requirements: [],
+      documents: [],
+      officialUrl: "https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+      applyUrl: null,
+      sourceType: "external",
+    };
+    const packagePolicy: Policy = {
+      id: "jeju-city-tour",
+      slug: "jeju-city-tour",
+      label: "JEJU",
+      tag: "여행상품",
+      title: "제주시티투어버스 1일 탑승권 33% 할인",
+      org: "한국관광공사",
+      region: "제주",
+      deadline: "2026-05-31",
+      amount: "33%",
+      summary: "제주시티투어버스 탑승권 할인",
+      match: 88,
+      category: "여행상품",
+      requirements: [],
+      documents: [],
+      officialUrl: "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+      applyUrl: null,
+      sourceType: "external",
+    };
+    const policyListSpy = vi.spyOn(appDataApi, "listPolicies").mockResolvedValue([transportPolicy, packagePolicy]);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/policies?category=여행상품");
+
+      await waitFor(() => expect(document.body).toHaveTextContent("제주시티투어버스 1일 탑승권 33% 할인"));
+      expect(screen.getByRole("button", { name: "여행상품" })).toHaveClass("active");
+      expect(screen.queryByText("남도 기차둘레길 1박 2일 최대 35% 할인행사")).not.toBeInTheDocument();
+    } finally {
+      policyListSpy.mockRestore();
+    }
+  });
+
   it("renders collected TravelMonth benefits in the policy list", async () => {
     const collectedPolicy: Policy = {
       id: "travelmonth-58",
       slug: "travelmonth-58",
       label: "부산",
       tag: "최대 2만원",
-      title: "부산 여행 캐시백",
+      title: "부산 공식 캐시백",
       org: "부산관광공사",
       region: "부산",
       deadline: "2026-06-30",
       amount: "최대 2만원",
-      summary: "부산 여행 캐시백 상품 할인",
+      summary: "부산 공식 캐시백 상품 할인",
       match: 80,
       category: "지역할인",
       requirements: ["공식 안내에서 신청 조건을 확인하세요."],
@@ -1491,10 +1925,10 @@ describe("Travel Hunter app", () => {
       renderRoute("/policies");
 
       await waitFor(() => expect(getLink("/policies/travelmonth-58")).toBeInTheDocument());
-      expect(document.body).toHaveTextContent("부산 여행 캐시백");
+      expect(document.body).toHaveTextContent("부산 공식 캐시백");
       expect(document.body).not.toHaveTextContent("공식 수집");
       expect(document.body).not.toHaveTextContent("external");
-      expect(screen.getByRole("button", { name: /부산 여행 캐시백 즐겨찾기/ })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /부산 공식 캐시백 즐겨찾기/ })).toBeInTheDocument();
       expect(savePolicySpy).not.toHaveBeenCalled();
     } finally {
       listPoliciesSpy.mockRestore();
@@ -1508,7 +1942,7 @@ describe("Travel Hunter app", () => {
       slug: "travelmonth-58",
       label: "부산",
       tag: "최대 2만원",
-      title: "부산 여행 캐시백",
+      title: "부산 공식 캐시백",
       org: "부산관광공사",
       region: "부산",
       deadline: "2026-06-30",
@@ -1540,7 +1974,7 @@ describe("Travel Hunter app", () => {
       renderRoute("/policies/travelmonth-58");
       const user = userEvent.setup();
 
-      expect(await screen.findByRole("heading", { name: "부산 여행 캐시백" })).toBeInTheDocument();
+      expect(await screen.findByRole("heading", { name: "부산 공식 캐시백" })).toBeInTheDocument();
       expect(screen.getByRole("link", { name: "혜택 안내 보기" })).toHaveAttribute("href", collectedPolicy.officialUrl);
       expect(document.body).not.toHaveTextContent("공식 수집");
       const saveButton = screen.getByRole("button", { name: "저장" });
@@ -1584,7 +2018,7 @@ describe("Travel Hunter app", () => {
     expect(document.body).not.toHaveTextContent("⭐ 4.9");
     await waitFor(() => expect(screen.getByText("💰 이번 달 인기 정책")).toBeInTheDocument());
     await waitFor(() => expect(within(screen.getByLabelText("이번 달 혜택 정책 목록")).getAllByRole("link").length).toBeGreaterThan(0));
-    await waitFor(() => expect(getLink("/policies/local-vacation")).toBeInTheDocument());
+    await waitFor(() => expect(within(screen.getByLabelText("이번 달 혜택 정책 목록")).getAllByRole("link").length).toBeGreaterThan(0));
   });
 
   it("uses profile style to render region recommendations on the home destination rail", async () => {
@@ -1746,7 +2180,7 @@ describe("Travel Hunter app", () => {
   it("opens the policy trip picker and attaches a policy to a selected trip", async () => {
     await login();
     cleanup();
-    renderRoute("/policies/local-vacation");
+    renderRoute(examplePolicyPath);
 
     const addButton = await waitFor(() => {
       const button = document.querySelector(".sticky-cta button");
@@ -1787,7 +2221,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/policies/local-vacation");
+      renderRoute(examplePolicyPath);
 
       await userEvent.setup().click(await screen.findByRole("button", { name: /내 일정에 담기|일정에 담김/ }));
       await screen.findByText("부산 야호");
@@ -1824,7 +2258,7 @@ describe("Travel Hunter app", () => {
       await login();
       cleanup();
       render(
-        <MemoryRouter initialEntries={["/policies/local-vacation"]}>
+        <MemoryRouter initialEntries={[examplePolicyPath]}>
           <AppProviders>
             <App />
             <Link to="/policies/city-pass">다른 정책 테스트 이동</Link>
@@ -1850,7 +2284,7 @@ describe("Travel Hunter app", () => {
     await login();
     cleanup();
     render(
-      <MemoryRouter initialEntries={["/policies", "/policies/local-vacation"]} initialIndex={1}>
+      <MemoryRouter initialEntries={["/policies", examplePolicyPath]} initialIndex={1}>
         <AppProviders>
           <App />
         </AppProviders>
@@ -1872,16 +2306,16 @@ describe("Travel Hunter app", () => {
 
     await waitFor(() => {
       expect(document.querySelector(".prototype-head-pill")).toHaveTextContent(/\([1-9]\d*\)/);
-      expect(document.querySelector('a[href="/policies/local-vacation"]')).toBeTruthy();
+      expect(getLink(examplePolicyPath)).toBeInTheDocument();
     });
-    await user.click(screen.getByRole("button", { name: "지역사랑 휴가지원 즐겨찾기 해제" }));
-    await waitFor(() => expect(document.querySelector('a[href="/policies/local-vacation"]')).toBeFalsy());
+    await user.click(screen.getByRole("button", { name: `${examplePolicyTitle} 즐겨찾기 해제` }));
+    await waitFor(() => expect(document.querySelector(`a[href="${examplePolicyPath}"]`)).toBeFalsy());
   });
 
   it("shows saved policies on my page and removes them", async () => {
     await login();
     cleanup();
-    renderRoute("/policies/local-vacation");
+    renderRoute(examplePolicyPath);
 
     const saveButton = await screen.findByRole("button", { name: "저장" });
     await userEvent.setup().click(saveButton);
@@ -1889,11 +2323,11 @@ describe("Travel Hunter app", () => {
 
     cleanup();
     renderRoute("/mypage");
-    await waitFor(() => expect(getLink("/policies/local-vacation")).toBeInTheDocument());
+    await waitFor(() => expect(getLink(examplePolicyPath)).toBeInTheDocument());
 
     await userEvent.setup().click(await screen.findByRole("button", { name: "저장 해제" }));
 
-    await waitFor(() => expect(document.querySelector('a[href="/policies/local-vacation"]')).toBeFalsy());
+    await waitFor(() => expect(document.querySelector(`a[href="${examplePolicyPath}"]`)).toBeFalsy());
   });
 
   it("shows a compact saved-policy error state with a recovery action on my page", async () => {
@@ -1926,7 +2360,7 @@ describe("Travel Hunter app", () => {
       await waitFor(() => expect(screen.getByText("아직 즐겨찾기한 정책이 없어요")).toBeInTheDocument());
       expect(screen.getByText("관심 있는 혜택의 하트를 눌러두면 여기에서 다시 확인할 수 있어요.")).toBeInTheDocument();
       expect(screen.getByRole("link", { name: "정책 보러가기" })).toHaveAttribute("href", "/policies");
-      expect(document.querySelector('a[href="/policies/local-vacation"]')).toBeFalsy();
+      expect(document.querySelector(`a[href="${examplePolicyPath}"]`)).toBeFalsy();
     } finally {
       listSavedPoliciesSpy.mockRestore();
     }
@@ -2229,11 +2663,11 @@ describe("Travel Hunter app", () => {
   it("shows the applied policy count in the my page stats", async () => {
     const appliedPolicies: Policy[] = [
       {
-        id: "local-vacation",
-        slug: "local-vacation",
+        id: examplePolicySlug,
+        slug: examplePolicySlug,
         label: "지",
         tag: "최대 30만원 환급",
-        title: "지역사랑 휴가지원",
+        title: examplePolicyTitle,
         org: "문화체육관광부",
         region: "전국",
         deadline: "2026-10-31",
@@ -2247,12 +2681,12 @@ describe("Travel Hunter app", () => {
         applyUrl: null,
       },
       {
-        id: "sokcho-stay",
-        slug: "sokcho-stay",
+        id: "gangneung-stay",
+        slug: "gangneung-stay",
         label: "속",
         tag: "숙박 할인",
-        title: "속초 숙박 할인권",
-        org: "속초시",
+        title: "강릉 숙박 할인권",
+        org: "강릉시",
         region: "강원",
         deadline: "2026-08-15",
         amount: "숙박비 50% 할인",
@@ -2363,14 +2797,38 @@ describe("Travel Hunter app", () => {
   });
 
   it("uses an official policy link as an official information CTA when no direct apply link is available", async () => {
-    await login();
-    cleanup();
-    renderRoute("/policies/local-vacation");
-
     const officialUrl = "https://www.mcst.go.kr/site/s_notice/press/pressView.jsp?pMenuCD=0302000000&pSeq=22267";
-    const applicationLink = await screen.findByRole("link", { name: "혜택 안내 보기" });
-    expect(applicationLink).toHaveAttribute("href", officialUrl);
-    expect(applicationLink).toHaveAttribute("target", "_blank");
+    const officialOnlyPolicy: Policy = {
+      id: "official-only-policy",
+      slug: "official-only-policy",
+      label: "OF",
+      tag: "공식 안내",
+      title: "공식 안내만 있는 정책",
+      org: "문화체육관광부",
+      region: "전국",
+      deadline: "2026-12-31",
+      amount: "확인 필요",
+      summary: "공식 안내 페이지에서 세부 혜택을 확인하는 정책입니다.",
+      match: 70,
+      category: "지역할인",
+      requirements: ["공식 안내 확인 필요"],
+      documents: ["공식 안내 확인"],
+      officialUrl,
+      applyUrl: null,
+    };
+    const getPolicySpy = vi.spyOn(appDataApi, "getPolicy").mockResolvedValue(officialOnlyPolicy);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/policies/official-only-policy");
+
+      const applicationLink = await screen.findByRole("link", { name: "혜택 안내 보기" });
+      expect(applicationLink).toHaveAttribute("href", officialUrl);
+      expect(applicationLink).toHaveAttribute("target", "_blank");
+    } finally {
+      getPolicySpy.mockRestore();
+    }
   });
 
   it("uses a direct apply link as the primary application CTA when available", async () => {
@@ -2410,25 +2868,186 @@ describe("Travel Hunter app", () => {
   it("renders the prototype policy detail section order", async () => {
     await login();
     cleanup();
-    renderRoute("/policies/local-vacation");
+    renderRoute(examplePolicyPath);
 
     await waitFor(() => expect(document.body).toHaveTextContent("지원 내용"));
     const bodyText = document.body.textContent ?? "";
     expect(bodyText.indexOf("지원 내용")).toBeLessThan(bodyText.indexOf("신청 기간"));
     expect(bodyText.indexOf("신청 기간")).toBeLessThan(bodyText.indexOf("신청 대상"));
     expect(bodyText.indexOf("신청 대상")).toBeLessThan(bodyText.indexOf("필요 서류"));
-    expect(document.body).toHaveTextContent("국내 거주자");
+    expect(document.body).toHaveTextContent("디지털관광주민증 발급자");
     expect(document.body).not.toHaveTextContent("조건 확인 요약");
     expect(document.body).not.toHaveTextContent("이 정책과 함께 확인할 혜택");
     expect(document.body).not.toHaveTextContent("자주 묻는 질문");
   });
 
+  it("splits policy requirements into target, usage condition, and confirmation sections", async () => {
+    const cardPolicy: Policy = {
+      id: "card-benefit-policy",
+      slug: "card-benefit-policy",
+      label: "BUSAN",
+      tag: "지역할인",
+      title: "부산 결제 캐시백",
+      org: "부산관광공사",
+      region: "부산",
+      deadline: "2026-06-30",
+      amount: "카드 결제 5% 캐시백",
+      summary: "부산 결제 캐시백 혜택",
+      match: 80,
+      category: "지역할인",
+      requirements: ["국내 여행자", "제휴 카드", "부산 결제", "월 한도 적용", "공식 안내 확인 필요"],
+      documents: ["혜택 안내 확인"],
+      officialUrl: "https://travel.example/busan-card",
+      applyUrl: null,
+      sourceType: "external",
+    };
+    const getPolicySpy = vi.spyOn(appDataApi, "getPolicy").mockResolvedValue(cardPolicy);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/policies/card-benefit-policy");
+
+      await screen.findByText("부산 결제 캐시백");
+      const bodyText = document.body.textContent ?? "";
+      expect(bodyText.indexOf("신청 대상")).toBeLessThan(bodyText.indexOf("혜택 적용 조건"));
+      expect(bodyText.indexOf("혜택 적용 조건")).toBeLessThan(bodyText.indexOf("확인 필요 사항"));
+      expect(document.body).toHaveTextContent("국내 여행자");
+      expect(document.body).toHaveTextContent("제휴 카드로 결제한 건에 한해 혜택이 적용됩니다.");
+      expect(document.body).toHaveTextContent("부산 지역 결제 또는 대상 가맹점 이용 건을 기준으로 적용됩니다.");
+      expect(document.body).toHaveTextContent("월별 할인/캐시백 한도 내에서 혜택이 적용됩니다.");
+      expect(document.body).toHaveTextContent("공식 안내에서 세부 조건과 최신 공지를 확인하세요.");
+    } finally {
+      getPolicySpy.mockRestore();
+    }
+  });
+
+  it("breaks long policy benefit summaries into scannable detail groups", async () => {
+    const longSummaryPolicy: Policy = {
+      id: "long-summary-policy",
+      slug: "long-summary-policy",
+      label: "YW",
+      tag: "지역할인",
+      title: "왕과 사는 남자 영월봄기행 10,000 할인",
+      org: "한국관광공사",
+      region: "강원",
+      deadline: "2026-05-29",
+      amount: "최대 140000원",
+      summary:
+        "기간: 4월1일~5월29일 매주 주말 *이용일 20일 전 사전예약 여행가는 달 기간 한정 특별 할인 운영 · 정상가 대비 10,000원 할인 적용(1박2일 정상가 140,000원) ※여행가는 달 홈페이지 해당 내용 캡쳐본 제시할 경우, 할인 적용 · 고향사랑기부자 혜택 추가 할인 적용 40,000원 ※영월군 고향사랑기부제 100,000원 기부후 당사 답례품 “사계절 릴레이 축제 할인권” 지정시 30,000원할인 + 특별할인 10,000원 = 40,000원 할인 1. 기본 특별 할인 할인 혜택: 정상가에서 10,000원 할인 실구매가",
+      match: 80,
+      category: "지역할인",
+      requirements: ["공식 안내에서 신청 조건을 확인하세요."],
+      documents: ["혜택 안내 확인"],
+      officialUrl: "https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+      applyUrl: null,
+      sourceType: "external",
+    };
+    const getPolicySpy = vi.spyOn(appDataApi, "getPolicy").mockResolvedValue(longSummaryPolicy);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/policies/long-summary-policy");
+
+      const supportSection = await screen.findByRole("region", { name: "지원 내용" });
+      expect(within(supportSection).getByText("최대 140000원")).toBeInTheDocument();
+      expect(within(supportSection).getByText("핵심 혜택")).toBeInTheDocument();
+      expect(within(supportSection).getByText("운영 기간")).toBeInTheDocument();
+      expect(within(supportSection).getByText("이용 조건")).toBeInTheDocument();
+      expect(within(supportSection).getByText("유의사항")).toBeInTheDocument();
+      expect(within(supportSection).getByText(/정상가 대비 10,000원 할인/)).toBeInTheDocument();
+      expect(within(supportSection).getByText(/4월1일~5월29일/)).toBeInTheDocument();
+      expect(within(supportSection).getByText(/캡쳐본 제시/)).toBeInTheDocument();
+      expect(within(supportSection).getByText(/고향사랑기부제/)).toBeInTheDocument();
+      expect(supportSection.querySelector(".highlight-box .meta")).toBeNull();
+    } finally {
+      getPolicySpy.mockRestore();
+    }
+  });
+
+  it("uses the dgtour summary instead of repeating generic benefit text", async () => {
+    const dgtourPolicy: Policy = {
+      id: "dgtour-밀양-1",
+      slug: "dgtour-밀양-1",
+      label: "경남",
+      tag: "지역할인",
+      title: "밀양 디지털관광주민증 혜택",
+      org: "한국관광공사",
+      region: "경남",
+      deadline: "2026-12-31",
+      amount: "혜택 제공",
+      summary: "디지털관광주민증 소지자 대상 밀양(경남) 지역 방문 시 혜택을 제공합니다.",
+      match: 75,
+      category: "지역할인",
+      requirements: ["디지털관광주민증 발급자", "경남 방문"],
+      documents: ["디지털관광주민증"],
+      officialUrl: "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+      applyUrl: null,
+      sourceType: "external",
+    };
+    const getPolicySpy = vi.spyOn(appDataApi, "getPolicy").mockResolvedValue(dgtourPolicy);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/policies/dgtour-%EB%B0%80%EC%96%91-1");
+
+      const supportSection = await screen.findByRole("region", { name: "지원 내용" });
+      expect(within(supportSection).getByText("디지털관광주민증 혜택")).toBeInTheDocument();
+      expect(within(supportSection).getByText("핵심 혜택")).toBeInTheDocument();
+      expect(within(supportSection).getByText("디지털관광주민증 소지자 대상 밀양(경남) 지역 방문 시 혜택을 제공합니다.")).toBeInTheDocument();
+      expect(supportSection).not.toHaveTextContent("혜택 제공 혜택");
+    } finally {
+      getPolicySpy.mockRestore();
+    }
+  });
+
+  it("separates TravelMonth condition text from trailing benefit period text", async () => {
+    const welchonPolicy: Policy = {
+      id: "travelmonth-44",
+      slug: "travelmonth-44",
+      label: "전국",
+      tag: "여행상품",
+      title: "웰촌 체험상품 30% 할인",
+      org: "한국농어촌공사",
+      region: "전국",
+      deadline: "2026-05-31",
+      amount: "최대 30%",
+      summary: "행사 기간 중 온라인 체험상품 예약 결제 후 사용 완료 참여자 26년 4월 중순부터 5월 말",
+      match: 90,
+      category: "여행상품",
+      requirements: ["공식 혜택 안내에서 조건을 확인하세요."],
+      documents: [],
+      officialUrl: "https://weektonongchon.netlify.app/",
+      applyUrl: null,
+      sourceType: "external",
+    };
+    const getPolicySpy = vi.spyOn(appDataApi, "getPolicy").mockResolvedValue(welchonPolicy);
+
+    try {
+      await login();
+      cleanup();
+      renderRoute("/policies/travelmonth-44");
+
+      const supportSection = await screen.findByRole("region", { name: "지원 내용" });
+      expect(within(supportSection).getByText("최대 30%")).toBeInTheDocument();
+      expect(within(supportSection).getByText("이용 조건")).toBeInTheDocument();
+      expect(within(supportSection).getByText("운영 기간")).toBeInTheDocument();
+      expect(within(supportSection).getByText(/온라인 체험상품 예약 결제 후 사용 완료 참여자/)).toBeInTheDocument();
+      expect(within(supportSection).getByText(/26년 4월 중순부터 5월 말/)).toBeInTheDocument();
+      expect(within(supportSection).queryByText(welchonPolicy.summary)).not.toBeInTheDocument();
+    } finally {
+      getPolicySpy.mockRestore();
+    }
+  });
+
   it("renders policy detail in prototype-only flow without FAQ accordion", async () => {
     await login();
     cleanup();
-    renderRoute("/policies/local-vacation");
+    renderRoute(examplePolicyPath);
 
-    await waitFor(() => expect(document.body).toHaveTextContent("지역사랑 휴가지원"));
+    await waitFor(() => expect(document.body).toHaveTextContent(examplePolicyTitle));
     expect(screen.queryByRole("button", { name: /어떤 서류가 필요한가요/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /내 일정에 담기|일정에 담김/ })).toBeInTheDocument();
   });
@@ -2591,7 +3210,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/policies/local-vacation");
+      renderRoute(examplePolicyPath);
 
       await userEvent.setup().click(await screen.findByRole("button", { name: "공유" }));
 
@@ -2610,7 +3229,7 @@ describe("Travel Hunter app", () => {
   it("renders policy documents as static checklist rows", async () => {
     await login();
     cleanup();
-    renderRoute("/policies/local-vacation");
+    renderRoute(examplePolicyPath);
 
     await waitFor(() => expect(document.body).toHaveTextContent("필요 서류"));
     expect(document.querySelectorAll(".check-item").length).toBeGreaterThan(0);
