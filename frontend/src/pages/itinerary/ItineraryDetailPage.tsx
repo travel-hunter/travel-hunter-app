@@ -6,7 +6,7 @@ import { useEffect, useState, type KeyboardEvent } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { appDataApi, type ItineraryPlace, type LinkedTripPolicy, type Trip, type TripPlaceRequest } from "../../api";
 import { useAsyncResource } from "../../api/useAsyncResource";
-import { Button, ConfirmDialog, EmptyState, ErrorState, IconButton, LinkButton, LoadingState, StatusPanel, Toast, TopBar } from "../../components/ui";
+import { Button, ConfirmDialog, EmptyState, ErrorState, IconButton, LinkButton, LoadingState, Toast, TopBar } from "../../components/ui";
 import { getTripRegionEmojiFromTitle } from "../../data/displayConfig";
 import { clearDraft, createDraftKey, readDraft, saveDraft } from "../../utils/draftStorage";
 import { DraftRestoreNotice } from "./_shared";
@@ -196,8 +196,6 @@ export function ItineraryDetailPage() {
   const [removingPolicySlug, setRemovingPolicySlug] = useState<string | null>(null);
   const [policyRemoveError, setPolicyRemoveError] = useState("");
   const [hiddenRoutePolicySlugs, setHiddenRoutePolicySlugs] = useState<Set<string>>(() => new Set());
-  const [isUpdatingTripStatus, setIsUpdatingTripStatus] = useState(false);
-  const [tripStatusError, setTripStatusError] = useState("");
   const [placeDraftNotice, setPlaceDraftNotice] = useState("");
   const dayNumbers = trip ? tripDayNumbers(trip.days) : [];
   const visibleDay = dayNumbers.includes(activeDay) ? activeDay : (dayNumbers[0] ?? 1);
@@ -205,9 +203,8 @@ export function ItineraryDetailPage() {
   const sortablePlaceIds = dayPlaces.flatMap((place) => (place.id ? [placeDragId(place.id)] : []));
   const stayLabel = formatStayLabel(dayNumbers.length || 3);
   const canManageTripStatus = trip?.currentUserRole === "owner" || trip?.currentUserRole === "editor";
-  const isTripConfirmed = trip?.status === "confirmed";
   const isTripViewer = Boolean(trip && !canManageTripStatus);
-  const canEditTrip = Boolean(canManageTripStatus && !isTripConfirmed);
+  const canEditTrip = Boolean(canManageTripStatus);
   const activeDraggingPlaceLabel = draggingPlaceLabel(trip, draggingPlaceId);
   const tripPeople = trip?.people.length ? trip.people : ["지영", "민수", "수현"];
   const tripRegionEmojiLabel = trip ? getTripRegionEmojiFromTitle(trip.title) : "🧳";
@@ -432,7 +429,7 @@ export function ItineraryDetailPage() {
   const removeLinkedPolicy = async (policy: LinkedTripPolicy) => {
     if (!trip || removingPolicySlug) return;
     if (!canEditTrip) {
-      setPolicyRemoveError("확정취소 후 연결된 정책을 삭제할 수 있어요.");
+      setPolicyRemoveError("이 일정은 보기 권한으로 참여 중이라 정책 연결을 삭제할 수 없어요.");
       return;
     }
     setRemovingPolicySlug(policy.slug);
@@ -454,22 +451,6 @@ export function ItineraryDetailPage() {
       setPolicyRemoveError("정책 연결을 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.");
     } finally {
       setRemovingPolicySlug(null);
-    }
-  };
-
-  const updateTripConfirmationStatus = async (nextStatus: "draft" | "confirmed") => {
-    if (!trip || !canManageTripStatus || trip.status === nextStatus || isUpdatingTripStatus) return;
-    setIsUpdatingTripStatus(true);
-    setTripStatusError("");
-    try {
-      const nextTrip = await appDataApi.updateTripStatus(trip.id, { status: nextStatus });
-      setTrip(nextTrip);
-      setNotice(nextStatus === "confirmed" ? "일정을 확정했어요. 확정취소 전까지 편집이 잠겨요." : "확정을 취소했어요. 다시 편집할 수 있어요.");
-      window.setTimeout(() => setNotice(null), 1800);
-    } catch {
-      setTripStatusError("일정 상태를 변경하지 못했어요. 잠시 후 다시 시도해 주세요.");
-    } finally {
-      setIsUpdatingTripStatus(false);
     }
   };
 
@@ -551,30 +532,6 @@ export function ItineraryDetailPage() {
           {tripRegionEmojiLabel}
         </div>
       </div>
-      <StatusPanel
-        tone={isTripConfirmed ? "confirmed" : "draft"}
-        badge={isTripConfirmed ? "확정됨" : "작성 중"}
-        title={isTripConfirmed ? "일정이 확정되어 편집이 잠겨 있어요" : "아직 편집할 수 있는 일정이에요"}
-        body={
-          isTripConfirmed
-            ? "장소 추가, 수정, 삭제와 정책 연결 삭제는 확정취소 후 다시 사용할 수 있어요."
-            : "장소와 연결 정책을 정리한 뒤 이 화면에서 일정을 확정할 수 있어요."
-        }
-        className="trip-status-panel"
-        ariaLabel="일정 확정 상태"
-        action={
-          canManageTripStatus ? (
-            <Button
-              variant={isTripConfirmed ? "line" : "primary"}
-              disabled={isUpdatingTripStatus}
-              onClick={() => void updateTripConfirmationStatus(isTripConfirmed ? "draft" : "confirmed")}
-            >
-              {isUpdatingTripStatus ? "변경 중" : isTripConfirmed ? "확정취소" : "확정하기"}
-            </Button>
-          ) : undefined
-        }
-      />
-      {tripStatusError && <p className="form-error trip-status-error">{tripStatusError}</p>}
       <div className="trip-summary">
         <div className="between">
           <div className="row">
@@ -679,13 +636,11 @@ export function ItineraryDetailPage() {
 
         <ListMapToggle value={viewMode} onChange={selectViewMode} />
 
-        {!canEditTrip && (
+        {isTripViewer && (
           <div className="card">
             <div className="card-body stack tight">
-              <strong>{isTripViewer ? "보기 권한으로 참여 중입니다" : "확정된 일정은 편집할 수 없어요"}</strong>
-              <p className="meta">
-                {isTripViewer ? "일정과 정책은 확인할 수 있지만 장소 편집은 할 수 없어요." : "확정취소 후 장소와 연결 정책을 다시 편집할 수 있어요."}
-              </p>
+              <strong>보기 권한으로 참여 중입니다</strong>
+              <p className="meta">일정과 정책은 확인할 수 있지만 장소 편집은 할 수 없어요.</p>
             </div>
           </div>
         )}

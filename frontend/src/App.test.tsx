@@ -569,11 +569,11 @@ describe("Travel Hunter app", () => {
     }
   });
 
-  it("removes a linked policy from the trip detail card", async () => {
+  it("removes a linked policy from a confirmed owner trip detail card", async () => {
     const trip: Trip = {
       ...appDataApi.getPreviewTrip(),
       id: "61",
-      status: "draft",
+      status: "confirmed",
       currentUserRole: "owner",
       title: "정책 삭제 여행",
       linkedPolicies: [
@@ -652,6 +652,8 @@ describe("Travel Hunter app", () => {
 
       const linkedRegion = await screen.findByRole("region", { name: "연결된 정책" });
       expect(within(linkedRegion).getByText(examplePolicyTitle)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "확정하기" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "확정취소" })).not.toBeInTheDocument();
 
       await userEvent.setup().click(within(linkedRegion).getByRole("button", { name: `${examplePolicyTitle} 연결 삭제` }));
 
@@ -1550,7 +1552,7 @@ describe("Travel Hunter app", () => {
     }
   });
 
-  it("locks confirmed trip detail editing until confirmation is canceled", async () => {
+  it("keeps confirmed owner trip detail editable without confirmation controls", async () => {
     const confirmedTrip: Trip = {
       ...appDataApi.getPreviewTrip(),
       id: "94",
@@ -1562,9 +1564,8 @@ describe("Travel Hunter app", () => {
         1: [{ id: "p1", time: "09:00", label: "Locked beach", meta: "확정 일정 장소" }],
       },
     };
-    const draftTrip: Trip = { ...confirmedTrip, status: "draft" };
     const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(confirmedTrip);
-    const updateStatusSpy = vi.spyOn(appDataApi, "updateTripStatus").mockResolvedValue(draftTrip);
+    const updateStatusSpy = vi.spyOn(appDataApi, "updateTripStatus").mockRejectedValue(new Error("status update should not run"));
 
     try {
       await login();
@@ -1572,28 +1573,22 @@ describe("Travel Hunter app", () => {
       renderRoute("/trips/94");
 
       await waitFor(() => expect(screen.getAllByText("Confirmed detail trip").length).toBeGreaterThan(0));
-      expect(screen.getByRole("button", { name: "확정취소" })).toBeInTheDocument();
-      expect(document.body).toHaveTextContent("확정된 일정은 편집할 수 없어요");
-      expect(document.querySelector(".dashed")).not.toBeInTheDocument();
-      expect(document.querySelector(".drag-handle")).not.toBeInTheDocument();
-      expect(document.querySelector(".place-actions")).not.toBeInTheDocument();
-      expect(document.querySelector(".linked-policy-remove")).not.toBeInTheDocument();
-
-      await userEvent.setup().click(screen.getByRole("button", { name: "확정취소" }));
-
-      await waitFor(() => expect(updateStatusSpy).toHaveBeenCalledWith("94", { status: "draft" }));
-      await waitFor(() => expect(document.querySelector(".dashed")).toBeInTheDocument());
+      expect(screen.queryByRole("region", { name: "일정 확정 상태" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "확정취소" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "확정하기" })).not.toBeInTheDocument();
+      expect(document.body).not.toHaveTextContent("확정된 일정은 편집할 수 없어요");
+      expect(document.querySelector(".dashed")).toBeInTheDocument();
       expect(document.querySelector(".drag-handle")).toBeInTheDocument();
       expect(document.querySelector(".place-actions")).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "확정취소" })).not.toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "확정하기" })).toBeInTheDocument();
+      expect(document.querySelector(".linked-policy-remove")).toBeInTheDocument();
+      expect(updateStatusSpy).not.toHaveBeenCalled();
     } finally {
       getTripSpy.mockRestore();
       updateStatusSpy.mockRestore();
     }
   });
 
-  it("confirms draft trip detail and locks editing controls", async () => {
+  it("does not render draft trip detail confirmation controls", async () => {
     const draftTrip: Trip = {
       ...appDataApi.getPreviewTrip(),
       id: "96",
@@ -1605,9 +1600,8 @@ describe("Travel Hunter app", () => {
         1: [{ id: "p1", time: "09:00", label: "Editable beach", meta: "작성 중 장소" }],
       },
     };
-    const confirmedTrip: Trip = { ...draftTrip, status: "confirmed" };
     const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(draftTrip);
-    const updateStatusSpy = vi.spyOn(appDataApi, "updateTripStatus").mockResolvedValue(confirmedTrip);
+    const updateStatusSpy = vi.spyOn(appDataApi, "updateTripStatus").mockRejectedValue(new Error("status update should not run"));
 
     try {
       await login();
@@ -1615,23 +1609,14 @@ describe("Travel Hunter app", () => {
       renderRoute("/trips/96");
 
       await waitFor(() => expect(screen.getAllByText("Draft detail trip").length).toBeGreaterThan(0));
-      expect(screen.getByRole("region", { name: "일정 확정 상태" })).toHaveClass("draft");
-      expect(screen.getByRole("button", { name: "확정하기" })).toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "일정 확정 상태" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "확정하기" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "확정취소" })).not.toBeInTheDocument();
       expect(document.querySelector(".dashed")).toBeInTheDocument();
       expect(document.querySelector(".drag-handle")).toBeInTheDocument();
       expect(document.querySelector(".place-actions")).toBeInTheDocument();
       expect(document.querySelector(".linked-policy-remove")).toBeInTheDocument();
-
-      await userEvent.setup().click(screen.getByRole("button", { name: "확정하기" }));
-
-      await waitFor(() => expect(updateStatusSpy).toHaveBeenCalledWith("96", { status: "confirmed" }));
-      await waitFor(() => expect(document.body).toHaveTextContent("확정된 일정은 편집할 수 없어요"));
-      expect(screen.getByRole("region", { name: "일정 확정 상태" })).toHaveClass("confirmed");
-      expect(document.querySelector(".dashed")).not.toBeInTheDocument();
-      expect(document.querySelector(".drag-handle")).not.toBeInTheDocument();
-      expect(document.querySelector(".place-actions")).not.toBeInTheDocument();
-      expect(document.querySelector(".linked-policy-remove")).not.toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "확정취소" })).toBeInTheDocument();
+      expect(updateStatusSpy).not.toHaveBeenCalled();
     } finally {
       getTripSpy.mockRestore();
       updateStatusSpy.mockRestore();

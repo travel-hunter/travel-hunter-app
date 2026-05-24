@@ -668,7 +668,7 @@ OAuth provider callback 처리.
 
 `status` 허용 값: `"draft" | "confirmed"`
 
-Frontend behavior: `/trips` displays draft/confirmed status only and does not expose an inline confirmation-save panel. `/trips/{tripId}` treats `confirmed` trips as read-only for owner/editor users until the same endpoint is called with `{ "status": "draft" }` from the detail page confirmation-cancel action. Viewer users cannot change status.
+Frontend behavior: `/trips` may display draft/confirmed status labels, but the current frontend does not expose trip confirmation or confirmation-cancel controls. `/trips/{tripId}` keeps owner/editor editing controls available regardless of persisted `draft` or `confirmed` status. Viewer users remain read-only by role.
 `currentUserRole` 허용 값: `"owner" | "editor" | "viewer"`
 
 ---

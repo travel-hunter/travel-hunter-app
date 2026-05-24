@@ -578,3 +578,21 @@ Remaining risks:
 
 Remaining risks:
 - `/trips/48` currently returned 404 in the local Docker database, so runtime visual verification used an existing editable draft trip (`/trips/86`) with the same route-state linked-policy path.
+
+## 2026-05-24 Trip Confirmation UI Removal
+
+- [x] Confirmed product direction B: remove trip confirmation actions and detail status panel, but keep linked policy cards and policy-to-trip flows.
+- [x] Added design spec and implementation plan under `docs/superpowers/specs/2026-05-24-trip-confirmation-removal-design.md` and `docs/superpowers/plans/2026-05-24-trip-confirmation-removal.md`.
+- [x] Trip detail no longer renders `확정하기`, `확정취소`, or `일정 확정 상태`.
+- [x] Owner/editor trip editing is now role-based on trip detail, so persisted `confirmed` status no longer hides place add/edit/delete, drag handles, or linked policy removal.
+- [x] Viewer trips remain read-only by role.
+- [x] `cd frontend; npm test -- --run src/App.test.tsx -t "confirmed trip"` failed before implementation and passed after implementation.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `cd frontend; npm test -- --run src/App.test.tsx` passed with 102 tests.
+- [x] `cd frontend; npm run build` passed.
+- [x] `docker compose -f compose.yaml up -d --build` passed.
+- [x] Runtime health passed: backend `http://127.0.0.1:8000/api/health` returned HTTP 200, and frontend `http://127.0.0.1:4173` returned HTTP 200.
+- [x] Visual Playwright verification passed on Docker `/trips/36`: confirmed owner trip showed no confirmation status region/buttons, while `.dashed`, `.drag-handle`, and `.linked-policy-remove` were visible. Screenshot saved under `tmp/trip-confirmation-removal/`.
+
+Remaining risks:
+- Backend `Trip.status` and `PATCH /api/trips/{trip_id}/status` remain for compatibility and older data; the current frontend simply stops exposing confirmation controls.
