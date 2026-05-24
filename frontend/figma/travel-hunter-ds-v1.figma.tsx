@@ -13,6 +13,7 @@ export const primitiveMappings = {
 } as const;
 
 export const patternMappings = {
+  BrandMark: "frontend/src/components/patterns.tsx#BrandMark",
   HomeRail: "frontend/src/components/patterns.tsx#HomeRail",
   ProfilePanel: "frontend/src/components/patterns.tsx#ProfilePanel",
   AuthForm: "frontend/src/components/patterns.tsx#AuthFormShell",

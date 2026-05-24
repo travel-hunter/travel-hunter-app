@@ -32,6 +32,8 @@
     "phase3-trips-screen-comparison",
     "phase4-final-qa",
     "frontend-semantic-token-alignment"
+    ,
+    "phase3-brand-mark-component"
   ],
   "entities": {
     "collections": {
@@ -61,6 +63,7 @@
       "tagBadge": "7:7",
       "card": "7:8",
       "bottomTab": "7:9",
+      "brandMark": "61:2",
       "screensSeparator": "7:10",
       "tripsScreen": "7:11"
     },
@@ -73,6 +76,7 @@
       "tagBadgeDocumentation": "50:2",
       "cardDocumentation": "52:2",
       "bottomTabDocumentation": "55:2",
+      "brandMarkDocumentation": "61:3",
       "statusPlaceholder": "12:2",
       "tripsPlaceholder": "13:2",
       "buttonPlaceholder": "19:2",
@@ -87,6 +91,8 @@
       "tagBadge": "50:14",
       "card": "52:25",
       "bottomTabItem": "55:14"
+      ,
+      "brandMarkCompass": "61:7"
     },
     "screens": {
       "tripsComparison": "57:2"
@@ -130,6 +136,9 @@
     "phase3BottomTabVariants": 2,
     "phase4PageCount": 11,
     "phase4ComponentSetCount": 6,
+    "brandMarkComponentPresent": true,
+    "brandMarkComponentId": "61:7",
+    "brandMarkComponentKey": "1e5ee64a84235f39691a372ae3429523ba6717bd",
     "phase4RequiredComponentSetsPresent": true,
     "phase4TripsScreenPresent": true,
     "frontendSemanticTokensAligned": true

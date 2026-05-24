@@ -698,3 +698,49 @@ Remaining risks:
 
 Remaining risks:
 - The badge is currently derived from travel style text. If a real profile photo/upload field is added later, the card should prefer that media over the fallback badge.
+
+## 2026-05-24 Bottom Tabs Responsive Width
+
+- [x] Confirmed root cause: `.bottom-tabs` was fixed-positioned and capped by `max-width: var(--app-width)`, while `.service-layout` expands to 760px and 820px on wider breakpoints.
+- [x] Updated `.bottom-tabs` to inherit the responsive layout width and removed the 390px max-width cap.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `cd frontend; npm test -- --run src/App.test.tsx -t "renders multiple saved trips"` passed.
+- [x] `cd frontend; npm run build` passed.
+- [x] `docker compose -f compose.yaml up -d --build` passed.
+- [x] In-app browser verification passed on Docker `/trips`: current viewport measured `.service-layout` 760px and `.bottom-tabs` 760px with no horizontal overflow.
+- [x] Playwright visual verification passed on Docker `/trips` at 360, 390, 430, 1024, and 1440 px: bottom tab width matched the responsive service layout width at every viewport and no horizontal overflow was detected. Screenshots saved under `tmp/bottom-tabs-responsive/`.
+
+Remaining risks:
+- On narrow desktop/headless mobile-sized screenshots with a visible vertical scrollbar, the fixed tab can report a small negative left offset while still matching layout width and avoiding horizontal overflow. The original fixed 390px desktop-width issue is resolved.
+
+## 2026-05-24 Auth Compass Brand Mark
+
+- [x] Saved implementation plan under `docs/superpowers/plans/2026-05-24-auth-compass-brand-mark.md`.
+- [x] Replaced the auth logo's plain `TH` text with a reusable SVG compass `BrandMark`.
+- [x] Styled the logo as the selected B option: pale app-icon surface, red compass ring, red/mint two-tone needle, and subtle primary shadow.
+- [x] Added a login-screen regression assertion that `.brand-mark-compass` renders and `.prototype-login-logo` no longer contains `TH`.
+- [x] Verified RED step: `cd frontend; npm test -- --run src/App.test.tsx -t "renders the prototype login screen"` first failed because `.brand-mark-compass` was absent.
+- [x] `cd frontend; npm test -- --run src/App.test.tsx -t "renders the prototype login screen"` passed after implementation.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `cd frontend; npm run build` passed.
+- [x] `docker compose -f compose.yaml up -d --build` passed.
+- [x] In-app browser verification passed on Docker `/login`: logo measured `72x72`, compass SVG measured `50x50`, center deltas were `0,0`, `TH` text was absent, and no horizontal overflow was detected.
+- [x] Playwright visual verification passed on Docker `/login` at 360, 390, 430, 1024, and 1440 px with centered compass logo and no horizontal overflow. Screenshots saved under `tmp/auth-compass-logo/`.
+
+Remaining risks:
+- The compass is implemented as inline SVG/CSS in code. A Figma component and Code Connect mapping can be added later if the brand mark should become part of the shared design library.
+
+## 2026-05-24 Figma Brand Mark Component
+
+- [x] Inspected existing Figma DS file `Travel Hunter DS v1` (`bvSkBGlFoFvgnlnVoWYfEk`) before writing.
+- [x] Confirmed no reusable `compass`, `brand mark`, or logo component exists in the file or available design-system search results.
+- [x] Created Figma page `Components / Brand Mark`.
+- [x] Created `Brand Mark / Documentation`, `Brand Mark / Compass`, and `Brand Mark / Auth Preview` in Figma.
+- [x] Bound the Figma component shell to available Travel Hunter DS variables where applicable: `color/action/primary`, `color/action/primary-soft`, `primary/100`, and `radius/xl`.
+- [x] Figma validation passed: page exists, component measures `72x72`, documentation frame has 3 children, and auth preview has 5 children.
+- [x] Updated `.agent/figma-design-system-state.json` with the Brand Mark page/component IDs and validated it with `python -m json.tool`.
+- [x] Updated repo-local Figma mapping files with `BrandMark -> frontend/src/components/patterns.tsx#BrandMark`.
+- [x] Attempted official Figma Code Connect mapping for `BrandMark`; blocked by Figma plan/seat requirement: Developer seat in Organization or Enterprise plan is required.
+
+Remaining risks:
+- Official Figma Code Connect is not active for this account/file. Repo-local mapping remains the source of truth until the Figma plan/seat requirement is resolved.

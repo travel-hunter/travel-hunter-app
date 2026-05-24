@@ -7,6 +7,20 @@ function classNames(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
 }
 
+export function BrandMark() {
+  return (
+    <div className="prototype-login-logo brand-mark-compass" aria-hidden="true">
+      <svg className="brand-mark-compass-ring" viewBox="0 0 56 56" fill="none" focusable="false">
+        <circle className="brand-mark-orbit" cx="28" cy="28" r="22" />
+        <circle className="brand-mark-inner" cx="28" cy="28" r="15.5" />
+        <path className="brand-mark-needle-primary" d="M31.6 10.9 29.3 26.2 44.7 23.9 31.6 10.9Z" />
+        <path className="brand-mark-needle-accent" d="M24.4 45.1 26.7 29.8 11.3 32.1 24.4 45.1Z" />
+        <circle className="brand-mark-center" cx="28" cy="28" r="3.4" />
+      </svg>
+    </div>
+  );
+}
+
 export function HomeSectionHeader({ actionLabel, title, to }: { actionLabel?: string; title: string; to?: string }) {
   return (
     <div className="ds-section-header">
@@ -73,9 +87,7 @@ export function AuthFormShell({ body, children, title }: { body?: string; childr
   return (
     <section className="ds-auth-form-shell">
       <div className="ds-auth-form-head">
-        <div className="prototype-login-logo" aria-hidden="true">
-          TH
-        </div>
+        <BrandMark />
         <h1>{title}</h1>
         {body && <p>{body}</p>}
       </div>

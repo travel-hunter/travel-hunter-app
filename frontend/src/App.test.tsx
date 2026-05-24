@@ -171,6 +171,8 @@ describe("Travel Hunter app", () => {
     expect(screen.getByRole("link", { name: "카카오로 시작하기" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "구글로 시작하기" })).toBeInTheDocument();
     expect(document.querySelector(".ds-auth-form-shell")).toBeTruthy();
+    expect(document.querySelector(".brand-mark-compass")).toBeTruthy();
+    expect(document.querySelector(".prototype-login-logo")).not.toHaveTextContent("TH");
     expect(document.querySelector("main")).toHaveClass("prototype-login-layout");
     expect(screen.queryByText(`Travel Hunter ${["Pro", "duction"].join("")}`)).not.toBeInTheDocument();
     expect(screen.queryByText("9:41")).not.toBeInTheDocument();

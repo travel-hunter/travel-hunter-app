@@ -14,6 +14,7 @@ This folder records the design-system mapping used by the frontend. It is intent
 
 ## Pattern Mappings
 
+- `Brand Mark / Compass` -> `frontend/src/components/patterns.tsx` `BrandMark`
 - `Pattern / Home Rail` -> `frontend/src/components/patterns.tsx` `HomeRail`
 - `Pattern / Profile Panel` -> `frontend/src/components/patterns.tsx` `ProfilePanel`
 - `Pattern / Auth Form` -> `frontend/src/components/patterns.tsx` `AuthFormShell`
