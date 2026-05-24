@@ -731,7 +731,7 @@ export function PolicyDetailPage() {
             <div className="price">{getPolicyAmountLabel(policy)}</div>
             <div className="policy-benefit-grid">
               {benefitSections.map((section) => (
-                <SurfaceCard tone={section.title.includes("혜택") || section.title.includes("?쒗깮") ? "benefit" : "default"} className="policy-benefit-group" key={section.title}>
+                <SurfaceCard tone={section.title.includes("혜택") ? "benefit" : "default"} className="policy-benefit-group" key={section.title}>
                   <div className="policy-benefit-title">{section.title}</div>
                   <ul>
                     {section.items.map((item) => (
@@ -753,7 +753,7 @@ export function PolicyDetailPage() {
         <section className="section-block">
           <div className="policy-requirement-grid">
             {requirementSections.map((section) => (
-              <SurfaceCard tone={section.title.includes("확인") || section.title.includes("?뺤씤") ? "draft" : "default"} className="policy-requirement-group" key={section.title}>
+              <SurfaceCard tone={section.title.includes("확인") ? "draft" : "default"} className="policy-requirement-group" key={section.title}>
                 <h3>{section.title === "신청 대상" ? "👥 " : section.title === "혜택 적용 조건" ? "💳 " : "🔎 "}{section.title}</h3>
                 <ul className="bullet-list policy-requirement-list">
                   {section.items.map((item) => (
