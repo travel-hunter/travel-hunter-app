@@ -646,3 +646,49 @@ Remaining risks:
 
 Remaining risks:
 - Emoji rendering appearance can vary slightly by OS/browser font, but the fixed square thumbnail slot prevents text wrapping and overflow.
+
+## 2026-05-24 My Page Large Avatar Shadow Removal
+
+- [x] Scoped the large avatar style so `<div class="avatar large">` no longer inherits the base avatar shadow.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `cd frontend; npm run build` passed.
+- [x] `docker compose -f compose.yaml up -d --build` passed.
+- [x] Visual Playwright verification passed on Docker `/mypage` at 390px: `.prototype-mypage-screen .avatar.large` rendered text `야` with computed `box-shadow: none`. Screenshot saved under `tmp/mypage-avatar-shadow/`.
+
+Remaining risks:
+- None identified for this scoped CSS change.
+
+## 2026-05-24 My Page Profile Edit Button Alignment
+
+- [x] Moved the profile edit action into the avatar/name row so it sits next to the profile content it edits.
+- [x] Styled the edit action as a compact ghost button matching the favorite policy remove button sizing.
+- [x] Kept the profile text area flexible so long names can shrink without resizing the edit button.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `cd frontend; npm run build` passed.
+- [x] `docker compose -f compose.yaml up -d --build` passed.
+- [x] Visual Playwright verification passed on Docker `/mypage` at 390px: the edit button measured `53x36`, was aligned with the avatar row, opened the profile editor, and the avatar still had `box-shadow: none`. Screenshot saved under `tmp/mypage-profile-edit-button/`.
+
+Remaining risks:
+- None identified for this scoped layout change.
+
+## 2026-05-24 My Page Profile Hero C Layout
+
+- [x] Reworked the my page profile card to match option C: removed the visible `프로필` heading, kept the edit action in the avatar/name row, and used a travel-style badge instead of the nickname first-letter avatar.
+- [x] Added profile preference chips for region, style, and budget inside the profile card.
+- [x] Changed the my page screen background to a top point-color band that fades into a white page surface.
+- [x] Added a regression assertion that the saved-policy my page flow no longer renders the visible profile heading and renders the style badge.
+- [x] Verified the RED step: the updated focused test first failed because the legacy `프로필` heading was still rendered.
+- [x] `cd frontend; npm test -- --run src/App.test.tsx -t "shows saved policies on my page and removes them"` passed after implementation.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `cd frontend; npm run build` passed.
+- [x] `docker compose -f compose.yaml up -d --build` passed.
+- [x] Visual Playwright verification passed on Docker `/mypage` at 360, 390, 430, 1024, and 1440 px: no legacy profile head, badge rendered, 3 preference chips rendered, compact edit button stayed `53x36`, top gradient was applied, and no horizontal overflow was detected. Screenshots saved under `tmp/mypage-profile-hero-c/`.
+- [x] `cd frontend; npm test` passed with 110 tests.
+- [x] Centered the profile badge emoji with flex alignment and `line-height: 1`.
+- [x] `cd frontend; npm run typecheck` passed after the badge centering change.
+- [x] `cd frontend; npm run build` passed after the badge centering change.
+- [x] `docker compose -f compose.yaml up -d --build` passed after the badge centering change.
+- [x] Visual Playwright verification passed on Docker `/mypage` at 390 px: `.prototype-profile-badge` computed `display: flex`, `align-items: center`, and `justify-content: center`. Screenshot saved under `tmp/mypage-profile-badge-centered/`.
+
+Remaining risks:
+- The badge is currently derived from travel style text. If a real profile photo/upload field is added later, the card should prefer that media over the fallback badge.

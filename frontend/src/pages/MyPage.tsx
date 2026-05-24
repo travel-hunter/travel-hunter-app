@@ -3,11 +3,19 @@ import { Bell, CircleHelp, Dice5, FileText, LogOut, ShieldCheck } from "lucide-r
 import { Link, useNavigate } from "react-router-dom";
 import { appDataApi, type ContactInfo, type NotificationSettings, type Policy, type Profile, type Trip } from "../api";
 import { useSession } from "../app/session";
-import { FavoritePolicyCard, ProfilePanel, ProfileSectionHeader } from "../components/patterns";
+import { FavoritePolicyCard, ProfileSectionHeader } from "../components/patterns";
 import { Button, EmptyState, ErrorState, LoadingState } from "../components/ui";
 
 const profileOptions = appDataApi.getProfileOptions();
 type InfoSheetType = "faq" | "terms" | "privacy";
+
+function profileBadgeIcon(style: string) {
+  if (style.includes("사진")) return "📷";
+  if (style.includes("휴식")) return "🌿";
+  if (style.includes("맛")) return "🍽️";
+  if (style.includes("액티비티") || style.includes("체험")) return "🎫";
+  return "🧭";
+}
 
 export function MyPage() {
   const navigate = useNavigate();
@@ -247,20 +255,25 @@ export function MyPage() {
       <div className="prototype-mypage-title">마이</div>
 
       <div className="content stack padded prototype-mypage-content">
-        <ProfilePanel title="프로필" meta={currentUser?.email ?? previewUser.email}>
+        <section className="ds-card ds-profile-panel prototype-profile-hero-card" aria-label="내 프로필 요약">
           <div className="prototype-profile-main">
-            <div className="avatar large">{name.trim().charAt(0) || "T"}</div>
+            <div className="avatar large prototype-profile-badge" aria-hidden="true">
+              {profileBadgeIcon(profile.style)}
+            </div>
             <div className="prototype-profile-text">
               <h2 className="profile-name">{name}</h2>
-              <div className="meta">
-                {profile.region} · {profile.style} · {profile.budget}
+              <p className="prototype-profile-email">{currentUser?.email ?? previewUser.email}</p>
+              <div className="prototype-profile-chips" aria-label="프로필 취향">
+                <span>{profile.region}</span>
+                <span>{profile.style}</span>
+                <span>{profile.budget}</span>
               </div>
             </div>
+            <button className="btn ghost prototype-profile-edit-button" onClick={openProfileEditor} type="button">
+              편집
+            </button>
           </div>
-          <Button variant="ghost" onClick={openProfileEditor}>
-            편집
-          </Button>
-        </ProfilePanel>
+        </section>
 
         <section className="prototype-stat-grid" aria-label="나의 활동 요약">
           <ProfileStat label="내 일정" value={isLoadingTrips ? "..." : String(tripCount)} tone="primary" />

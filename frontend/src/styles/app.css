@@ -1696,6 +1696,7 @@
 .avatar.large {
   width: 54px;
   height: 54px;
+  box-shadow: none;
 }
 
 .greeting {
@@ -4555,7 +4556,11 @@
 .prototype-trip-create-screen,
 .prototype-trip-detail-screen,
 .prototype-mypage-screen {
-  background: #f5f5f7;
+  background: linear-gradient(#fff7f2 0 142px, #fff 142px);
+}
+
+.service-layout .prototype-mypage-screen {
+  background: linear-gradient(#fff7f2 0 142px, #fff 142px);
 }
 
 .prototype-trip-list-screen .prototype-screen-head {
@@ -5965,7 +5970,7 @@
 }
 
 .prototype-mypage-screen {
-  background: #f5f5f7;
+  background: linear-gradient(#fff7f2 0 142px, #fff 142px);
 }
 
 .prototype-mypage-title {
@@ -6002,12 +6007,34 @@
 .prototype-profile-main {
   display: flex;
   align-items: center;
+  width: 100%;
   min-width: 0;
   gap: 12px;
 }
 
+.prototype-profile-hero-card {
+  border: 0;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(255, 94, 91, 0.10);
+}
+
 .prototype-profile-text {
+  flex: 1 1 auto;
   min-width: 0;
+}
+
+.prototype-profile-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #bbf7d0;
+  border-radius: 18px;
+  background: #ecfdf5;
+  color: #00876b;
+  font-size: 26px;
+  line-height: 1;
+  text-align: center;
+  box-shadow: none;
 }
 
 .prototype-profile-card .avatar.large {
@@ -6026,9 +6053,48 @@
   font-weight: 700;
 }
 
+.prototype-profile-email {
+  margin: 3px 0 7px;
+  overflow-wrap: anywhere;
+  color: #7a7f90;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.prototype-profile-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.prototype-profile-chips span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #4b5563;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.prototype-profile-chips span:first-child {
+  background: #e8fff8;
+  color: #00876b;
+}
+
 .prototype-profile-text .meta {
   overflow-wrap: anywhere;
   color: #8c8ca1;
+}
+
+.prototype-profile-edit-button {
+  flex: 0 0 auto;
+  min-width: 44px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  color: var(--color-action-primary);
+  white-space: nowrap;
 }
 
 .prototype-profile-card .btn.ghost {
