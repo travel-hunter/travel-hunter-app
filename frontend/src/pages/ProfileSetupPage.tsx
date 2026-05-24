@@ -3,7 +3,8 @@ import { ChevronLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { appDataApi } from "../api";
 import { useSession } from "../app/session";
-import { Button, IconButton, PageHead } from "../components/ui";
+import { ProfileSetupStep } from "../components/patterns";
+import { Button, IconButton } from "../components/ui";
 
 const profileOptions = appDataApi.getProfileOptions();
 
@@ -23,7 +24,7 @@ const steps = [
   {
     key: "budget",
     title: "예산 범위를 알려주세요",
-    body: "예산에 맞는 환급 정책과 예약 옵션을 보여드립니다.",
+    body: "예산에 맞는 혜택과 예약 옵션을 보여드립니다.",
     choices: profileOptions.budgets,
   },
 ] as const;
@@ -73,23 +74,13 @@ export function ProfileSetupPage() {
         <div className="progress-bar">
           <div className="progress-fill" style={{ width: `${((stepIndex + 1) / steps.length) * 100}%` }} />
         </div>
-        <div className="card">
-          <div className="card-body stack">
-            <PageHead eyebrow="맞춤 추천 설정" title={step.title} body={step.body} />
-            <div className="choice-grid">
-              {step.choices.map((choice) => (
-                <button
-                  className={selected === choice ? "choice active" : "choice"}
-                  key={choice}
-                  onClick={() => updateProfile(step.key, choice)}
-                  type="button"
-                >
-                  {choice}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+        <ProfileSetupStep eyebrow="맞춤 추천 설정" title={step.title} body={step.body}>
+          {step.choices.map((choice) => (
+            <button className={selected === choice ? "choice active" : "choice"} key={choice} onClick={() => updateProfile(step.key, choice)} type="button">
+              {choice}
+            </button>
+          ))}
+        </ProfileSetupStep>
         {error && (
           <p className="form-error" role="alert">
             {error}

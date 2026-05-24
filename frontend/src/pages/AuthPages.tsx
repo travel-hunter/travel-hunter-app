@@ -3,6 +3,7 @@ import { ChevronLeft, Dice5 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { appDataApi } from "../api";
 import { useSession } from "../app/session";
+import { AuthFormShell } from "../components/patterns";
 import { Button, IconButton, LinkButton } from "../components/ui";
 
 function getSafeRedirect(searchParams: URLSearchParams) {
@@ -56,13 +57,7 @@ export function LoginPage() {
     <section className="screen white prototype-login-screen">
       <div className="prototype-status-bar" aria-hidden="true" />
       <div className="prototype-login-content">
-        <div className="prototype-login-hero">
-          <div className="prototype-login-logo" aria-hidden="true">
-            ✈️
-          </div>
-          <h1>트래블헌터</h1>
-          <p>숨은 여행 혜택을 사냥하세요</p>
-        </div>
+        <AuthFormShell title="트래블헌터" body="숨은 여행 혜택을 사냥하세요">
 
         <form className="prototype-login-form" onSubmit={submit}>
           <label className="prototype-field">
@@ -125,6 +120,7 @@ export function LoginPage() {
             구글로 시작하기
           </a>
         </div>
+        </AuthFormShell>
       </div>
     </section>
   );
@@ -206,10 +202,7 @@ export function SignupPage() {
         </h1>
         <span />
       </div>
-      <div className="auth-hero compact prototype-auth-hero">
-        <h2>지금 받을 수 있는 여행 혜택부터 찾기</h2>
-        <p>관심 지역과 여행 스타일을 설정하면 맞춤 혜택을 먼저 보여드려요.</p>
-      </div>
+      <AuthFormShell title="지금 받을 수 있는 여행 혜택부터 찾기" body="관심 지역과 여행 스타일을 설정하면 맞춤 혜택을 먼저 보여드려요.">
       <form className="form prototype-auth-form" onSubmit={submit}>
         <label className="field">
           <span>이메일</span>
@@ -252,6 +245,7 @@ export function SignupPage() {
           로그인
         </LinkButton>
       </div>
+      </AuthFormShell>
     </section>
   );
 }
@@ -316,10 +310,7 @@ export function NicknameSetupPage() {
         </h1>
         <span />
       </div>
-      <div className="auth-hero compact prototype-auth-hero">
-        <h2>Travel Hunter에서 사용할 닉네임을 정해 주세요</h2>
-        <p>추천 닉네임을 그대로 쓰거나 원하는 이름으로 바꿀 수 있어요.</p>
-      </div>
+      <AuthFormShell title="Travel Hunter에서 사용할 닉네임을 정해 주세요" body="추천 닉네임을 그대로 쓰거나 원하는 이름으로 바꿀 수 있어요.">
       <form className="form prototype-auth-form" onSubmit={submit}>
         <label className="field">
           <span>닉네임</span>
@@ -339,6 +330,7 @@ export function NicknameSetupPage() {
           {isSaving ? "저장 중" : "이 닉네임으로 시작하기"}
         </Button>
       </form>
+      </AuthFormShell>
     </section>
   );
 }
@@ -379,10 +371,7 @@ export function ForgotPasswordPage() {
         </h1>
         <span />
       </div>
-      <div className="auth-hero compact prototype-auth-hero">
-        <h2>비밀번호 재설정 링크를 받을 이메일을 입력하세요</h2>
-        <p>계정이 있는 이메일이면 30분 동안 사용할 수 있는 재설정 링크를 보내드려요.</p>
-      </div>
+      <AuthFormShell title="비밀번호 재설정 링크를 받을 이메일을 입력하세요" body="계정이 있는 이메일이면 30분 동안 사용할 수 있는 재설정 링크를 보내드려요.">
       <form className="form prototype-auth-form" onSubmit={submit}>
         <label className="field">
           <span>이메일</span>
@@ -402,6 +391,7 @@ export function ForgotPasswordPage() {
           로그인으로 돌아가기
         </button>
       </div>
+      </AuthFormShell>
     </section>
   );
 }
@@ -453,10 +443,7 @@ export function ResetPasswordPage() {
         </h1>
         <span />
       </div>
-      <div className="auth-hero compact prototype-auth-hero">
-        <h2>새 비밀번호를 설정하세요</h2>
-        <p>설정이 완료되면 기존 로그인 세션은 모두 만료돼요.</p>
-      </div>
+      <AuthFormShell title="새 비밀번호를 설정하세요" body="설정이 완료되면 기존 로그인 세션은 모두 만료돼요.">
       {success ? (
         <div className="content stack padded prototype-auth-content">
           <div className="state-panel">
@@ -483,6 +470,7 @@ export function ResetPasswordPage() {
           </Button>
         </form>
       )}
+      </AuthFormShell>
     </section>
   );
 }
@@ -513,20 +501,18 @@ export function OAuthCallbackPage() {
   return (
     <section className="screen white prototype-auth-screen">
       <div className="prototype-status-bar" aria-hidden="true" />
-      <div className="auth-hero prototype-auth-hero">
-        <div className="logo-mark">✈️</div>
-        <h2>트래블헌터 로그인을 완료하는 중입니다</h2>
-        <p>잠시만 기다려 주세요.</p>
-      </div>
+      <AuthFormShell title="트래블헌터 로그인을 완료하는 중입니다" body="잠시만 기다려 주세요.">
       {error && (
         <div className="content stack padded prototype-auth-content">
           <p className="form-error" role="alert">
             {error}
           </p>
           <Button full onClick={() => navigate("/login")}>
-            濡쒓렇?몄쑝濡??뚯븘媛湲?          </Button>
+            로그인으로 돌아가기
+          </Button>
         </div>
       )}
+      </AuthFormShell>
     </section>
   );
 }

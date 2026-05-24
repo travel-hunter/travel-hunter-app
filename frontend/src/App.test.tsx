@@ -96,9 +96,10 @@ describe("design-system pattern contracts", () => {
   });
 
   it("keeps Figma mapping files in the repo", async () => {
-    const fs = await import("node:fs");
-    expect(fs.existsSync("../frontend/figma/README.md")).toBe(true);
-    expect(fs.existsSync("../frontend/figma/travel-hunter-ds-v1.figma.tsx")).toBe(true);
+    const readme = await import("../figma/README.md?raw");
+    const mapping = await import("../figma/travel-hunter-ds-v1.figma");
+    expect(readme.default).toContain("Travel Hunter Figma Mapping");
+    expect(mapping.patternMappings.HomeRail).toContain("patterns.tsx#HomeRail");
   });
 });
 
@@ -169,6 +170,7 @@ describe("Travel Hunter app", () => {
     expect(screen.getByText("숨은 여행 혜택을 사냥하세요")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "카카오로 시작하기" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "구글로 시작하기" })).toBeInTheDocument();
+    expect(document.querySelector(".ds-auth-form-shell")).toBeTruthy();
     expect(document.querySelector("main")).toHaveClass("prototype-login-layout");
     expect(screen.queryByText(`Travel Hunter ${["Pro", "duction"].join("")}`)).not.toBeInTheDocument();
     expect(screen.queryByText("9:41")).not.toBeInTheDocument();
@@ -3127,6 +3129,8 @@ describe("Travel Hunter app", () => {
     renderRoute("/profile-setup");
     const user = userEvent.setup();
 
+    expect(document.querySelector(".ds-profile-setup-step")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "어디로 떠나고 싶나요?" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "부산" }));
     await user.click(screen.getByRole("button", { name: "다음" }));
     await user.click(screen.getByRole("button", { name: "맛집" }));
@@ -3190,9 +3194,10 @@ describe("Travel Hunter app", () => {
     const requestSpy = vi.spyOn(appDataApi, "requestPasswordReset").mockResolvedValue({ requested: true });
 
     try {
-      renderRoute("/forgot-password");
-      expect(document.querySelector("main")).toHaveClass("prototype-login-layout");
-      expect(document.querySelector(".prototype-auth-screen")).toBeTruthy();
+    renderRoute("/forgot-password");
+    expect(document.querySelector("main")).toHaveClass("prototype-login-layout");
+    expect(document.querySelector(".prototype-auth-screen")).toBeTruthy();
+    expect(document.querySelector(".ds-auth-form-shell")).toBeTruthy();
       const user = userEvent.setup();
 
       await user.type(screen.getByRole("textbox", { name: "이메일" }), testEmail);
@@ -3353,6 +3358,7 @@ describe("Travel Hunter app", () => {
     renderRoute("/signup?redirect=/invites/jeju-3d/accept");
     expect(document.querySelector("main")).toHaveClass("prototype-login-layout");
     expect(document.querySelector(".prototype-auth-screen")).toBeTruthy();
+    expect(document.querySelector(".ds-auth-form-shell")).toBeTruthy();
 
     const user = userEvent.setup();
     const email = `invite-${Date.now()}@example.com`;
