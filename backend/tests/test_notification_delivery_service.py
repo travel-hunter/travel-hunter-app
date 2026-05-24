@@ -120,7 +120,7 @@ def make_user(
 def make_policy(
     *,
     policy_id: int = 11,
-    slug: str = "local-vacation",
+    slug: str = "fixture-policy",
     title: str = "Local Vacation Support",
     end_date: date = date(2026, 5, 8),
 ) -> Policy:
@@ -170,7 +170,7 @@ def test_calculates_d7_pending_candidate_for_verified_contact(fake_repository) -
     assert targets[0].userId == 7
     assert targets[0].userName == "User 7"
     assert targets[0].policyId == 11
-    assert targets[0].policySlug == "local-vacation"
+    assert targets[0].policySlug == "fixture-policy"
     assert targets[0].phoneNumber == "01012345678"
     assert targets[0].leadDay == 7
     assert targets[0].targetDeadlineDate == date(2026, 5, 8)

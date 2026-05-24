@@ -53,7 +53,7 @@ def make_target(
         userName="테스트 사용자",
         policyId=2,
         policyTitle="지역사랑 휴가지원",
-        policySlug="local-vacation",
+        policySlug="fixture-policy",
         phoneNumber=phone_number,
         leadDay=7,
         targetDeadlineDate=date(2026, 5, 14),
@@ -86,7 +86,7 @@ def make_delivery(
         )
     policy = Policy(
         id=2,
-        slug="local-vacation",
+        slug="fixture-policy",
         title="지역사랑 휴가지원",
         region="전국",
         end_date=target_deadline_date,

@@ -1,5 +1,7 @@
 # Itinerary Auto Course Generation Design
 
+> Historical note: this design predates the removal of legacy dummy policy slugs. Any `local-vacation` examples below are archival examples, not current runtime seed data.
+
 ## Summary
 
 When a user creates a new trip from `/trips/new`, Travel Hunter will generate a day-by-day starter course and save it as real itinerary places. The first implementation is deterministic and catalog-backed, while the service boundary stays open for a later AI provider.

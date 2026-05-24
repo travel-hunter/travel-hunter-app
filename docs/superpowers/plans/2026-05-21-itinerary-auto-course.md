@@ -1,5 +1,7 @@
 # Itinerary Auto Course Generation Implementation Plan
 
+> Historical note: this plan predates the removal of legacy dummy policy slugs. Any `local-vacation` examples below are archival examples, not current runtime seed data.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Generate editable day-by-day starter courses when users create new trips.
