@@ -4710,7 +4710,7 @@
 }
 
 .prototype-trip-create-screen .top-bar h1::after {
-  content: "???쇱젙";
+  content: "새 일정";
   color: #1a1a2e;
   font-size: 17px;
   font-weight: 800;
@@ -4758,7 +4758,7 @@
 }
 
 .prototype-trip-create-screen .page-head .eyebrow::after {
-  content: "?쇱젙 鍮뚮뜑";
+  content: "일정 빌더";
   color: #ff3b30;
   font-size: 12px;
   font-weight: 700;
