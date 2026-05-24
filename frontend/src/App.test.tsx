@@ -1359,7 +1359,7 @@ describe("Travel Hunter app", () => {
       expect(document.querySelector(".prototype-floating-create")).not.toBeInTheDocument();
       await screen.findByText("부산 4일 여행");
       expect(document.querySelector(".trip-visual-emoji")?.textContent).toContain("🌉");
-      expect(document.body).toHaveTextContent("📅 2026.06.15 - 06.18 · 4일 · 장소 0개");
+      expect(document.body).toHaveTextContent("2026.06.15 - 06.18 · 4일 · 장소 0개");
       expect(document.body).toHaveTextContent("추천 정책 확인 가능");
       expect(document.body).toHaveTextContent("예상 혜택");
 
@@ -2033,13 +2033,16 @@ describe("Travel Hunter app", () => {
     cleanup();
     renderRoute("/home");
 
-    await waitFor(() => expect(document.body).toHaveTextContent("이번 달 혜택"));
-    expect(document.body).toHaveTextContent("어디로 떠나요?");
-    expect(document.body).toHaveTextContent("이번 달 놓치면 안 될 혜택이 있어요!");
+    await waitFor(() => expect(document.body).toHaveTextContent("이번 주 혜택"));
+    expect(document.body).toHaveTextContent("어디로 떠나나요?");
+    expect(screen.getByLabelText("마이페이지")).toBeInTheDocument();
+    expect(document.body).toHaveTextContent("안녕,");
+    expect(document.body).toHaveTextContent("이번 주 놓치면 아쉬운 혜택이 있어요");
     expect(document.body).toHaveTextContent("인기 국내 여행지");
     expect(document.body).toHaveTextContent("AI 추천 맞춤 일정");
     expect(document.body).not.toHaveTextContent("추천 혜택");
-    expect(screen.getByLabelText("이번 달 혜택 정책 목록")).toBeInTheDocument();
+    expect(screen.getByLabelText("이번 주 혜택 정책 목록")).toBeInTheDocument();
+    expect(document.querySelector(".ds-home-rail")).toBeTruthy();
     const destinationRail = screen.getByLabelText("인기 국내 여행지 목록");
     expect(destinationRail).toBeInTheDocument();
     await waitFor(() => {
@@ -2049,9 +2052,9 @@ describe("Travel Hunter app", () => {
     });
     await waitFor(() => expect(within(destinationRail).getAllByText(/(혜택|마감 임박) \d+개/).length).toBeGreaterThan(0));
     expect(document.body).not.toHaveTextContent("⭐ 4.9");
-    await waitFor(() => expect(screen.getByText("💰 이번 달 인기 정책")).toBeInTheDocument());
-    await waitFor(() => expect(within(screen.getByLabelText("이번 달 혜택 정책 목록")).getAllByRole("link").length).toBeGreaterThan(0));
-    await waitFor(() => expect(within(screen.getByLabelText("이번 달 혜택 정책 목록")).getAllByRole("link").length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getByText("이번 주 인기 정책")).toBeInTheDocument());
+    await waitFor(() => expect(within(screen.getByLabelText("이번 주 혜택 정책 목록")).getAllByRole("link").length).toBeGreaterThan(0));
+    await waitFor(() => expect(within(screen.getByLabelText("이번 주 혜택 정책 목록")).getAllByRole("link").length).toBeGreaterThan(0));
   });
 
   it("uses profile style to render region recommendations on the home destination rail", async () => {

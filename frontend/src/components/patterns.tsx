@@ -15,9 +15,9 @@ export function HomeSectionHeader({ actionLabel, title, to }: { actionLabel?: st
   );
 }
 
-export function HomeRail({ children, className, title }: { children: ReactNode; className?: string; title: string }) {
+export function HomeRail({ ariaLabel, children, className, title }: { ariaLabel?: string; children: ReactNode; className?: string; title: string }) {
   return (
-    <section className={classNames("ds-home-rail", className)} aria-label={title}>
+    <section className={classNames("ds-home-rail", className)} aria-label={ariaLabel ?? title}>
       <HomeSectionHeader title={title} />
       <div className="ds-home-rail-items">{children}</div>
     </section>

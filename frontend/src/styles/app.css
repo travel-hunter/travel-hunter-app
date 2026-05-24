@@ -1373,6 +1373,44 @@
   font-weight: 700;
 }
 
+.ds-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0 16px 12px;
+}
+
+.ds-section-header h3 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.ds-section-header a {
+  color: var(--color-action-primary);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.ds-home-rail {
+  display: grid;
+  gap: 0;
+}
+
+.ds-home-rail-items {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 0 16px 24px;
+  scrollbar-width: none;
+}
+
+.ds-home-rail-items::-webkit-scrollbar {
+  display: none;
+}
+
 .prototype-home-policy-rail,
 .prototype-home-destination-rail {
   display: flex;
