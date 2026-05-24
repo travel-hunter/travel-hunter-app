@@ -530,3 +530,21 @@ Remaining risks:
 
 Remaining risks:
 - Figma mapping is repo-local documentation until official Code Connect CLI/package wiring is added.
+
+## 2026-05-24 Mojibake Visible Text Cleanup
+
+- [x] Added frontend mojibake guard: `cd frontend; npm run test:mojibake` passed with `No mojibake-like frontend text found.`
+- [x] Removed the remaining CSS pseudo-content mojibake labels for the trip create screen.
+- [x] Removed the remaining policy detail mojibake fallback fragments without changing policy data flow or API calls.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `cd frontend; npm test` passed, including the mojibake guard and 109 Vitest tests.
+- [x] `cd frontend; npm run build` passed.
+- [x] `docker compose -f compose.yaml up -d --build` passed.
+- [x] Backend health passed: `http://127.0.0.1:8000/api/health` returned HTTP 200 with `database=connected`.
+- [x] Frontend health passed: `http://127.0.0.1:4173` returned HTTP 200.
+- [x] Browser visual verification passed for `/home`, `/policies`, `/policies/dgtour-%EB%B0%80%EC%96%91-1`, `/trips`, `/trips/36`, and `/mypage`.
+- [x] Visual QA screenshots were saved under `tmp/mojibake-final/` and showed readable Korean labels on the checked screens.
+
+Remaining risks:
+- Database policy records were not bulk edited. If future rendered policy data shows mojibake, trace the exact policy record and source URL before correcting stored data.
+- Docker frontend build still reports the existing npm audit notice for one moderate severity dependency issue; this was not introduced or changed by the mojibake cleanup.
