@@ -629,3 +629,20 @@ Remaining risks:
 
 Remaining risks:
 - Visual verification used one saved policy in the local Docker database. Empty and error states are covered by existing tests but were not separately screenshot-reviewed in this pass.
+
+## 2026-05-24 My Page Favorite Emoji Thumbnails
+
+- [x] Added implementation plan under `docs/superpowers/plans/2026-05-24-mypage-favorite-emoji-thumbnails.md`.
+- [x] Replaced the one-character Korean favorite thumbnail markers with policy-nature emoji mapping.
+- [x] Prioritized digital tourism resident card, ticket, pass, admission, and experience signals as `🎫` before secondary discount targets such as lodging or transport.
+- [x] Kept favorite card truncation and fixed thumbnail slot behavior unchanged.
+- [x] Updated the my page saved-policy regression test to reject the old `혜` marker and expect `🎫` for the digital tourism resident card policy.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `cd frontend; npm test -- --run src/App.test.tsx -t "shows saved policies on my page and removes them"` passed.
+- [x] `cd frontend; npm test -- --run src/App.test.tsx` passed with 102 tests.
+- [x] `cd frontend; npm run build` passed.
+- [x] `docker compose -f compose.yaml up -d --build` passed.
+- [x] Visual Playwright verification passed on Docker `/mypage` at 390px: favorite card icons were `🎫` for both digital tourism resident card policies, no old `혜` marker was visible, and no favorite card overflow was detected. Screenshot saved under `tmp/mypage-favorite-emoji-thumbnails/`.
+
+Remaining risks:
+- Emoji rendering appearance can vary slightly by OS/browser font, but the fixed square thumbnail slot prevents text wrapping and overflow.

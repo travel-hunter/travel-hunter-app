@@ -418,10 +418,13 @@ function ProfileStat({ label, tone, value }: { label: string; tone: "primary" | 
 }
 
 function policyIcon(policy: Policy) {
-  if (policy.category === "숙박") return "숙";
-  if (policy.category === "교통" || policy.title.includes("KTX")) return "교";
-  if (policy.title.includes("맛집")) return "맛";
-  return "혜";
+  const text = `${policy.category} ${policy.title} ${policy.tag} ${policy.amount}`;
+  if (text.includes("관광주민증") || text.includes("입장료") || text.includes("체험") || text.includes("할인권") || text.includes("이용권") || text.includes("티켓")) return "🎫";
+  if (text.includes("숙박") || text.includes("숙소") || text.includes("호텔")) return "🏨";
+  if (text.includes("교통") || text.includes("KTX") || text.includes("기차") || text.includes("버스") || text.includes("렌터카") || text.includes("항공")) return "🚆";
+  if (text.includes("맛집") || text.includes("식사") || text.includes("음식")) return "🍽️";
+  if (policy.category === "지역할인" || text.includes("지역") || text.includes("관광")) return "🏷️";
+  return "🎁";
 }
 
 const infoSheetContent: Record<InfoSheetType, { title: string; intro: string; sections: Array<{ heading: string; body: string }> }> = {

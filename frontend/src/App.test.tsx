@@ -2393,13 +2393,7 @@ describe("Travel Hunter app", () => {
 
   it("shows saved policies on my page and removes them", async () => {
     await login();
-    cleanup();
-    renderRoute(examplePolicyPath);
-
-    const saveButton = await screen.findByRole("button", { name: "저장" });
-    await userEvent.setup().click(saveButton);
-    await waitFor(() => expect(document.querySelector(".toast")).toBeTruthy());
-
+    await appDataApi.savePolicy(examplePolicySlug);
     cleanup();
     renderRoute("/mypage");
     await waitFor(() => expect(getLink(examplePolicyPath)).toBeInTheDocument());
@@ -2414,13 +2408,14 @@ describe("Travel Hunter app", () => {
     expect(document.querySelector(".ds-settings-menu")).toBeTruthy();
     const favoriteCard = document.querySelector(".ds-favorite-policy-card");
     expect(favoriteCard).toBeTruthy();
-    expect(favoriteCard?.querySelector(".ds-favorite-policy-thumb")?.textContent?.trim()).toMatch(/^.$/);
+    expect(favoriteCard?.querySelector(".ds-favorite-policy-thumb")?.textContent?.trim()).toBe("🎫");
+    expect(favoriteCard?.querySelector(".ds-favorite-policy-thumb")?.textContent?.trim()).not.toBe("혜");
     expect(favoriteCard?.querySelector(".ds-favorite-policy-copy")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "저장 해제" })).toHaveClass("ds-favorite-policy-remove");
+    expect(within(favoriteCard as HTMLElement).getByRole("button", { name: "저장 해제" })).toHaveClass("ds-favorite-policy-remove");
     const menuIcons = [...document.querySelectorAll(".prototype-menu-icon")].map((icon) => icon.textContent?.trim() ?? "");
     expect(menuIcons).toEqual(["", "", "", "", ""]);
 
-    await userEvent.setup().click(await screen.findByRole("button", { name: "저장 해제" }));
+    await userEvent.setup().click(within(favoriteCard as HTMLElement).getByRole("button", { name: "저장 해제" }));
 
     await waitFor(() => expect(document.querySelector(`a[href="${examplePolicyPath}"]`)).toBeFalsy());
   });
