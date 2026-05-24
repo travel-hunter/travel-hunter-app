@@ -7,6 +7,9 @@ const seedUser = {
 
 const numericTripId = /^[1-9][0-9]*$/;
 const apiBaseUrl = process.env.VITE_API_BASE_URL || "http://127.0.0.1:8001";
+const examplePolicySlug = "dgtour-\uBC00\uC591-1";
+const examplePolicyPath = `/policies/${encodeURIComponent(examplePolicySlug)}`;
+const examplePolicyOfficialUrl = "https://korean.visitkorea.or.kr/dgtourcard/tour50.do";
 
 async function login(page: Page) {
   await page.goto("/login");
@@ -26,6 +29,7 @@ async function seedStoredAuth(page: Page) {
   await page.addInitScript((storedAuth) => {
     window.localStorage.setItem("travel-hunter-production-auth", JSON.stringify(storedAuth));
   }, auth);
+  return auth as { accessToken: string };
 }
 
 test.describe.configure({ mode: "serial" });
@@ -59,11 +63,11 @@ test("backend data source persists profile setup choices", async ({ page }) => {
 test("backend data source drives policy, trip, recommendation, invite, and logout flow", async ({ page }) => {
   await login(page);
 
-  await page.goto("/policies/local-vacation");
+  await page.goto(examplePolicyPath);
   await expect(page.locator("#root")).not.toBeEmpty();
   await expect(page.getByRole("link", { name: "혜택 안내 보기" })).toHaveAttribute(
     "href",
-    "https://www.mcst.go.kr/site/s_notice/press/pressView.jsp?pMenuCD=0302000000&pSeq=22267",
+    examplePolicyOfficialUrl,
   );
   await page.getByRole("button", { name: "저장" }).click();
   await expect(page.locator(".toast")).toContainText("관심 정책");
@@ -144,6 +148,68 @@ test("policy category tabs stay on one horizontal scroll row on mobile", async (
   expect(new Set(layout.topValues).size).toBe(1);
 });
 
+test("policy detail sticky CTA stays attached above bottom tabs while scrolling", async ({ page }) => {
+  await seedStoredAuth(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await page.goto("/policies/travelmonth-44");
+  const cta = page.locator(".prototype-policy-detail-screen .sticky-cta");
+  const bottomTabs = page.locator(".bottom-tabs");
+  await expect(cta).toBeVisible();
+  await expect(bottomTabs).toBeVisible();
+
+  await page.locator(".app-container").evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+
+  const layout = await page.evaluate(() => {
+    const ctaElement = document.querySelector(".prototype-policy-detail-screen .sticky-cta");
+    const bottomTabsElement = document.querySelector(".bottom-tabs");
+    if (!ctaElement || !bottomTabsElement) return null;
+    const ctaRect = ctaElement.getBoundingClientRect();
+    const bottomTabsRect = bottomTabsElement.getBoundingClientRect();
+    return {
+      gap: Math.round(bottomTabsRect.top - ctaRect.bottom),
+    };
+  });
+
+  expect(layout?.gap).toBeCloseTo(0);
+});
+
+test("confirmed trip detail locks editing until confirmation is canceled", async ({ page }) => {
+  const auth = await seedStoredAuth(page);
+  const createResponse = await page.request.post(`${apiBaseUrl}/api/trips`, {
+    headers: { Authorization: `Bearer ${auth.accessToken}` },
+    data: {
+      title: "확정 잠금 e2e 여행",
+      region: "부산",
+      style: "맛집",
+      startDate: "2026-07-12",
+      endDate: "2026-07-14",
+    },
+  });
+  expect(createResponse.ok()).toBeTruthy();
+  const createdTrip = await createResponse.json();
+  const tripId = String(createdTrip.id);
+  expect(tripId).toMatch(numericTripId);
+
+  const confirmResponse = await page.request.patch(`${apiBaseUrl}/api/trips/${tripId}/status`, {
+    headers: { Authorization: `Bearer ${auth.accessToken}` },
+    data: { status: "confirmed" },
+  });
+  expect(confirmResponse.ok()).toBeTruthy();
+
+  await page.goto(`/trips/${tripId}`);
+  await expect(page.locator(".trip-status-panel")).toContainText("확정됨");
+  await expect(page.getByRole("button", { name: "확정취소" })).toBeVisible();
+  await expect(page.locator(".dashed")).toHaveCount(0);
+  await expect(page.locator(".drag-handle")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "확정취소" }).click();
+  await expect(page.locator(".trip-status-panel")).toContainText("작성 중");
+  await expect(page.locator(".dashed")).toBeVisible();
+});
+
 test("core app screens do not horizontally overflow at common responsive widths", async ({ page }) => {
   await seedStoredAuth(page);
 
@@ -216,7 +282,7 @@ async function expectNoDocumentOverflow(page: Page) {
 test("backend data source creates a trip with selected profile values and policy slug", async ({ page }) => {
   await login(page);
 
-  await page.goto("/trips/new?policySlug=local-vacation");
+  await page.goto(`/trips/new?policySlug=${encodeURIComponent(examplePolicySlug)}`);
   await expect(page.locator("#root")).not.toBeEmpty();
   await expect(page.getByRole("heading", { name: "어디로 떠나나요?" })).toBeVisible();
   await page.getByRole("button", { name: /부산/ }).click();

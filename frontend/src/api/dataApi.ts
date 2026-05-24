@@ -150,6 +150,7 @@ export type AppDataApi = {
   moveTripPlace: (tripId: string, placeId: string, move: TripPlaceMoveRequest) => Promise<Trip>;
   deleteTripPlace: (tripId: string, placeId: string) => Promise<Trip>;
   addPolicyToTrip: (tripId: string, policySlug: string) => Promise<TripPolicyResponse>;
+  removePolicyFromTrip: (tripId: string, policySlug: string) => Promise<TripPolicyResponse>;
   listRecommendations: (tripId: string) => Promise<Recommendation[]>;
   getInviteState: (tripId: string) => Promise<InviteState>;
   confirmInviteSent: (tripId: string, role?: InviteRole) => Promise<InviteState>;

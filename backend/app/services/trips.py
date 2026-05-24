@@ -411,6 +411,26 @@ def add_policy_to_trip(
     return {"tripId": str(trip.id), "policyId": policy_slug, "added": True}
 
 
+def remove_policy_from_trip(
+    db: Session,
+    user: User,
+    trip_handle: str,
+    policy_slug: str,
+) -> dict[str, object]:
+    trip = _resolve_required_trip(db, trip_handle, user)
+    _require_trip_editor(trip, user)
+    policy = policy_repository.get_policy_by_slug(db, policy_slug)
+    if policy is None:
+        raise TripServiceError(404, "Policy not found")
+
+    existing = trip_repository.get_trip_policy(db, trip_id=trip.id, policy_id=policy.id)
+    if existing is not None:
+        trip_repository.remove_trip_policy(db, existing)
+        db.commit()
+
+    return {"tripId": str(trip.id), "policyId": policy_slug, "added": False}
+
+
 def update_trip_status(
     db: Session,
     user: User,

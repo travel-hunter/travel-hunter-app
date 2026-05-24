@@ -32,7 +32,7 @@ def trip_payload(trip_id: str = "7") -> dict[str, object]:
         "expectedSaving": "30留뚯썝",
         "linkedPolicies": [
             {
-                "slug": "local-vacation",
+                "slug": "fixture-policy",
                 "title": "Vacation policy",
                 "amount": "30留뚯썝",
                 "region": "Jeju",
@@ -290,6 +290,29 @@ def test_db_add_policy_maps_service_errors(monkeypatch) -> None:
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Policy not found"}
+
+
+def test_db_remove_policy_from_trip_route_returns_response(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    install_db_route_dependencies(monkeypatch, fake_db, user)
+
+    def remove_policy(db, current_user, trip_id, policy_slug):
+        assert db is fake_db
+        assert current_user is user
+        assert trip_id == "7"
+        assert policy_slug == "fixture-policy"
+        return {"tripId": "7", "policyId": "fixture-policy", "added": False}
+
+    monkeypatch.setattr(trip_routes.trip_service, "remove_policy_from_trip", remove_policy)
+
+    try:
+        response = client.delete("/api/trips/7/policies/fixture-policy")
+    finally:
+      clear_overrides()
+
+    assert response.status_code == 200
+    assert response.json() == {"tripId": "7", "policyId": "fixture-policy", "added": False}
 
 
 def test_db_trip_status_update_route_returns_updated_trip(monkeypatch) -> None:

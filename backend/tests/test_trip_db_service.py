@@ -64,7 +64,7 @@ def make_trip() -> Trip:
     ]
     trip.days = [day]
 
-    policy = Policy(id=3, slug="local-vacation", title="Vacation policy", benefit_amount=300000)
+    policy = Policy(id=3, slug="fixture-policy", title="Vacation policy", benefit_amount=300000)
     trip_policy = TripPolicy(id=1, trip_id=7, policy_id=3)
     trip_policy.policy = policy
     trip.policies = [trip_policy]
@@ -84,7 +84,7 @@ def test_trip_to_api_returns_numeric_string_id_and_contract_shape() -> None:
     assert payload["expectedSaving"] == "30만원"
     assert payload["linkedPolicies"] == [
         {
-            "slug": "local-vacation",
+            "slug": "fixture-policy",
             "title": "Vacation policy",
             "amount": "30만원",
             "region": "",
@@ -142,12 +142,12 @@ def test_get_trip_includes_region_matched_recommended_policies(monkeypatch) -> N
     trip.region = "부산"
     trip.title = "부산 3일 여행"
     linked_policy = trip.policies[0].policy
-    linked_policy.slug = "local-vacation"
+    linked_policy.slug = "fixture-policy"
     linked_policy.title = "지역사랑 휴가지원"
     linked_policy.region = "전국"
     recommended_policy = Policy(
         id=4,
-        slug="busan-cashback",
+        slug="fixture-busan-cashback",
         title="부산 여행 캐시백",
         benefit_detail="카드 결제 5% 캐시백",
         region="부산",
@@ -178,7 +178,7 @@ def test_get_trip_includes_region_matched_recommended_policies(monkeypatch) -> N
     assert payload is not None
     assert payload["recommendedPolicies"] == [
         {
-            "slug": "busan-cashback",
+            "slug": "fixture-busan-cashback",
             "title": "부산 여행 캐시백",
             "amount": "카드 결제 5% 캐시백",
             "region": "부산",
@@ -453,6 +453,60 @@ def test_viewer_member_cannot_add_policy_to_trip(monkeypatch) -> None:
         raise AssertionError("expected TripServiceError")
 
     assert added_links == []
+    assert fake_db.commits == 0
+
+
+def test_remove_policy_from_trip_deletes_existing_link(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    policy = trip.policies[0].policy
+    removed_links: list[TripPolicy] = []
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda *_args, **_kwargs: trip,
+    )
+    monkeypatch.setattr(
+        trip_service.policy_repository,
+        "get_policy_by_slug",
+        lambda *_args, **_kwargs: policy,
+    )
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_trip_policy",
+        lambda *_args, **_kwargs: trip.policies[0],
+    )
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "remove_trip_policy",
+        lambda _db, link: removed_links.append(link),
+    )
+
+    result = trip_service.remove_policy_from_trip(fake_db, user, "7", "fixture-policy")
+
+    assert result == {"tripId": "7", "policyId": "fixture-policy", "added": False}
+    assert removed_links == [trip.policies[0]]
+    assert fake_db.commits == 1
+
+
+def test_remove_policy_from_trip_is_idempotent_when_link_missing(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    policy = trip.policies[0].policy
+    removed_links: list[TripPolicy] = []
+
+    monkeypatch.setattr(trip_service.trip_repository, "get_accessible_trip_by_id", lambda *_args, **_kwargs: trip)
+    monkeypatch.setattr(trip_service.policy_repository, "get_policy_by_slug", lambda *_args, **_kwargs: policy)
+    monkeypatch.setattr(trip_service.trip_repository, "get_trip_policy", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(trip_service.trip_repository, "remove_trip_policy", lambda _db, link: removed_links.append(link))
+
+    result = trip_service.remove_policy_from_trip(fake_db, user, "7", "fixture-policy")
+
+    assert result == {"tripId": "7", "policyId": "fixture-policy", "added": False}
+    assert removed_links == []
     assert fake_db.commits == 0
 
 
@@ -1025,10 +1079,10 @@ def test_create_trip_uses_request_date_range_for_dates_and_days(monkeypatch) -> 
 def test_create_trip_links_policy_when_policy_slug_is_present(monkeypatch) -> None:
     fake_db = FakeDb()
     user = make_user()
-    policy = Policy(id=3, slug="local-vacation", title="Vacation policy", benefit_amount=300000)
+    policy = Policy(id=3, slug="fixture-policy", title="Vacation policy", benefit_amount=300000)
     captured = install_create_trip_stubs(monkeypatch, policy=policy)
 
-    trip_service.create_trip(fake_db, user, CreateTripRequest(policySlug="local-vacation"))
+    trip_service.create_trip(fake_db, user, CreateTripRequest(policySlug="fixture-policy"))
 
     assert captured["add_trip_policy"] == {"trip_id": 11, "policy_id": 3}
 

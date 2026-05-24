@@ -129,6 +129,10 @@ def add_trip_policy(db: Session, *, trip_id: int, policy_id: int) -> TripPolicy:
     return link
 
 
+def remove_trip_policy(db: Session, link: TripPolicy) -> None:
+    db.delete(link)
+
+
 def list_recommendations(db: Session, *, trip_id: int, user_id: int) -> list[Recommendation]:
     statement = (
         select(Recommendation)

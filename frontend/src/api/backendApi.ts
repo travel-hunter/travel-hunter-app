@@ -85,7 +85,7 @@ export const backendApi: AppDataApi = {
     const query = params.toString();
     return apiClient.get<RegionRecommendation[]>(`/api/recommendations/regions${query ? `?${query}` : ""}`);
   },
-  getPolicy: (policySlug = "local-vacation"): Promise<Policy> => apiClient.get<Policy>(`/api/policies/${policySlug}`),
+  getPolicy: (policySlug = ""): Promise<Policy> => apiClient.get<Policy>(`/api/policies/${policySlug}`),
   savePolicy: (policySlug: string): Promise<SavePolicyResponse> => apiClient.post<SavePolicyResponse>(`/api/me/saved-policies/${policySlug}`),
   listSavedPolicies: (): Promise<Policy[]> => apiClient.get<Policy[]>("/api/me/saved-policies"),
   listAppliedPolicies: (): Promise<Policy[]> => apiClient.get<Policy[]>("/api/me/applied-policies"),
@@ -100,6 +100,7 @@ export const backendApi: AppDataApi = {
   moveTripPlace: (tripId: string, placeId: string, move: TripPlaceMoveRequest): Promise<Trip> => apiClient.patch<Trip>(`/api/trips/${tripId}/places/${placeId}/move`, move),
   deleteTripPlace: (tripId: string, placeId: string): Promise<Trip> => apiClient.delete<Trip>(`/api/trips/${tripId}/places/${placeId}`),
   addPolicyToTrip: (tripId: string, policySlug: string): Promise<TripPolicyResponse> => apiClient.post<TripPolicyResponse>(`/api/trips/${tripId}/policies/${policySlug}`),
+  removePolicyFromTrip: (tripId: string, policySlug: string): Promise<TripPolicyResponse> => apiClient.delete<TripPolicyResponse>(`/api/trips/${tripId}/policies/${policySlug}`),
   listRecommendations: (tripId: string): Promise<Recommendation[]> => apiClient.get<Recommendation[]>(`/api/trips/${tripId}/recommendations`),
   getInviteState: (tripId: string): Promise<InviteState> => apiClient.get<InviteState>(`/api/trips/${tripId}/invite`),
   confirmInviteSent: (tripId: string, role?: InviteRole): Promise<InviteState> => apiClient.post<InviteState>(`/api/trips/${tripId}/invite`, role ? { role } : undefined),

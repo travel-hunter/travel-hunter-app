@@ -651,7 +651,7 @@ OAuth provider callback 처리.
     "recommendedPolicies": [
       {
         "slug": "travelmonth-58",
-        "title": "부산 여행 캐시백",
+        "title": "부산 공식 캐시백",
         "amount": "카드 결제 5% 캐시백",
         "region": "부산"
       }
@@ -667,6 +667,8 @@ OAuth provider callback 처리.
 ```
 
 `status` 허용 값: `"draft" | "confirmed"`
+
+Frontend behavior: `/trips` displays draft/confirmed status only and does not expose an inline confirmation-save panel. `/trips/{tripId}` treats `confirmed` trips as read-only for owner/editor users until the same endpoint is called with `{ "status": "draft" }` from the detail page confirmation-cancel action. Viewer users cannot change status.
 `currentUserRole` 허용 값: `"owner" | "editor" | "viewer"`
 
 ---
@@ -749,13 +751,32 @@ OAuth provider callback 처리.
 ```json
 {
   "tripId": "1",
-  "policyId": "local-vacation",
+  "policyId": "dgtour-밀양-1",
   "added": true
 }
 ```
 
 **Errors**
 - 403: viewer는 추가 불가
+- 404: 일정 또는 정책 없음
+
+---
+
+### DELETE /trips/{trip_id}/policies/{policy_slug}
+
+일정에 연결된 정책을 해제. owner/editor만 가능.
+
+**Response 200**
+```json
+{
+  "tripId": "1",
+  "policyId": "dgtour-밀양-1",
+  "added": false
+}
+```
+
+**Errors**
+- 403: viewer는 해제 불가
 - 404: 일정 또는 정책 없음
 
 ---
