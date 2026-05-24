@@ -2405,7 +2405,7 @@ describe("Travel Hunter app", () => {
     expect(screen.getByText(/즐겨찾기 정책/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /알림 설정/ })).toBeInTheDocument();
     expect(document.querySelector(".ds-profile-panel")).toBeTruthy();
-    expect(document.querySelector(".prototype-profile-badge")?.textContent?.trim()).toBe("🌿");
+    expect(document.querySelector(".prototype-profile-badge svg")).toBeTruthy();
     expect(document.querySelector(".prototype-mypage-screen")).toHaveClass("prototype-mypage-screen");
     expect(document.querySelector(".ds-settings-menu")).toBeTruthy();
     const favoriteCard = document.querySelector(".ds-favorite-policy-card");

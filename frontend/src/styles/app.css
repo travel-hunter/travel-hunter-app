@@ -6037,6 +6037,11 @@
   box-shadow: none;
 }
 
+.prototype-profile-badge svg {
+  display: block;
+  flex: 0 0 auto;
+}
+
 .prototype-profile-card .avatar.large {
   flex: 0 0 auto;
   width: 56px;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bell, CircleHelp, Dice5, FileText, LogOut, ShieldCheck } from "lucide-react";
+import { Bell, Camera, CircleHelp, Compass, Dice5, FileText, Leaf, LogOut, ShieldCheck, Ticket, Utensils, type LucideIcon } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { appDataApi, type ContactInfo, type NotificationSettings, type Policy, type Profile, type Trip } from "../api";
 import { useSession } from "../app/session";
@@ -9,12 +9,12 @@ import { Button, EmptyState, ErrorState, LoadingState } from "../components/ui";
 const profileOptions = appDataApi.getProfileOptions();
 type InfoSheetType = "faq" | "terms" | "privacy";
 
-function profileBadgeIcon(style: string) {
-  if (style.includes("사진")) return "📷";
-  if (style.includes("휴식")) return "🌿";
-  if (style.includes("맛")) return "🍽️";
-  if (style.includes("액티비티") || style.includes("체험")) return "🎫";
-  return "🧭";
+function profileBadgeIcon(style: string): LucideIcon {
+  if (style.includes("사진")) return Camera;
+  if (style.includes("휴식")) return Leaf;
+  if (style.includes("맛")) return Utensils;
+  if (style.includes("액티비티") || style.includes("체험")) return Ticket;
+  return Compass;
 }
 
 export function MyPage() {
@@ -249,6 +249,7 @@ export function MyPage() {
   const deadlineEnabled = notificationSettings?.deadlineEnabled ?? true;
   const deadlineLeadDays = notificationSettings?.deadlineLeadDays ?? [7, 1];
   const deadlineLabel = deadlineEnabled ? `정책 ${deadlineLeadDays.map((day) => `D-${day}`).join(", ")} 알림` : "마감 알림을 받지 않음";
+  const ProfileBadgeIcon = profileBadgeIcon(profile.style);
 
   return (
     <section className="screen with-tabs prototype-mypage-screen">
@@ -258,7 +259,7 @@ export function MyPage() {
         <section className="ds-card ds-profile-panel prototype-profile-hero-card" aria-label="내 프로필 요약">
           <div className="prototype-profile-main">
             <div className="avatar large prototype-profile-badge" aria-hidden="true">
-              {profileBadgeIcon(profile.style)}
+              <ProfileBadgeIcon size={24} strokeWidth={2.4} />
             </div>
             <div className="prototype-profile-text">
               <h2 className="profile-name">{name}</h2>

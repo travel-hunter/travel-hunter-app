@@ -689,6 +689,12 @@ Remaining risks:
 - [x] `cd frontend; npm run build` passed after the badge centering change.
 - [x] `docker compose -f compose.yaml up -d --build` passed after the badge centering change.
 - [x] Visual Playwright verification passed on Docker `/mypage` at 390 px: `.prototype-profile-badge` computed `display: flex`, `align-items: center`, and `justify-content: center`. Screenshot saved under `tmp/mypage-profile-badge-centered/`.
+- [x] Replaced the profile badge emoji with a centered Lucide vector icon because the emoji glyph was visually off-center despite centered layout styles.
+- [x] `cd frontend; npm run typecheck` passed after the vector badge change.
+- [x] `cd frontend; npm test -- --run src/App.test.tsx -t "shows saved policies on my page and removes them"` passed after the vector badge change.
+- [x] `cd frontend; npm run build` passed after the vector badge change.
+- [x] `docker compose -f compose.yaml up -d --build` passed after the vector badge change.
+- [x] Visual Playwright verification passed on Docker `/mypage` at 390 px: vector badge measured `54x54`, icon measured `24x24`, and icon center deltas were `0,0`. Screenshot saved under `tmp/mypage-profile-badge-vector-centered/`.
 
 Remaining risks:
 - The badge is currently derived from travel style text. If a real profile photo/upload field is added later, the card should prefer that media over the fallback badge.
