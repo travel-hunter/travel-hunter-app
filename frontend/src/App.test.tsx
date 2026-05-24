@@ -1475,7 +1475,7 @@ describe("Travel Hunter app", () => {
     }
   });
 
-  it("renders draft trips without list confirmation controls and with a yellow draft badge", async () => {
+  it("renders trips without list confirmation controls or status badges", async () => {
     const trip: Trip = {
       ...appDataApi.getPreviewTrip(),
       id: "91",
@@ -1492,11 +1492,13 @@ describe("Travel Hunter app", () => {
       renderRoute("/trips");
       await screen.findByText("Draft trip");
       expect(document.querySelector(".trip-confirm-panel")).not.toBeInTheDocument();
+      expect(document.querySelector(".trip-dday-chip")).not.toBeInTheDocument();
       expect(updateStatusSpy).not.toHaveBeenCalled();
       const statusTags = Array.from(document.querySelectorAll(".itinerary-policy-row .tag"));
-      expect(statusTags[1]).toHaveTextContent("작성 중");
+      expect(statusTags).toHaveLength(1);
       expect(statusTags[0]).toHaveClass("benefit");
-      expect(statusTags[1]).toHaveClass("draft");
+      expect(document.body).not.toHaveTextContent("작성 중");
+      expect(document.body).not.toHaveTextContent("확정됨");
     } finally {
       listTripsSpy.mockRestore();
       updateStatusSpy.mockRestore();
@@ -1519,7 +1521,8 @@ describe("Travel Hunter app", () => {
       cleanup();
       renderRoute("/trips");
       await screen.findByText("Draft trip without list action");
-      expect(screen.getAllByText("작성 중").length).toBeGreaterThan(0);
+      expect(screen.queryByText("작성 중")).not.toBeInTheDocument();
+      expect(screen.queryByText("확정됨")).not.toBeInTheDocument();
       expect(document.querySelector(".trip-confirm-check")).not.toBeInTheDocument();
       expect(updateStatusSpy).not.toHaveBeenCalled();
     } finally {

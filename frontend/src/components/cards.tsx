@@ -107,9 +107,8 @@ export function ItineraryCard({
   const dayCount = Object.keys(trip.days).length || 1;
 
   return (
-    <SurfaceCard as="article" tone={trip.status === "confirmed" ? "confirmed" : "draft"} className="itinerary-card">
+    <SurfaceCard as="article" className="itinerary-card">
       <Link className="map-thumb" to={detailPath} aria-label={`${trip.title} 상세 보기`}>
-        <span className="trip-dday-chip">{trip.status === "confirmed" ? "확정" : "작성 중"}</span>
         <span className="trip-visual-emoji" aria-hidden="true">
           {tripRegionEmoji(trip)}
         </span>
@@ -136,7 +135,6 @@ export function ItineraryCard({
           </div>
           <div className="itinerary-policy-row">
             <Tag tone="benefit">예상 혜택 {trip.expectedSaving}</Tag>
-            <Tag tone={trip.status === "confirmed" ? "confirmed" : "draft"}>{trip.status === "confirmed" ? "확정됨" : "작성 중"}</Tag>
           </div>
         </Link>
       </div>

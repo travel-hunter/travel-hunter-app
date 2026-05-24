@@ -596,3 +596,19 @@ Remaining risks:
 
 Remaining risks:
 - Backend `Trip.status` and `PATCH /api/trips/{trip_id}/status` remain for compatibility and older data; the current frontend simply stops exposing confirmation controls.
+
+## 2026-05-24 Trip List Draft Badge Removal
+
+- [x] Removed the remaining `/trips` list status UI from trip cards: the thumbnail `작성 중`/`확정` chip and the bottom `작성 중`/`확정됨` status tag.
+- [x] Kept the expected benefit tag on trip list cards.
+- [x] Updated frontend regression tests to assert that trip list cards do not expose draft/confirmed status badges.
+- [x] Updated `docs/current-work-spec.md` and `docs/mvp-api-contract.md` to match the frontend behavior.
+- [x] `cd frontend; npm test -- --run src/App.test.tsx -t "renders trips without list confirmation controls or status badges"` passed.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `cd frontend; npm test -- --run src/App.test.tsx` passed with 102 tests.
+- [x] `cd frontend; npm run build` passed.
+- [x] `docker compose -f compose.yaml up -d --build` passed.
+- [x] Visual Playwright verification passed on Docker `/trips`: 31 trip cards rendered, `.trip-dday-chip` count was 0, draft/confirmed status tag count was 0, and 31 expected benefit tags remained. Screenshot saved under `tmp/trip-list-status-removal/`.
+
+Remaining risks:
+- Backend `Trip.status` and status update API remain for compatibility, but the current `/trips` list no longer exposes status labels or controls.
