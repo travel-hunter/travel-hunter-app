@@ -611,6 +611,59 @@ describe("Travel Hunter app", () => {
     }
   });
 
+  it("keeps a route-state linked policy hidden after removing it from trip detail", async () => {
+    const trip: Trip = {
+      ...appDataApi.getPreviewTrip(),
+      id: "62",
+      status: "draft",
+      currentUserRole: "owner",
+      title: "방금 연결한 정책 삭제 여행",
+      linkedPolicies: [],
+      days: { 1: [] },
+    };
+    const routePolicy: LinkedTripPolicy = {
+      slug: examplePolicySlug,
+      title: examplePolicyTitle,
+      amount: "최대 30만원",
+      region: "전국",
+    };
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(trip);
+    const removePolicySpy = vi
+      .spyOn(appDataApi, "removePolicyFromTrip")
+      .mockResolvedValue({ tripId: "62", policyId: examplePolicySlug, added: false });
+
+    try {
+      await login();
+      cleanup();
+      render(
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: "/trips/62",
+              state: { linkedPolicy: routePolicy },
+            },
+          ]}
+        >
+          <AppProviders>
+            <App />
+          </AppProviders>
+        </MemoryRouter>,
+      );
+
+      const linkedRegion = await screen.findByRole("region", { name: "연결된 정책" });
+      expect(within(linkedRegion).getByText(examplePolicyTitle)).toBeInTheDocument();
+
+      await userEvent.setup().click(within(linkedRegion).getByRole("button", { name: `${examplePolicyTitle} 연결 삭제` }));
+
+      await waitFor(() => expect(removePolicySpy).toHaveBeenCalledWith("62", examplePolicySlug));
+      await waitFor(() => expect(within(linkedRegion).queryByText(examplePolicyTitle)).not.toBeInTheDocument());
+      expect(within(linkedRegion).getByText("연결된 정책이 없어요")).toBeInTheDocument();
+    } finally {
+      getTripSpy.mockRestore();
+      removePolicySpy.mockRestore();
+    }
+  });
+
   it("links trip detail recommended policy cards to policy detail pages", async () => {
     const recommendedPolicies: LinkedTripPolicy[] = [
       {

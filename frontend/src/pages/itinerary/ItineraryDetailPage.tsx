@@ -43,7 +43,11 @@ function hasPolicySaving(expectedSaving: string | undefined): boolean {
   return Boolean(value && !value.startsWith("0"));
 }
 
-function linkedTripPoliciesForDisplay(apiPolicies: LinkedTripPolicy[] | undefined, routePolicy: LinkedTripPolicy | null): LinkedTripPolicy[] {
+function linkedTripPoliciesForDisplay(
+  apiPolicies: LinkedTripPolicy[] | undefined,
+  routePolicy: LinkedTripPolicy | null,
+  hiddenRoutePolicySlugs: Set<string>,
+): LinkedTripPolicy[] {
   const seen = new Set<string>();
   const policies: LinkedTripPolicy[] = [];
   const append = (policy: LinkedTripPolicy | null | undefined) => {
@@ -52,7 +56,7 @@ function linkedTripPoliciesForDisplay(apiPolicies: LinkedTripPolicy[] | undefine
     policies.push(policy);
   };
 
-  append(routePolicy);
+  if (!routePolicy || !hiddenRoutePolicySlugs.has(routePolicy.slug)) append(routePolicy);
   for (const policy of apiPolicies ?? []) append(policy);
   return policies;
 }
@@ -191,6 +195,7 @@ export function ItineraryDetailPage() {
   const [deleteCandidatePlace, setDeleteCandidatePlace] = useState<ItineraryPlace | null>(null);
   const [removingPolicySlug, setRemovingPolicySlug] = useState<string | null>(null);
   const [policyRemoveError, setPolicyRemoveError] = useState("");
+  const [hiddenRoutePolicySlugs, setHiddenRoutePolicySlugs] = useState<Set<string>>(() => new Set());
   const [isUpdatingTripStatus, setIsUpdatingTripStatus] = useState(false);
   const [tripStatusError, setTripStatusError] = useState("");
   const [placeDraftNotice, setPlaceDraftNotice] = useState("");
@@ -208,7 +213,7 @@ export function ItineraryDetailPage() {
   const tripRegionEmojiLabel = trip ? getTripRegionEmojiFromTitle(trip.title) : "🧳";
   const tripDdayLabel = trip ? formatTripDday(trip.dates) : "D-day";
   const routeLinkedPolicy = (location.state as TripDetailLocationState | null)?.linkedPolicy ?? null;
-  const linkedPolicies = linkedTripPoliciesForDisplay(trip?.linkedPolicies, routeLinkedPolicy);
+  const linkedPolicies = linkedTripPoliciesForDisplay(trip?.linkedPolicies, routeLinkedPolicy, hiddenRoutePolicySlugs);
   const recommendedPolicies = trip?.recommendedPolicies ?? [];
   const recommendedPolicyRegion = recommendedPolicies[0]?.region ?? trip?.title.split(" ")[0] ?? "지역";
   const hasLinkedPolicyFallback = linkedPolicies.length === 0 && hasPolicySaving(trip?.expectedSaving);
@@ -434,6 +439,9 @@ export function ItineraryDetailPage() {
     setPolicyRemoveError("");
     try {
       await appDataApi.removePolicyFromTrip(trip.id, policy.slug);
+      if (routeLinkedPolicy?.slug === policy.slug) {
+        setHiddenRoutePolicySlugs((current) => new Set(current).add(policy.slug));
+      }
       const nextLinkedPolicies = trip.linkedPolicies.filter((linkedPolicy) => linkedPolicy.slug !== policy.slug);
       setTrip({
         ...trip,

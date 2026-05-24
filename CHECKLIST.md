@@ -564,3 +564,17 @@ Remaining risks:
 
 Remaining risks:
 - Visual verification used the Docker-served app and an authenticated test user. Other profile data states were not exhaustively reviewed because the bug was isolated to static settings-menu labels.
+
+## 2026-05-24 Trip Linked Policy Route-State Delete Fix
+
+- [x] Root cause confirmed: backend `DELETE /api/trips/{tripId}/policies/{policySlug}` was succeeding, but trip detail re-added the just-attached policy from React Router `location.state.linkedPolicy` after local trip state removed it.
+- [x] Added a regression test for deleting a route-state linked policy from trip detail.
+- [x] Trip detail now tracks removed route-state policy slugs and excludes them from the display fallback after a successful delete.
+- [x] `cd frontend; npm test -- --run src/App.test.tsx` passed with 102 tests.
+- [x] `cd frontend; npm run typecheck` passed.
+- [x] `cd frontend; npm run build` passed.
+- [x] `docker compose -f compose.yaml up -d --build` passed with DB/backend/frontend running.
+- [x] Visual Playwright verification passed against Docker frontend/backend: a route-state `제주 디지털관광주민증 혜택` card on `/trips/86` went from 1 visible card before delete to 0 after delete, and the linked-policy empty state was shown. Screenshots saved under `tmp/trip-linked-policy-delete/`.
+
+Remaining risks:
+- `/trips/48` currently returned 404 in the local Docker database, so runtime visual verification used an existing editable draft trip (`/trips/86`) with the same route-state linked-policy path.
