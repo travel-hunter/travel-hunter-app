@@ -274,6 +274,7 @@ class Trip(Base):
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="draft")
     region: Mapped[str | None] = mapped_column(String(100))
+    travel_area_id: Mapped[str | None] = mapped_column(String(120), index=True)
     description: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()

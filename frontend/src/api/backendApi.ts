@@ -1,10 +1,3 @@
-import {
-  budgets,
-  itinerary,
-  regions,
-  travelStyles,
-  user,
-} from "../data/seedData";
 import { apiClient, apiConfig } from "./client";
 import {
   AppDataApi,
@@ -32,28 +25,43 @@ import {
   TripPlaceUpdateRequest,
   TripPolicyResponse,
   TripStatusUpdateRequest,
+  TravelAreaRecommendationOptions,
 } from "./dataApi";
-import { ContactInfo, ContactVerificationRequestResponse, InviteRole, InviteState, NotificationSettings, Policy, Profile, ProfileOptions, Recommendation, RegionRecommendation, Trip, User } from "./types";
+import {
+  AppliedPolicyLink,
+  ContactInfo,
+  ContactVerificationRequestResponse,
+  InviteRole,
+  InviteState,
+  NotificationSettings,
+  Policy,
+  Profile,
+  ProfileOptions,
+  Recommendation,
+  RegionRecommendation,
+  TravelAreaRecommendationResponse,
+  Trip,
+  User,
+} from "./types";
 
-const getDefaultDevPassword = (): string =>
-  import.meta.env.VITE_DEV_PASSWORD?.trim() || "";
+const makeDefaultLogin = (request: LoginRequest | undefined): LoginRequest => {
+  if (!request || !request.email || !request.password) {
+    throw new Error("TRAVEL_HUNTER: login request must include email and password.");
+  }
+  return request;
+};
 
-const makeDefaultLogin = (): LoginRequest => ({
-  email: user.email,
-  password: getDefaultDevPassword(),
-});
-
-const makeDefaultSignup = (): SignupRequest => ({
-  email: user.email,
-  password: getDefaultDevPassword(),
-});
+const makeDefaultSignup = (request: SignupRequest | undefined): SignupRequest => {
+  if (!request || !request.email || !request.password) {
+    throw new Error("TRAVEL_HUNTER: signup request must include email and password.");
+  }
+  return request;
+};
 
 export const backendApi: AppDataApi = {
-  getPreviewUser: (): User => user,
-  getProfileOptions: (): ProfileOptions => ({ regions, travelStyles, budgets }),
-  getPreviewTrip: (): Trip => itinerary,
-  login: (request = makeDefaultLogin()): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/login", request),
-  signup: (request = makeDefaultSignup()): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/signup", request),
+  getProfileOptions: (): Promise<ProfileOptions> => apiClient.get<ProfileOptions>("/api/profile-options"),
+  login: (request?: LoginRequest): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/login", makeDefaultLogin(request)),
+  signup: (request?: SignupRequest): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/signup", makeDefaultSignup(request)),
   checkEmailAvailability: (request: EmailAvailabilityRequest): Promise<EmailAvailabilityResponse> => apiClient.post<EmailAvailabilityResponse>("/api/auth/email-check", request),
   getNicknameSuggestion: (): Promise<NicknameSuggestionResponse> => apiClient.get<NicknameSuggestionResponse>("/api/me/nickname-suggestion"),
   updateNickname: (request: NicknameUpdateRequest): Promise<User> => apiClient.patch<User>("/api/me/nickname", request),
@@ -85,10 +93,21 @@ export const backendApi: AppDataApi = {
     const query = params.toString();
     return apiClient.get<RegionRecommendation[]>(`/api/recommendations/regions${query ? `?${query}` : ""}`);
   },
+  listTravelAreaRecommendations: (options?: TravelAreaRecommendationOptions): Promise<TravelAreaRecommendationResponse> => {
+    const params = new URLSearchParams();
+    if (options?.sido) params.set("sido", options.sido);
+    if (options?.query) params.set("query", options.query);
+    if (options?.mode) params.set("mode", options.mode);
+    if (options?.style) params.set("style", options.style);
+    if (options?.limit !== undefined) params.set("limit", String(options.limit));
+    const query = params.toString();
+    return apiClient.get<TravelAreaRecommendationResponse>(`/api/recommendations/travel-areas${query ? `?${query}` : ""}`);
+  },
   getPolicy: (policySlug = ""): Promise<Policy> => apiClient.get<Policy>(`/api/policies/${policySlug}`),
   savePolicy: (policySlug: string): Promise<SavePolicyResponse> => apiClient.post<SavePolicyResponse>(`/api/me/saved-policies/${policySlug}`),
   listSavedPolicies: (): Promise<Policy[]> => apiClient.get<Policy[]>("/api/me/saved-policies"),
   listAppliedPolicies: (): Promise<Policy[]> => apiClient.get<Policy[]>("/api/me/applied-policies"),
+  listAppliedPolicyLinks: (): Promise<AppliedPolicyLink[]> => apiClient.get<AppliedPolicyLink[]>("/api/me/applied-policy-links"),
   removeSavedPolicy: (policySlug: string): Promise<SavePolicyResponse> => apiClient.delete<SavePolicyResponse>(`/api/me/saved-policies/${policySlug}`),
   listTrips: (): Promise<Trip[]> => apiClient.get<Trip[]>("/api/trips"),
   createTrip: (trip?: CreateTripRequest): Promise<Trip> => apiClient.post<Trip>("/api/trips", trip),

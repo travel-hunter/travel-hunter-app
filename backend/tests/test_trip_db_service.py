@@ -1,4 +1,5 @@
 from datetime import date, datetime, time, timedelta
+from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import BigInteger, Integer, create_engine
@@ -39,6 +40,7 @@ def make_trip() -> Trip:
         start_date=date(2026, 6, 15),
         end_date=date(2026, 6, 17),
         region="Jeju",
+        travel_area_id=None,
         description="Rest trip",
         created_at=datetime(2026, 5, 4, 0, 0, 0),
         updated_at=datetime(2026, 5, 4, 0, 0, 0),
@@ -79,6 +81,7 @@ def test_trip_to_api_returns_numeric_string_id_and_contract_shape() -> None:
     assert payload["id"] == "7"
     assert payload["title"] == "Jeju 3-day trip"
     assert payload["status"] == "confirmed"
+    assert payload["travelAreaId"] is None
     assert payload["dates"] == "2026.06.15 - 06.17"
     assert payload["people"] == ["Test User", "Minseo"]
     assert payload["expectedSaving"] == "30만원"
@@ -871,6 +874,12 @@ def install_create_trip_stubs(monkeypatch, *, policy: Policy | None = None):
     def create_trip_stub(db, **kwargs):
         captured["create_trip"] = kwargs
         created_trip.status = kwargs["status"]
+        created_trip.title = kwargs["title"]
+        created_trip.start_date = kwargs["start_date"]
+        created_trip.end_date = kwargs["end_date"]
+        created_trip.region = kwargs["region"]
+        created_trip.travel_area_id = kwargs["travel_area_id"]
+        created_trip.description = kwargs["description"]
         return created_trip
 
     def add_trip_day_stub(_db, *, trip_id, day_number, date_value):
@@ -907,6 +916,66 @@ def install_create_trip_stubs(monkeypatch, *, policy: Policy | None = None):
 
     monkeypatch.setattr(trip_service.trip_repository, "add_trip_policy", add_trip_policy_stub)
     return captured
+
+
+def test_create_trip_with_travel_area_id_stores_resolved_area(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    captured = install_create_trip_stubs(monkeypatch)
+    area = SimpleNamespace(
+        id="gangwon-sokcho-goseong-yangyang",
+        name="Sokcho-Goseong-Yangyang",
+    )
+    monkeypatch.setattr(trip_service, "get_travel_area", lambda area_id: area if area_id == area.id else None)
+
+    created = trip_service.create_trip(
+        fake_db,
+        user,
+        CreateTripRequest(
+            travelAreaId="gangwon-sokcho-goseong-yangyang",
+            style="Sea",
+            durationDays=2,
+        ),
+    )
+
+    assert created["travelAreaId"] == "gangwon-sokcho-goseong-yangyang"
+    assert "Sokcho-Goseong-Yangyang" in created["title"]
+    assert captured["create_trip"]["region"] == "Sokcho-Goseong-Yangyang"
+    assert captured["create_trip"]["travel_area_id"] == "gangwon-sokcho-goseong-yangyang"
+
+
+def test_create_trip_with_unknown_travel_area_id_returns_400(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    monkeypatch.setattr(trip_service, "get_travel_area", lambda _area_id: None)
+
+    with pytest.raises(trip_service.TripServiceError) as error:
+        trip_service.create_trip(
+            fake_db,
+            user,
+            CreateTripRequest(travelAreaId="missing-area"),
+        )
+
+    assert error.value.status_code == 400
+    assert error.value.detail == "Travel area not found"
+    assert fake_db.commits == 0
+
+
+def test_create_trip_region_only_remains_legacy_compatible(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    captured = install_create_trip_stubs(monkeypatch)
+
+    created = trip_service.create_trip(
+        fake_db,
+        user,
+        CreateTripRequest(region="Gangwon", durationDays=2),
+    )
+
+    assert created["travelAreaId"] is None
+    assert "Gangwon" in created["title"]
+    assert captured["create_trip"]["region"] == "Gangwon"
+    assert captured["create_trip"]["travel_area_id"] is None
 
 
 def test_create_trip_generates_catalog_places_and_recommendations(monkeypatch) -> None:
@@ -975,7 +1044,7 @@ def test_create_trip_persists_empty_recommendations_when_catalog_has_no_region(m
     trip_service.create_trip(
         fake_db,
         user,
-        CreateTripRequest(region="경주", style="자연", durationDays=2),
+        CreateTripRequest(region="미지원", style="자연", durationDays=2),
     )
 
     assert len(captured["trip_days"]) == 2

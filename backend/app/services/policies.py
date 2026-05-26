@@ -218,6 +218,40 @@ def list_applied_policies(
     ]
 
 
+def list_applied_policy_links(
+    db: Session | None = None,
+    user: User | None = None,
+) -> list[dict[str, object]]:
+    if db is None:
+        raise RuntimeError("DB session is required.")
+    if user is None:
+        raise RuntimeError("User is required.")
+
+    grouped: dict[int, dict[str, object]] = {}
+    for link in policy_repository.list_applied_policy_links(db, user_id=user.id):
+        policy = link.policy
+        trip = link.trip
+        if policy is None or trip is None:
+            continue
+        if policy.id not in grouped:
+            grouped[policy.id] = {
+                "policy": policy_to_api(policy),
+                "linkedTrips": [],
+            }
+        linked_trips = grouped[policy.id]["linkedTrips"]
+        assert isinstance(linked_trips, list)
+        linked_trips.append(
+            {
+                "id": str(trip.id),
+                "title": trip.title,
+                "region": trip.region or "",
+                "startDate": trip.start_date.isoformat() if trip.start_date else None,
+                "endDate": trip.end_date.isoformat() if trip.end_date else None,
+            }
+        )
+    return list(grouped.values())
+
+
 def remove_saved_policy(
     policy_slug: str,
     db: Session | None = None,

@@ -7,7 +7,7 @@ import { Link, useLocation, useNavigate, useParams, useSearchParams } from "reac
 import { appDataApi, type ItineraryPlace, type LinkedTripPolicy, type Trip, type TripPlaceRequest } from "../../api";
 import { useAsyncResource } from "../../api/useAsyncResource";
 import { Button, ConfirmDialog, EmptyState, ErrorState, IconButton, LinkButton, LoadingState, Toast, TopBar } from "../../components/ui";
-import { getTripRegionEmojiFromTitle } from "../../data/displayConfig";
+import { getPolicyMoodIcon, getPolicyMoodTone, getTripRegionEmojiFromTitle } from "../../data/displayConfig";
 import { clearDraft, createDraftKey, readDraft, saveDraft } from "../../utils/draftStorage";
 import { DraftRestoreNotice } from "./_shared";
 
@@ -681,14 +681,16 @@ export function ItineraryDetailPage() {
                   />
                 ))}
               </SortableContext>
-              {canEditTrip && (
-                <button className="dashed" type="button" onClick={openAddPlace}>
-                  + 장소 추가
-                </button>
-              )}
-              <Link className="btn secondary full" to={`/ai-results?tripId=${encodeURIComponent(trip.id)}`}>
-                AI 추천 일정 보기
-              </Link>
+              <div className="prototype-trip-action-row">
+                {canEditTrip && (
+                  <button className="prototype-trip-action-button prototype-trip-action-add" type="button" onClick={openAddPlace}>
+                    + 장소 추가
+                  </button>
+                )}
+                <Link className="prototype-trip-action-button prototype-trip-action-ai" to={`/ai-results?tripId=${encodeURIComponent(trip.id)}`}>
+                  ✨ AI 추천 일정 보기
+                </Link>
+              </div>
             </div>
           </>
         ) : (

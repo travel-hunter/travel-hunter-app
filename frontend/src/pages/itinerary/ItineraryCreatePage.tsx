@@ -1,33 +1,21 @@
 ﻿import { ChevronLeft } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { appDataApi } from "../../api";
+import { appDataApi, type TravelAreaRecommendation } from "../../api";
 import { useSession } from "../../app/session";
+import { useAsyncResource } from "../../api/useAsyncResource";
 import { Button, ErrorState, IconButton } from "../../components/ui";
-import { tripCreateRegions, tripRegionEmoji } from "../../data/displayConfig";
-import { addDaysToDateInput, getDefaultTripDateRange } from "../../utils/dateDefaults";
-import { clearDraft, createDraftKey, readDraft, saveDraft } from "../../utils/draftStorage";
-import { DraftRestoreNotice } from "./_shared";
+import { tripCreatePrimaryRegions, tripCreatePrimaryRegionValues } from "../../data/displayConfig";
+import { getDefaultTripDateRange } from "../../utils/dateDefaults";
 
-const durationOptions = [2, 3, 4, 5] as const;
-const profileOptions = appDataApi.getProfileOptions();
+const TRIP_CREATE_TOTAL_STEPS = 4;
 const tripCreateMaxDays = 5;
 const tripCreateMinDays = 2;
-type DurationDays = (typeof durationOptions)[number];
-type TripCreateDraft = {
-  region: string;
-  style: string;
-  durationDays?: DurationDays;
-  startDate?: string;
-  endDate?: string;
-  title?: string;
-  step?: number;
-  policySlug: string | null;
-};
-
-function isDurationOption(value: unknown): value is DurationDays {
-  return durationOptions.includes(value as DurationDays);
-}
+const broadTravelAreaRegions = new Set<string>(tripCreatePrimaryRegionValues);
+const legacyTravelAreaQueryRegions = ["속초", "경주", "강릉"] as const;
+const NO_TRAVEL_AREA_HEADING = "세부 지역 선택";
+type TripCreateStep = 1 | 2 | 3 | 4;
+type SelectedTravelArea = Pick<TravelAreaRecommendation, "travelAreaId" | "travelAreaName" | "sido" | "includedCities" | "summary" | "tags">;
 
 function parseDateInput(value: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
@@ -58,51 +46,72 @@ function generatedTripTitle(region: string, dayCount: number | null): string {
   return `${region || "선택한 지역"} ${dayCount ?? 3}일 여행`;
 }
 
-function isValidTripCreateStep(value: unknown): value is 1 | 2 | 3 {
-  return value === 1 || value === 2 || value === 3;
-}
-
-function tripCreateDraftKey(policySlug: string | undefined): string {
-  return createDraftKey(`trip-create:${policySlug ?? "none"}`);
-}
-
 function normalizeRegionParam(value: string | null): string | null {
   if (!value) return null;
-  return (tripCreateRegions as readonly string[]).includes(value) ? value : null;
+  const normalized = value.trim();
+  const supportedRegions = [...tripCreatePrimaryRegionValues, ...legacyTravelAreaQueryRegions];
+  return supportedRegions.includes(normalized) ? normalized : null;
+}
+
+function normalizeTravelAreaIdParam(value: string | null): string | null {
+  const normalized = value?.trim();
+  return normalized || null;
+}
+
+function isBroadTravelAreaRegion(region: string | null | undefined): region is string {
+  return Boolean(region && broadTravelAreaRegions.has(region));
+}
+
+function toSelectedTravelArea(area: TravelAreaRecommendation): SelectedTravelArea {
+  return {
+    travelAreaId: area.travelAreaId,
+    travelAreaName: area.travelAreaName,
+    sido: area.sido,
+    includedCities: area.includedCities,
+    summary: area.summary,
+    tags: area.tags,
+  };
 }
 
 export function ItineraryCreatePage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { profile, updateProfile, addPolicy } = useSession();
+  const { data: profileOptions } = useAsyncResource(() => appDataApi.getProfileOptions(), []);
   const policySlug = searchParams.get("policySlug") ?? undefined;
+  const requestedTravelAreaId = normalizeTravelAreaIdParam(searchParams.get("travelAreaId"));
   const requestedRegion = normalizeRegionParam(searchParams.get("region"));
   const linkablePolicySlug = policySlug;
   const defaultTripDatesRef = useRef(getDefaultTripDateRange());
   const defaultTripStartDate = defaultTripDatesRef.current.startDate;
   const defaultTripEndDate = defaultTripDatesRef.current.endDate;
-  const draftKey = tripCreateDraftKey(policySlug);
-  const initialDraft = readDraft<TripCreateDraft>(draftKey);
-  const initialProfileRef = useRef({ region: profile.region, style: profile.style });
-  const skipNextTripDraftSaveRef = useRef(false);
-  const initialDayCount = tripDateDayCount(initialDraft?.startDate ?? defaultTripStartDate, initialDraft?.endDate ?? defaultTripEndDate);
-  const initialRegion = initialDraft?.region || requestedRegion || profile.region || "제주";
+  const ignoredRequestedTravelAreaIdRef = useRef<string | null>(null);
+  const initialDayCount = tripDateDayCount(defaultTripStartDate, defaultTripEndDate);
+  const initialRegion = requestedRegion || profile.region || "제주";
   const [selectedRegionDraft, setSelectedRegionDraft] = useState(initialRegion);
-  const [step, setStep] = useState<1 | 2 | 3>(isValidTripCreateStep(initialDraft?.step) ? initialDraft.step : 1);
-  const [startDate, setStartDate] = useState(initialDraft?.startDate ?? defaultTripStartDate);
-  const [endDate, setEndDate] = useState(initialDraft?.endDate ?? defaultTripEndDate);
-  const [titleDraft, setTitleDraft] = useState(initialDraft?.title ?? generatedTripTitle(initialRegion, initialDayCount));
+  const [selectedTravelArea, setSelectedTravelArea] = useState<SelectedTravelArea | null>(null);
+  const [travelAreaChoiceSido, setTravelAreaChoiceSido] = useState<string | null>(
+    requestedTravelAreaId ? null : isBroadTravelAreaRegion(requestedRegion) ? requestedRegion : isBroadTravelAreaRegion(initialRegion) ? initialRegion : null,
+  );
+  const [travelAreaChoiceQuery, setTravelAreaChoiceQuery] = useState<string | null>(requestedTravelAreaId || !requestedRegion || isBroadTravelAreaRegion(requestedRegion) ? null : requestedRegion);
+  const [travelAreaRecommendations, setTravelAreaRecommendations] = useState<TravelAreaRecommendation[]>([]);
+  const [isTravelAreaLoading, setIsTravelAreaLoading] = useState(false);
+  const [travelAreaError, setTravelAreaError] = useState("");
+  const [step, setStep] = useState<TripCreateStep>(1);
+  const [startDate, setStartDate] = useState(defaultTripStartDate);
+  const [endDate, setEndDate] = useState(defaultTripEndDate);
+  const [titleDraft, setTitleDraft] = useState(generatedTripTitle(initialRegion, initialDayCount));
   const [isCreating, setIsCreating] = useState(false);
-  const [isDraftReady, setIsDraftReady] = useState(false);
-  const [isTripDraftNoticeVisible, setIsTripDraftNoticeVisible] = useState(false);
   const [error, setError] = useState("");
-  const selectedRegion = selectedRegionDraft.trim() || initialRegion;
+  const selectedRegion = (selectedTravelArea?.travelAreaName ?? selectedRegionDraft.trim()) || initialRegion;
+  const selectedRegionButton = selectedTravelArea?.sido ?? selectedRegion;
+  const requiresTravelAreaSelection = Boolean(requestedTravelAreaId || travelAreaChoiceSido || travelAreaChoiceQuery);
   const dayCount = tripDateDayCount(startDate, endDate);
   const dateRangeError =
     dayCount === null
-      ? "출발일과 도착일을 선택해 주세요."
+      ? "출발일과 도착일을 선택하세요."
       : dayCount < tripCreateMinDays || dayCount > tripCreateMaxDays
-        ? "일정 기간은 2일부터 5일까지 선택할 수 있어요."
+        ? "일정 기간은 2일부터 5일까지 선택할 수 있습니다."
         : "";
   const linkedPolicyLabel = linkablePolicySlug
     ? linkablePolicySlug.startsWith("travelmonth-")
@@ -111,72 +120,149 @@ export function ItineraryCreatePage() {
     : "";
   const canProceed =
     step === 1
-      ? Boolean(selectedRegion)
+      ? Boolean(selectedRegion) && (!requiresTravelAreaSelection || Boolean(selectedTravelArea))
       : step === 2
-        ? !dateRangeError
-        : Boolean(titleDraft.trim());
+        ? Boolean(profile.style)
+        : step === 3
+          ? !dateRangeError
+          : Boolean(titleDraft.trim());
+
+  const syncTravelAreaSearchParams = (updates: { region?: string | null; travelAreaId?: string | null }) => {
+    const nextSearchParams = new URLSearchParams(searchParams);
+    if (updates.region === null) {
+      nextSearchParams.delete("region");
+    } else if (updates.region) {
+      nextSearchParams.set("region", updates.region);
+    }
+    if (updates.travelAreaId === null) {
+      nextSearchParams.delete("travelAreaId");
+    } else if (updates.travelAreaId) {
+      nextSearchParams.set("travelAreaId", updates.travelAreaId);
+    }
+    setSearchParams(nextSearchParams, { replace: true });
+  };
+
+  const applyTravelArea = (area: TravelAreaRecommendation, options?: { syncUrl?: boolean }) => {
+    const previousAutoTitle = generatedTripTitle(selectedRegion, dayCount);
+    const nextTravelArea = toSelectedTravelArea(area);
+    setSelectedTravelArea(nextTravelArea);
+    setTravelAreaChoiceSido(area.sido);
+    setTravelAreaChoiceQuery(null);
+    setSelectedRegionDraft(area.travelAreaName);
+    updateProfile("region", area.travelAreaName);
+    setTitleDraft((current) => (current.trim() === "" || current === previousAutoTitle ? generatedTripTitle(area.travelAreaName, dayCount) : current));
+    if (options?.syncUrl) {
+      syncTravelAreaSearchParams({ region: area.sido, travelAreaId: area.travelAreaId });
+    }
+  };
 
   useEffect(() => {
-    const draft = readDraft<TripCreateDraft>(draftKey);
-    if (draft && draft.policySlug === (policySlug ?? null)) {
-      let appliedDraft = false;
-      if (draft.region) {
-        setSelectedRegionDraft(draft.region);
-        updateProfile("region", draft.region);
-        if (draft.region !== initialProfileRef.current.region) appliedDraft = true;
-      }
-      if (draft.style) {
-        updateProfile("style", draft.style);
-        if (draft.style !== initialProfileRef.current.style) appliedDraft = true;
-      }
-      if (draft.startDate) {
-        setStartDate(draft.startDate);
-        if (draft.startDate !== defaultTripStartDate) appliedDraft = true;
-      }
-      if (draft.endDate) {
-        setEndDate(draft.endDate);
-        if (draft.endDate !== defaultTripEndDate) appliedDraft = true;
-      }
-      if (draft.title) {
-        setTitleDraft(draft.title);
-        appliedDraft = true;
-      }
-      if (isValidTripCreateStep(draft.step)) setStep(draft.step);
-      if (!draft.startDate && isDurationOption(draft.durationDays)) {
-        const nextEndDate = addDaysToDateInput(defaultTripStartDate, draft.durationDays - 1);
-        setEndDate(nextEndDate);
-        if (draft.durationDays !== 3) appliedDraft = true;
-      }
-      setIsTripDraftNoticeVisible(appliedDraft);
-    } else if (requestedRegion && requestedRegion !== initialProfileRef.current.region) {
+    if (!requestedTravelAreaId && requestedRegion) {
+      const previousAutoTitle = generatedTripTitle(selectedRegion, dayCount);
       setSelectedRegionDraft(requestedRegion);
       updateProfile("region", requestedRegion);
+      setSelectedTravelArea(null);
+      if (isBroadTravelAreaRegion(requestedRegion)) {
+        setTravelAreaChoiceSido(requestedRegion);
+        setTravelAreaChoiceQuery(null);
+      } else {
+        setTravelAreaChoiceSido(null);
+        setTravelAreaChoiceQuery(requestedRegion);
+      }
+      setTitleDraft((current) => (current.trim() === "" || current === previousAutoTitle ? generatedTripTitle(requestedRegion, dayCount) : current));
     }
-    setIsDraftReady(true);
-  }, [draftKey, policySlug, requestedRegion]);
+  }, [requestedRegion, requestedTravelAreaId]);
 
   useEffect(() => {
-    if (!isDraftReady) return;
-    if (skipNextTripDraftSaveRef.current) {
-      skipNextTripDraftSaveRef.current = false;
+    if (!requestedTravelAreaId) {
+      ignoredRequestedTravelAreaIdRef.current = null;
+    }
+    const shouldIgnoreRequestedTravelAreaId = Boolean(requestedTravelAreaId && ignoredRequestedTravelAreaIdRef.current === requestedTravelAreaId);
+    const hasResolvedRequestedTravelArea = Boolean(requestedTravelAreaId && selectedTravelArea?.travelAreaId === requestedTravelAreaId);
+    const hasSelectedTravelAreaInRecommendations = Boolean(
+      selectedTravelArea && travelAreaRecommendations.some((area) => area.travelAreaId === selectedTravelArea.travelAreaId),
+    );
+    const travelAreaQuery =
+      requestedTravelAreaId && !shouldIgnoreRequestedTravelAreaId
+        ? hasResolvedRequestedTravelArea
+          ? null
+          : { query: requestedTravelAreaId, limit: 20 }
+        : hasSelectedTravelAreaInRecommendations
+          ? null
+        : travelAreaChoiceQuery
+          ? { query: travelAreaChoiceQuery, limit: 20 }
+          : travelAreaChoiceSido
+          ? { sido: travelAreaChoiceSido, limit: 20 }
+          : null;
+    if (!travelAreaQuery) {
+      if (hasSelectedTravelAreaInRecommendations) {
+        setTravelAreaError("");
+        setIsTravelAreaLoading(false);
+        return;
+      }
+      setTravelAreaRecommendations([]);
+      setTravelAreaError("");
+      setIsTravelAreaLoading(false);
       return;
     }
-    saveDraft<TripCreateDraft>(draftKey, {
-      region: selectedRegion,
-      style: profile.style,
-      startDate,
-      endDate,
-      title: titleDraft,
-      step,
-      policySlug: policySlug ?? null,
-    });
-  }, [draftKey, endDate, isDraftReady, policySlug, profile.style, selectedRegion, startDate, step, titleDraft]);
+
+    let cancelled = false;
+    setIsTravelAreaLoading(true);
+    setTravelAreaError("");
+    appDataApi
+      .listTravelAreaRecommendations(travelAreaQuery)
+      .then((response) => {
+        if (cancelled) return;
+        if (requestedTravelAreaId && ignoredRequestedTravelAreaIdRef.current === requestedTravelAreaId) return;
+        setTravelAreaRecommendations(response.items);
+        if (requestedTravelAreaId) {
+          const matchedArea = response.items.find((area) => area.travelAreaId === requestedTravelAreaId);
+          if (matchedArea) {
+            applyTravelArea(matchedArea);
+          } else {
+            setSelectedTravelArea(null);
+            setTravelAreaError("요청한 세부 지역을 찾을 수 없습니다. 다른 지역을 선택하세요.");
+          }
+        } else if (selectedTravelArea && !response.items.some((area) => area.travelAreaId === selectedTravelArea.travelAreaId)) {
+          if (response.items.length === 1) {
+            applyTravelArea(response.items[0], { syncUrl: true });
+          } else {
+            setSelectedTravelArea(null);
+          }
+        } else if ((travelAreaChoiceSido || travelAreaChoiceQuery) && !selectedTravelArea && response.items.length === 1) {
+          applyTravelArea(response.items[0], { syncUrl: true });
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setTravelAreaRecommendations([]);
+        setTravelAreaError("세부 지역을 불러오지 못했습니다. 잠시 후 다시 시도하세요.");
+      })
+      .finally(() => {
+        if (!cancelled) setIsTravelAreaLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [requestedTravelAreaId, selectedTravelArea, travelAreaChoiceQuery, travelAreaChoiceSido]);
 
   const selectRegion = (region: string) => {
     const previousAutoTitle = generatedTripTitle(selectedRegion, dayCount);
+    if (requestedTravelAreaId) {
+      ignoredRequestedTravelAreaIdRef.current = requestedTravelAreaId;
+    }
     setSelectedRegionDraft(region);
+    setSelectedTravelArea(null);
+    setTravelAreaChoiceSido(isBroadTravelAreaRegion(region) ? region : null);
+    setTravelAreaChoiceQuery(null);
+    syncTravelAreaSearchParams({ region, travelAreaId: null });
     updateProfile("region", region);
     setTitleDraft((current) => (current.trim() === "" || current === previousAutoTitle ? generatedTripTitle(region, dayCount) : current));
+  };
+
+  const selectTravelArea = (area: TravelAreaRecommendation) => {
+    applyTravelArea(area, { syncUrl: true });
   };
 
   const updateDates = (nextStartDate: string, nextEndDate: string) => {
@@ -187,24 +273,10 @@ export function ItineraryCreatePage() {
     setTitleDraft((current) => (current.trim() === "" || current === previousAutoTitle ? generatedTripTitle(selectedRegion, nextDayCount) : current));
   };
 
-  const discardTripCreateDraft = () => {
-    skipNextTripDraftSaveRef.current = true;
-    clearDraft(draftKey);
-    const resetRegion = requestedRegion || initialProfileRef.current.region;
-    setSelectedRegionDraft(resetRegion);
-    updateProfile("region", resetRegion);
-    updateProfile("style", initialProfileRef.current.style);
-    setStep(1);
-    setStartDate(defaultTripStartDate);
-    setEndDate(defaultTripEndDate);
-    setTitleDraft(generatedTripTitle(resetRegion || "제주", 3));
-    setIsTripDraftNoticeVisible(false);
-  };
-
   const goNext = () => {
     if (!canProceed) return;
-    if (step < 3) {
-      setStep((current) => (current + 1) as 1 | 2 | 3);
+    if (step < TRIP_CREATE_TOTAL_STEPS) {
+      setStep((current) => Math.min(current + 1, TRIP_CREATE_TOTAL_STEPS) as TripCreateStep);
       return;
     }
     void createTrip();
@@ -213,12 +285,12 @@ export function ItineraryCreatePage() {
   const createTrip = async () => {
     const title = titleDraft.trim();
     if (!title) {
-      setError("일정 제목을 입력해 주세요.");
+      setError("일정 제목을 입력하세요.");
       return;
     }
     if (dateRangeError) {
       setError(dateRangeError);
-      setStep(2);
+      setStep(3);
       return;
     }
     setIsCreating(true);
@@ -227,6 +299,7 @@ export function ItineraryCreatePage() {
       const trip = await appDataApi.createTrip({
         title,
         region: selectedRegion,
+        travelAreaId: selectedTravelArea?.travelAreaId ?? undefined,
         style: profile.style,
         ...(linkablePolicySlug ? { policySlug: linkablePolicySlug } : {}),
         startDate,
@@ -236,10 +309,9 @@ export function ItineraryCreatePage() {
         await appDataApi.addPolicyToTrip(trip.id, linkablePolicySlug);
         addPolicy(linkablePolicySlug);
       }
-      clearDraft(draftKey);
       navigate(`/trips/${trip.id}`);
     } catch {
-      setError("일정을 만들지 못했어요. 선택한 조건을 확인하고 다시 시도해 주세요.");
+      setError("일정을 만들지 못했습니다. 선택한 조건을 확인하고 다시 시도하세요.");
     } finally {
       setIsCreating(false);
     }
@@ -252,11 +324,11 @@ export function ItineraryCreatePage() {
           <ChevronLeft size={20} />
         </IconButton>
         <h1>새 일정</h1>
-        <span>{step}/3</span>
+        <span>{step}/{TRIP_CREATE_TOTAL_STEPS}</span>
       </div>
 
       <div className="prototype-create-progress" aria-label="일정 생성 단계">
-        <span style={{ width: `${(step / 3) * 100}%` }} />
+        <span style={{ width: `${(step / TRIP_CREATE_TOTAL_STEPS) * 100}%` }} />
       </div>
 
       <div className="prototype-create-content">
@@ -269,20 +341,58 @@ export function ItineraryCreatePage() {
 
         {step === 1 && (
           <section className="prototype-create-step-panel">
-            <h2>어디로 떠나나요?</h2>
-            <p>지역을 선택하면 맞춤 혜택을 찾아드려요.</p>
+            <h2>여행 지역 선택</h2>
             <div className="prototype-region-grid">
-              {tripCreateRegions.map((region) => (
-                <button className={selectedRegion === region ? "active" : ""} key={region} onClick={() => selectRegion(region)} type="button">
-                  <span>{tripRegionEmoji[region]}</span>
-                  <strong>{region}</strong>
+              {tripCreatePrimaryRegions.map((region) => (
+                <button className={selectedRegionButton === region.value ? "active" : ""} key={region.value} onClick={() => selectRegion(region.value)} type="button">
+                  <span aria-hidden="true">{region.emoji}</span>
+                  <strong>{region.label}</strong>
                 </button>
               ))}
             </div>
+            {requiresTravelAreaSelection && (
+              <div className="prototype-travel-area-choice">
+                <div className="prototype-travel-area-heading">
+                  <h3>{travelAreaChoiceSido ? `${travelAreaChoiceSido} 세부 지역 선택` : NO_TRAVEL_AREA_HEADING}</h3>
+                </div>
+                {isTravelAreaLoading && <p className="prototype-travel-area-status">세부 지역을 불러오는 중</p>}
+                {travelAreaError && <p className="prototype-travel-area-status invalid">{travelAreaError}</p>}
+                {!isTravelAreaLoading && !travelAreaError && travelAreaRecommendations.length === 0 && (
+                  <p className="prototype-travel-area-status">선택 가능한 세부 지역이 없습니다. 다른 지역을 선택하세요.</p>
+                )}
+                    {travelAreaRecommendations.length > 0 && (
+                  <div className="prototype-travel-area-grid" aria-label="세부 지역 선택">
+                    {travelAreaRecommendations.map((area) => (
+                      <button
+                        className={selectedTravelArea?.travelAreaId === area.travelAreaId ? "prototype-travel-area-card active" : "prototype-travel-area-card"}
+                        key={area.travelAreaId}
+                        onClick={() => selectTravelArea(area)}
+                        type="button"
+                      >
+                        <strong>{area.travelAreaName}</strong>
+                        <small>{area.summary}</small>
+                        <span className="prototype-travel-area-tags">
+                          {area.tags.slice(0, 4).map((tag) => (
+                            <em key={tag}>{tag}</em>
+                          ))}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+        )}
+
+        {step === 2 && (
+          <section className="prototype-create-step-panel">
+            <h2>코스 취향 선택</h2>
+            <p>{selectedRegion} 일정에 맞는 코스 분위기</p>
             <div className="prototype-style-choice">
-              <span className="meta">어떤 코스를 선호하나요?</span>
+              <span className="meta">코스 취향</span>
               <div className="prototype-region-grid" aria-label="장소 취향 선택">
-                {profileOptions.travelStyles.map((style) => (
+                {(profileOptions?.travelStyles ?? []).map((style) => (
                   <button
                     aria-pressed={profile.style === style}
                     className={profile.style === style ? "active" : ""}
@@ -298,10 +408,10 @@ export function ItineraryCreatePage() {
           </section>
         )}
 
-        {step === 2 && (
+        {step === 3 && (
           <section className="prototype-create-step-panel">
-            <h2>언제 떠나나요?</h2>
-            <p>여행 기간을 선택해 주세요.</p>
+            <h2>여행 기간 선택</h2>
+            <p>출발일과 도착일 선택</p>
             <div className="prototype-date-fields">
               <label>
                 출발일
@@ -319,10 +429,10 @@ export function ItineraryCreatePage() {
           </section>
         )}
 
-        {step === 3 && (
+        {step === 4 && (
           <section className="prototype-create-step-panel">
-            <h2>일정 제목을 정해볼까요?</h2>
-            <p>나중에 언제든 변경할 수 있어요.</p>
+            <h2>일정 제목 입력</h2>
+            <p>나중에 변경할 수 있습니다.</p>
             <label className="prototype-title-field">
               일정 제목
               <input
@@ -345,18 +455,17 @@ export function ItineraryCreatePage() {
           </section>
         )}
 
-        {isTripDraftNoticeVisible && <DraftRestoreNotice message="작성 중이던 일정 조건을 불러왔어요." onDiscard={discardTripCreateDraft} />}
         {error && <ErrorState compact message={error} />}
       </div>
 
       <div className="prototype-create-sticky-actions">
         {step > 1 && (
-          <Button variant="line" disabled={isCreating} onClick={() => setStep((current) => (current - 1) as 1 | 2 | 3)}>
+          <Button variant="line" disabled={isCreating} onClick={() => setStep((current) => Math.max(current - 1, 1) as TripCreateStep)}>
             이전
           </Button>
         )}
         <Button full disabled={!canProceed || isCreating} onClick={goNext}>
-          {isCreating ? "일정을 만드는 중입니다" : step < 3 ? "다음" : "일정 만들기"}
+          {isCreating ? "일정 생성 중" : step < TRIP_CREATE_TOTAL_STEPS ? "다음" : "일정 만들기"}
         </Button>
       </div>
     </section>

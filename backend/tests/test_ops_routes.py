@@ -175,17 +175,14 @@ def test_external_collection_ops_health_exposes_active_scheduler_status(
         ),
     )
     scheduler.run_once_if_due()
-    monkeypatch.setattr(
-        external_collection_scheduler,
-        "_active_external_collection_scheduler",
-        scheduler,
-    )
+    external_collection_scheduler.set_active_external_collection_scheduler(scheduler)
 
     authenticate_ops_user()
     try:
         response = client.get("/api/ops/external-collection")
     finally:
         clear_ops_user()
+        external_collection_scheduler.set_active_external_collection_scheduler(None)
 
     assert response.status_code == 200
     assert {

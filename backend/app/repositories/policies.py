@@ -70,6 +70,24 @@ def list_applied_policies(db: Session, *, user_id: int) -> list[Policy]:
     return list(db.scalars(statement).all())
 
 
+def list_applied_policy_links(db: Session, *, user_id: int) -> list[TripPolicy]:
+    statement = (
+        select(TripPolicy)
+        .join(Policy, Policy.id == TripPolicy.policy_id)
+        .join(Trip, Trip.id == TripPolicy.trip_id)
+        .options(
+            selectinload(TripPolicy.policy).selectinload(Policy.documents),
+            selectinload(TripPolicy.trip),
+        )
+        .where(
+            (Trip.owner_id == user_id)
+            | (Trip.members.any(TripMember.user_id == user_id))
+        )
+        .order_by(Policy.id, Trip.start_date, Trip.id)
+    )
+    return list(db.scalars(statement).all())
+
+
 def remove_saved_policy(
     db: Session,
     *,

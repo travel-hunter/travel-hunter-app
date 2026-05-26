@@ -3,7 +3,7 @@ import { ChevronLeft, Dice5 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { appDataApi } from "../api";
 import { useSession } from "../app/session";
-import { AuthFormShell } from "../components/patterns";
+import { AuthFormShell, BrandMark } from "../components/patterns";
 import { Button, IconButton, LinkButton } from "../components/ui";
 
 function getSafeRedirect(searchParams: URLSearchParams) {
@@ -196,13 +196,13 @@ export function SignupPage() {
         <IconButton label="뒤로" to="/">
           <ChevronLeft size={20} />
         </IconButton>
-        <h1 className="prototype-auth-top-title">
-          <span aria-hidden="true">✈️</span>
+        <h1 className="prototype-auth-top-title prototype-auth-brand-title">
+          <BrandMark />
           <span className="sr-only">회원가입</span>
         </h1>
         <span />
       </div>
-      <AuthFormShell title="지금 받을 수 있는 여행 혜택부터 찾기" body="관심 지역과 여행 스타일을 설정하면 맞춤 혜택을 먼저 보여드려요.">
+      <AuthFormShell title="지금 받을 수 있는 여행 혜택부터 찾기" body="관심 지역과 여행 스타일을 설정하면 맞춤 혜택을 먼저 보여드려요." showBrandMark={false}>
       <form className="form prototype-auth-form" onSubmit={submit}>
         <label className="field">
           <span>이메일</span>
@@ -310,7 +310,7 @@ export function NicknameSetupPage() {
         </h1>
         <span />
       </div>
-      <AuthFormShell title="Travel Hunter에서 사용할 닉네임을 정해 주세요" body="추천 닉네임을 그대로 쓰거나 원하는 이름으로 바꿀 수 있어요.">
+      <AuthFormShell title="Travel Hunter에서 사용할 닉네임을 정해 주세요" body="추천 닉네임을 그대로 쓰거나 원하는 이름으로 바꿀 수 있어요." showBrandMark={false}>
       <form className="form prototype-auth-form" onSubmit={submit}>
         <label className="field">
           <span>닉네임</span>
@@ -365,13 +365,13 @@ export function ForgotPasswordPage() {
         <IconButton label="로그인" to={withRedirect("/login", redirect)}>
           <ChevronLeft size={20} />
         </IconButton>
-        <h1 className="prototype-auth-top-title">
-          <span aria-hidden="true">✈️</span>
+        <h1 className="prototype-auth-top-title prototype-auth-brand-title">
+          <BrandMark />
           <span className="sr-only">비밀번호 찾기</span>
         </h1>
         <span />
       </div>
-      <AuthFormShell title="비밀번호 재설정 링크를 받을 이메일을 입력하세요" body="계정이 있는 이메일이면 30분 동안 사용할 수 있는 재설정 링크를 보내드려요.">
+      <AuthFormShell title="비밀번호 재설정 링크를 받을 이메일을 입력하세요" body="계정이 있는 이메일이면 30분 동안 사용할 수 있는 재설정 링크를 보내드려요." showBrandMark={false}>
       <form className="form prototype-auth-form" onSubmit={submit}>
         <label className="field">
           <span>이메일</span>
@@ -443,7 +443,7 @@ export function ResetPasswordPage() {
         </h1>
         <span />
       </div>
-      <AuthFormShell title="새 비밀번호를 설정하세요" body="설정이 완료되면 기존 로그인 세션은 모두 만료돼요.">
+      <AuthFormShell title="새 비밀번호를 설정하세요" body="설정이 완료되면 기존 로그인 세션은 모두 만료돼요." showBrandMark={false}>
       {success ? (
         <div className="content stack padded prototype-auth-content">
           <div className="state-panel">

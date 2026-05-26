@@ -24,6 +24,22 @@ def test_generate_course_prefers_region_and_style() -> None:
     }
 
 
+def test_generate_course_supports_travel_area_display_region() -> None:
+    course = recommendations.generate_auto_course(
+        region="속초·고성·양양",
+        style="바다",
+        start_date=date(2026, 7, 12),
+        day_count=2,
+    )
+
+    assert len(course.places) == 6
+    assert len(course.recommendations) == 6
+    assert all(place.region == "속초·고성·양양" for place in course.places)
+    assert all(place.style == "바다" for place in course.places)
+    assert [place.day_number for place in course.places] == [1, 1, 1, 2, 2, 2]
+    assert course.recommendations[0]["title"] == course.places[0].title
+
+
 def test_generate_course_falls_back_to_same_region_other_styles(monkeypatch) -> None:
     catalog = [
         recommendations.CatalogPlace("제주", "자연", "NA", "제주 자연 1", "자연 · 제주", "자연 취향에 맞습니다."),

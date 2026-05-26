@@ -1,4 +1,4 @@
-export type User = {
+﻿export type User = {
   id: string;
   nickname: string;
   email: string;
@@ -66,6 +66,19 @@ export type Policy = {
   sourceType?: "internal" | "external";
 };
 
+export type AppliedPolicyLinkedTrip = {
+  id: string;
+  title: string;
+  region: string;
+  startDate: string | null;
+  endDate: string | null;
+};
+
+export type AppliedPolicyLink = {
+  policy: Policy;
+  linkedTrips: AppliedPolicyLinkedTrip[];
+};
+
 export type ItineraryPlace = {
   id?: string;
   time: string;
@@ -78,6 +91,8 @@ export type LinkedTripPolicy = {
   title: string;
   amount: string;
   region: string;
+  category?: PolicyCategory;
+  tag?: string;
 };
 
 export type Trip = {
@@ -109,6 +124,30 @@ export type RegionRecommendation = {
   estimatedValueKrw: number;
   score: number;
   styleMatchedCount: number;
+};
+
+export type TravelAreaRecommendation = {
+  travelAreaId: string;
+  travelAreaName: string;
+  sido: string;
+  includedCities: string[];
+  summary: string;
+  tags: string[];
+  reason: string;
+  policyCount: number;
+  localPolicyCount: number;
+  nationwidePolicyCount: number;
+  endingSoonCount: number;
+  estimatedValueKrw: number;
+  score: number;
+};
+
+export type TravelAreaRecommendationResponse = {
+  mode: "sido" | "search" | "nationwide";
+  sido: string | null;
+  query: string | null;
+  items: TravelAreaRecommendation[];
+  emptyReason: "unsupported_sido" | "no_match" | null;
 };
 
 export type InviteRole = "viewer" | "editor";

@@ -1,29 +1,11 @@
-import { ChevronRight, Heart } from "lucide-react";
+﻿import { Heart } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Policy, Trip } from "../api";
-import { getTripRegionEmojiFromTitle } from "../data/displayConfig";
+import { getPolicyMoodIcon, getPolicyMoodTone, getTripRegionEmojiFromTitle } from "../data/displayConfig";
 import { dday } from "../utils";
 import { canUsePolicyActions } from "../utils/policyCapabilities";
 import { SurfaceCard, Tag } from "./ui";
-
-function policyIcon(policy: Policy) {
-  const text = `${policy.title} ${policy.tag} ${policy.amount}`;
-  if (text.includes("숙박") || text.includes("호텔")) return "🏨";
-  if (text.includes("캐시백") || text.includes("할인") || text.includes("상품권")) return "💸";
-  if (text.includes("교통") || text.includes("KTX") || text.includes("기차")) return "🚆";
-  if (text.includes("지역사랑") || text.includes("관광")) return "🧭";
-  return "🎟️";
-}
-
-function policyIconTone(policy: Policy) {
-  const text = `${policy.title} ${policy.tag} ${policy.amount}`;
-  if (text.includes("숙박") || text.includes("호텔")) return "rose";
-  if (text.includes("캐시백") || text.includes("할인") || text.includes("상품권")) return "mint";
-  if (text.includes("교통") || text.includes("KTX") || text.includes("기차")) return "blue";
-  if (text.includes("지역사랑") || text.includes("관광")) return "peach";
-  return "sky";
-}
 
 function compactDeadline(deadline: string) {
   return `~${deadline.split("-").join(".")}`;
@@ -59,11 +41,8 @@ export function PolicyListCard({
   return (
     <SurfaceCard as="article" className="policy-list-card">
       <Link className="policy-list-card-link" to={`/policies/${policy.slug}`}>
-        <div className={`policy-list-icon ${policyIconTone(policy)}`}>{policyIcon(policy)}</div>
+        <div className={`policy-list-icon ${getPolicyMoodTone(policy)}`}>{getPolicyMoodIcon(policy)}</div>
         <div className="policy-list-copy">
-          <div className="policy-list-taxonomy">
-            <span>{policy.category}</span>
-          </div>
           <div className="policy-list-badges">
             <span>{policy.amount}</span>
             <em>{dday(policy.deadline)}</em>
@@ -128,7 +107,7 @@ export function ItineraryCard({
         </div>
         <Link to={detailPath}>
           <div className="meta">
-            🗓 {trip.dates} · {dayCount}일 · 장소 {totalPlaces}개
+            📅 {trip.dates} · {dayCount}일 · 장소 {totalPlaces}개
           </div>
           <div className="meta">
             👥 {trip.people.length}명 참여 · {addedPolicy ? "정책 연결됨" : "추천 정책 확인 가능"}
@@ -138,9 +117,6 @@ export function ItineraryCard({
           </div>
         </Link>
       </div>
-      <Link className="card-arrow" to={detailPath} aria-label={`${trip.title} 상세 보기`}>
-        <ChevronRight size={18} />
-      </Link>
     </SurfaceCard>
   );
 }

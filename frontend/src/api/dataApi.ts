@@ -1,4 +1,19 @@
-import { ContactInfo, ContactVerificationRequestResponse, InviteRole, InviteState, NotificationSettings, Policy, Profile, ProfileOptions, Recommendation, RegionRecommendation, Trip, User } from "./types";
+import {
+  AppliedPolicyLink,
+  ContactInfo,
+  ContactVerificationRequestResponse,
+  InviteRole,
+  InviteState,
+  NotificationSettings,
+  Policy,
+  Profile,
+  ProfileOptions,
+  Recommendation,
+  RegionRecommendation,
+  TravelAreaRecommendationResponse,
+  Trip,
+  User,
+} from "./types";
 
 export type LoginRequest = {
   email: string;
@@ -73,12 +88,21 @@ export type DeleteTripResponse = {
 export type CreateTripRequest = {
   title?: string;
   region?: string;
+  travelAreaId?: string;
   style?: string;
   description?: string;
   policySlug?: string;
   durationDays?: number;
   startDate?: string;
   endDate?: string;
+};
+
+export type TravelAreaRecommendationOptions = {
+  sido?: string;
+  query?: string;
+  mode?: string;
+  style?: string;
+  limit?: number;
 };
 
 export type TripPlaceRequest = {
@@ -111,9 +135,7 @@ export type ContactVerificationConfirmRequest = {
 };
 
 export type AppDataApi = {
-  getPreviewUser: () => User;
-  getProfileOptions: () => ProfileOptions;
-  getPreviewTrip: () => Trip;
+  getProfileOptions: () => Promise<ProfileOptions>;
   login: (request?: LoginRequest) => Promise<AuthResponse>;
   signup: (request?: SignupRequest) => Promise<AuthResponse>;
   checkEmailAvailability: (request: EmailAvailabilityRequest) => Promise<EmailAvailabilityResponse>;
@@ -135,10 +157,12 @@ export type AppDataApi = {
   updateNotificationSettings: (settings: Pick<NotificationSettings, "deadlineEnabled">) => Promise<NotificationSettings>;
   listPolicies: () => Promise<Policy[]>;
   listRegionRecommendations: (options?: { style?: string; region?: string; limit?: number }) => Promise<RegionRecommendation[]>;
+  listTravelAreaRecommendations: (options?: TravelAreaRecommendationOptions) => Promise<TravelAreaRecommendationResponse>;
   getPolicy: (policySlug?: string) => Promise<Policy>;
   savePolicy: (policySlug: string) => Promise<SavePolicyResponse>;
   listSavedPolicies: () => Promise<Policy[]>;
   listAppliedPolicies: () => Promise<Policy[]>;
+  listAppliedPolicyLinks: () => Promise<AppliedPolicyLink[]>;
   removeSavedPolicy: (policySlug: string) => Promise<SavePolicyResponse>;
   listTrips: () => Promise<Trip[]>;
   createTrip: (trip?: CreateTripRequest) => Promise<Trip>;

@@ -1,0 +1,308 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import date, timedelta
+import re
+
+from sqlalchemy.orm import Session
+
+from app.data.travel_areas import TravelArea, list_travel_areas
+from app.models import ExternalSourceRecord
+from app.repositories import external_sources as external_source_repository
+from app.schemas.recommendations import (
+    TravelAreaRecommendation,
+    TravelAreaRecommendationResponse,
+)
+
+
+ENDING_SOON_DAYS = 14
+NATIONWIDE_REGION = "전국"
+_TRAVEL_AREA_SUMMARY_REPLACEMENTS = (
+    ("대표 여행권역", "추천 라인"),
+    ("대표 권역", "추천 라인"),
+    ("여행권역", ""),
+    ("권역", ""),
+    ("  ", " "),
+)
+
+
+@dataclass(frozen=True)
+class _AreaStats:
+    city_policy_count: int = 0
+    sido_policy_count: int = 0
+    text_policy_count: int = 0
+    nationwide_policy_count: int = 0
+    ending_soon_count: int = 0
+    estimated_value_krw: int = 0
+    style_matched_count: int = 0
+
+    @property
+    def local_policy_count(self) -> int:
+        return self.city_policy_count + self.sido_policy_count + self.text_policy_count
+
+    @property
+    def policy_count(self) -> int:
+        return self.local_policy_count + self.nationwide_policy_count
+
+
+@dataclass(frozen=True)
+class _RankedArea:
+    area: TravelArea
+    recommendation: TravelAreaRecommendation
+    stats: _AreaStats
+
+
+def recommend_travel_areas(
+    db: Session,
+    *,
+    sido: str | None = None,
+    query: str | None = None,
+    mode: str | None = None,
+    style: str | None = None,
+    limit: int = 6,
+    today: date | None = None,
+) -> TravelAreaRecommendationResponse:
+    normalized_sido = _normalize(sido)
+    normalized_query = _normalize(query)
+    selected_mode = "search" if normalized_query else "sido" if normalized_sido else "nationwide"
+    capped_limit = max(1, min(limit, 20))
+    areas = list(list_travel_areas())
+
+    if selected_mode == "sido":
+        areas = [area for area in areas if area.sido == normalized_sido]
+        if not areas:
+            return TravelAreaRecommendationResponse(
+                mode="sido",
+                sido=normalized_sido,
+                query=None,
+                items=[],
+                emptyReason="unsupported_sido",
+            )
+    elif selected_mode == "search":
+        if normalized_sido:
+            areas = [area for area in areas if area.sido == normalized_sido]
+        areas = [area for area in areas if _matches_query(area, normalized_query or "")]
+        if not areas:
+            return TravelAreaRecommendationResponse(
+                mode="search",
+                sido=normalized_sido,
+                query=normalized_query,
+                items=[],
+                emptyReason="no_match",
+            )
+
+    records = external_source_repository.list_regional_benefit_recommendation_records(db)
+    run_date = today or date.today()
+    ranked = [_rank_area(area, records, style=style, today=run_date) for area in areas]
+    ranked.sort(key=_ranking_key, reverse=True)
+
+    return TravelAreaRecommendationResponse(
+        mode=selected_mode,
+        sido=normalized_sido,
+        query=normalized_query,
+        items=[item.recommendation for item in ranked[:capped_limit]],
+        emptyReason=None,
+    )
+
+
+def _rank_area(
+    area: TravelArea,
+    records: list[ExternalSourceRecord],
+    *,
+    style: str | None,
+    today: date,
+) -> _RankedArea:
+    stats = _stats_for_area(area, records, style=style, today=today)
+    recommendation = _to_recommendation(area, stats)
+    return _RankedArea(area=area, recommendation=recommendation, stats=stats)
+
+
+def _normalize(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    return normalized or None
+
+
+def _matches_query(area: TravelArea, query: str) -> bool:
+    folded_query = _fold(query)
+    if not folded_query:
+        return False
+    return any(folded_query in _fold(value) for value in _search_values(area))
+
+
+def _search_values(area: TravelArea) -> tuple[str, ...]:
+    return (
+        area.id,
+        area.name,
+        area.sido,
+        *area.included_cities,
+        *area.aliases,
+        *area.tags,
+        *area.styles,
+    )
+
+
+def _fold(value: str) -> str:
+    return value.strip().casefold().replace(" ", "").replace("?", "")
+
+
+def _stats_for_area(
+    area: TravelArea,
+    records: list[ExternalSourceRecord],
+    *,
+    style: str | None,
+    today: date,
+) -> _AreaStats:
+    city_count = 0
+    sido_count = 0
+    text_count = 0
+    nationwide_count = 0
+    ending_soon = 0
+    amount = 0
+    style_matches = 0
+
+    for record in records:
+        match_kind = _record_match_kind(area, record)
+        if match_kind is None:
+            continue
+        if match_kind == "city":
+            city_count += 1
+        elif match_kind == "sido":
+            sido_count += 1
+        elif match_kind == "text":
+            text_count += 1
+        else:
+            nationwide_count += 1
+        if record.end_date is not None and today <= record.end_date <= today + timedelta(days=ENDING_SOON_DAYS):
+            ending_soon += 1
+        if record.extracted_amount_krw:
+            amount += int(record.extracted_amount_krw)
+        if _style_matches(record, style):
+            style_matches += 1
+
+    return _AreaStats(
+        city_policy_count=city_count,
+        sido_policy_count=sido_count,
+        text_policy_count=text_count,
+        nationwide_policy_count=nationwide_count,
+        ending_soon_count=ending_soon,
+        estimated_value_krw=amount,
+        style_matched_count=style_matches,
+    )
+
+
+def _record_match_kind(area: TravelArea, record: ExternalSourceRecord) -> str | None:
+    if _is_nationwide(record):
+        return "nationwide"
+    if record.city and _normalize_city(record.city) in {_normalize_city(city) for city in area.included_cities}:
+        return "city"
+    if record.region == area.sido:
+        return "sido"
+    if _contains_city_text(area, record):
+        return "text"
+    return None
+
+
+def _is_nationwide(record: ExternalSourceRecord) -> bool:
+    return bool(record.is_nationwide) or record.region == NATIONWIDE_REGION
+
+
+def _normalize_city(value: str) -> str:
+    return value.strip().removesuffix("?").removesuffix("?").removesuffix("?")
+
+
+def _contains_city_text(area: TravelArea, record: ExternalSourceRecord) -> bool:
+    text = " ".join(
+        value or ""
+        for value in (
+            record.title,
+            record.organizer_text,
+            record.benefit_text,
+            record.raw_list_text,
+            record.raw_detail_text,
+        )
+    )
+    return any(city and city in text for city in area.included_cities)
+
+
+def _style_matches(record: ExternalSourceRecord, style: str | None) -> bool:
+    normalized_style = _normalize(style)
+    if normalized_style is None:
+        return False
+    record_styles = _string_values(record.inferred_travel_styles) + _string_values(record.tags)
+    return normalized_style in record_styles
+
+
+def _string_values(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value]
+
+
+def _score(area: TravelArea, stats: _AreaStats) -> int:
+    raw_score = (
+        stats.city_policy_count * 35
+        + stats.sido_policy_count * 20
+        + stats.text_policy_count * 8
+        + stats.ending_soon_count * 8
+        + min(stats.estimated_value_krw // 10000, 20)
+        + stats.style_matched_count * 5
+        + stats.nationwide_policy_count * 2
+        + area.priority // 5
+    )
+    return max(0, min(100, raw_score))
+
+
+def _ranking_key(item: _RankedArea) -> tuple[int, int, int, int, int, int, int, str]:
+    stats = item.stats
+    return (
+        stats.city_policy_count,
+        stats.sido_policy_count,
+        stats.ending_soon_count,
+        min(stats.estimated_value_krw, 1_000_000_000),
+        stats.style_matched_count,
+        stats.nationwide_policy_count,
+        item.area.priority,
+        _reverse_string_sort(item.area.name),
+    )
+
+
+def _reverse_string_sort(value: str) -> str:
+    return "".join(chr(0x10FFFF - ord(char)) for char in value)
+
+
+def _normalize_travel_area_summary(summary: str) -> str:
+    normalized = summary.strip()
+    for old, new in _TRAVEL_AREA_SUMMARY_REPLACEMENTS:
+        normalized = normalized.replace(old, new)
+    normalized = re.sub(r"\s+", " ", normalized)
+    return normalized.strip()
+
+
+def _reason(area: TravelArea, stats: _AreaStats) -> str:
+    if stats.city_policy_count:
+        return f"{area.name}에 포함된 도시 혜택이 있어 여행 동선과 잘 맞아요."
+    if stats.sido_policy_count:
+        return f"{area.sido} 지역 혜택과 {area.name} 여행 동선이 잘 맞아요."
+    if stats.nationwide_policy_count:
+        return f"전국 공통 혜택과 {area.name} 기본 추천도를 함께 고려했어요."
+    return f"{area.name}은 {', '.join(area.tags[:3])} 테마에 맞는 대표 여행권역이에요."
+
+
+def _to_recommendation(area: TravelArea, stats: _AreaStats) -> TravelAreaRecommendation:
+    return TravelAreaRecommendation(
+        travelAreaId=area.id,
+        travelAreaName=area.name,
+        sido=area.sido,
+        includedCities=list(area.included_cities),
+        summary=_normalize_travel_area_summary(area.summary),
+        tags=list(area.tags),
+        reason=_reason(area, stats),
+        policyCount=stats.policy_count,
+        localPolicyCount=stats.local_policy_count,
+        nationwidePolicyCount=stats.nationwide_policy_count,
+        endingSoonCount=stats.ending_soon_count,
+        estimatedValueKrw=stats.estimated_value_krw,
+        score=_score(area, stats),
+    )

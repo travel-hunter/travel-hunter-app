@@ -2,6 +2,7 @@ import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { PublicLayout, ServiceLayout } from "../components/AppLayout";
 import { AiResultsPage, FriendInvitePage, ItineraryCreatePage, ItineraryDetailPage, ItineraryListPage } from "../pages/ItineraryPages";
 import { ForgotPasswordPage, LoginPage, NicknameSetupPage, OAuthCallbackPage, ResetPasswordPage, SignupPage } from "../pages/AuthPages";
+import { AppliedPolicyLinksPage } from "../pages/AppliedPolicyLinksPage";
 import { HomePage } from "../pages/HomePage";
 import { InviteAcceptPage } from "../pages/InviteAcceptPage";
 import { MyPage } from "../pages/MyPage";
@@ -37,6 +38,7 @@ export function App() {
           <Route path="/ai-results" element={<AiResultsPage />} />
           <Route path="/friend-invite" element={<FriendInvitePage />} />
           <Route path="/invites/:inviteToken/accept" element={<InviteAcceptPage />} />
+          <Route path="/applied-policies" element={<AppliedPolicyLinksPage />} />
           <Route path="/mypage" element={<MyPage />} />
         </Route>
       </Route>

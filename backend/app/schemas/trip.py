@@ -26,6 +26,7 @@ class LinkedTripPolicy(BaseModel):
 class CreateTripRequest(BaseModel):
     title: str | None = Field(default=None, max_length=100)
     region: str | None = None
+    travelAreaId: str | None = Field(default=None, max_length=120)
     style: str | None = None
     description: str | None = Field(default=None, max_length=500)
     policySlug: str | None = None
@@ -50,6 +51,7 @@ class Trip(BaseModel):
     id: str
     title: str
     status: TripStatus
+    travelAreaId: str | None = None
     dates: str
     people: list[str]
     expectedSaving: str

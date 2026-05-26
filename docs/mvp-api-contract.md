@@ -484,6 +484,30 @@ OAuth provider callback 처리.
 
 ---
 
+### GET /me/applied-policy-links
+
+내 일정에 담긴 정책을 정책 기준으로 묶어서 반환한다. 기존 `GET /me/applied-policies`는 카운트 및 단순 정책 목록 호환용으로 유지하고, 이 엔드포인트는 "정책 -> 연결된 일정들" 화면에 사용한다.
+
+**Response 200** - `AppliedPolicyLink[]`
+
+```json
+[
+  {
+    "policy": { "...": "Policy DTO" },
+    "linkedTrips": [
+      {
+        "id": "55",
+        "title": "부산 주말 여행",
+        "region": "부산",
+        "startDate": "2026-06-12",
+        "endDate": "2026-06-13"
+      }
+    ]
+  }
+]
+```
+
+---
 ### POST /me/saved-policies/{policy_slug}
 
 정책 저장.
@@ -1052,3 +1076,102 @@ SOLAPI 발송 결과 webhook 수신. `X-Solapi-Secret` 헤더로 검증.
 | time | string | 시간 (`HH:MM` 또는 `""`) |
 | label | string | 장소명 |
 | meta | string | 부가 정보 |
+
+---
+
+## 2026-05-26 Travel-area itinerary contract addendum
+
+This addendum defines the AI itinerary travel-area contract. It preserves the existing `GET /api/recommendations/regions` endpoint as the policy-backed region ranking API.
+
+### GET /recommendations/travel-areas
+
+Returns travel-area candidates for the AI itinerary creation wizard.
+
+Query params:
+
+| name | type | description |
+|---|---|---|
+| `sido` | string, optional | Return travel areas inside a specific province/metropolitan city, for example `강원`. |
+| `query` | string, optional | Search by travel-area name, sido, included city, alias, tag, or style. |
+| `mode` | `nationwide`, optional | Return nationwide recommendations. If no query params are provided, this is the default behavior. |
+| `style` | string, optional | User preference used as a ranking boost. |
+| `limit` | number, optional | Default 6, minimum 1, maximum 20. |
+
+Request priority:
+
+```text
+query > sido > mode=nationwide > default nationwide
+```
+
+When `query` and `sido` are both provided, `sido` limits the search scope.
+
+Response 200:
+
+```json
+{
+  "mode": "sido",
+  "sido": "강원",
+  "query": null,
+  "emptyReason": null,
+  "items": [
+    {
+      "travelAreaId": "gangwon-sokcho-goseong-yangyang",
+      "travelAreaName": "속초·고성·양양",
+      "sido": "강원",
+      "includedCities": ["속초", "고성", "양양"],
+      "summary": "바다와 설악산, 감성 카페를 함께 즐기는 동해 북부 권역",
+      "tags": ["바다", "산", "카페", "2박3일"],
+      "reason": "강원 지역 혜택과 속초·고성·양양 여행 동선이 잘 맞아요.",
+      "policyCount": 5,
+      "localPolicyCount": 4,
+      "nationwidePolicyCount": 1,
+      "endingSoonCount": 1,
+      "estimatedValueKrw": 120000,
+      "score": 86
+    }
+  ]
+}
+```
+
+`emptyReason` values:
+
+| value | meaning |
+|---|---|
+| `unsupported_sido` | The requested `sido` does not exist in the v1 travel-area catalog. |
+| `no_match` | The search query does not match any travel area. |
+| `null` | Normal response. |
+
+### POST /trips travel-area extension
+
+`POST /api/trips` accepts optional `travelAreaId` in addition to legacy `region`.
+
+Request example:
+
+```json
+{
+  "title": "속초·고성·양양 3일 여행",
+  "region": "속초·고성·양양",
+  "travelAreaId": "gangwon-sokcho-goseong-yangyang",
+  "style": "바다",
+  "startDate": "2026-06-15",
+  "endDate": "2026-06-17"
+}
+```
+
+Rules:
+
+| input | behavior |
+|---|---|
+| `travelAreaId` present and valid | Resolve backend travel-area catalog, store `trips.travel_area_id`, and use the travel-area display name as `trips.region`. |
+| `travelAreaId` present and invalid | Return 400 with `Travel area not found`. |
+| `travelAreaId` absent and `region` present | Preserve legacy region-only trip creation behavior. |
+
+Trip response includes:
+
+```json
+{
+  "travelAreaId": "gangwon-sokcho-goseong-yangyang"
+}
+```
+
+Existing trips can return `travelAreaId: null`.

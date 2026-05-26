@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, time
@@ -18,6 +19,7 @@ from app.services.notification_scheduler import parse_run_at
 
 KST = ZoneInfo("Asia/Seoul")
 logger = logging.getLogger(__name__)
+_ACTIVE_EXTERNAL_COLLECTION_SCHEDULER_LOCK = threading.Lock()
 _active_external_collection_scheduler: "ExternalCollectionScheduler | None" = None
 
 
@@ -28,6 +30,19 @@ class ExternalCollectionSchedulerStatus:
     last_parsed_count: int | None = None
     last_outcome: str | None = None
     last_error: str | None = None
+
+
+def get_active_external_collection_scheduler() -> "ExternalCollectionScheduler | None":
+    with _ACTIVE_EXTERNAL_COLLECTION_SCHEDULER_LOCK:
+        return _active_external_collection_scheduler
+
+
+def set_active_external_collection_scheduler(
+    scheduler: "ExternalCollectionScheduler | None",
+) -> None:
+    with _ACTIVE_EXTERNAL_COLLECTION_SCHEDULER_LOCK:
+        global _active_external_collection_scheduler
+        _active_external_collection_scheduler = scheduler
 
 
 def kst_now() -> datetime:
@@ -153,11 +168,8 @@ def validate_external_collection_scheduler_settings(
 def get_external_collection_ops_health(
     settings_obj: Settings = settings,
 ) -> dict[str, object]:
-    status = (
-        _active_external_collection_scheduler.status
-        if _active_external_collection_scheduler is not None
-        else ExternalCollectionSchedulerStatus()
-    )
+    active_scheduler = get_active_external_collection_scheduler()
+    status = active_scheduler.status if active_scheduler is not None else ExternalCollectionSchedulerStatus()
     return {
         "schedulerEnabled": settings_obj.external_collection_scheduler_enabled,
         "runAt": settings_obj.external_collection_run_at,
@@ -193,14 +205,13 @@ def _format_source_errors(result: ExternalBenefitCollectionResult) -> str | None
 def start_external_collection_scheduler(
     settings_obj: Settings = settings,
 ) -> asyncio.Task[None] | None:
-    global _active_external_collection_scheduler
     if not settings_obj.external_collection_scheduler_enabled:
-        _active_external_collection_scheduler = None
+        set_active_external_collection_scheduler(None)
         return None
 
     validate_external_collection_scheduler_settings(settings_obj)
     scheduler = build_external_collection_scheduler(settings_obj)
-    _active_external_collection_scheduler = scheduler
+    set_active_external_collection_scheduler(scheduler)
     return asyncio.create_task(
         scheduler.run_forever(),
         name="travel-hunter-external-collection-scheduler",
@@ -208,13 +219,12 @@ def start_external_collection_scheduler(
 
 
 async def stop_external_collection_scheduler(task: asyncio.Task[None] | None) -> None:
-    global _active_external_collection_scheduler
     if task is None:
-        _active_external_collection_scheduler = None
+        set_active_external_collection_scheduler(None)
         return
     task.cancel()
     try:
         await task
     except asyncio.CancelledError:
         pass
-    _active_external_collection_scheduler = None
+    set_active_external_collection_scheduler(None)

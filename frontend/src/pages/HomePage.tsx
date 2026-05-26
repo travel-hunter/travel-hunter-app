@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { appDataApi, type Policy } from "../api";
 import { useAsyncResource } from "../api/useAsyncResource";
 import { useSession } from "../app/session";
+import { AiRecommendationCard, type AiRecommendationCardVisual } from "../components/AiRecommendationCard";
 import { HomeRail, HomeSectionHeader } from "../components/patterns";
 import { ErrorState, LoadingState } from "../components/ui";
 import {
@@ -17,13 +18,12 @@ import { dday } from "../utils";
 
 export function HomePage() {
   const { currentUser, profile } = useSession();
-  const previewUser = appDataApi.getPreviewUser();
   const { data: policies, error: policiesError, isLoading: policiesLoading } = useAsyncResource(() => appDataApi.listPolicies(), []);
   const { data: regionRecommendations } = useAsyncResource(
     () => appDataApi.listRegionRecommendations({ style: profile.style, region: profile.region, limit: 3 }),
     [profile.region, profile.style],
   );
-  const name = currentUser?.nickname ?? previewUser.nickname ?? "여행자";
+  const name = currentUser?.nickname ?? "여행자";
   const featuredPolicy = getFeaturedPolicy(policies);
   const deadlinePolicies = getDeadlinePolicies(policies, 4);
   const recommendedDestinations = buildHomeDestinationsFromRegionRecommendations(regionRecommendations);
@@ -32,6 +32,15 @@ export function HomePage() {
   const avatarLabel = name.trim().slice(0, 1).toUpperCase() || "T";
   const aiCardTo = aiDestination?.to ?? `/trips/new?region=${encodeURIComponent(profile.region)}`;
   const aiCardTitle = aiDestination ? `${aiDestination.title} ${profile.style} 코스 만들기` : `${profile.region} ${profile.style} 코스 만들기`;
+  const aiCardVisual: AiRecommendationCardVisual = {
+    avatar: "🤖",
+    headline: `${profile.region} 코스 만들까요?`,
+    subline: "혜택까지 반영해서 추천해요",
+    chips: [
+      { emoji: "🏨", label: "숙소 포함" },
+      { emoji: "🍜", label: "맛집 포함" },
+    ],
+  };
 
   return (
     <section className="screen with-tabs prototype-app-screen prototype-home-screen">
@@ -39,7 +48,7 @@ export function HomePage() {
       <div className="prototype-home-search-row">
         <Link className="prototype-home-search-pill" to="/policies">
           <Search size={15} />
-          어디로 떠나나요?
+          어디로 떠나세요?
         </Link>
         <Link className="prototype-home-avatar" to="/mypage" aria-label="마이페이지">
           {avatarLabel}
@@ -86,18 +95,13 @@ export function HomePage() {
       </HomeRail>
 
       <div className="prototype-home-ai-title">AI 추천 맞춤 일정</div>
-      <Link className="prototype-home-ai-card" to={aiCardTo}>
-        <div className="prototype-home-ai-visual">
-          <span aria-hidden="true">AI</span>
-        </div>
-        <div className="prototype-home-ai-body">
-          <strong>{aiCardTitle}</strong>
-          <div className="prototype-home-ai-meta">
-            <span className="prototype-home-ai-saving">{aiDestination?.badge ?? "정책과 일정을 함께 추천"}</span>
-            <span className="prototype-home-ai-detail">추천 지역으로 새 일정 만들기</span>
-          </div>
-        </div>
-      </Link>
+      <AiRecommendationCard
+        to={aiCardTo}
+        title={aiCardTitle}
+        saving={aiDestination?.badge ?? "정책과 일정을 함께 추천"}
+        detail="추천 지역으로 새 일정 만들기"
+        visual={aiCardVisual}
+      />
     </section>
   );
 }

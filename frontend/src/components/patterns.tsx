@@ -1,22 +1,18 @@
-import { ReactNode } from "react";
+﻿import { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { Policy } from "../api";
+import { getPolicyMoodIcon, getPolicyMoodTone } from "../data/displayConfig";
 import { SurfaceCard } from "./ui";
 
 function classNames(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
 }
 
+
 export function BrandMark() {
   return (
     <div className="prototype-login-logo brand-mark-compass" aria-hidden="true">
-      <svg className="brand-mark-compass-ring" viewBox="0 0 56 56" fill="none" focusable="false">
-        <circle className="brand-mark-orbit" cx="28" cy="28" r="22" />
-        <circle className="brand-mark-inner" cx="28" cy="28" r="15.5" />
-        <path className="brand-mark-needle-primary" d="M31.6 10.9 29.3 26.2 44.7 23.9 31.6 10.9Z" />
-        <path className="brand-mark-needle-accent" d="M24.4 45.1 26.7 29.8 11.3 32.1 24.4 45.1Z" />
-        <circle className="brand-mark-center" cx="28" cy="28" r="3.4" />
-      </svg>
+      <span className="brand-mark-plane">✈️</span>
     </div>
   );
 }
@@ -40,12 +36,10 @@ export function ProfileSectionHeader({ actionLabel, title, to }: { actionLabel?:
 }
 
 export function FavoritePolicyCard({
-  icon,
   isRemoving,
   onRemove,
   policy,
 }: {
-  icon: string;
   isRemoving: boolean;
   onRemove: () => void;
   policy: Policy;
@@ -53,8 +47,8 @@ export function FavoritePolicyCard({
   return (
     <SurfaceCard as="article" className="ds-favorite-policy-card">
       <Link className="ds-favorite-policy-link" to={`/policies/${policy.slug}`}>
-        <span className="ds-favorite-policy-thumb" aria-hidden="true">
-          {icon}
+        <span className={`ds-favorite-policy-thumb ${getPolicyMoodTone(policy)}`} aria-hidden="true">
+          {getPolicyMoodIcon(policy)}
         </span>
         <span className="ds-favorite-policy-copy">
           <strong>{policy.title}</strong>
@@ -83,11 +77,21 @@ export function HomeRail({ ariaLabel, children, className, title }: { ariaLabel?
   );
 }
 
-export function AuthFormShell({ body, children, title }: { body?: string; children: ReactNode; title: string }) {
+export function AuthFormShell({
+  body,
+  children,
+  showBrandMark = true,
+  title,
+}: {
+  body?: string;
+  children: ReactNode;
+  showBrandMark?: boolean;
+  title: string;
+}) {
   return (
     <section className="ds-auth-form-shell">
       <div className="ds-auth-form-head">
-        <BrandMark />
+        {showBrandMark && <BrandMark />}
         <h1>{title}</h1>
         {body && <p>{body}</p>}
       </div>

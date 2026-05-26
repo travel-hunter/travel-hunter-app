@@ -2,7 +2,18 @@
 import userEvent from "@testing-library/user-event";
 import { Link, MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { appDataApi, type ContactInfo, type InviteState, type LinkedTripPolicy, type NotificationSettings, type Policy, type RegionRecommendation, type Trip } from "./api";
+import {
+  appDataApi,
+  type ContactInfo,
+  type InviteState,
+  type LinkedTripPolicy,
+  type NotificationSettings,
+  type Policy,
+  type RegionRecommendation,
+  type TravelAreaRecommendationResponse,
+  type Trip,
+  type User,
+} from "./api";
 import { App } from "./app/App";
 import { AppProviders, AppRoot } from "./app/AppRoot";
 import { AuthFormShell, HomeRail, ProfilePanel, ProfileSetupStep } from "./components/patterns";
@@ -13,7 +24,6 @@ const testPassword = "password123";
 const examplePolicySlug = "dgtour-\uBC00\uC591-1";
 const examplePolicyPath = `/policies/${encodeURIComponent(examplePolicySlug)}`;
 const examplePolicyTitle = "\uBC00\uC591 \uB514\uC9C0\uD138\uAD00\uAD11\uC8FC\uBBFC\uC99D \uD61C\uD0DD";
-const examplePolicyDraftKey = `travel-hunter:draft:trip-create:${examplePolicySlug}`;
 const examplePolicyDetail: Policy = {
   id: examplePolicySlug,
   slug: examplePolicySlug,
@@ -37,6 +47,199 @@ const examplePolicyDetail: Policy = {
 beforeEach(() => {
   window.localStorage.clear();
 });
+function getPreviewTrip(): Trip {
+  return {
+    id: "21",
+    title: "부산 여행 1",
+    status: "confirmed",
+    dates: "2026.06.12 - 06.13",
+    people: ["여행자"],
+    expectedSaving: "0원",
+    linkedPolicies: [],
+    recommendedPolicies: [],
+    days: {
+      1: [{ id: "101", time: "09:00", label: "도착", meta: "오전" }],
+      2: [{ id: "102", time: "10:00", label: "일정", meta: "점심" }],
+    },
+    currentUserRole: "owner",
+  };
+}
+
+function getGangwonTravelAreaResponse(): TravelAreaRecommendationResponse {
+  return {
+    mode: "sido",
+    sido: "강원",
+    query: null,
+    emptyReason: null,
+    items: [
+      {
+        travelAreaId: "gangwon-sokcho-goseong-yangyang",
+        travelAreaName: "속초·고성·양양",
+        sido: "강원",
+        includedCities: ["속초", "고성", "양양"],
+        summary: "바다와 설악산, 감성 카페를 함께 즐기는 동해 북부 권역",
+        tags: ["바다", "산", "카페", "2박3일"],
+        reason: "강원 지역 혜택과 속초·고성·양양 여행 동선이 잘 맞아요.",
+        policyCount: 5,
+        localPolicyCount: 4,
+        nationwidePolicyCount: 1,
+        endingSoonCount: 1,
+        estimatedValueKrw: 120000,
+        score: 95,
+      },
+      {
+        travelAreaId: "gangwon-gangneung-donghae-samcheok",
+        travelAreaName: "강릉·동해·삼척",
+        sido: "강원",
+        includedCities: ["강릉", "동해", "삼척"],
+        summary: "해변과 커피, 드라이브를 함께 즐기는 동해 중부 권역",
+        tags: ["바다", "커피", "드라이브"],
+        reason: "강릉 중심 동해안 여행에 적합해요.",
+        policyCount: 3,
+        localPolicyCount: 2,
+        nationwidePolicyCount: 1,
+        endingSoonCount: 0,
+        estimatedValueKrw: 80000,
+        score: 88,
+      },
+    ],
+  };
+}
+
+function getSokchoTravelAreaResponse(): TravelAreaRecommendationResponse {
+  const response = getGangwonTravelAreaResponse();
+  return {
+    ...response,
+    mode: "search",
+    sido: null,
+    query: "속초",
+    items: [response.items[0]],
+  };
+}
+
+function getBusanTravelAreaResponse(): TravelAreaRecommendationResponse {
+  return {
+    mode: "sido",
+    sido: "부산",
+    query: null,
+    emptyReason: null,
+    items: [
+      {
+        travelAreaId: "busan-all",
+        travelAreaName: "부산 전체",
+        sido: "부산",
+        includedCities: ["부산"],
+        summary: "바다와 도시, 미식을 함께 즐기는 부산 대표 권역",
+        tags: ["바다", "도시", "맛집"],
+        reason: "부산 대표 여행권역으로 바로 일정을 만들 수 있어요.",
+        policyCount: 4,
+        localPolicyCount: 3,
+        nationwidePolicyCount: 1,
+        endingSoonCount: 0,
+        estimatedValueKrw: 90000,
+        score: 92,
+      },
+    ],
+  };
+}
+
+function getJejuTravelAreaResponse(): TravelAreaRecommendationResponse {
+  return {
+    mode: "sido",
+    sido: "제주",
+    query: null,
+    emptyReason: null,
+    items: [
+      {
+        travelAreaId: "jeju-all",
+        travelAreaName: "제주 전체",
+        sido: "제주",
+        includedCities: ["제주", "서귀포"],
+        summary: "제주 전역의 자연, 맛집, 체험을 함께 둘러보는 대표 여행권역",
+        tags: ["자연", "맛집", "체험"],
+        reason: "기본 프로필 지역에 맞춰 바로 일정을 만들 수 있어요.",
+        policyCount: 4,
+        localPolicyCount: 3,
+        nationwidePolicyCount: 1,
+        endingSoonCount: 1,
+        estimatedValueKrw: 110000,
+        score: 94,
+      },
+    ],
+  };
+}
+
+function getGyeongjuTravelAreaResponse(): TravelAreaRecommendationResponse {
+  return {
+    mode: "search",
+    sido: null,
+    query: "경주",
+    emptyReason: null,
+    items: [
+      {
+        travelAreaId: "gyeongbuk-gyeongju",
+        travelAreaName: "경주",
+        sido: "경북",
+        includedCities: ["경주"],
+        summary: "역사와 전통, 산책 코스를 함께 즐기는 경주 대표 권역",
+        tags: ["역사", "전통", "산책"],
+        reason: "경주 검색어와 정확히 맞는 여행권역이에요.",
+        policyCount: 3,
+        localPolicyCount: 2,
+        nationwidePolicyCount: 1,
+        endingSoonCount: 0,
+        estimatedValueKrw: 70000,
+        score: 90,
+      },
+    ],
+  };
+}
+
+function getGangneungTravelAreaResponse(): TravelAreaRecommendationResponse {
+  return {
+    mode: "search",
+    sido: null,
+    query: "강릉",
+    emptyReason: null,
+    items: [
+      {
+        travelAreaId: "gangwon-gangneung-donghae-samcheok",
+        travelAreaName: "강릉·동해·삼척",
+        sido: "강원",
+        includedCities: ["강릉", "동해", "삼척"],
+        summary: "해변과 커피, 드라이브를 함께 즐기는 동해 중부 권역",
+        tags: ["바다", "커피", "드라이브"],
+        reason: "강릉 검색어와 맞는 동해안 여행권역이에요.",
+        policyCount: 3,
+        localPolicyCount: 2,
+        nationwidePolicyCount: 1,
+        endingSoonCount: 0,
+        estimatedValueKrw: 80000,
+        score: 88,
+      },
+    ],
+  };
+}
+
+function getPreviewUser(): User {
+  return {
+    id: "preview-user-id",
+    nickname: "여행러",
+    email: "preview.user@example.com",
+    birthDate: null,
+    gender: "미지정",
+    region: "부산",
+    homeRegion: "부산",
+    residenceArea: "강서구",
+    preferredRegions: null,
+    persona: "family",
+    savedAmount: 0,
+    onboardingCompleted: true,
+    socialAccounts: [],
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  };
+}
 
 describe("design-system primitives", () => {
   it("renders design-system tags with semantic tone classes", () => {
@@ -256,10 +459,11 @@ describe("Travel Hunter app", () => {
   it("uses selected dates and shows generated itinerary times when creating a trip", async () => {
     await login();
     cleanup();
+    const travelAreasSpy = vi.spyOn(appDataApi, "listTravelAreaRecommendations").mockResolvedValue(getJejuTravelAreaResponse());
     renderRoute(`/trips/new?policySlug=${encodeURIComponent(examplePolicySlug)}`);
     const user = userEvent.setup();
     const createdTrip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "44",
       title: "부산 맛집 여행",
       dates: "2026.07.12 - 07.15",
@@ -292,17 +496,20 @@ describe("Travel Hunter app", () => {
     const listTripsSpy = vi.spyOn(appDataApi, "listTrips").mockResolvedValue([createdTrip]);
 
     try {
-      expect(screen.getByRole("heading", { name: "어디로 떠나나요?" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "여행 지역 선택" })).toBeInTheDocument();
       expect(screen.getByText("선택한 정책을 새 일정에 연결할게요")).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByRole("button", { name: /제주 전체/ })).toHaveClass("active"));
+      await user.click(screen.getByRole("button", { name: "다음" }));
+      expect(screen.getByRole("heading", { name: "코스 취향 선택" })).toBeInTheDocument();
       await waitFor(() => expect(screen.getByRole("button", { name: "휴식" })).toHaveAttribute("aria-pressed", "true"));
       await user.click(screen.getByRole("button", { name: "다음" }));
-      expect(screen.getByRole("heading", { name: "언제 떠나나요?" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "여행 기간 선택" })).toBeInTheDocument();
       fireEvent.change(screen.getByLabelText("출발일"), { target: { value: "2026-07-12" } });
       fireEvent.change(screen.getByLabelText("도착일"), { target: { value: "2026-07-15" } });
       expect(screen.getByText("총 4일 여행")).toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: "다음" }));
 
-      expect(screen.getByRole("heading", { name: "일정 제목을 정해볼까요?" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "일정 제목 입력" })).toBeInTheDocument();
       const titleInput = screen.getByRole("textbox", { name: "일정 제목" });
       expect((titleInput as HTMLInputElement).value).toMatch(/^\S+ \d일 여행$/);
       await user.clear(titleInput);
@@ -321,7 +528,6 @@ describe("Travel Hunter app", () => {
           }),
         ),
       );
-      expect(window.localStorage.getItem(examplePolicyDraftKey)).toBeNull();
       await expect(screen.findAllByText("10:00")).resolves.not.toHaveLength(0);
       await expect(screen.findAllByText("14:00")).resolves.not.toHaveLength(0);
       await expect(screen.findAllByText("18:00")).resolves.not.toHaveLength(0);
@@ -335,6 +541,7 @@ describe("Travel Hunter app", () => {
       addPolicySpy.mockRestore();
       getTripSpy.mockRestore();
       listTripsSpy.mockRestore();
+      travelAreasSpy.mockRestore();
     }
   });
 
@@ -344,7 +551,7 @@ describe("Travel Hunter app", () => {
     renderRoute("/trips/new?region=%EB%B6%80%EC%82%B0");
     const user = userEvent.setup();
     const createdTrip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "45",
       title: "부산 추천 여행",
       dates: "2026.06.15 - 06.17",
@@ -361,6 +568,7 @@ describe("Travel Hunter app", () => {
       await waitFor(() => expect(screen.getByRole("button", { name: /부산/ })).toHaveClass("active"));
       await user.click(screen.getByRole("button", { name: "다음" }));
       await user.click(screen.getByRole("button", { name: "다음" }));
+      await user.click(screen.getByRole("button", { name: "다음" }));
       const titleInput = screen.getByRole("textbox", { name: "일정 제목" });
       await user.clear(titleInput);
       await user.type(titleInput, "부산 추천 여행");
@@ -370,12 +578,265 @@ describe("Travel Hunter app", () => {
         expect(createTripSpy).toHaveBeenCalledWith(
           expect.objectContaining({
             title: "부산 추천 여행",
-            region: "부산",
+            region: "부산 전체",
+            travelAreaId: "busan-all",
           }),
         ),
       );
       await waitFor(() => expect(getTripSpy).toHaveBeenCalledWith("45"));
     } finally {
+      createTripSpy.mockRestore();
+      getTripSpy.mockRestore();
+    }
+  });
+
+  it("preselects a travelAreaId query travel-area when creating a trip", async () => {
+    await login();
+    cleanup();
+    const user = userEvent.setup();
+    const createdTrip: Trip = {
+      ...getPreviewTrip(),
+      id: "47",
+      title: "속초 여행",
+      dates: "2026.06.15 - 06.17",
+      days: { 1: [], 2: [], 3: [] },
+    };
+    const travelAreasSpy = vi
+      .spyOn(appDataApi, "listTravelAreaRecommendations")
+      .mockResolvedValueOnce(getGangwonTravelAreaResponse())
+      .mockResolvedValue(getBusanTravelAreaResponse());
+    const createTripSpy = vi.spyOn(appDataApi, "createTrip").mockResolvedValue(createdTrip);
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(createdTrip);
+
+    try {
+      renderRoute("/trips/new?travelAreaId=gangwon-sokcho-goseong-yangyang");
+      expect(await screen.findByRole("button", { name: /속초·고성·양양/ })).toHaveClass("active");
+      await user.click(screen.getByRole("button", { name: "다음" }));
+      await user.click(screen.getByRole("button", { name: "다음" }));
+      await user.click(screen.getByRole("button", { name: "다음" }));
+      await user.click(screen.getByRole("button", { name: "일정 만들기" }));
+
+      await waitFor(() =>
+        expect(createTripSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            region: "속초·고성·양양",
+            travelAreaId: "gangwon-sokcho-goseong-yangyang",
+          }),
+        ),
+      );
+      expect(travelAreasSpy).toHaveBeenCalledWith(expect.objectContaining({ query: "gangwon-sokcho-goseong-yangyang" }));
+      await waitFor(() => expect(getTripSpy).toHaveBeenCalledWith("47"));
+    } finally {
+      travelAreasSpy.mockRestore();
+      createTripSpy.mockRestore();
+      getTripSpy.mockRestore();
+    }
+  });
+
+  it("shows 강원 travel-area choices for the legacy region query", async () => {
+    await login();
+    cleanup();
+    const travelAreasSpy = vi.spyOn(appDataApi, "listTravelAreaRecommendations").mockResolvedValue(getGangwonTravelAreaResponse());
+
+    try {
+      renderRoute("/trips/new?region=%EA%B0%95%EC%9B%90");
+      expect(await screen.findByRole("heading", { name: "강원 세부 지역 선택" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /속초·고성·양양/ })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /강릉·동해·삼척/ })).toBeInTheDocument();
+      expect(travelAreasSpy).toHaveBeenCalledWith(expect.objectContaining({ sido: "강원" }));
+    } finally {
+      travelAreasSpy.mockRestore();
+    }
+  });
+
+  it("shows broad region selection first without course preference choices", async () => {
+    await login();
+    cleanup();
+
+    renderRoute("/trips/new");
+
+    expect(await screen.findByText("여행 지역 선택")).toBeInTheDocument();
+    expect(screen.queryByText("코스 취향 선택")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /강원/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /전남/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /경남/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^강릉$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^경주$/ })).not.toBeInTheDocument();
+  });
+
+  it("resolves the default primary region into a travel-area candidate", async () => {
+    await login();
+    cleanup();
+    const travelAreasSpy = vi.spyOn(appDataApi, "listTravelAreaRecommendations").mockResolvedValue(getJejuTravelAreaResponse());
+
+    try {
+      renderRoute("/trips/new");
+
+      expect(await screen.findByRole("button", { name: /제주 전체/ })).toHaveClass("active");
+      expect(travelAreasSpy).toHaveBeenCalledWith(expect.objectContaining({ sido: "제주" }));
+      expect(screen.queryByText("코스 취향 선택")).not.toBeInTheDocument();
+    } finally {
+      travelAreasSpy.mockRestore();
+    }
+  });
+
+  it("resolves a legacy city region query through travel-area search", async () => {
+    await login();
+    cleanup();
+    const travelAreasSpy = vi.spyOn(appDataApi, "listTravelAreaRecommendations").mockResolvedValue(getGyeongjuTravelAreaResponse());
+
+    try {
+      renderRoute("/trips/new?region=%EA%B2%BD%EC%A3%BC");
+
+      expect(await screen.findByRole("button", { name: /경주/ })).toHaveClass("active");
+      expect(travelAreasSpy).toHaveBeenCalledWith(expect.objectContaining({ query: "경주" }));
+      expect(screen.queryByText("코스 취향 선택")).not.toBeInTheDocument();
+    } finally {
+      travelAreasSpy.mockRestore();
+    }
+  });
+
+  it("resolves the legacy Sokcho region query from home destination links", async () => {
+    await login();
+    cleanup();
+    const travelAreasSpy = vi.spyOn(appDataApi, "listTravelAreaRecommendations").mockResolvedValue(getSokchoTravelAreaResponse());
+
+    try {
+      renderRoute("/trips/new?region=%EC%86%8D%EC%B4%88");
+
+      expect(await screen.findByRole("button", { name: /속초·고성·양양/ })).toHaveClass("active");
+      expect(travelAreasSpy).toHaveBeenCalledWith(expect.objectContaining({ query: "속초" }));
+      expect(screen.queryByText("코스 취향 선택")).not.toBeInTheDocument();
+    } finally {
+      travelAreasSpy.mockRestore();
+    }
+  });
+
+  it("resolves the legacy Gangneung region query through travel-area search", async () => {
+    await login();
+    cleanup();
+    const travelAreasSpy = vi.spyOn(appDataApi, "listTravelAreaRecommendations").mockResolvedValue(getGangneungTravelAreaResponse());
+
+    try {
+      renderRoute("/trips/new?region=%EA%B0%95%EB%A6%89");
+
+      expect(await screen.findByRole("button", { name: /강릉·동해·삼척/ })).toHaveClass("active");
+      expect(travelAreasSpy).toHaveBeenCalledWith(expect.objectContaining({ query: "강릉" }));
+      expect(screen.queryByText("코스 취향 선택")).not.toBeInTheDocument();
+    } finally {
+      travelAreasSpy.mockRestore();
+    }
+  });
+
+  it("asks course preference after a travel area is selected", async () => {
+    await login();
+    cleanup();
+    const user = userEvent.setup();
+    const travelAreasSpy = vi.spyOn(appDataApi, "listTravelAreaRecommendations").mockResolvedValue(getGangwonTravelAreaResponse());
+
+    try {
+      renderRoute("/trips/new?region=%EA%B0%95%EC%9B%90");
+
+      await user.click(await screen.findByRole("button", { name: /속초·고성·양양/ }));
+      await user.click(screen.getByRole("button", { name: "다음" }));
+
+      expect(await screen.findByText("코스 취향 선택")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /맛집/ })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /휴식/ })).toBeInTheDocument();
+    } finally {
+      travelAreasSpy.mockRestore();
+    }
+  });
+
+  it("includes travelAreaId in the createTrip payload after selecting a travel-area card", async () => {
+    await login();
+    cleanup();
+    const user = userEvent.setup();
+    const createdTrip: Trip = {
+      ...getPreviewTrip(),
+      id: "48",
+      title: "강원 권역 여행",
+      dates: "2026.06.15 - 06.17",
+      days: { 1: [], 2: [], 3: [] },
+    };
+    const travelAreasSpy = vi.spyOn(appDataApi, "listTravelAreaRecommendations").mockResolvedValue(getGangwonTravelAreaResponse());
+    const createTripSpy = vi.spyOn(appDataApi, "createTrip").mockResolvedValue(createdTrip);
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(createdTrip);
+
+    try {
+      renderRoute("/trips/new?region=%EA%B0%95%EC%9B%90");
+      await user.click(await screen.findByRole("button", { name: /속초·고성·양양/ }));
+      await user.click(screen.getByRole("button", { name: "다음" }));
+      await user.click(screen.getByRole("button", { name: "다음" }));
+      await user.click(screen.getByRole("button", { name: "다음" }));
+      const titleInput = screen.getByRole("textbox", { name: "일정 제목" });
+      await user.clear(titleInput);
+      await user.type(titleInput, "강원 권역 여행");
+      await user.click(screen.getByRole("button", { name: "일정 만들기" }));
+
+      await waitFor(() =>
+        expect(createTripSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: "강원 권역 여행",
+            region: "속초·고성·양양",
+            travelAreaId: "gangwon-sokcho-goseong-yangyang",
+          }),
+        ),
+      );
+      expect(travelAreasSpy).toHaveBeenCalledWith(expect.objectContaining({ sido: "강원" }));
+      await waitFor(() => expect(getTripSpy).toHaveBeenCalledWith("48"));
+    } finally {
+      travelAreasSpy.mockRestore();
+      createTripSpy.mockRestore();
+      getTripSpy.mockRestore();
+    }
+  });
+
+  it("clears a direct travelAreaId requirement when the user switches back to a normal region", async () => {
+    await login();
+    cleanup();
+    const user = userEvent.setup();
+    const createdTrip: Trip = {
+      ...getPreviewTrip(),
+      id: "49",
+      title: "부산 일반 여행",
+      dates: "2026.06.15 - 06.17",
+      days: { 1: [], 2: [], 3: [] },
+    };
+    const travelAreasSpy = vi.spyOn(appDataApi, "listTravelAreaRecommendations").mockImplementation((options) => {
+      if (options?.sido === "부산") return Promise.resolve(getBusanTravelAreaResponse());
+      return Promise.resolve(getGangwonTravelAreaResponse());
+    });
+    const createTripSpy = vi.spyOn(appDataApi, "createTrip").mockResolvedValue(createdTrip);
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(createdTrip);
+
+    try {
+      renderRoute("/trips/new?travelAreaId=gangwon-sokcho-goseong-yangyang");
+      expect(await screen.findByRole("button", { name: /속초·고성·양양/ })).toHaveClass("active");
+      await user.click(screen.getByRole("button", { name: /부산/ }));
+      await waitFor(() => expect(screen.getByRole("button", { name: /부산 전체/ })).toHaveClass("active"));
+      await user.click(screen.getByRole("button", { name: "다음" }));
+      expect(screen.getByRole("heading", { name: "코스 취향 선택" })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "다음" }));
+      expect(screen.getByRole("heading", { name: "여행 기간 선택" })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "다음" }));
+      const titleInput = screen.getByRole("textbox", { name: "일정 제목" });
+      await user.clear(titleInput);
+      await user.type(titleInput, "부산 일반 여행");
+      await user.click(screen.getByRole("button", { name: "일정 만들기" }));
+
+      await waitFor(() =>
+        expect(createTripSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: "부산 일반 여행",
+            region: "부산 전체",
+            travelAreaId: "busan-all",
+          }),
+        ),
+      );
+      await waitFor(() => expect(getTripSpy).toHaveBeenCalledWith("49"));
+    } finally {
+      travelAreasSpy.mockRestore();
       createTripSpy.mockRestore();
       getTripSpy.mockRestore();
     }
@@ -387,7 +848,7 @@ describe("Travel Hunter app", () => {
     renderRoute("/trips/new?policySlug=travelmonth-58&region=%EB%B6%80%EC%82%B0");
     const user = userEvent.setup();
     const createdTrip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "46",
       title: "공식 혜택 참고 여행",
       dates: "2026.06.15 - 06.17",
@@ -400,6 +861,7 @@ describe("Travel Hunter app", () => {
     try {
       expect(screen.getByText("선택한 정책까지 일정에 연결할게요")).toBeInTheDocument();
       expect(document.body).not.toHaveTextContent("공식 수집 혜택");
+      await user.click(screen.getByRole("button", { name: "다음" }));
       await user.click(screen.getByRole("button", { name: "다음" }));
       await user.click(screen.getByRole("button", { name: "다음" }));
       expect(document.body).toHaveTextContent("연결 정책 · 선택한 정책");
@@ -422,81 +884,31 @@ describe("Travel Hunter app", () => {
   it("blocks trip creation until the inline title step is valid", async () => {
     await login();
     cleanup();
+    const travelAreasSpy = vi.spyOn(appDataApi, "listTravelAreaRecommendations").mockResolvedValue(getJejuTravelAreaResponse());
     renderRoute("/trips/new");
     const user = userEvent.setup();
-    const createTripSpy = vi.spyOn(appDataApi, "createTrip").mockResolvedValue(appDataApi.getPreviewTrip());
+    const createTripSpy = vi.spyOn(appDataApi, "createTrip").mockResolvedValue(getPreviewTrip());
 
     try {
       await user.click(screen.getByRole("button", { name: "다음" }));
-      expect(screen.getByRole("heading", { name: "언제 떠나나요?" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "코스 취향 선택" })).toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: "다음" }));
-      expect(screen.getByRole("heading", { name: "일정 제목을 정해볼까요?" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "여행 기간 선택" })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "다음" }));
+      expect(screen.getByRole("heading", { name: "일정 제목 입력" })).toBeInTheDocument();
       const titleInput = screen.getByRole("textbox", { name: "일정 제목" });
       await user.clear(titleInput);
       expect(screen.getByRole("button", { name: "일정 만들기" })).toBeDisabled();
       expect(createTripSpy).not.toHaveBeenCalled();
     } finally {
       createTripSpy.mockRestore();
+      travelAreasSpy.mockRestore();
     }
-  });
-
-  it("restores the trip creation draft after remounting the page", async () => {
-    await login();
-    cleanup();
-    renderRoute(`/trips/new?policySlug=${encodeURIComponent(examplePolicySlug)}`);
-    const user = userEvent.setup();
-
-    await user.click(screen.getByRole("button", { name: /부산/ }));
-    await user.click(screen.getByRole("button", { name: "다음" }));
-    fireEvent.change(screen.getByLabelText("도착일"), { target: { value: "2026-07-16" } });
-    await waitFor(() => expect(window.localStorage.getItem(examplePolicyDraftKey)).toContain("부산"));
-    await waitFor(() => expect(window.localStorage.getItem(examplePolicyDraftKey)).toContain("2026-07-16"));
-
-    cleanup();
-    renderRoute(`/trips/new?policySlug=${encodeURIComponent(examplePolicySlug)}`);
-
-    await waitFor(() => expect(screen.getByRole("heading", { name: "언제 떠나나요?" })).toBeInTheDocument());
-    expect(screen.getByLabelText("도착일")).toHaveValue("2026-07-16");
-  });
-
-  it("shows and discards a restored trip creation draft", async () => {
-    await login();
-    cleanup();
-    window.localStorage.setItem(
-      examplePolicyDraftKey,
-      JSON.stringify({
-        version: 1,
-        savedAt: Date.now(),
-        value: {
-          region: "부산",
-          style: "맛집",
-          startDate: "2026-07-12",
-          endDate: "2026-07-16",
-          title: "부산 5일 가족 여행",
-          step: 3,
-          policySlug: examplePolicySlug,
-        },
-      }),
-    );
-
-    renderRoute(`/trips/new?policySlug=${encodeURIComponent(examplePolicySlug)}`);
-    const user = userEvent.setup();
-
-    await waitFor(() => expect(screen.getByText("작성 중이던 일정 조건을 불러왔어요.")).toBeInTheDocument());
-    expect(screen.getByRole("heading", { name: "일정 제목을 정해볼까요?" })).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "일정 제목" })).toHaveValue("부산 5일 가족 여행");
-    expect(screen.getByText(/2026.07.12 ~ 2026.07.16/)).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "삭제" }));
-
-    await waitFor(() => expect(screen.queryByText("작성 중이던 일정 조건을 불러왔어요.")).not.toBeInTheDocument());
-    expect(window.localStorage.getItem(examplePolicyDraftKey)).toBeNull();
-    expect(screen.getByRole("heading", { name: "어디로 떠나나요?" })).toBeInTheDocument();
   });
 
   it("renders itinerary detail day tabs from trip data", async () => {
     const trip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "55",
       title: "제주 4일 여행",
       dates: "2026.06.15 - 06.18",
@@ -530,7 +942,7 @@ describe("Travel Hunter app", () => {
 
   it("shows linked policies from the trip detail response", async () => {
     const trip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "56",
       status: "draft",
       currentUserRole: "owner",
@@ -573,7 +985,7 @@ describe("Travel Hunter app", () => {
 
   it("removes a linked policy from a confirmed owner trip detail card", async () => {
     const trip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "61",
       status: "confirmed",
       currentUserRole: "owner",
@@ -615,7 +1027,7 @@ describe("Travel Hunter app", () => {
 
   it("keeps a route-state linked policy hidden after removing it from trip detail", async () => {
     const trip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "62",
       status: "draft",
       currentUserRole: "owner",
@@ -678,7 +1090,7 @@ describe("Travel Hunter app", () => {
       },
     ];
     const trip: Trip & { recommendedPolicies: LinkedTripPolicy[] } = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "59",
       title: "부산 추천 여행",
       linkedPolicies: [],
@@ -703,7 +1115,7 @@ describe("Travel Hunter app", () => {
 
   it("uses a region empty state instead of the generic policy-list card when no recommended policy exists", async () => {
     const trip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "60",
       title: "부산 추천 대기 여행",
       linkedPolicies: [],
@@ -728,7 +1140,7 @@ describe("Travel Hunter app", () => {
 
   it("puts the just-attached policy first when the trip already has linked policies", async () => {
     const trip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "58",
       title: "부산 야호",
       expectedSaving: "30만원",
@@ -784,7 +1196,7 @@ describe("Travel Hunter app", () => {
 
   it("keeps the just-attached policy visible when trip detail response is stale", async () => {
     const trip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "57",
       title: "부산 야호",
       expectedSaving: "30만원",
@@ -829,7 +1241,7 @@ describe("Travel Hunter app", () => {
 
   it("toggles itinerary detail between list and map views", async () => {
     const trip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "55",
       title: "제주 지도 여행",
       dates: "2026.06.15 - 06.17",
@@ -874,7 +1286,7 @@ describe("Travel Hunter app", () => {
 
   it("adds, edits, and deletes places from the itinerary detail", async () => {
     const initialTrip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "55",
       status: "draft",
       currentUserRole: "owner",
@@ -906,7 +1318,7 @@ describe("Travel Hunter app", () => {
       const user = userEvent.setup();
 
       await waitFor(() => expect(document.body).toHaveTextContent("Sunrise peak"));
-      await user.click(document.querySelector(".dashed") as HTMLButtonElement);
+      await user.click(document.querySelector(".prototype-trip-action-add") as HTMLButtonElement);
       expect(screen.getByRole("group", { name: "방문 시간 선택" })).toBeInTheDocument();
       expect(document.querySelector('input[name="place-time"]:not([type="hidden"])')).toBeNull();
       await setPlaceTimeFromDefault(user, "14:30");
@@ -955,7 +1367,7 @@ describe("Travel Hunter app", () => {
 
   it("restores and clears edit-place drafts", async () => {
     const initialTrip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "55",
       status: "draft",
       currentUserRole: "owner",
@@ -996,7 +1408,7 @@ describe("Travel Hunter app", () => {
 
   it("restores and clears add-place drafts", async () => {
     const initialTrip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "55",
       status: "draft",
       currentUserRole: "owner",
@@ -1016,8 +1428,8 @@ describe("Travel Hunter app", () => {
       renderRoute("/trips/55");
       const user = userEvent.setup();
 
-      await waitFor(() => expect(document.querySelector(".dashed")).toBeTruthy());
-      await user.click(document.querySelector(".dashed") as HTMLButtonElement);
+      await waitFor(() => expect(document.querySelector(".prototype-trip-action-add")).toBeTruthy());
+      await user.click(document.querySelector(".prototype-trip-action-add") as HTMLButtonElement);
       await setPlaceTimeFromDefault(user, "23:50");
       await user.click(screen.getByRole("button", { name: "방문 시간 10분 증가" }));
       expect(document.querySelector('input[name="place-time"]')).toHaveValue("00:00");
@@ -1028,8 +1440,8 @@ describe("Travel Hunter app", () => {
 
       cleanup();
       renderRoute("/trips/55");
-      await waitFor(() => expect(document.querySelector(".dashed")).toBeTruthy());
-      await user.click(document.querySelector(".dashed") as HTMLButtonElement);
+      await waitFor(() => expect(document.querySelector(".prototype-trip-action-add")).toBeTruthy());
+      await user.click(document.querySelector(".prototype-trip-action-add") as HTMLButtonElement);
       expect(document.querySelector('input[name="place-time"]')).toHaveValue("16:00");
       expect(document.querySelector('input[name="place-label"]')).toHaveValue("Tea house");
       expect(document.querySelector('textarea[name="place-meta"]')).toHaveValue("Reservation");
@@ -1038,7 +1450,7 @@ describe("Travel Hunter app", () => {
       await waitFor(() => expect(addPlaceSpy).toHaveBeenCalledWith("55", 1, expect.objectContaining({ label: "Tea house" })));
       expect(window.localStorage.getItem("travel-hunter:draft:trip-place:55:add:1")).toBeNull();
 
-      await user.click(document.querySelector(".dashed") as HTMLButtonElement);
+      await user.click(document.querySelector(".prototype-trip-action-add") as HTMLButtonElement);
       await user.type(document.querySelector('input[name="place-label"]') as HTMLInputElement, "Will cancel");
       await waitFor(() => expect(window.localStorage.getItem("travel-hunter:draft:trip-place:55:add:1")).toContain("Will cancel"));
       await user.click(screen.getByRole("button", { name: "닫기" }));
@@ -1051,7 +1463,7 @@ describe("Travel Hunter app", () => {
 
   it("shows and discards a restored add-place draft", async () => {
     const initialTrip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "55",
       status: "draft",
       currentUserRole: "owner",
@@ -1074,8 +1486,8 @@ describe("Travel Hunter app", () => {
       renderRoute("/trips/55");
       const user = userEvent.setup();
 
-      await waitFor(() => expect(document.querySelector(".dashed")).toBeTruthy());
-      await user.click(document.querySelector(".dashed") as HTMLButtonElement);
+      await waitFor(() => expect(document.querySelector(".prototype-trip-action-add")).toBeTruthy());
+      await user.click(document.querySelector(".prototype-trip-action-add") as HTMLButtonElement);
 
       expect(screen.getByText("작성 중이던 장소 내용을 불러왔어요.")).toBeInTheDocument();
       expect(document.querySelector('input[name="place-time"]')).toHaveValue("16:00");
@@ -1095,7 +1507,7 @@ describe("Travel Hunter app", () => {
 
   it("validates place time as a 10 minute spinner value", async () => {
     const initialTrip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "55",
       status: "draft",
       currentUserRole: "owner",
@@ -1119,8 +1531,8 @@ describe("Travel Hunter app", () => {
         }),
       );
 
-      await waitFor(() => expect(document.querySelector(".dashed")).toBeTruthy());
-      await user.click(document.querySelector(".dashed") as HTMLButtonElement);
+      await waitFor(() => expect(document.querySelector(".prototype-trip-action-add")).toBeTruthy());
+      await user.click(document.querySelector(".prototype-trip-action-add") as HTMLButtonElement);
       expect(document.querySelector('input[name="place-time"]')).toHaveValue("09:35");
       await user.click(document.querySelector(".sheet-actions button") as HTMLButtonElement);
 
@@ -1134,7 +1546,7 @@ describe("Travel Hunter app", () => {
 
   it("renders viewer trips as read-only in the itinerary detail", async () => {
     const viewerTrip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "66",
       title: "Viewer trip",
       currentUserRole: "viewer",
@@ -1149,7 +1561,7 @@ describe("Travel Hunter app", () => {
 
       await waitFor(() => expect(document.body).toHaveTextContent("Sunrise peak"));
       expect(document.body).toHaveTextContent("보기 권한으로 참여 중입니다");
-      expect(document.querySelector(".dashed")).not.toBeInTheDocument();
+      expect(document.querySelector(".prototype-trip-action-add")).not.toBeInTheDocument();
       expect(document.querySelector(".place-actions")).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Sunrise peak 순서 이동" })).not.toBeInTheDocument();
     } finally {
@@ -1159,7 +1571,7 @@ describe("Travel Hunter app", () => {
 
   it("moves places with drag handles within a day and to another day", async () => {
     const initialTrip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "55",
       status: "draft",
       currentUserRole: "owner",
@@ -1232,7 +1644,7 @@ describe("Travel Hunter app", () => {
 
   it("shows a message when moving a place fails", async () => {
     const trip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "55",
       status: "draft",
       currentUserRole: "owner",
@@ -1274,7 +1686,7 @@ describe("Travel Hunter app", () => {
       reason: "비가 와도 머물기 좋고 주변 이동이 짧아요.",
     };
     const updatedTrip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "55",
       title: "AI recommendation trip",
       days: { 1: [], 2: [{ id: "9", time: "", label: recommendation.title, meta: `${recommendation.meta} · ${recommendation.reason}` }] },
@@ -1324,7 +1736,7 @@ describe("Travel Hunter app", () => {
       reason: "비가 와도 머물기 좋고 주변 이동이 짧아요.",
     };
     const trip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "55",
       title: "Duplicate recommendation trip",
       days: {
@@ -1364,7 +1776,7 @@ describe("Travel Hunter app", () => {
     const listRecommendationsSpy = vi.spyOn(appDataApi, "listRecommendations").mockResolvedValue([recommendation]);
     const addPlaceSpy = vi.spyOn(appDataApi, "addTripPlace").mockRejectedValue(new Error("Trip not found"));
     const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue({
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "55",
       days: { 1: [], 2: [], 3: [] },
     });
@@ -1392,7 +1804,7 @@ describe("Travel Hunter app", () => {
 
   it("deletes trips from the trips list without using the home recommendation card", async () => {
     const trip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "77",
       title: "부산 4일 여행",
       dates: "2026.06.15 - 06.18",
@@ -1448,7 +1860,7 @@ describe("Travel Hunter app", () => {
 
   it("keeps a trip visible when trip deletion fails", async () => {
     const trip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "88",
       title: "강원 2일 여행",
       dates: "2026.06.15 - 06.16",
@@ -1479,7 +1891,7 @@ describe("Travel Hunter app", () => {
 
   it("renders trips without list confirmation controls or status badges", async () => {
     const trip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "91",
       title: "Draft trip",
       status: "draft",
@@ -1509,7 +1921,7 @@ describe("Travel Hunter app", () => {
 
   it("does not call trip confirmation from the trips list", async () => {
     const trip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "92",
       title: "Draft trip without list action",
       status: "draft",
@@ -1535,7 +1947,7 @@ describe("Travel Hunter app", () => {
 
   it("hides trip confirmation controls for viewer trips", async () => {
     const trip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "93",
       title: "Viewer trip",
       status: "draft",
@@ -1559,7 +1971,7 @@ describe("Travel Hunter app", () => {
 
   it("keeps confirmed owner trip detail editable without confirmation controls", async () => {
     const confirmedTrip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "94",
       title: "Confirmed detail trip",
       status: "confirmed",
@@ -1582,7 +1994,7 @@ describe("Travel Hunter app", () => {
       expect(screen.queryByRole("button", { name: "확정취소" })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "확정하기" })).not.toBeInTheDocument();
       expect(document.body).not.toHaveTextContent("확정된 일정은 편집할 수 없어요");
-      expect(document.querySelector(".dashed")).toBeInTheDocument();
+      expect(document.querySelector(".prototype-trip-action-add")).toBeInTheDocument();
       expect(document.querySelector(".drag-handle")).toBeInTheDocument();
       expect(document.querySelector(".place-actions")).toBeInTheDocument();
       expect(document.querySelector(".linked-policy-remove")).toBeInTheDocument();
@@ -1595,7 +2007,7 @@ describe("Travel Hunter app", () => {
 
   it("does not render draft trip detail confirmation controls", async () => {
     const draftTrip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "96",
       title: "Draft detail trip",
       status: "draft",
@@ -1617,7 +2029,7 @@ describe("Travel Hunter app", () => {
       expect(screen.queryByRole("region", { name: "일정 확정 상태" })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "확정하기" })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "확정취소" })).not.toBeInTheDocument();
-      expect(document.querySelector(".dashed")).toBeInTheDocument();
+      expect(document.querySelector(".prototype-trip-action-add")).toBeInTheDocument();
       expect(document.querySelector(".drag-handle")).toBeInTheDocument();
       expect(document.querySelector(".place-actions")).toBeInTheDocument();
       expect(document.querySelector(".linked-policy-remove")).toBeInTheDocument();
@@ -1630,7 +2042,7 @@ describe("Travel Hunter app", () => {
 
   it("does not show confirmation cancel controls for confirmed viewer trips", async () => {
     const trip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "95",
       title: "Confirmed viewer trip",
       status: "confirmed",
@@ -2035,7 +2447,7 @@ describe("Travel Hunter app", () => {
       sourceType: "external",
     };
     const trip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "201",
       title: "부산 공식 혜택 여행",
     };
@@ -2079,7 +2491,7 @@ describe("Travel Hunter app", () => {
     renderRoute("/home");
 
     await waitFor(() => expect(document.body).toHaveTextContent("이번 주 혜택"));
-    expect(document.body).toHaveTextContent("어디로 떠나나요?");
+    expect(document.body).toHaveTextContent("어디로 떠나세요?");
     expect(screen.getByLabelText("마이페이지")).toBeInTheDocument();
     expect(document.body).toHaveTextContent("안녕,");
     expect(document.body).toHaveTextContent("이번 주 놓치면 아쉬운 혜택이 있어요");
@@ -2151,7 +2563,7 @@ describe("Travel Hunter app", () => {
 
   it("uses a region recommendation CTA for the home AI trip card instead of an existing trip", async () => {
     const existingTrip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "300",
       title: "경주 야호",
       dates: "2026.05.18 - 05.20",
@@ -2227,14 +2639,14 @@ describe("Travel Hunter app", () => {
   it("renders multiple saved trips on the trips list", async () => {
     const trips: Trip[] = [
       {
-        ...appDataApi.getPreviewTrip(),
+        ...getPreviewTrip(),
         id: "77",
         title: "부산 4일 여행",
         dates: "2026.06.15 - 06.18",
         days: { 1: [], 2: [], 3: [], 4: [] },
       },
       {
-        ...appDataApi.getPreviewTrip(),
+        ...getPreviewTrip(),
         id: "78",
         title: "경주 3일 여행",
         dates: "2026.07.01 - 07.03",
@@ -2283,14 +2695,14 @@ describe("Travel Hunter app", () => {
   it("shows all saved trips in the policy trip picker", async () => {
     const trips: Trip[] = [
       {
-        ...appDataApi.getPreviewTrip(),
+        ...getPreviewTrip(),
         id: "201",
         title: "부산 야호",
         dates: "2026.07.04 - 07.08",
         days: { 1: [] },
       },
       {
-        ...appDataApi.getPreviewTrip(),
+        ...getPreviewTrip(),
         id: "202",
         title: "경주 야호",
         dates: "2026.05.18 - 05.20",
@@ -2363,6 +2775,7 @@ describe("Travel Hunter app", () => {
 
   it("saves a policy from the policy detail header action", async () => {
     await login();
+    await appDataApi.removeSavedPolicy(examplePolicySlug).catch(() => undefined);
     cleanup();
     render(
       <MemoryRouter initialEntries={["/policies", examplePolicyPath]} initialIndex={1}>
@@ -2407,12 +2820,12 @@ describe("Travel Hunter app", () => {
     expect(screen.getByText(/즐겨찾기 정책/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /알림 설정/ })).toBeInTheDocument();
     expect(document.querySelector(".ds-profile-panel")).toBeTruthy();
-    expect(document.querySelector(".prototype-profile-badge svg")).toBeTruthy();
+    expect(document.querySelector(".prototype-profile-badge")).toHaveTextContent("🧳");
     expect(document.querySelector(".prototype-mypage-screen")).toHaveClass("prototype-mypage-screen");
     expect(document.querySelector(".ds-settings-menu")).toBeTruthy();
     const favoriteCard = document.querySelector(".ds-favorite-policy-card");
     expect(favoriteCard).toBeTruthy();
-    expect(favoriteCard?.querySelector(".ds-favorite-policy-thumb")?.textContent?.trim()).toBe("🎫");
+    expect(favoriteCard?.querySelector(".ds-favorite-policy-thumb")?.textContent?.trim()).toMatch(/[🚌🛏️🗺️💸🎊📌]/);
     expect(favoriteCard?.querySelector(".ds-favorite-policy-thumb")?.textContent?.trim()).not.toBe("혜");
     expect(favoriteCard?.querySelector(".ds-favorite-policy-copy")).toBeTruthy();
     expect(within(favoriteCard as HTMLElement).getByRole("button", { name: "저장 해제" })).toHaveClass("ds-favorite-policy-remove");
@@ -2512,7 +2925,7 @@ describe("Travel Hunter app", () => {
       budget: "상관없음",
     };
     const nextNickname = `바다${Date.now().toString().slice(-6)}`;
-    const nextUser = { ...appDataApi.getPreviewUser(), email: testEmail, nickname: nextNickname };
+    const nextUser = { ...getPreviewUser(), email: testEmail, nickname: nextNickname };
     const updateProfileSpy = vi.spyOn(appDataApi, "updateProfile").mockResolvedValue(nextProfile);
 
     try {
@@ -2708,7 +3121,7 @@ describe("Travel Hunter app", () => {
 
   it("shows one trip title in the my page trip summary", async () => {
     const trip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "101",
       title: "부산 맛집 여행",
     };
@@ -2732,9 +3145,9 @@ describe("Travel Hunter app", () => {
 
   it("shows the trip count in the my page stats", async () => {
     const trips: Trip[] = [
-      { ...appDataApi.getPreviewTrip(), id: "101", title: "부산 맛집 여행" },
-      { ...appDataApi.getPreviewTrip(), id: "102", title: "강원 2일 여행" },
-      { ...appDataApi.getPreviewTrip(), id: "103", title: "제주 3일 여행" },
+      { ...getPreviewTrip(), id: "101", title: "부산 맛집 여행" },
+      { ...getPreviewTrip(), id: "102", title: "강원 2일 여행" },
+      { ...getPreviewTrip(), id: "103", title: "제주 3일 여행" },
     ];
 
     await login();
@@ -3185,8 +3598,9 @@ describe("Travel Hunter app", () => {
     renderRoute("/profile-setup");
     const user = userEvent.setup();
 
-    expect(document.querySelector(".ds-profile-setup-step")).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "어디로 떠나고 싶나요?" })).toBeInTheDocument();
+    await waitFor(() => expect(document.querySelector(".ds-profile-setup-step")).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("heading", { name: "어디로 떠나고 싶나요?" })).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "부산" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "부산" }));
     await user.click(screen.getByRole("button", { name: "다음" }));
     await user.click(screen.getByRole("button", { name: "맛집" }));
@@ -3200,7 +3614,7 @@ describe("Travel Hunter app", () => {
 
   it("saves selected invite roles from the friend invite page", async () => {
     const trip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "55",
       title: "Invite role trip",
     };
@@ -3358,7 +3772,7 @@ describe("Travel Hunter app", () => {
 
   it("shares the invite link from the friend invite page", async () => {
     const trip: Trip = {
-      ...appDataApi.getPreviewTrip(),
+      ...getPreviewTrip(),
       id: "55",
       title: "Invite share trip",
     };
@@ -3455,3 +3869,4 @@ describe("Travel Hunter app", () => {
     await waitFor(() => expect(document.body).toHaveTextContent("초대 링크를 찾을 수 없어요"));
   });
 });
+

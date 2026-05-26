@@ -42,8 +42,8 @@ class GeneratedCourse:
 def _load_catalog() -> list[CatalogPlace]:
     return [
         CatalogPlace(
-            region=str(item["region"]),
-            style=str(item["style"]),
+            region=str(item["region"]).strip(),
+            style=str(item["style"]).strip(),
             label=str(item["label"]),
             title=str(item["title"]),
             meta=str(item["meta"]),
@@ -60,12 +60,15 @@ def _select_candidates(region: str, style: str, requested_count: int) -> list[Ca
     if requested_count <= 0:
         return []
 
-    region_matches = [item for item in CATALOG if item.region == region]
+    normalized_region = region.strip()
+    normalized_style = style.strip()
+
+    region_matches = [item for item in CATALOG if item.region == normalized_region]
     if not region_matches:
         return []
 
-    preferred = [item for item in region_matches if item.style == style]
-    fallback = [item for item in region_matches if item.style != style]
+    preferred = [item for item in region_matches if item.style == normalized_style]
+    fallback = [item for item in region_matches if item.style != normalized_style]
     selected: list[CatalogPlace] = []
     seen_titles: set[str] = set()
 

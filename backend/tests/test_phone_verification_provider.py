@@ -130,3 +130,17 @@ def test_solapi_sms_provider_maps_failed_message_list_to_provider_error() -> Non
 
     with pytest.raises(PhoneVerificationProviderError, match="unregistered sender"):
         provider.send_verification_code(phone_number="01012345678", code="123456")
+
+
+def test_dev_phone_verification_provider_keeps_recent_messages_with_a_fixed_limit() -> None:
+    provider = DevPhoneVerificationProvider()
+    send_count = provider.MAX_STORED_MESSAGES + 20
+    for index in range(send_count):
+        provider.send_verification_code(
+            phone_number=f"010{index:08d}",
+            code=f"{index:06d}",
+        )
+
+    assert len(provider.sent_messages) == provider.MAX_STORED_MESSAGES
+    assert list(provider.sent_messages)[0] == ("01000000020", "000020")
+    assert list(provider.sent_messages)[-1] == ("01000000119", "000119")

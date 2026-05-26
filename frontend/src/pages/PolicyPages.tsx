@@ -1,5 +1,5 @@
-import { ChevronLeft, Heart, Share2 } from "lucide-react";
-import { useMemo, useState } from "react";
+﻿import { ChevronLeft, Heart, Share2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { appDataApi, type LinkedTripPolicy, type Policy, type PolicyCategory, type Trip } from "../api";
 import { useAsyncResource } from "../api/useAsyncResource";
@@ -313,7 +313,7 @@ export function PolicyListPage() {
   const [isAllRegionOpen, setIsAllRegionOpen] = useState(false);
   const [isPeriodFilterOpen, setIsPeriodFilterOpen] = useState(false);
   const [isAmountFilterOpen, setIsAmountFilterOpen] = useState(false);
-  const [showSavedOnly, setShowSavedOnly] = useState(false);
+  const [showSavedOnly, setShowSavedOnly] = useState(() => searchParams.get("saved") === "1");
   const { profile, savedSlugs, addSavedSlug, removeSavedSlug } = useSession();
   const { data: policies, error, isLoading } = useAsyncResource(() => appDataApi.listPolicies(), []);
   const categoryParam = searchParams.get("category");
@@ -363,14 +363,34 @@ export function PolicyListPage() {
       return next;
     });
   };
+  useEffect(() => {
+    setShowSavedOnly(searchParams.get("saved") === "1");
+  }, [searchParams]);
+
+  const setSavedOnlyFilter = (enabled: boolean) => {
+    setShowSavedOnly(enabled);
+    setSearchParams((params) => {
+      const next = new URLSearchParams(params);
+      if (enabled) {
+        next.set("saved", "1");
+      } else {
+        next.delete("saved");
+      }
+      return next;
+    });
+  };
 
   const resetFilters = () => {
     setSelectedRegion(allFilter);
-    setSelectedCategory(allFilter);
     setSelectedPeriod("전체");
     setSelectedAmount("전체");
     setShowSavedOnly(false);
-    setIsRegionFilterOpen(false);
+    setSearchParams((params) => {
+      const next = new URLSearchParams(params);
+      next.delete("category");
+      next.delete("saved");
+      return next;
+    });    setIsRegionFilterOpen(false);
     setIsAllRegionOpen(false);
     setIsPeriodFilterOpen(false);
     setIsAmountFilterOpen(false);
@@ -397,85 +417,90 @@ export function PolicyListPage() {
 
   return (
     <section className="screen with-tabs prototype-policy-list-screen">
-      <div className="prototype-policy-titlebar">
-        <h1>정책</h1>
+      <div className="prototype-policy-toolbar">
+        <div className="prototype-policy-titlebar">
+          <div className="prototype-category-tabs" aria-label="정책 카테고리">
+            {policyCategoryTabs.map((tab) => (
+              <button className={selectedCategory === tab.value ? "prototype-category-tab active" : "prototype-category-tab"} key={tab.value} onClick={() => setSelectedCategory(tab.value)} type="button">
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <button
           className={showSavedOnly ? "prototype-head-pill active" : "prototype-head-pill"}
-          onClick={() => setShowSavedOnly((o) => !o)}
+          onClick={() => setSavedOnlyFilter(!showSavedOnly)}
           type="button"
         >
           ♥ 즐겨찾기{showSavedOnly ? ` (${savedSlugs.size})` : ""}
         </button>
-      </div>
-      <div className="prototype-category-tabs" aria-label="정책 카테고리">
-        {policyCategoryTabs.map((tab) => (
-          <button className={selectedCategory === tab.value ? "prototype-category-tab active" : "prototype-category-tab"} key={tab.value} onClick={() => setSelectedCategory(tab.value)} type="button">
-            {tab.label}
-          </button>
-        ))}
-      </div>
-      <div className="prototype-policy-filter-shell">
-        <div className="prototype-policy-filter-row" aria-label="정책 필터">
-          <button className={selectedRegion !== allFilter ? "prototype-filter-pill active" : "prototype-filter-pill"} onClick={handleRegionToggle} type="button">
-            🌎 지역{selectedRegion !== allFilter ? ` · ${selectedRegion}` : ""}
-          </button>
-          <button className={selectedPeriod !== "전체" ? "prototype-filter-pill active" : "prototype-filter-pill"} onClick={handlePeriodToggle} type="button">
-            🗓 기간{selectedPeriod !== "전체" ? ` · ${selectedPeriod}` : ""}
-          </button>
-          <button className={selectedAmount !== "전체" ? "prototype-filter-pill active" : "prototype-filter-pill"} onClick={handleAmountToggle} type="button">
-            💰 금액{selectedAmount !== "전체" ? ` · ${selectedAmount}` : ""}
-          </button>
+        <div className="prototype-policy-filter-shell">
+          <div className="prototype-policy-filter-row" aria-label="정책 필터">
+            <button className={selectedRegion !== allFilter ? "prototype-filter-pill active" : "prototype-filter-pill"} onClick={handleRegionToggle} type="button">
+              🌎 지역{selectedRegion !== allFilter ? ` · ${selectedRegion}` : ""}
+            </button>
+            <button className={selectedPeriod !== "전체" ? "prototype-filter-pill active" : "prototype-filter-pill"} onClick={handlePeriodToggle} type="button">
+              🗓 기간{selectedPeriod !== "전체" ? ` · ${selectedPeriod}` : ""}
+            </button>
+            <button className={selectedAmount !== "전체" ? "prototype-filter-pill active" : "prototype-filter-pill"} onClick={handleAmountToggle} type="button">
+              💰 금액{selectedAmount !== "전체" ? ` · ${selectedAmount}` : ""}
+            </button>
+          </div>
         </div>
-        {isRegionFilterOpen && (
-          <div className="prototype-region-options prototype-region-picker" role="group" aria-label="지역 필터">
-            <div className="prototype-region-options-label">주요 지역</div>
-            <div className="prototype-region-chip-row">
-              {primaryRegionFilters.map((region) => (
-                <button className={selectedRegion === region ? "filter-chip active" : "filter-chip"} key={region} onClick={() => handleSelectRegion(region)} type="button">
-                  {region}
-                </button>
-              ))}
-            </div>
-            {secondaryRegionFilters.length > 0 && (
-              <>
-                <button className="prototype-region-expand" onClick={() => setIsAllRegionOpen((open) => !open)} type="button" aria-expanded={isAllRegionOpen}>
-                  {isAllRegionOpen ? "전체 지역 닫기" : "전체 지역 보기"}
-                </button>
-                {isAllRegionOpen && (
-                  <div className="prototype-region-chip-row all-regions" aria-label="전체 지역 목록">
-                    {secondaryRegionFilters.map((region) => (
-                      <button className={selectedRegion === region ? "filter-chip active" : "filter-chip"} key={region} onClick={() => handleSelectRegion(region)} type="button">
-                        {region}
-                      </button>
-                    ))}
-                  </div>
+        {(isRegionFilterOpen || isPeriodFilterOpen || isAmountFilterOpen || hasActiveFilters) && (
+          <div className="prototype-policy-filter-panels">
+            {isRegionFilterOpen && (
+              <div className="prototype-region-options prototype-region-picker" role="group" aria-label="지역 필터">
+                <div className="prototype-region-options-label">주요 지역</div>
+                <div className="prototype-region-chip-row">
+                  {primaryRegionFilters.map((region) => (
+                    <button className={selectedRegion === region ? "filter-chip active" : "filter-chip"} key={region} onClick={() => handleSelectRegion(region)} type="button">
+                      {region}
+                    </button>
+                  ))}
+                </div>
+                {secondaryRegionFilters.length > 0 && (
+                  <>
+                    <button className="prototype-region-expand" onClick={() => setIsAllRegionOpen((open) => !open)} type="button" aria-expanded={isAllRegionOpen}>
+                      {isAllRegionOpen ? "전체 지역 닫기" : "전체 지역 보기"}
+                    </button>
+                    {isAllRegionOpen && (
+                      <div className="prototype-region-chip-row all-regions" aria-label="전체 지역 목록">
+                        {secondaryRegionFilters.map((region) => (
+                          <button className={selectedRegion === region ? "filter-chip active" : "filter-chip"} key={region} onClick={() => handleSelectRegion(region)} type="button">
+                            {region}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
-              </>
+              </div>
+            )}
+            {isPeriodFilterOpen && (
+              <div className="prototype-region-options" aria-label="기간 필터">
+                {periodFilters.map((period) => (
+                  <button className={selectedPeriod === period ? "filter-chip active" : "filter-chip"} key={period} onClick={() => { setSelectedPeriod(period); setIsPeriodFilterOpen(false); }} type="button">
+                    {period}
+                  </button>
+                ))}
+              </div>
+            )}
+            {isAmountFilterOpen && (
+              <div className="prototype-region-options" aria-label="금액 필터">
+                {amountFilters.map((amount) => (
+                  <button className={selectedAmount === amount ? "filter-chip active" : "filter-chip"} key={amount} onClick={() => { setSelectedAmount(amount); setIsAmountFilterOpen(false); }} type="button">
+                    {amount}
+                  </button>
+                ))}
+              </div>
+            )}
+            {hasActiveFilters && (
+              <Button variant="line" full onClick={resetFilters}>
+                초기화
+              </Button>
             )}
           </div>
-        )}
-        {isPeriodFilterOpen && (
-          <div className="prototype-region-options" aria-label="기간 필터">
-            {periodFilters.map((period) => (
-              <button className={selectedPeriod === period ? "filter-chip active" : "filter-chip"} key={period} onClick={() => { setSelectedPeriod(period); setIsPeriodFilterOpen(false); }} type="button">
-                {period}
-              </button>
-            ))}
-          </div>
-        )}
-        {isAmountFilterOpen && (
-          <div className="prototype-region-options" aria-label="금액 필터">
-            {amountFilters.map((amount) => (
-              <button className={selectedAmount === amount ? "filter-chip active" : "filter-chip"} key={amount} onClick={() => { setSelectedAmount(amount); setIsAmountFilterOpen(false); }} type="button">
-                {amount}
-              </button>
-            ))}
-          </div>
-        )}
-        {hasActiveFilters && (
-          <Button variant="line" full onClick={resetFilters}>
-            초기화
-          </Button>
         )}
       </div>
       {isLoading && <LoadingState label="정책을 불러오는 중입니다" />}
@@ -618,6 +643,8 @@ export function PolicyDetailPage() {
       title: policy.title,
       amount: policy.amount,
       region: policy.region,
+      category: policy.category,
+      tag: policy.tag,
     };
     navigate(`/trips/${selectedTrip.id}`, { state: { linkedPolicy } });
   };

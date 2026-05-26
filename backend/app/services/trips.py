@@ -21,6 +21,12 @@ from app.schemas.trip import (
 )
 from app.services import itinerary_recommendations
 
+try:
+    from app.data.travel_areas import get_travel_area
+except ModuleNotFoundError:
+    def get_travel_area(_area_id: str | None):
+        return None
+
 
 INVITE_BASE_URL = "travelhunter.app/i"
 NUMERIC_TRIP_ID_PATTERN = re.compile(r"^[1-9][0-9]*$")
@@ -220,6 +226,7 @@ def trip_to_api(trip: Trip, user: User | None = None, recommended_policies: list
         "id": str(trip.id),
         "title": trip.title,
         "status": trip.status or "confirmed",
+        "travelAreaId": trip.travel_area_id,
         "dates": _format_dates(trip.start_date, trip.end_date),
         "people": people,
         "expectedSaving": _format_saving(_policy_saving(trip)),
@@ -317,7 +324,11 @@ def create_trip(
     payload = (payload or CreateTripRequest()).model_dump()
     if payload.get("description") is None and payload.get("style") is not None:
         payload["description"] = payload["style"]
-    region = str(payload.get("region") or seed.PROFILE["region"])
+    travel_area_id = str(payload.get("travelAreaId") or "").strip() or None
+    travel_area = get_travel_area(travel_area_id)
+    if travel_area_id and travel_area is None:
+        raise TripServiceError(400, "Travel area not found")
+    region = str(travel_area.name if travel_area else payload.get("region") or seed.PROFILE["region"])
     start_date_value = payload.get("startDate")
     end_date_value = payload.get("endDate")
     if isinstance(start_date_value, date) and isinstance(end_date_value, date):
@@ -338,6 +349,7 @@ def create_trip(
         end_date=end_date,
         status="draft",
         region=region,
+        travel_area_id=travel_area.id if travel_area else None,
         description=str(payload.get("description") or seed.PROFILE["style"]),
     )
     trip_repository.add_trip_member(db, trip_id=trip.id, user_id=user.id, role="owner")

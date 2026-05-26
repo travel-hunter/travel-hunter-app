@@ -27,6 +27,19 @@ class Policy(BaseModel):
     sourceType: PolicySourceType = "internal"
 
 
+class AppliedPolicyLinkedTrip(BaseModel):
+    id: str
+    title: str
+    region: str
+    startDate: str | None = None
+    endDate: str | None = None
+
+
+class AppliedPolicyLink(BaseModel):
+    policy: Policy
+    linkedTrips: list[AppliedPolicyLinkedTrip]
+
+
 class SavePolicyResponse(BaseModel):
     policyId: str
     saved: bool

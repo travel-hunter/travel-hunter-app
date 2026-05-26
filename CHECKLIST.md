@@ -744,3 +744,587 @@ Remaining risks:
 
 Remaining risks:
 - Official Figma Code Connect is not active for this account/file. Repo-local mapping remains the source of truth until the Figma plan/seat requirement is resolved.
+
+## 2026-05-24 Seed/preview fallback 제거 및 security LOW 해소 패치
+
+- [x] 프런트엔드 App 테스트에서 `appDataApi.getPreviewTrip()` / `getPreviewUser()` 직접 호출 패턴을 제거하고, 테스트 내부 `getPreviewTrip/getPreviewUser` 헬퍼를 통해 일관된 fixture 데이터를 사용.
+- [x] `/profile-setup` 테스트를 프로필 옵션 API 비동기 로딩을 기다리는 형태로 변경.
+- [x] 보안 LOW 항목 1 (`backend/app/services/phone_verification_provider.py`) 처리:
+  - `DevPhoneVerificationProvider` 메시지 저장을 최대 개수 제한 deque 및 락으로 변경.
+  - 회귀 커버 테스트 추가: `backend/tests/test_phone_verification_provider.py`.
+- [x] 보안 LOW 항목 2 (`backend/app/services/external_collection_scheduler.py`) 처리:
+  - 글로벌 스케줄러 참조를 getter/setter + 락으로 관리.
+  - 라우트 테스트가 직접 전역 변수를 건드리지 않도록 업데이트: `backend/tests/test_ops_routes.py`.
+- [x] `docs/security-review/2026-05-22-review-findings.md` 텍스트 정리 및 LOW 체크리스트 항목을 `[x]`로 반영.
+
+Remaining risks:
+- `App.test.tsx` 변경은 테스트 fixture 추가와 비동기 대기 타이밍 보완이므로 본문 실행 스모크는 별도 실행 필요.
+## 2026-05-24 Applied Policy Links Page
+
+- [x] Added `GET /api/me/applied-policy-links` as a non-breaking endpoint for policy-to-linked-trip grouping.
+- [x] Added `/applied-policies` frontend page through `AppDataApi` and linked the MyPage 신청 정책 stat card to it.
+- [x] Validation passed: `docker compose -f compose.yaml up -d --build` rebuilt backend/frontend, passed frontend `tsc --noEmit`, passed Vite production build, and restarted healthy containers.
+
+## 2026-05-25 CSS cleanup verification
+
+- Scope: consolidated final CSS rules for app/page surfaces, header, policy titlebar, trips cards, and mypage profile card in `frontend/src/styles/app.css`.
+- Build: `docker compose -f compose.yaml up -d --build` completed before browser verification; frontend typecheck and Vite build completed during image build.
+- Browser verification target: `http://127.0.0.1:4173` after logging in with the seeded test user.
+- `/home`: `#root` and `main > section` computed `background-color: rgb(255, 253, 250)`; service header computed `background-color: rgb(255, 255, 255)` and `border-bottom-color: rgb(240, 241, 245)`.
+- `/policies`: `.prototype-policy-titlebar` and `.prototype-category-tabs` computed `background-color: rgb(255, 255, 255)` and `align-items: center`; favorites button remained `rgb(255, 94, 91)`.
+- `/trips`: `.prototype-screen-head` computed `background-color: rgb(255, 253, 250)`; first `.itinerary-card` computed white background, card shadow `rgba(19, 30, 52, 0.06) 0px 12px 32px 0px`, and grid layout; `.card-arrow` selector was absent.
+- `/mypage`: `.prototype-profile-hero-card` computed white background, `border-top-color: rgb(236, 236, 241)`, and `box-shadow: none`; stat/settings cards use the same border color.
+- Remaining risk: `app.css` still contains older page-specific rules above the final layer. The final layer now owns the recent cleanup targets, but a later CSS architecture pass should split tokens/base/page overrides to reduce future conflicts.
+
+## 2026-05-25 CSS risk cleanup pass
+
+- Scope: reduced remaining CSS structure risk in `frontend/src/styles/app.css` by adding explicit surface tokens, moving the root app shell away from the old gray fallback, tokenizing shell/nav tint and trip-card border values, and splitting the final cleanup layer comments into shared surface rules and page-specific alignment rules.
+- Files changed: `frontend/src/styles/app.css`, `CHECKLIST.md`.
+- Build/verification: `docker compose -f compose.yaml up -d --build` passed. The frontend build ran `npm run typecheck && vite build` and produced `dist/assets/index-NmBWntn8.css` and `dist/assets/index-Ce7EG7HZ.js`.
+- Browser verification target: `http://127.0.0.1:4173` after seeded-user login.
+- `/home`: `#root` and `main > section` computed `background-color: rgb(255, 253, 250)`; service header computed `background-color: rgb(255, 255, 255)`, `border-bottom-color: rgb(240, 241, 245)`, and the expected subtle shadow.
+- `/policies`: `.prototype-policy-titlebar` and nested `.prototype-category-tabs` computed white background with centered alignment; favorites button remained the red primary pill.
+- `/trips`: `.prototype-screen-head` computed `rgb(255, 253, 250)`; `.itinerary-card` computed white background, `border-top-color: rgb(240, 240, 245)`, trip card shadow, grid layout, and `.card-arrow` count was `0`.
+- `/mypage`: `.prototype-profile-hero-card` computed white background, `border-top-color: rgb(236, 236, 241)`, and `box-shadow: none`; stat/settings cards shared the same border color.
+- Remaining risk: the app still uses one large `app.css` file with older page-specific rules above the final layer. The immediate surface/header/card conflict is stabilized, but a later larger cleanup should split CSS into base tokens, shared components, and page-specific files or clearly separated sections.
+
+## 2026-05-25 CSS architecture cleanup start
+
+- Scope: started the larger CSS cleanup in `frontend/src/styles/app.css` without changing React route or API code.
+- Changed the top of `app.css` to document the intended CSS architecture: tokens, app shells, primitives, legacy page rules, shared final surfaces, and page-specific final rules.
+- Added/used shared tokens for header shadow and remaining trip-card border cleanup so future page overrides do not introduce new hardcoded surface/border values.
+- Added section boundaries for public/auth shells, authenticated app shell, shared primitives, auth screen rules, home screen rules, responsive service navigation, legacy service page rules, shared final surfaces, and final page-specific cleanup rules.
+- Validation status: not run in this step. Next required validation is `docker compose -f compose.yaml up -d --build` plus browser computed-style checks for `/home`, `/policies`, `/trips`, and `/mypage` after user approval.
+- Remaining risk: this pass organizes and tokenizes the large single CSS file, but it does not yet physically split CSS into separate files or remove every older duplicate selector block. That should happen after the current visual baseline is revalidated.
+
+## 2026-05-25 CSS architecture cleanup validation
+
+- Scope: validated the larger CSS architecture cleanup pass after Docker rebuild.
+- Build: `docker compose -f compose.yaml up -d --build` passed. Frontend build ran `npm run typecheck && vite build` and produced `dist/assets/index-DW9U3h0v.css` and `dist/assets/index-DDHmGu4M.js`.
+- Browser target: `http://127.0.0.1:4173` in the in-app browser after seeded-user login.
+- Browser CSS bundle observed: `http://127.0.0.1:4173/assets/index-DW9U3h0v.css`.
+- `/home`: `#root` and `main > section` computed `background-color: rgb(255, 253, 250)`; header computed `background-color: rgb(255, 255, 255)`, `border-bottom-color: rgb(240, 241, 245)`, and subtle header shadow.
+- `/policies`: `.prototype-policy-titlebar` and nested `.prototype-category-tabs` computed `background-color: rgb(255, 255, 255)` and centered alignment; `.prototype-head-pill` remained the red primary button.
+- `/trips`: `.prototype-screen-head` computed `background-color: rgb(255, 253, 250)`; `.itinerary-card` computed white background, `border-top-color: rgb(240, 240, 245)`, trip-card shadow, and grid layout; `.card-arrow` count was `0`.
+- `/mypage`: `.prototype-profile-hero-card` computed white background, `border-top-color: rgb(236, 236, 241)`, and `box-shadow: none`; stat/settings cards shared the same border color.
+- Remaining risk: CSS is now sectioned and tokenized around the recent conflicts, but older duplicate screen rules still exist in the legacy section. The next cleanup should remove or merge duplicate `/trips` and `/policies` blocks one screen at a time with browser checks after each removal.
+
+## 2026-05-25 CSS duplicate-block merge pass
+
+- Scope: continued the larger CSS cleanup in `frontend/src/styles/app.css` by merging duplicate `/trips` and `/policies` rules back into the legacy page sections and reducing the final override layer.
+- `/trips`: removed the older single-column trip-card duplicate block, replaced the remaining trip-list card block with the current left-thumbnail grid card rules, scoped trip emoji/card body/title/delete/meta/tag rules there, and removed the duplicated final trip-card override block.
+- `/trips`: removed trip-list and mypage from the old warm-gradient schedule/mypage background group, leaving that gradient rule for trip create/detail screens only; the trip list screen head now owns its warm paper background directly.
+- `/policies`: promoted the titlebar/category-tabs/favorites-button alignment into the policy list clone section, including the hidden title, grid titlebar, white category tabs, and centered favorites pill; removed the duplicated final policy titlebar override block.
+- Final layer: kept the shared app/header surface layer and the mypage profile-card final rule, but reduced page-specific final overrides for `/trips` and `/policies` because those values now live with their page sections.
+- Validation status: not run in this step. Recommended next check is `docker compose -f compose.yaml up -d --build` followed by browser computed-style checks for `/home`, `/policies`, `/trips`, and `/mypage`.
+- Remaining risk: this pass was structural CSS cleanup. Until rebuild/browser verification runs, treat visual parity as pending.
+
+## 2026-05-25 CSS duplicate-block merge validation
+
+- Scope: validated the `/trips` and `/policies` duplicate CSS block merge after Docker rebuild.
+- First rebuild note: `docker compose -f compose.yaml up -d --build` completed but Vite/esbuild reported one CSS minify warning from a literal `` `r`n `` sequence left by the previous PowerShell replacement.
+- Fix applied: replaced the single literal `` `r`n `` sequence in `frontend/src/styles/app.css` with an actual CRLF newline.
+- Final build: `docker compose -f compose.yaml up -d --build` passed without CSS warnings. Frontend build ran `npm run typecheck && vite build` and produced `dist/assets/index-BzCyCnV0.css` and `dist/assets/index-C94_ehf3.js`.
+- Browser target: `http://127.0.0.1:4173` in the in-app browser after seeded-user login.
+- Browser CSS bundle observed: `http://127.0.0.1:4173/assets/index-BzCyCnV0.css`.
+- `/home`: `#root` and `main > section` computed `background-color: rgb(255, 253, 250)`; service header computed white background, `border-bottom-color: rgb(240, 241, 245)`, and the expected subtle header shadow.
+- `/policies`: `.prototype-policy-titlebar` computed `display: grid`, white background, `border-bottom-color: rgb(240, 241, 245)`, and centered alignment; `.prototype-policy-titlebar h1` count was `0`; nested category tabs were static, white, 58px high; favorites pill remained red and centered.
+- `/trips`: `.prototype-screen-head` computed `rgb(255, 253, 250)`; `.itinerary-card` computed grid layout, `grid-template-columns: 72px 672px`, white background, `border-top-color: rgb(240, 240, 245)`, and trip-card shadow; `.map-thumb` computed 72px square grid with centered content; `.trip-visual-emoji` computed 32px and translateY(-2px); `.card-arrow` count was `0`.
+- `/mypage`: profile/stat/settings cards retained white background and `border-top-color: rgb(236, 236, 241)`; profile hero retained `box-shadow: none`.
+- Remaining risk: `/trips` and `/policies` active final overrides were merged into their page sections successfully. The next safe cleanup target is the remaining mypage profile-card final rule and any older unused selector groups outside the verified screens, one screen at a time.
+
+## 2026-05-25 CSS mypage final-rule merge
+
+- Scope: moved the remaining `/mypage` profile hero card final override back into the mypage page section in `frontend/src/styles/app.css`.
+- Change: the first `.prototype-profile-hero-card` rule now owns `border: 1px solid var(--border-card)`, `background: var(--surface-card)`, and `box-shadow: var(--shadow-none)` directly.
+- Change: removed the duplicated `.prototype-profile-hero-card` block from the final override layer, further reducing the final section to shared app/header surface rules.
+- Cleanup boundary: did not blindly remove selector groups outside the recently verified `/home`, `/policies`, `/trips`, and `/mypage` screens. Those should be removed screen-by-screen after opening their route and confirming the selector is not used.
+- Next safe removal candidates: old screen-specific groups for policy detail, trip create/detail, applied policies, auth/profile setup, and any preview/prototype-only selectors that do not appear in the current rendered DOM.
+- Validation status: not run after this patch. Recommended next check is `docker compose -f compose.yaml up -d --build` plus browser computed-style checks for `/home`, `/policies`, `/trips`, and `/mypage`.
+
+## 2026-05-25 CSS mypage merge and policy-detail cleanup validation
+
+- Scope: validated the `/mypage` profile hero merge and then removed one old duplicate `/policy detail` CSS block from `frontend/src/styles/app.css`.
+- First build after `/mypage` merge: `docker compose -f compose.yaml up -d --build` passed. Frontend build ran `npm run typecheck && vite build` and produced `dist/assets/index-Dkw8mLWG.css` and `dist/assets/index-CUbo347J.js`.
+- Browser verification after `/mypage` merge used `http://127.0.0.1:4173/assets/index-Dkw8mLWG.css` after seeded-user login.
+- `/home`: root/header/screen surface values remained warm paper and white header.
+- `/policies`: titlebar remained grid, white, centered; category tabs remained static/white/58px; favorites pill remained red.
+- `/trips`: trip list head remained warm paper; itinerary cards remained left-thumbnail grid with white card, trip-card border, and no `.card-arrow` elements.
+- `/mypage`: `.prototype-profile-hero-card` computed white background, `border-top-color: rgb(236, 236, 241)`, and `box-shadow: none`, proving the final override merge did not break the profile card.
+- Cleanup applied: removed the older short `.prototype-policy-detail-screen` detail block that preceded the current `Prototype policy detail clone pass`. The current policy detail clone pass remains the source of truth for that screen.
+- Second build after policy-detail cleanup: `docker compose -f compose.yaml up -d --build` passed. Frontend build ran `npm run typecheck && vite build` and produced `dist/assets/index-DwgzubkL.css` and `dist/assets/index-ChOpPFZL.js`.
+- Browser verification after policy-detail cleanup used `http://127.0.0.1:4173/assets/index-DwgzubkL.css`.
+- `/policies/dgtour-%EB%B0%80%EC%96%91-1`: `.prototype-policy-detail-screen` rendered with warm paper background; `.hero` remained 240px high with the expected travel-mood gradient and no shadow; `.title-block`, `.section-block`, and `.sticky-cta` remained present with expected computed styles.
+- Remaining risk: policy detail old duplicate block removal is verified. The next screen-by-screen cleanup target should be `/trips/1` or `/trips/new`, removing only duplicated trip detail/create selectors after capturing their current computed baseline.
+
+## 2026-05-25 CSS trip-detail cleanup validation
+
+- Scope: started the screen-by-screen cleanup for trip detail CSS in `frontend/src/styles/app.css`.
+- Baseline note: requested `/trips/1` currently renders the trip-detail error state (`정보를 불러오지 못했어요`) because the current DB list links to actual trip ids such as `/trips/36`. The active trip-detail visual baseline was captured from `/trips/36`.
+- Cleanup applied: split old mixed create/detail selectors so `.prototype-trip-create-screen` keeps its create-screen rules, removed obsolete early trip-detail duplicate selectors, and restored the current trip-detail rules inside the active trip detail section after verification showed the first removal was too broad.
+- Rebuild after cleanup: `docker compose -f compose.yaml up -d --build` passed. Frontend build ran `npm run typecheck && vite build` and produced `dist/assets/index-DeTrhKW9.css` and `dist/assets/index-CDhzKVGg.js`.
+- Verification issue found: first browser check showed `/trips/36` hero/day-tabs/place-detail had lost the current baseline because the removal touched active selectors too. This was fixed before completion.
+- Rebuild after restore: `docker compose -f compose.yaml up -d --build` passed. Frontend build ran `npm run typecheck && vite build` and produced `dist/assets/index-DAL_Uok_.css` and `dist/assets/index-BrdEortk.js`.
+- Final browser verification used `http://127.0.0.1:4173/assets/index-DAL_Uok_.css`.
+- `/trips`: itinerary cards remained grid with `grid-template-columns: 72px 672px`, white background, trip-card border, and shadow; `.card-arrow` count remained `0`.
+- `/trips/1`: remained the expected error state for the missing trip id, with `.prototype-trip-detail-screen` warm paper background and no detail hero.
+- `/trips/36`: detail page rendered successfully; `.prototype-trip-detail-hero` returned to 200px height/min-height, travel gradient background, no shadow, and white title; `.day-tabs` returned to flex with `14px 16px 12px` padding; `.place-detail` returned to grid with 10px radius and the subtle card shadow; linked policy banner stayed green and grid-based.
+- `/mypage`: profile hero card retained white background, `border-top-color: rgb(236, 236, 241)`, and `box-shadow: none`.
+- Remaining risk: `/trips/new` has not been cleaned in this pass. Next safe pass should capture `/trips/new` baseline first, then remove only duplicated create-screen selectors.
+
+## 2026-05-25 CSS trip-create cleanup validation
+
+- Scope: cleaned the `/trips/new` trip-create CSS after capturing the current rendered baseline.
+- Baseline: `/trips/new` currently renders `.prototype-create-top`, `.prototype-create-progress`, `.prototype-create-content`, `.prototype-create-step-panel`, `.prototype-region-grid`, and `.prototype-create-sticky-actions`. Old create selectors such as `.prototype-trip-create-screen .top-bar`, `.prototype-create-steps`, `.prototype-trip-create-screen .card`, `.prototype-trip-create-screen .page-head`, and `.prototype-trip-create-screen .choice-grid` were absent from the DOM.
+- Cleanup applied: removed the old create-screen selector groups that do not appear in `/trips/new`.
+- First rebuild: `docker compose -f compose.yaml up -d --build` passed and produced `dist/assets/index-C-m-JvkQ.css`, but browser verification found a regression on `/trips`: itinerary cards had fallen back to an older 96px thumbnail layout.
+- Fix applied: restored the current trip-list card geometry in a focused `Trip list current card rules` block near the shared final surface layer because older list-card groups still define legacy card geometry.
+- Final rebuild: `docker compose -f compose.yaml up -d --build` passed. Frontend build ran `npm run typecheck && vite build` and produced `dist/assets/index-DMyK0aYw.css` and `dist/assets/index-Ck0Ur1DX.js`.
+- Final browser verification used `http://127.0.0.1:4173/assets/index-DMyK0aYw.css`.
+- `/trips/new`: create screen kept warm paper background, `.prototype-create-top` grid header, 3px progress bar, flex content, region grid, active region button styling, and sticky action button; old create selector counts were all `0`.
+- `/trips`: itinerary cards returned to grid layout with `72px` thumbnail column, white background, `rgb(240, 240, 245)` border, current trip-card shadow, 72px centered map thumb, and `.card-arrow` count `0`.
+- `/mypage`: profile hero card retained white background, `border-top-color: rgb(236, 236, 241)`, and `box-shadow: none`.
+- Remaining risk: trip-list current card rules are intentionally kept near the final layer as a regression guard. A future deeper cleanup should remove or rewrite the older generic list-card group that still tries to impose legacy trip-card geometry, then move the trip-list guard back into the main trip-list section.
+
+## 2026-05-25 /trips legacy list-card guard cleanup
+
+- Scope: narrowed the old generic card group so `.prototype-trip-list-screen .itinerary-card` is no longer styled by the legacy policy/mypage list-card rule.
+- Scope: moved the current `/trips` card rules out of the final override guard area and into the trip list screen section.
+- Validation: `docker compose -f compose.yaml build` passed; frontend build emitted `dist/assets/index-B_Mx3ric.css` and `dist/assets/index-DQHDbNzK.js`.
+- Browser validation: `/trips` computed first card as `display: grid`, `grid-template-columns: 72px 596px`, `border-radius: 26px`, `border-color: rgb(240, 240, 245)`, thumbnail `72px` by `72px`, and `.card-arrow` count `0`.
+- Browser validation: `/trips/new` kept `screenBackground: rgb(255, 253, 250)`, `contentDisplay: flex`, `regionGridDisplay: grid`, and removed legacy create selectors remained at count `0`.
+- Browser validation: `/mypage` profile hero stayed `background: rgb(255, 255, 255)`, `border-color: rgb(236, 236, 241)`, `box-shadow: none`.
+- Remaining risk: additional old generic selector groups may still exist for policy/mypage legacy surfaces, but `/trips` list no longer depends on a final-layer repair guard for the 72px thumbnail layout.
+
+## 2026-05-25 /policies policy-list-card CSS selector fix
+
+- Scope: replaced the broken policy list styling path with current DOM selectors: `.policy-list-card`, `.policy-list-card-link`, `.policy-list-icon`, `.policy-list-copy`, `.policy-list-taxonomy`, `.policy-list-badges`, `.policy-list-meta`, and `.policy-list-heart`.
+- Scope: removed obsolete `/policies` `.list-card`, `.thumb-row`, and `.square-thumb` styling from the active policy list section; mypage `.card` styling remains scoped separately.
+- Validation: `docker compose -f compose.yaml build` passed; frontend build emitted `dist/assets/index-BpsIxYZK.css` and `dist/assets/index-Ii3jeSNZ.js`.
+- Deployment validation: `docker compose -f compose.yaml up -d` recreated backend and frontend containers successfully.
+- Browser validation: `/policies` loaded `http://127.0.0.1:4173/assets/index-BpsIxYZK.css`.
+- Browser validation: `/policies` found 71 `.policy-list-card`, 71 `.policy-list-icon`, 71 `.policy-list-heart`, and 0 legacy `.list-card` / `.square-thumb` nodes in the policy list.
+- Browser validation: first policy card computed `position: relative`, `border-radius: 18px`, `border-color: rgb(240, 240, 245)`, `box-shadow: rgba(23, 23, 40, 0.06) 0px 8px 22px 0px`.
+- Browser validation: first policy link computed `display: grid`, `grid-template-columns: 64px 542px 44px`, `min-height: 118px`, `padding: 16px`.
+- Browser validation: first policy icon computed `display: grid`, `width: 64px`, `height: 64px`, `place-items: center`, `border-radius: 18px`, `font-size: 28px`.
+- Remaining risk: old `.list-card` / `.square-thumb` selectors still exist elsewhere in the stylesheet for other legacy surfaces, but they no longer target actual `/policies` list DOM.
+
+## 2026-05-25 legacy list-card/square-thumb CSS removal
+
+- Scope: removed unused global legacy selectors `.list-card`, `.list-card h3`, `.square-thumb`, and `.thumb-row` from `frontend/src/styles/app.css`.
+- Scope: removed `.thumb-row` from the shared flex helper selector group and `.square-thumb` from the visual tile helper group.
+- Evidence before edit: source search found `.list-card`, `.square-thumb`, and `.thumb-row` only in `frontend/src/styles/app.css`; no TSX/JSX usage remained in `frontend/src`.
+- Validation: not run in this step because the request was cleanup start only and no rebuild/browser validation was explicitly requested.
+- Remaining risk: global legacy itinerary selectors such as `.itinerary-card`, `.map-thumb`, `.itinerary-body`, and `.card-arrow` still exist and should be audited separately because active trip screens have more specific scoped replacements.
+
+## 2026-05-25 global itinerary legacy selector cleanup
+
+- Pre-cleanup validation: `docker compose -f compose.yaml build` and `docker compose -f compose.yaml up -d` passed after the previous `.list-card` / `.square-thumb` removal; frontend served `index-CfFmL-8g.css`.
+- Pre-cleanup browser validation: `/policies` kept 71 `.policy-list-card` nodes, 0 legacy `.list-card` / `.square-thumb` nodes, card radius `18px`, link display `grid`, and icon size `64px x 64px`.
+- Pre-cleanup browser validation: `/trips` kept 31 `.itinerary-card` nodes, 0 `.card-arrow` nodes, grid `72px 596px`, card radius `26px`, and thumbnail `72px x 72px`.
+- Scope: removed global legacy itinerary selectors from `frontend/src/styles/app.css`: `.itinerary-card`, `.map-thumb`, `.itinerary-body`, `.itinerary-head`, `.itinerary-title-link`, `.itinerary-actions`, `.card-arrow`, global `.trip-delete-btn`, and related global `.itinerary-card` media references.
+- Scope: kept current `/trips` styling under `.prototype-trip-list-screen ...` selectors and moved `.trip-delete-btn:disabled` state into that scoped area.
+- Validation: `docker compose -f compose.yaml build` and `docker compose -f compose.yaml up -d` passed; frontend build emitted `dist/assets/index-B-uPNhuE.css` and `dist/assets/index-rt1Oh--Q.js`.
+- Browser validation: `/trips` loaded `index-B-uPNhuE.css`; global selector counts were `.itinerary-card: 0`, `.map-thumb: 0`, `.itinerary-body: 0`, `.card-arrow: 0`; scoped selector counts were `1` each for `.prototype-trip-list-screen .itinerary-card`, `.map-thumb`, `.itinerary-body`, `.card-arrow`.
+- Browser validation: `/trips` first card computed `display: grid`, `grid-template-columns: 72px 596px`, `margin-bottom: 0px`, `border-radius: 26px`, `border-color: rgb(240, 240, 245)`, thumbnail `72px x 72px`, body `display: grid`, head `display: flex`, delete button `min-width: 34px`, `min-height: 28px`, `border-radius: 999px`.
+- Browser validation: `/policies` still had 71 `.policy-list-card` nodes, card radius `18px`, link display `grid`, and 0 legacy `.list-card` nodes.
+- Browser validation: `/mypage` profile hero stayed `background: rgb(255, 255, 255)`, `border-color: rgb(236, 236, 241)`, `box-shadow: none`.
+- Remaining risk: other broad global component selectors in the legacy service section may still overlap with scoped screen rules; next safe target is auditing `.result-card`, `.result-photo`, `.policy-mini`, and generic `.hero`/`.sticky-cta` only where active screens have scoped replacements.
+
+## 2026-05-25 active-screen CSS risk cleanup
+
+- Scope: implemented the active-screen CSS risk cleanup plan without backend/API/route/type changes.
+- Scope: removed CSS-only legacy home rail selectors with no active TSX usage: `.policy-mini`, `.policy-mini-top`, `.place-card`, and `.visual-tile`.
+- Scope: removed or scoped legacy/global detail selectors that were already covered by active screen rules: `.hero`, `.hero-label`, `.detail-body`, `.section-block h3`, `.sticky-cta`, `.trip-summary`, `.benefit-banner`, `.map-large`, `.day-tabs`, `.timeline`, `.benefit-banner-icon`, `.benefit-banner-arrow`, and `.timeline-marker`.
+- Scope: kept active AI result selectors `.result-card` and `.result-photo` because `/trips/:id` AI recommendation result cards still use them and no scoped replacement exists.
+- Scope: kept broad utility selectors such as `.btn`, `.tag`, `.meta`, `.row`, `.stack`, and `.content` unchanged.
+- Validation: `docker compose -f compose.yaml build` passed and emitted `dist/assets/index-D-Hm2Htu.css` and `dist/assets/index-BLzfoDMt.js`; `docker compose -f compose.yaml up -d` recreated backend/frontend containers successfully.
+- Browser validation: CSS selector counts on the served app were `0` for global `.hero`, `.detail-body`, `.sticky-cta`, `.trip-summary`, `.benefit-banner`, `.map-large`, `.day-tabs`, `.timeline`, `.policy-mini`, `.place-card`, `.visual-tile`, `.benefit-banner-icon`, and `.timeline-marker`; scoped counts remained present for policy and trip detail selectors.
+- Browser validation: `/home` loaded `index-D-Hm2Htu.css`, hero radius stayed `16px`, policy card display stayed `grid`, and AI card display stayed `block`.
+- Browser validation: `/policies` kept 71 `.policy-list-card` nodes, link display `grid`, grid `64px 542px 44px`, icon `64px x 64px`, heart display `grid`, and legacy `.list-card` count `0`.
+- Browser validation: `/policies/:slug` kept hero `240px`, detail body display `block`, body padding `20px 16px 112px`, sticky CTA position `sticky`, bottom `72px`, and section divider `rgb(236, 236, 241)`.
+- Browser validation: `/trips` kept 31 cards, `.card-arrow` count `0`, card grid `72px 596px`, and thumbnail `72px x 72px`.
+- Browser validation: `/trips/new` kept warm paper background `rgb(255, 253, 250)`, content display `flex`, and panel radius `0px`.
+- Browser validation: `/trips/36` kept hero `200px`, summary padding `14px 16px`, day tabs display `flex`, timeline display `block`, timeline margin-bottom `16px`, place grid `34px 531.5px 84.5px`, and timeline marker display `flex`.
+- Browser validation: `/mypage` profile hero stayed `background: rgb(255, 255, 255)`, `border-color: rgb(236, 236, 241)`, `box-shadow: none`.
+- Browser validation: `/applied-policies` content display stayed `grid`, with 1 applied policy card and card display `grid`.
+- Browser validation: `/login`, `/signup`, and `/forgot-password` at 360px viewport had form width `312px` and no horizontal overflow.
+- Remaining risk: `.result-card` / `.result-photo` remain global by design for active AI recommendation results. Other editor-adjacent globals such as `.marker`, `.time`, and `.place-detail` are outside this cleanup pass and should only be touched if scoped replacements are added and verified.
+
+## 2026-05-25 /policies titlebar and filter row alignment
+
+- Scope: aligned `/policies` category tabs and favorite button by adding scoped toolbar rules under `.prototype-policy-list-screen .prototype-policy-titlebar`.
+- Scope: reset `/policies` category tabs from sticky/padded common behavior to static toolbar behavior only within the policy list screen.
+- Scope: styled `.prototype-policy-filter-shell`, `.prototype-policy-filter-row`, and `.prototype-filter-pill` as a second aligned pill row with horizontal scrolling and consistent button sizing.
+- Validation: `docker compose -f compose.yaml build` passed; frontend build emitted `dist/assets/index-BZ506XHH.css` and `dist/assets/index-Tl3fAG0s.js`.
+- Remaining risk: browser visual/computed validation was not run in this step because the explicit request was implementation plus Docker rebuild only.
+
+## 2026-05-26 /policies titlebar and filter row runtime verification
+
+- Deployment validation: `docker compose -f compose.yaml up -d` passed; backend/frontend containers were recreated and started successfully.
+- Browser validation: `/policies` loaded `http://127.0.0.1:4173/assets/index-BZ506XHH.css`.
+- Browser validation: policy toolbar found 7 category tabs, 3 filter pills, and 71 policy cards.
+- Browser validation: scoped CSS rules were present for `.prototype-policy-list-screen .prototype-policy-titlebar`, `.prototype-policy-filter-row`, and `.prototype-filter-pill`.
+- Browser validation: `.prototype-policy-titlebar` computed `display: grid`, `grid-template-columns: 674.469px 87.5312px`, `align-items: center`, `padding-left/right: 24px`, `padding-bottom: 10px`, `background: rgb(255, 255, 255)`.
+- Browser validation: `.prototype-category-tabs` inside `/policies` computed `position: static`, `display: flex`, `gap: 8px`, `padding: 0`, `overflow-x: auto`, `background: transparent`.
+- Browser validation: `.prototype-head-pill` was vertically aligned with the active category tab center and kept `min-height: 34px`, `display: flex`, `white-space: nowrap`.
+- Browser validation: `.prototype-policy-filter-shell` computed `display: grid`, `padding-left/right: 24px`, `padding-bottom: 12px`, `background: rgb(255, 255, 255)`.
+- Browser validation: `.prototype-policy-filter-row` computed `display: flex`, `align-items: center`, `gap: 8px`, `overflow-x: auto`.
+- Browser validation: `.prototype-filter-pill` computed `display: flex`, `min-height: 32px`, `border-radius: 999px`, `font-size: 13px`, `font-weight: 800`.
+- Alignment evidence: category tabs and filter row shared the same left edge (`tabsAndFilterRowLeftDelta: 0`); titlebar and filter shell shared the same left edge; favorite button was aligned with the active tab center.
+- Visual validation: screenshot confirmed category tabs and favorite button are one aligned toolbar row, with the region/period/amount filters as a second aligned pill row above the policy cards.
+- Remaining risk: no functional behavior was changed; only CSS alignment was verified. If a different desktop width is targeted, repeat visual verification at that viewport.
+
+## 2026-05-26 /policies card titlebar visual selection
+
+- Scope: applied the selected option 2 card-style control bar to `/policies` by updating `.prototype-policy-list-screen .prototype-policy-titlebar`.
+- Scope: fixed the category tab top clipping risk by adding top spacing inside a bordered white titlebar card.
+- Scope: changed `.prototype-policy-list-screen .prototype-head-pill` to a soft red favorite CTA that matches the app's red action color without using the heavier solid button style.
+- Validation: `docker compose -f compose.yaml build` passed; frontend build emitted `dist/assets/index-BrUBpPJL.css` and `dist/assets/index-BeWmUQoF.js`.
+- Remaining risk: browser visual/computed validation was not run in this step because the requested action was selection implementation plus Docker rebuild.
+
+## 2026-05-26 /policies narrow titlebar and filter background fix
+
+- Issue confirmed: browser computed styles showed `.prototype-policy-filter-shell` still used `rgb(255, 255, 255)` while the active policy screen background used warm paper `rgb(255, 253, 250)`.
+- Issue confirmed: the card-style `.prototype-policy-titlebar` kept category tabs and the favorite CTA in one grid row at all widths, which can squeeze the category menu on narrow screens.
+- Scope: changed `.prototype-policy-filter-shell` background to transparent so the region/period/amount filter row sits on the same warm paper background as the page.
+- Scope: added a narrow-screen rule under `640px` so the category tabs and favorite CTA stack inside the card titlebar instead of competing for the same row width.
+- Validation: `docker compose -f compose.yaml up -d --build` passed; frontend build emitted `dist/assets/index-CsdDqIub.css` and `dist/assets/index-CBirAECW.js`.
+- Browser validation: `/policies` loaded `http://127.0.0.1:4173/assets/index-CsdDqIub.css`, rendered 7 category tabs, 3 filter pills, and 71 policy cards with no console warnings/errors reported.
+- Browser validation: `.prototype-policy-filter-shell` computed `background: rgba(0, 0, 0, 0)` while `.prototype-policy-list-screen` stayed warm paper `rgb(255, 253, 250)`.
+- Browser validation: the served stylesheet contains both the transparent filter-shell rule and the `@media (max-width: 640px)` narrow titlebar rule.
+- Remaining risk: current in-app browser viewport was wider than the reported narrow screenshot, so the media rule presence was verified from the served CSS rather than a resized mobile viewport screenshot.
+
+## 2026-05-26 /policies toolbar DOM structure cleanup
+
+- Scope: implemented the selected toolbar structure by introducing `.prototype-policy-toolbar` and moving the saved-only button out of `.prototype-policy-titlebar`.
+- Scope: kept `.prototype-policy-titlebar` responsible only for category tabs, and moved filter dropdown panels plus the reset button into `.prototype-policy-filter-panels`.
+- Scope: replaced the previous narrow-screen stacking override with grid-area layout: desktop uses `title | favorite`, mobile uses `favorite | filters` under the category titlebar.
+- Scope: removed the red shadow from `.prototype-head-pill` while keeping the soft red border/background treatment.
+- Scope: hid the titlebar scrollbar because the category card became the horizontal scroll container after the DOM cleanup.
+- Validation: `docker compose -f compose.yaml up -d --build` passed; frontend build emitted `dist/assets/index-C8Zp2Lzb.css` and `dist/assets/index-gzVOndFO.js`.
+- Browser validation: `/policies` loaded `http://127.0.0.1:4173/assets/index-C8Zp2Lzb.css`, rendered 1 toolbar, 7 category tabs, 3 filter pills, and 71 policy cards with no console warnings/errors reported.
+- Browser validation: `.prototype-policy-titlebar > .prototype-head-pill` count was `0`, `.prototype-policy-toolbar > .prototype-head-pill` count was `1`, and the favorite CTA computed `box-shadow: none`.
+- Browser validation: desktop toolbar computed grid areas `"title favorite" "filters filters" "panels panels"`, favorite/titlebar center delta was `0px`, and the filter row was below the titlebar row.
+- Browser validation: saved-only toggle set `?saved=1`, opened `.prototype-policy-filter-panels`, region filter opened `.prototype-region-picker`, and reset returned the URL to `/policies`.
+- Browser validation: a 390px iframe visual check showed the mobile layout with `♥ 즐겨찾기`, `🌎 지역`, `🗓 기간`, and `💰 금액` on the same row below the category titlebar, without the exposed titlebar scrollbar.
+- Remaining risk: mobile was verified visually through a 390px iframe wrapper because the in-app browser tab API does not expose direct viewport resizing.
+
+## 2026-05-26 /policies policy list taxonomy removal
+
+- Scope: removed `.policy-list-taxonomy` from `PolicyListCard` because the category label duplicated the policy icon/category context and made card hierarchy heavier.
+- Scope: removed the matching `.prototype-policy-list-screen .policy-list-taxonomy` CSS block instead of hiding it with an override.
+- Validation: `docker compose -f compose.yaml up -d --build` passed; frontend build emitted `dist/assets/index-D8ZqwiER.css` and `dist/assets/index-8FJ9lbde.js`.
+- Browser validation: `/policies` loaded `http://127.0.0.1:4173/assets/index-D8ZqwiER.css`, rendered 71 policy cards, and `.policy-list-taxonomy` count was `0`.
+- Browser validation: `/policies` card copy retained 71 badge rows, 71 titles, and 71 meta rows; the first card kept badge -> title -> meta vertical order and no horizontal overflow.
+- Browser validation: `/policies/:slug` rendered policy detail hero/title/icon with `.policy-list-taxonomy` count `0`.
+- Browser validation: `/mypage` rendered profile hero, favorite section, and favorite policy thumb with `.policy-list-taxonomy` count `0`.
+- Browser validation: `/trips/36` rendered trip detail hero, day tabs, timeline, and linked policy content with `.policy-list-taxonomy` count `0`.
+- Remaining risk: no API/data behavior changed; this cleanup only removes the duplicated category line from list card presentation.
+
+## 2026-05-26 /home AI chat bubble card implementation
+
+- Scope: replaced the `/home` AI recommendation card visual from the previous map route graphic to the selected AI concierge chat bubble direction.
+- Scope: removed the old city block, route line, and map pin DOM from `HomePage.tsx` and replaced it with one robot avatar, two chat bubbles, and two emoji chips.
+- Scope: replaced the matching map-specific CSS with scoped chat-card presentation rules under `.prototype-home-ai-*`.
+- Validation: `docker compose -f compose.yaml up -d --build` passed; frontend build emitted `dist/assets/index-CoaS7uu8.css` and `dist/assets/index-DZ5R3BRJ.js`.
+- Browser validation: `/home` rendered 1 `.prototype-home-ai-card`, 1 `.prototype-home-ai-chat-avatar`, 2 `.prototype-home-ai-chat-bubble` nodes, and 2 `.prototype-home-ai-emoji-chip` nodes.
+- Browser validation: legacy AI map visual counts were all `0` for `.prototype-home-ai-city-block`, `.prototype-home-ai-route-line`, and `.prototype-home-ai-pin`.
+- Browser validation: the AI card computed `border-radius: 18px`, `border-color: rgb(236, 236, 241)`, visual height `132px`, and no horizontal overflow on the current in-app browser viewport.
+- Remaining risk: direct mobile viewport resizing is not exposed by the in-app browser API, and a local Playwright viewport probe timed out; if a small-screen visual issue is reported, re-check the card at 390px with an external browser/device tool.
+
+## 2026-05-26 /home AI recommendation card componentization
+
+- Scope: created `frontend/src/components/AiRecommendationCard.tsx` so `/home` passes `to`, `title`, `saving`, `detail`, and a `visual` config object instead of owning the full AI card markup.
+- Scope: replaced the `/home` inline AI card JSX with `<AiRecommendationCard />` and moved avatar, headline, subline, and chip data into `aiCardVisual`.
+- Scope: replaced absolute-positioned chip classes with grid/flex layout rules: `.prototype-home-ai-visual` now computes as grid, chat copy is a grid stack, and chips render in `.prototype-home-ai-chat-chips`.
+- Scope: removed the legacy position-specific classes `.prototype-home-ai-emoji-chip`, `.chip-food`, `.chip-hotel`, `.prototype-home-ai-chat-bubble.main`, and `.prototype-home-ai-chat-bubble.sub` from the active source.
+- Validation: `docker compose -f compose.yaml up -d --build` passed; frontend build emitted `dist/assets/index-C-SLn6HN.css` and `dist/assets/index-B0gIhU2O.js`.
+- Browser validation: `/home` loaded `http://127.0.0.1:4173/assets/index-C-SLn6HN.css`, rendered 1 AI card, 1 AI avatar, 2 chat bubbles, 1 primary bubble, 1 secondary bubble, and 2 chat chips.
+- Browser validation: old DOM counts were `0` for `.prototype-home-ai-emoji-chip`, `.chip-food`, `.chip-hotel`, `.prototype-home-ai-chat-bubble.main`, and `.prototype-home-ai-chat-bubble.sub`.
+- Browser validation: `.prototype-home-ai-visual` computed `display: grid`, `grid-template-columns: 64px 672px`, and `position: static`.
+- Browser validation: both emoji chips computed `position: static`, `transform: none`, `opacity: 1`, and `filter: none`, so they are no longer blurred by overlap/rotation layering.
+- Browser validation: current viewport had no horizontal overflow.
+- Remaining risk: the existing file still contains unrelated mojibake Korean text outside the AI card area from previous project state; this task only normalized the AI card copy and structure.
+
+## 2026-05-26 /home AI bottom action dock layout
+
+- Scope: implemented the selected bottom action dock direction for `AiRecommendationCard`.
+- Scope: changed the AI visual structure to a top conversation row plus a centered bottom dock: `.prototype-home-ai-chat-topline` and `.prototype-home-ai-action-dock`.
+- Scope: moved lodging/food chips from a right-aligned chip row into two equal-width dock chips: `🏨 숙소 포함` and `🍜 맛집 포함`.
+- Scope: changed the secondary bubble from muted gray to stronger text color `#27324a` with a white translucent bubble background so it reads as AI guidance, not disabled helper text.
+- Scope: normalized the corrupted `/home` Korean strings in `HomePage.tsx` while keeping existing data flow through `AppDataApi`, `useSession`, and display config helpers.
+- Validation: `docker compose -f compose.yaml up -d --build` passed; frontend build emitted `dist/assets/index-DsKGws4i.css` and `dist/assets/index-CECfsoGZ.js`.
+- Browser validation: `/home` loaded `http://127.0.0.1:4173/assets/index-DsKGws4i.css`, rendered 1 AI card, 1 `.prototype-home-ai-chat-topline`, 1 `.prototype-home-ai-action-dock`, and 2 `.prototype-home-ai-dock-chip` nodes.
+- Browser validation: dock chip texts were `🏨숙소 포함` and `🍜맛집 포함`; old chip containers were `0` for `.prototype-home-ai-chat-chips`, `.prototype-home-ai-chat-chip`, and `.prototype-home-ai-emoji-chip`.
+- Browser validation: `.prototype-home-ai-visual` computed `display: grid` and `min-height: 156px`.
+- Browser validation: `.prototype-home-ai-action-dock` computed `display: grid`, `grid-template-columns: 339px 339px`, and appeared below the top conversation row.
+- Browser validation: secondary bubble text was `혜택까지 반영해서 추천해요`, color computed `rgb(39, 50, 74)`, and background computed `rgba(255, 255, 255, 0.88)`.
+- Browser validation: current viewport had no horizontal overflow.
+- Remaining risk: direct multi-width browser verification at 360/390/430/1024/1440 was not run in this pass; the CSS includes a `max-width: 430px` responsive rule for the dock layout.
+
+## 2026-05-26 red shadow cleanup across active screens
+
+- Scope: removed red-tinted `box-shadow` effects from `frontend/src/styles/app.css`, including the direct `/trips/new` active region/style selector `.prototype-region-grid button.active`.
+- Scope: removed similar red glow/shadow effects from shared controls and visual elements: `.brand-mark`, `.btn.primary`, focused `.field` / `.search-field`, auth logo/brand primary buttons, large avatar, timeline marker, trip visual, and selected map pin dot.
+- Scope: kept red border/background/color state where used for active/selected meaning, but removed the `box-shadow` glow layer.
+- Source validation: `rg` for red `box-shadow` values in `frontend/src/styles/app.css` returned no matches after cleanup.
+- Validation: `docker compose -f compose.yaml up -d --build` passed; frontend build emitted `dist/assets/index-BnHVNf9S.css` and `dist/assets/index-BQMkY0nn.js`.
+- Browser validation: `/trips/new` loaded the new CSS asset and computed `box-shadow: none` for both `.prototype-region-grid button.active` and `.prototype-style-choice .prototype-region-grid button.active`.
+- Browser validation: computed red shadow scan returned `0` hits on `/home`, `/policies`, `/policies/dgtour-%EB%B0%80%EC%96%91-1`, `/trips`, `/trips/new`, `/trips/36`, `/mypage`, `/applied-policies`, `/login`, `/signup`, and `/forgot-password`.
+- Browser validation: all checked routes reported no horizontal overflow in the current browser viewport.
+- Remaining risk: the scan detects red values in computed `box-shadow`; it does not remove red fills, borders, text colors, or non-shadow design states.
+## 2026-05-26 /trips detail balanced dual CTA bar
+
+- Scope: implemented the selected balanced dual CTA bar on trip detail list timeline actions.
+- Scope: replaced the direct `.timeline > button` and `.timeline > a.btn.secondary.full` placement with `.prototype-trip-action-row` containing `.prototype-trip-action-add` and `.prototype-trip-action-ai`.
+- Scope: aligned both actions to the same row with `grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr)`, matching the selected wireframe where AI recommendation remains the wider primary action.
+- Scope: standardized action height, radius, font weight, and no-shadow styling; the add action is neutral and the AI action uses soft red fill/border without red shadow.
+- Validation: `docker compose -f compose.yaml up -d --build` passed; frontend build emitted `dist/assets/index-BGdARVth.css` and `dist/assets/index-DPBjVewX.js`.
+- Browser validation: `/trips/36` loaded the new CSS asset and rendered 1 `.prototype-trip-action-row`, 1 `.prototype-trip-action-add`, and 1 `.prototype-trip-action-ai`.
+- Browser validation: legacy direct placements were removed: `.prototype-trip-detail-screen .timeline > button` count `0` and `.prototype-trip-detail-screen .timeline > a.btn.secondary.full` count `0`.
+- Browser validation: action row computed `display: grid`, `grid-template-columns: 289px 391px`, `gap: 8px`, and `margin-left: 40px`.
+- Browser validation: add and AI actions both computed height `42px`, top `924px`, border-radius `14px`, and `box-shadow: none`; the AI action was wider than the add action.
+- Browser validation: current viewport had no horizontal overflow.
+- Remaining risk: this pass verified `/trips/36` at the current browser width only; CSS includes a `max-width: 430px` rule for smaller screens.
+## 2026-05-26 - Policy detail sticky CTA background
+- Scope: `/policies/:slug` sticky CTA background fix in `frontend/src/styles/app.css`.
+- Root cause: `.prototype-policy-detail-screen .sticky-cta` used `color-mix(... var(--color-bg-card) 94%, transparent)`, which computed to a nearly transparent white layer and visually failed against the policy detail cream surface.
+- Change: Replaced the CTA background with `var(--surface-app)` so it matches the active app surface token directly.
+- Validation: `docker compose -f compose.yaml up -d --build` passed; frontend build emitted `/assets/index-BDD76s0w.css`.
+- Browser validation: `/policies/dgtour-%EB%B0%80%EC%96%91-1` computed `.sticky-cta` background as `rgb(255, 253, 250)`, sticky count `1`, position `sticky`, bottom `72px`.
+- Remaining risk: None specific to this selector; no global `.sticky-cta` rule was changed.
+
+## 2026-05-26 - AI trip region selection wizard spec
+- Scope: Documented the AI itinerary wizard region-selection UX as a travel-area based flow.
+- Spec: `docs/superpowers/specs/2026-05-26-ai-trip-region-selection-wizard-design.md`.
+- Decision: Broad regions such as 강원/전남/경남 should not directly generate itineraries; they should lead to a narrower travel-area selection such as 속초·고성·양양 or 여수·순천.
+- Validation: Not run. This was a spec-only documentation step with no code or API changes.
+- Remaining risk: Implementation still needs to confirm the current `/api/recommendations/regions` response shape and `/trips/new?region=...` parameter semantics before code changes.
+
+## 2026-05-26 - AI trip travel-area API decision
+- Scope: Updated the AI itinerary region-selection spec with the API boundary decision.
+- Decision: Keep `GET /api/recommendations/regions` as the existing policy-backed region ranking API.
+- Decision: Add a separate travel-area recommendation API for the AI itinerary wizard instead of changing the existing endpoint semantics.
+- Decision: Add `travelAreaId` to `/trips/new` as the primary itinerary creation query, while preserving the existing `region` query for backward compatibility.
+- Validation: Not run. This was a spec-only documentation step with no code or API changes.
+- Remaining risk: The implementation plan still needs to define the exact route name, backend data source, and frontend fallback mapping for legacy `region` links.
+
+## 2026-05-26 - `/trips/new?region` current implementation finding
+- Scope: Documented how the current trip creation route consumes `region` before adding `travelAreaId`.
+- Finding: `ItineraryCreatePage` reads `region` from query only if it exists in `tripCreateRegions`, stores it in component state/draft/profile, and sends it as `CreateTripRequest.region` through `AppDataApi.createTrip()`.
+- Finding: Backend `CreateTripRequest` currently has no `travelAreaId`; `trip_service.create_trip()` stores `region` on the trip and passes the same value into `itinerary_recommendations.generate_auto_course(region=...)`.
+- Finding: Auto course generation selects catalog candidates by exact `item.region == region`, so `travelAreaId` cannot be frontend-only if itinerary quality should change.
+- Decision impact: `travelAreaId` should be added across frontend query/state/draft, API boundary, backend schema/service, and auto-course resolution while preserving legacy `region` links.
+- Validation: Not run. This was a code-reading/spec documentation step only.
+- Remaining risk: Need to decide whether the trip DB keeps only `region` plus resolved display name, or stores `travel_area_id` in a schema migration.
+
+## 2026-05-26 - AI trip travel-area storage and source-of-truth decision
+- Scope: Updated the AI itinerary region-selection spec with the storage and catalog ownership decision.
+- Decision: Add nullable `trips.travel_area_id` in v1 instead of keeping `travelAreaId` frontend-only.
+- Decision: Keep `trips.region` as the human-readable travel-area display name, for example `Sokcho-Goseong-Yangyang`, while `travel_area_id` remains the stable system identifier.
+- Decision: Use `backend/app/data/travel_areas.py` as the v1 source of truth; frontend must consume travel-area data through API rather than duplicating the catalog.
+- Decision: Do not create a normalized `travel_areas` DB table in v1; defer table/admin management until the catalog needs runtime operations.
+- Validation: Not run. This was a spec-only documentation step with no code/API/schema changes.
+- Remaining risk: The implementation plan must define the exact Alembic migration, API response schema, and legacy `region` fallback behavior.
+
+## 2026-05-26 - AI travel-area test scope expansion
+- Scope: Expanded the AI itinerary region-selection spec so travel-area API tests are not Gangwon-only.
+- Decision: v1 test coverage must include single-city areas, special island areas, broad provinces, duplicate place names, and weak-policy-data regions.
+- Added coverage: `sido` tests for Gangwon, Jeonnam, Gyeongnam, Gyeongbuk, Jeju, Busan, Seoul, and unsupported regions.
+- Added coverage: search tests for Sokcho, Yeosu, Tongyeong, Gyeongju, Jeju, duplicate Goseong, and no-match queries.
+- Added coverage: nationwide recommendation and policy scoring tests that verify catalog fallback and prevent nationwide policies from over-inflating every area.
+- Validation: Not run. This was a spec-only documentation update.
+- Remaining risk: Korean text in this checklist file has existing encoding issues in older entries; this entry is ASCII-focused to avoid adding more mojibake.
+
+## 2026-05-26 - travel-area API detail design
+- Scope: Added detailed API design for `GET /api/recommendations/travel-areas` to the AI itinerary region-selection spec.
+- Decision: Use one structured endpoint supporting `sido`, `query`, `mode=nationwide`, `style`, and `limit` instead of separate endpoints.
+- Decision: Request priority is `query > sido > mode=nationwide > default nationwide`; when `query` and `sido` are both present, `sido` limits the search scope.
+- Decision: Response includes `mode`, `sido`, `query`, `items`, and `emptyReason`, with each item carrying `travelAreaId`, display name, included cities, tags, reason, policy counts, estimated value, and score.
+- Decision: Policy scoring prioritizes city matches, then sido matches, deadline/value/style, with nationwide policies included but low-weighted to avoid over-inflating all areas.
+- Validation: Not run. This was a spec-only documentation update.
+- Remaining risk: Implementation plan must map existing `ExternalSourceRecord` fields into city/sido/nationwide counts deterministically.
+
+## 2026-05-26 - TravelArea catalog design
+- Scope: Added the v1 `backend/app/data/travel_areas.py` catalog design to the AI itinerary region-selection spec.
+- Decision: `TravelArea` fields are `id`, `name`, `sido`, `included_cities`, `aliases`, `tags`, `styles`, `summary`, and `priority`.
+- Decision: v1 starts with about 31 nationwide representative travel areas rather than all Korean cities/counties.
+- Decision: Search checks id, name, sido, included cities, aliases, tags, and styles with exact matches ranked before partial/tag/style matches.
+- Decision: Separate user-facing `tags` from scoring-oriented `styles`; v1 style taxonomy is sea, mountain, history, food, healing, activity, family, photo, city, and island.
+- Decision: Duplicate place names such as Goseong return multiple travel areas and the UI should show `sido` plus included cities for disambiguation.
+- Validation: Not run. This was a spec-only documentation update.
+- Remaining risk: The implementation plan needs to translate the Korean catalog into deterministic Python data while preserving UTF-8 encoding.
+
+## 2026-05-26 - AI travel-area wizard implementation plan
+- Scope: Wrote the implementation plan for the travel-area based AI itinerary wizard.
+- Plan: `docs/superpowers/plans/2026-05-26-ai-trip-travel-area-wizard.md`.
+- Contents: backend catalog/service/API tests, trip `travel_area_id` persistence, frontend AppDataApi boundary, `/trips/new` Wizard changes, contract updates, validation checklist.
+- Validation: Not run. This was a plan-only documentation step with no production code changes.
+- Remaining risk: Plan execution will require careful UTF-8 handling for Korean catalog data and may need adjustment to the existing frontend test mock structure.
+
+## 2026-05-26 - Wave 1 docs contract draft
+- Scope: Added a travel-area itinerary API addendum to `docs/mvp-api-contract.md` while Wave 1 code agents run in parallel.
+- Contract: Documents `GET /api/recommendations/travel-areas`, request priority, response shape, empty reasons, and `POST /api/trips.travelAreaId` behavior.
+- Validation: Not run yet. This is a documentation draft; final validation belongs to Wave 3.
+- Remaining risk: The addendum may need to be moved into the canonical Korean section after implementation stabilizes, because older content in the contract file already contains encoding-damaged text.
+
+## 2026-05-26 - AI travel-area wizard Wave 1 integration
+- Scope: Integrated Wave 1 parallel work for backend travel-area API, trip `travel_area_id` persistence, frontend AppDataApi boundary, and contract draft.
+- Backend validation: `cd backend; python -m pytest tests/test_travel_areas.py tests/test_travel_area_recommendation_routes.py tests/test_trip_db_service.py -q` passed with `54 passed, 1 warning`.
+- Frontend validation: `cd frontend; npm run typecheck` passed.
+- Notes: Pytest emitted a cache write warning under `backend/.pytest_cache`, but tests passed.
+- Remaining risk: Wave 2 still needs `/trips/new` UI integration and itinerary catalog support before end-to-end validation.
+
+## 2026-05-26 Travel area wizard parallel implementation
+
+- Implemented travel-area API/data source, trip `travelAreaId` persistence, frontend API boundary, `/trips/new` travel-area wizard UI, and itinerary catalog support.
+- Cleaned `backend/app/data/itinerary_catalog.py` to remove mojibake catalog rows and restore legacy 제주/부산 auto-course expectations while adding v1 travel-area catalog entries.
+- Updated stale frontend App assertions for the current trip detail action button, home search copy, and emoji profile badge.
+- Validation:
+  - `cd backend; python -m pytest tests/test_travel_areas.py tests/test_travel_area_recommendation_routes.py tests/test_itinerary_recommendations.py tests/test_trip_db_service.py -q` => PASS, 60 passed.
+  - `cd frontend; npm run typecheck` => PASS.
+  - `cd frontend; npm test -- --run src/App.test.tsx` => PASS, 105 passed.
+  - `docker compose -f compose.yaml up -d --build` => PASS, backend/frontend rebuilt and started, backend healthy.
+  - Browser smoke: `/home`, `/trips/new?region=강원`, `/trips/new?travelAreaId=gangwon-sokcho-goseong-yangyang`, `/trips`, `/mypage` => PASS.
+- Browser smoke details:
+  - `/trips/new?region=강원`: 권역 선택 제목 표시, `속초·고성·양양` 포함, `.prototype-travel-area-card` count 4.
+  - `/trips/new?travelAreaId=gangwon-sokcho-goseong-yangyang`: `속초·고성·양양` 표시, active travel-area card count 1, invalid status 없음.
+- Remaining risk:
+  - App tests use a shared backend-backed test database; stateful saved-policy tests now explicitly clear the target policy before asserting save behavior.
+  - The v1 itinerary catalog is still static source data and should be expanded independently from API contract changes when more 권역 coverage is needed.
+
+## 2026-05-26 /trips/new travel-area UX continuity
+
+- Wrote the work spec: `docs/superpowers/specs/2026-05-26-trips-new-travel-area-ux-continuity-design.md`.
+- Wrote the implementation plan: `docs/superpowers/plans/2026-05-26-trips-new-travel-area-ux-continuity.md`.
+- Patched `/trips/new` so region selection clears stale `travelAreaId` query state, and travel-area selection syncs `region` + `travelAreaId` into the URL while preserving draft behavior.
+- Added App tests for travel-area draft restore and direct `travelAreaId` -> normal region switching.
+- Validation not run in this pass because the user asked to start the patch but did not request verification.
+- Suggested validation when requested:
+  - `cd frontend; npm run typecheck`
+  - `cd frontend; npm test -- --run src/App.test.tsx -t travel-area`
+
+## 2026-05-26 - /trips/new travel-area UX continuity validation
+
+- Frontend typecheck: PASS (`cd frontend; npm run typecheck`).
+- Travel-area related App tests: PASS (`cd frontend; npm test -- --run src/App.test.tsx -t travel`, 6 passed, 101 skipped).
+- Docker rebuild/restart: PASS (`docker compose -f compose.yaml up -d --build`).
+- Remaining risk: no browser smoke was requested in this pass; UI-level confirmation for `/trips/new` can be run separately if needed.
+## 2026-05-26 - /trips/new primary region first and course preference later
+
+- Implementation: IN PROGRESS.
+- Changed first step to broad/representative region selection and removed the course preference block from the first screen.
+- Moved course preference to the new second step, shifting date selection to step 3 and title/create confirmation to step 4.
+- Added/updated App tests for first-screen responsibility, course preference placement, and 4-step create flow expectations.
+- Validation: not run in this pass because the user asked to start implementation, not to run checks.
+- Remaining risk: run `cd frontend; npm run typecheck` and focused `App.test.tsx` checks before treating this as complete.
+## 2026-05-26 - /trips/new 4-step flow follow-up
+
+- Implementation: updated remaining create-flow test patterns that still moved from destination to title/create with only two `다음` clicks.
+- Plan tracking: marked implemented plan steps as completed; validation steps remain unchecked.
+- Validation: not run in this pass. Required before completion: `cd frontend; npm run typecheck`, `cd frontend; npm test -- --run src/App.test.tsx -t travel`, and browser smoke for `/trips/new`.
+## 2026-05-26 - /trips/new 4-step flow click normalization
+
+- Implementation: normalized `/trips/new` App test create-flow navigation so full create paths use at most three `다음` clicks before `일정 만들기`.
+- Validation: not run in this pass. Still required before completion: frontend typecheck and focused App tests.
+## 2026-05-26 - /trips/new primary region travelAreaId convergence
+
+- Implementation: changed all primary first-step regions to require travel-area convergence through `tripCreatePrimaryRegionValues`.
+- Implementation: added single-candidate auto-selection so representative regions such as `부산` can resolve to `busan-all` without an extra redundant click.
+- Tests: updated stale direct `travelAreaId` switching coverage so changing to `부산` now expects `region: "부산 전체"` and `travelAreaId: "busan-all"`.
+- Validation: not run in this pass. Required before completion: frontend typecheck and focused App tests.
+## 2026-05-26 - /trips/new direct travelAreaId requery guard
+
+- Implementation: added a guard so an already resolved direct `travelAreaId` does not trigger a duplicate query after `selectedTravelArea` is applied.
+- Implementation: kept the existing travel-area recommendations visible when the direct `travelAreaId` is already resolved, instead of clearing the card list.
+- Validation: not run in this pass. Required before completion: frontend typecheck and focused App tests.
+## 2026-05-26 - /trips/new default primary region convergence
+
+- Implementation: default `/trips/new` entry now uses the initial selected region as a travel-area query source when it is one of the primary regions.
+- Reason: without this, a user could enter with profile region `부산` and proceed as a plain region-only trip, bypassing the intended `travelAreaId` convergence.
+- Validation: not run in this pass. Required before completion: frontend typecheck and focused App tests.
+## 2026-05-26 - /trips/new default primary region regression test
+
+- Tests: added App test coverage that default `/trips/new` entry resolves the profile default primary region `부산` through travel-area recommendations and auto-selects `부산 전체`.
+- Validation: not run in this pass. Required before completion: frontend typecheck and focused App tests.
+## 2026-05-26 - /trips/new legacy city region query convergence
+
+- Implementation: added `travelAreaChoiceQuery` so legacy city-like `region` query values such as `경주` and `강릉` use travel-area search instead of plain region-only creation.
+- Tests: added App coverage for `/trips/new?region=경주` resolving through `listTravelAreaRecommendations({ query: "경주" })` and auto-selecting the returned travel area.
+- Validation: not run in this pass. Required before completion: frontend typecheck and focused App tests.
+## 2026-05-26 - /trips/new restored travel-area query cleanup
+
+- Implementation: when a travel area is restored from draft, `travelAreaChoiceQuery` is cleared so the restored `travelAreaId` state remains authoritative.
+- Reason: prevents legacy query state from surviving after a concrete travel-area has been restored.
+- Validation: not run in this pass. Required before completion: frontend typecheck and focused App tests.
+## 2026-05-26 - /trips/new selected travel-area requery suppression
+
+- Implementation: once `selectedTravelArea` is set, the travel-area loading effect no longer issues another `sido` or legacy query request until the user changes the primary region.
+- Reason: prevents duplicate recommendation calls and candidate-list flicker after auto-selecting a single-candidate region such as `부산 전체`.
+- Validation: not run in this pass. Required before completion: frontend typecheck and focused App tests.
+## 2026-05-26 - /trips/new restored travel-area list hydration
+
+- Implementation: refined the duplicate-query guard so a restored `selectedTravelArea` only suppresses fetching when the current recommendation list already contains that selected area.
+- Reason: draft restore can have a selected travel area but an empty candidate list; in that case the list still needs to hydrate from `sido` so the active card remains visible.
+- Safety: kept `travelAreaRecommendations` out of the effect dependency list to avoid repeated empty-list state updates when no query is available.
+- Validation: not run in this pass. Required before completion: frontend typecheck and focused App tests.
+## 2026-05-26 - /trips/new stale restored travel-area recovery
+
+- Implementation: when a restored or previously selected travel area is no longer present in the hydrated recommendation response, the flow now recovers instead of repeatedly querying.
+- Behavior: if the response has one candidate, it auto-selects that candidate; if it has multiple candidates, it clears the stale selected travel area so the user must choose again.
+- Validation: not run in this pass. Required before completion: frontend typecheck and focused App tests.
+## 2026-05-26 - /trips/new Sokcho legacy destination query
+
+- Implementation: allowed `region=속초` as a legacy travel-area search query so existing home destination links can still resolve into a concrete travel area.
+- Tests: added App coverage for `/trips/new?region=속초` calling `listTravelAreaRecommendations({ query: "속초" })` and auto-selecting `속초·고성·양양`.
+- Validation: not run in this pass. Required before completion: frontend typecheck and focused App tests.
+## 2026-05-26 - /trips/new Gangneung legacy destination query
+
+- Tests: added App coverage for `/trips/new?region=강릉` resolving through `listTravelAreaRecommendations({ query: "강릉" })` and auto-selecting `강릉·동해·삼척`.
+- Reason: existing destination links may still use city-like legacy `region` values; these must converge to concrete `travelAreaId` selections.
+- Validation: not run in this pass. Required before completion: frontend typecheck and focused App tests.
+## 2026-05-26 - /trips/new legacy query allowlist cleanup
+
+- Implementation: replaced dependency on the old mixed `tripCreateRegions` query allowlist with explicit primary-region values plus explicit legacy city query values: `속초`, `경주`, `강릉`.
+- Reason: the first screen no longer uses the old mixed city/region list, so query compatibility should be managed directly instead of by reusing that legacy UI list.
+- Validation: not run in this pass. Required before completion: frontend typecheck and focused App tests.
+## 2026-05-26 - /trips/new primary region description styling
+
+- Implementation: added CSS for primary-region button `small` descriptions so the first-step broad region cards render with controlled typography instead of browser defaults.
+- Validation: not run in this pass. Required before completion: frontend typecheck, focused App tests, and browser smoke for `/trips/new`.
+## 2026-05-26 - /trips/new validation after primary-region wizard changes
+
+- Validation: `cd frontend; npm run typecheck` passed.
+- Validation: `cd frontend; npm test -- --run src/App.test.tsx` passed with 113 tests.
+- Validation: `docker compose -f compose.yaml up -d --build` passed; frontend build also ran `npm run typecheck && vite build`.
+- Browser smoke: first check on `http://127.0.0.1:4173/trips/new?region=부산` showed stale Docker UI, so containers were rebuilt before final browser validation.
+- Browser smoke after rebuild: `/trips/new?region=부산` shows broad primary regions first, no course-preference heading on the first step, one `부산 전체` travel-area card, enabled `다음`, and after clicking `다음` the flow moves to `어떤 코스를 선호하나요?`.
+- Remaining risk: no additional browser smoke was run for every legacy query path (`속초`, `강릉`, `경주`); these are covered by `App.test.tsx`.
+## 2026-05-26 - 재검증 재실행 (model update)
+
+- Scope: re-run validation after requested model update.
+- Validation: `cd frontend; npm run typecheck` passed.
+- Validation: `cd frontend; npm test -- --run src/App.test.tsx` passed, 113 tests.
+- Validation: `docker compose -f compose.yaml up -d --build` passed and containers restarted cleanly (`travel-hunter-app-backend-1` and `travel-hunter-app-frontend-1` recreated).
+- Remaining risk: full browser-level manual UX smoke was not re-run in this cycle; previous `/trips/new` browser verification remains from the earlier run.
+## 2026-05-26 - browser UX smoke + wireframe capture
+
+- Scope: manual browser smoke with Playwright screenshots under auth and login-state fallback.
+- Login check: `test.user@example.com / password123` can authenticate successfully and reach `/home`.
+- Authenticated wireframe captures: `home-desktop.png`, `trips-new-desktop-01.png`, `trips-new-desktop-02-step2.png`, `trips-new-mobile-01.png`, `trips-new-mobile-02-step2.png`, `policies-desktop.png`, `trips-desktop.png`, `mypage-desktop.png`.
+- `/trips/new` flow check:
+  - Initial route with `region=부산` is normalized to `travelAreaId=busan-all`.
+  - Step 1 heading/text shows `새 일정 1/4` and `어디로 떠나볼까요?`.
+  - Selecting `부산 전체` and clicking `다음` moves to step 2 (`새 일정 2/4`, `어떤 코스를 선호하나요?`).
+- Unauthenticated route smoke notes: when not logged in, protected routes (`/home`, `/policies`, `/trips`, `/mypage`) redirect to the login layout as expected.
+- Remaining check: `/trips/new` mobile desktop step progression looks correct after explicit `다음`, and the updated screenshots were saved for visual comparison.
+
+## 2026-05-26 - /trips/new draft restore removal
+
+- Scope: removed the trip creation draft restore UI and localStorage persistence from `/trips/new`.
+- Implementation: `ItineraryCreatePage.tsx` no longer imports or calls `draftStorage`, no longer renders `DraftRestoreNotice`, and no longer restores/saves/clears `travel-hunter:draft:trip-create:*` keys.
+- Tests: removed App tests that expected trip creation draft restore/discard behavior. Other draft flows, such as trip detail place add/edit drafts, remain untouched.
+- Backend/DB: no backend table, column, route, or migration was involved; this feature was frontend `localStorage`, not PostgreSQL-backed state.
+- Validation: `cd frontend; npm run typecheck` passed.
+- Remaining risk: browser smoke for `/trips/new` after this specific removal has not been run yet.

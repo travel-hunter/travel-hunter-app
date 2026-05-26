@@ -1,27 +1,20 @@
-import { useEffect, useState } from "react";
-import { Bell, Camera, CircleHelp, Compass, Dice5, FileText, Leaf, LogOut, ShieldCheck, Ticket, Utensils, type LucideIcon } from "lucide-react";
+﻿import { useEffect, useState } from "react";
+import { Bell, CircleHelp, Dice5, FileText, LogOut, ShieldCheck } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { appDataApi, type ContactInfo, type NotificationSettings, type Policy, type Profile, type Trip } from "../api";
 import { useSession } from "../app/session";
 import { FavoritePolicyCard, ProfileSectionHeader } from "../components/patterns";
 import { Button, EmptyState, ErrorState, LoadingState } from "../components/ui";
+import { useAsyncResource } from "../api/useAsyncResource";
 
-const profileOptions = appDataApi.getProfileOptions();
 type InfoSheetType = "faq" | "terms" | "privacy";
-
-function profileBadgeIcon(style: string): LucideIcon {
-  if (style.includes("사진")) return Camera;
-  if (style.includes("휴식")) return Leaf;
-  if (style.includes("맛")) return Utensils;
-  if (style.includes("액티비티") || style.includes("체험")) return Ticket;
-  return Compass;
-}
 
 export function MyPage() {
   const navigate = useNavigate();
   const { currentUser, likedPolicy, logout, profile, removeSavedSlug, saveNickname, saveProfile, savedSlugs } = useSession();
-  const previewUser = appDataApi.getPreviewUser();
-  const name = currentUser?.nickname ?? previewUser.nickname;
+  const { data: profileOptions } = useAsyncResource(() => appDataApi.getProfileOptions(), []);
+  const { regions, travelStyles, budgets } = profileOptions ?? { regions: [], travelStyles: [], budgets: [] };
+  const name = currentUser?.nickname ?? "여행자";
   const [savedPolicies, setSavedPolicies] = useState<Policy[]>([]);
   const [isLoadingSavedPolicies, setIsLoadingSavedPolicies] = useState(true);
   const [savedPolicyError, setSavedPolicyError] = useState("");
@@ -127,7 +120,7 @@ export function MyPage() {
 
   const openProfileEditor = () => {
     setProfileDraft(profile);
-    setNicknameDraft(currentUser?.nickname ?? previewUser.nickname);
+    setNicknameDraft(currentUser?.nickname ?? name);
     setNicknameError("");
     setProfileEditError("");
     setIsProfileEditorOpen(true);
@@ -249,21 +242,17 @@ export function MyPage() {
   const deadlineEnabled = notificationSettings?.deadlineEnabled ?? true;
   const deadlineLeadDays = notificationSettings?.deadlineLeadDays ?? [7, 1];
   const deadlineLabel = deadlineEnabled ? `정책 ${deadlineLeadDays.map((day) => `D-${day}`).join(", ")} 알림` : "마감 알림을 받지 않음";
-  const ProfileBadgeIcon = profileBadgeIcon(profile.style);
-
   return (
     <section className="screen with-tabs prototype-mypage-screen">
-      <div className="prototype-mypage-title">마이</div>
-
       <div className="content stack padded prototype-mypage-content">
         <section className="ds-card ds-profile-panel prototype-profile-hero-card" aria-label="내 프로필 요약">
           <div className="prototype-profile-main">
             <div className="avatar large prototype-profile-badge" aria-hidden="true">
-              <ProfileBadgeIcon size={24} strokeWidth={2.4} />
+              🧳
             </div>
             <div className="prototype-profile-text">
               <h2 className="profile-name">{name}</h2>
-              <p className="prototype-profile-email">{currentUser?.email ?? previewUser.email}</p>
+              <p className="prototype-profile-email">{currentUser?.email ?? "이메일 정보 없음"}</p>
               <div className="prototype-profile-chips" aria-label="프로필 취향">
                 <span>{profile.region}</span>
                 <span>{profile.style}</span>
@@ -277,9 +266,9 @@ export function MyPage() {
         </section>
 
         <section className="prototype-stat-grid" aria-label="나의 활동 요약">
-          <ProfileStat label="내 일정" value={isLoadingTrips ? "..." : String(tripCount)} tone="primary" />
-          <ProfileStat label="즐겨찾기" value={isLoadingSavedPolicies ? "..." : String(savedPolicyCount)} tone="secondary" />
-          <ProfileStat label="신청 정책" value={isLoadingAppliedPolicies ? "..." : String(appliedPolicyCount)} tone="accent" />
+          <ProfileStat label="내 일정" value={isLoadingTrips ? "..." : String(tripCount)} tone="primary" to="/trips" />
+          <ProfileStat label="즐겨찾기" value={isLoadingSavedPolicies ? "..." : String(savedPolicyCount)} tone="secondary" to="/policies?saved=1" />
+          <ProfileStat label="신청 정책" value={isLoadingAppliedPolicies ? "..." : String(appliedPolicyCount)} tone="accent" to="/applied-policies" />
         </section>
 
         <section className="prototype-favorite-section" aria-label="즐겨찾기 정책">
@@ -315,7 +304,6 @@ export function MyPage() {
             <div className="prototype-favorite-list">
               {savedPolicies.map((policy) => (
                 <FavoritePolicyCard
-                  icon={policyIcon(policy)}
                   isRemoving={removingPolicySlug === policy.slug}
                   key={policy.slug}
                   onRemove={() => removeSavedPolicy(policy)}
@@ -382,6 +370,9 @@ export function MyPage() {
             isSuggestingNickname={isSuggestingNickname}
             nickname={nicknameDraft}
             nicknameError={nicknameError}
+            profilesRegions={regions}
+            profilesTravelStyles={travelStyles}
+            profilesBudgets={budgets}
             onCancel={() => !isSavingProfile && setIsProfileEditorOpen(false)}
             onChange={setProfileDraft}
             onNicknameChange={setNicknameDraft}
@@ -422,23 +413,34 @@ export function MyPage() {
   );
 }
 
-function ProfileStat({ label, tone, value }: { label: string; tone: "primary" | "secondary" | "accent"; value: string }) {
-  return (
-    <div className={`prototype-stat-card ${tone}`}>
+function ProfileStat({
+  label,
+  tone,
+  value,
+  to,
+}: {
+  label: string;
+  tone: "primary" | "secondary" | "accent";
+  value: string;
+  to?: string;
+}) {
+  const content = (
+    <>
       <strong>{value}</strong>
       <span>{label}</span>
-    </div>
+    </>
   );
-}
+  const className = `prototype-stat-card ${tone}`;
 
-function policyIcon(policy: Policy) {
-  const text = `${policy.category} ${policy.title} ${policy.tag} ${policy.amount}`;
-  if (text.includes("관광주민증") || text.includes("입장료") || text.includes("체험") || text.includes("할인권") || text.includes("이용권") || text.includes("티켓")) return "🎫";
-  if (text.includes("숙박") || text.includes("숙소") || text.includes("호텔")) return "🏨";
-  if (text.includes("교통") || text.includes("KTX") || text.includes("기차") || text.includes("버스") || text.includes("렌터카") || text.includes("항공")) return "🚆";
-  if (text.includes("맛집") || text.includes("식사") || text.includes("음식")) return "🍽️";
-  if (policy.category === "지역할인" || text.includes("지역") || text.includes("관광")) return "🏷️";
-  return "🎁";
+  if (to) {
+    return (
+      <Link aria-label={`${label} 보기`} className={className} to={to}>
+        {content}
+      </Link>
+    );
+  }
+
+  return <div className={className}>{content}</div>;
 }
 
 const infoSheetContent: Record<InfoSheetType, { title: string; intro: string; sections: Array<{ heading: string; body: string }> }> = {
@@ -679,6 +681,9 @@ function ProfileEditSheet({
   isSuggestingNickname,
   nickname,
   nicknameError,
+  profilesRegions,
+  profilesTravelStyles,
+  profilesBudgets,
   onCancel,
   onChange,
   onNicknameChange,
@@ -691,6 +696,9 @@ function ProfileEditSheet({
   isSuggestingNickname: boolean;
   nickname: string;
   nicknameError: string;
+  profilesRegions: readonly string[];
+  profilesTravelStyles: readonly string[];
+  profilesBudgets: readonly string[];
   onCancel: () => void;
   onChange: (draft: Profile) => void;
   onNicknameChange: (nickname: string) => void;
@@ -732,9 +740,27 @@ function ProfileEditSheet({
               {nicknameError}
             </p>
           )}
-          <ProfileEditChoices label="관심 지역" selected={draft.region} values={profileOptions.regions} onSelect={(region) => onChange({ ...draft, region })} disabled={isSaving} />
-          <ProfileEditChoices label="여행 스타일" selected={draft.style} values={profileOptions.travelStyles} onSelect={(style) => onChange({ ...draft, style })} disabled={isSaving} />
-          <ProfileEditChoices label="예산" selected={draft.budget} values={profileOptions.budgets} onSelect={(budget) => onChange({ ...draft, budget })} disabled={isSaving} />
+          <ProfileEditChoices
+            label="관심 지역"
+            selected={draft.region}
+            values={profilesRegions}
+            onSelect={(region) => onChange({ ...draft, region })}
+            disabled={isSaving}
+          />
+          <ProfileEditChoices
+            label="여행 스타일"
+            selected={draft.style}
+            values={profilesTravelStyles}
+            onSelect={(style) => onChange({ ...draft, style })}
+            disabled={isSaving}
+          />
+          <ProfileEditChoices
+            label="예산"
+            selected={draft.budget}
+            values={profilesBudgets}
+            onSelect={(budget) => onChange({ ...draft, budget })}
+            disabled={isSaving}
+          />
           {error && <p className="form-error">{error}</p>}
         </div>
         <div className="sheet-actions">
