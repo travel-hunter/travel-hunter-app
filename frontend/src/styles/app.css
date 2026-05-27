@@ -4341,11 +4341,11 @@
 .prototype-trip-list-screen .itinerary-card {
   position: relative;
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: 68px minmax(0, 1fr);
+  gap: 12px;
   align-items: center;
-  min-height: 116px;
-  padding: 14px;
+  min-height: 108px;
+  padding: 12px;
   overflow: visible;
   border: 1px solid var(--border-trip-card);
   border-radius: 26px;
@@ -4360,10 +4360,10 @@
   grid-template-rows: 1fr;
   place-items: center;
   align-self: center;
-  width: 72px;
-  min-width: 72px;
-  height: 72px;
-  min-height: 72px;
+  width: 68px;
+  min-width: 68px;
+  height: 68px;
+  min-height: 68px;
   margin: 0;
   padding: 0;
   overflow: hidden;
@@ -4373,8 +4373,8 @@
 
 .prototype-trip-list-screen .trip-visual-emoji {
   display: grid;
-  width: 72px;
-  height: 72px;
+  width: 68px;
+  height: 68px;
   place-items: center;
   font-size: 32px;
   line-height: 1;
@@ -4391,8 +4391,9 @@
 
 .prototype-trip-list-screen .itinerary-body > a {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   min-width: 0;
-  gap: 4px;
+  gap: 2px 10px;
   padding: 0;
   color: inherit;
   text-decoration: none;
@@ -4435,11 +4436,11 @@
   min-width: 34px;
   min-height: 28px;
   margin-top: -4px;
-  border: 0;
+  border: 1px solid #ffc6c3;
   border-radius: 999px;
   padding: 6px 9px;
-  background: #f4f5f8;
-  color: #80889a;
+  background: #fff3f2;
+  color: #ff5e5b;
   font-size: 11px;
   font-weight: 800;
 }
@@ -4450,6 +4451,7 @@
 }
 
 .prototype-trip-list-screen .itinerary-card .meta {
+  grid-column: 1;
   color: #5d687d;
   font-size: 13px;
   font-weight: 700;
@@ -4457,7 +4459,14 @@
 }
 
 .prototype-trip-list-screen .itinerary-policy-row {
-  margin-top: 2px;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  align-self: end;
+  min-width: max-content;
+  margin-top: 0;
 }
 
 .prototype-trip-list-screen .itinerary-policy-row .tag {
@@ -4758,25 +4767,93 @@
 }
 
 .prototype-date-summary {
-  grid-template-columns: auto 1fr;
-  align-items: center;
+  align-items: stretch;
   min-height: 52px;
 }
 
 .prototype-date-summary.invalid {
+  align-items: center;
   color: #dc2626;
   background: #fff1f0;
 }
 
-.prototype-date-summary span {
-  font-size: 20px;
+.prototype-date-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.prototype-date-summary-row span,
+.prototype-party-stepper span {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .prototype-date-summary strong,
-.prototype-create-summary div {
+.prototype-create-summary div,
+.prototype-party-stepper strong {
   font-size: 14px;
   font-weight: 700;
   line-height: 1.45;
+}
+
+.prototype-party-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--border-card);
+  border-radius: 14px;
+  padding: 10px 12px;
+  color: #1a1a2e;
+  background: var(--surface-app);
+}
+
+.prototype-party-stepper > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.prototype-party-stepper-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid var(--border-card);
+}
+
+.prototype-party-stepper-controls button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 999px;
+  color: #1a1a2e;
+  background: #f7f2ed;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.prototype-party-stepper-controls button:not(:disabled) {
+  cursor: pointer;
+}
+
+.prototype-party-stepper-controls button:disabled {
+  color: #b7b0aa;
+  background: #f3eee8;
+}
+
+.prototype-party-stepper-controls > span {
+  min-width: 36px;
+  color: #1a1a2e;
+  text-align: center;
+  font-weight: 800;
 }
 
 .prototype-create-summary > span {

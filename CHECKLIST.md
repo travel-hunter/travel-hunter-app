@@ -1328,3 +1328,43 @@ Remaining risks:
 - Backend/DB: no backend table, column, route, or migration was involved; this feature was frontend `localStorage`, not PostgreSQL-backed state.
 - Validation: `cd frontend; npm run typecheck` passed.
 - Remaining risk: browser smoke for `/trips/new` after this specific removal has not been run yet.
+
+## 2026-05-27 - Trip create participant count
+
+- Scope: added planned travel party size to `/trips/new` as an inline participant stepper on the date step.
+- Implementation: `participantCount` is stored on trips and exposed through the Trip DTO; `people` remains the real member/invite nickname list and was not used for fake participants.
+- Frontend: Step 3 now shows the inline 1~6 person stepper and a normalized date/participant summary; Step 4 summary and `/trips` cards use `participantCount`.
+- Backend/DB: added `trips.participant_count` via Alembic revision `0014_add_trip_participant_count`, defaulting existing rows to 1.
+- Validation: `cd frontend; npm run typecheck` passed.
+- Validation: `cd frontend; npm test -- --run src/App.test.tsx` passed with 111 tests.
+- Validation: `cd backend; python -m pytest tests/test_trip_db_routes.py tests/test_trip_db_service.py` passed with 66 tests.
+- Validation: `cd backend; alembic upgrade head --sql` passed and emitted `ALTER TABLE trips ADD COLUMN participant_count INTEGER DEFAULT '1' NOT NULL`.
+- Validation: `docker compose -f compose.yaml up -d --build` passed; frontend build ran typecheck and Vite build successfully.
+- Browser smoke: `/trips/new` Step 3 showed `여행 인원 3명`, Step 4 summary showed `인원 · 3명`, and the created `/trips` card showed `👥 3명 참여`.
+- Remaining risk: existing trip detail header still displays actual member count from `people`; this was intentionally left unchanged because this task scoped list cards only.
+
+## 2026-05-27 - Trip detail policy recommendation priority
+
+- Scope: changed `/trips/{id}` `recommendedPolicies` ranking from nationwide/amount/deadline-first to travel-area-aware scoring.
+- Implementation: `travelAreaId` now resolves through `travel_areas.get_travel_area()` and ranks policy candidates by current area terms before using benefit amount and deadline as tie-breakers.
+- Safety: policies with other destination names or unverified conditional eligibility terms such as `다자녀`, `장애인`, `휠체어`, `임산부`, and `청년` are downranked instead of receiving new UI labels.
+- Compatibility: existing trips without `travelAreaId` keep exact `trip.region == policy.region` filtering when exact region candidates exist.
+- Validation: `cd backend; python -m pytest tests/test_trip_db_service.py -q` passed with 45 tests.
+- Validation: `cd backend; python -m pytest tests/test_trip_db_routes.py -q` passed with 23 tests.
+- Remaining risk: no DTO field explains why a policy was downranked; a future UI label such as `조건 확인 필요` should be handled as a separate API/UI change.
+- Validation: `docker compose -f compose.yaml up -d --build` passed and recreated backend/frontend containers.
+- Smoke: container service check for trip `99` now returns top recommendations in `강원` (`travelmonth-36`, `travelmonth-30`); the previous 제주/다자녀 policy is no longer in the top two.
+
+## 2026-05-27 - Trip detail recommendation card count and empty state
+
+- Scope: `/trips/{id}` recommendation cards now show up to 3 score-qualified policies instead of filling weak matches.
+- Implementation: `_recommended_policies()` now defaults to `limit=3` and filters `travelAreaId` trips to candidates with score `>= 40` before sorting by score, deadline, and id.
+- Frontend: empty recommendation fallback now says `이 일정에 어울리는 정책이 없어요` while keeping the `/policies` fallback card link.
+- Test hardening: narrowed one policy trip-picker App test selector from broad `/제주/` to `/제주 3일 여행/` because persistent generated trips can create multiple 제주 rows.
+- Validation: `cd backend; python -m pytest tests/test_trip_db_service.py -q` passed with 47 tests.
+- Validation: `cd backend; python -m pytest tests/test_trip_db_routes.py -q` passed with 23 tests.
+- Validation: `cd frontend; npm run typecheck` passed.
+- Validation: `cd frontend; npm test -- --run src/App.test.tsx` passed with 111 tests after the selector hardening.
+- Remaining risk: score reasons are still not exposed in the DTO; explanatory UI labels remain a separate future API/UI task.
+- Validation: `docker compose -f compose.yaml up -d --build` passed; frontend build ran typecheck and Vite build, backend/frontend containers restarted cleanly.
+- Smoke: container service check for trip `99` returned 3 score-qualified `강원` recommendations (`travelmonth-36`, `travelmonth-30`, `travelmonth-20`); the 제주/다자녀 policy is not included.
