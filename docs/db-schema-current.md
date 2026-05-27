@@ -141,3 +141,7 @@ Migration metadata:
 - 일부 unique constraint와 unique index 표현 차이
 
 이번 문서 작업은 schema 문서 최신화가 목적이므로 해당 drift를 수정하지 않는다. 필요하면 별도 migration/metadata 정리 작업으로 분리한다.
+
+## 2026-05-27 trips.participant_count
+
+`trips.participant_count` stores the planned travel party size for itinerary creation. It is separate from `trip_members`, which continues to represent real invited/authenticated trip members and permissions. The API exposes this field as `participantCount`.

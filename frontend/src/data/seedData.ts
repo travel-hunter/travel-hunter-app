@@ -28,6 +28,7 @@ export const itinerary: Trip = {
   title: "제주 3일 여행",
   dates: "2026.06.15 - 06.17",
   people: ["테스트 사용자", "민서", "현우"],
+  participantCount: 3,
   expectedSaving: "12만원",
   linkedPolicies: [],
   recommendedPolicies: [],

@@ -58,6 +58,7 @@ def create_trip(
     status: str,
     region: str | None,
     travel_area_id: str | None,
+    participant_count: int,
     description: str | None,
 ) -> Trip:
     trip = Trip(
@@ -68,6 +69,7 @@ def create_trip(
         status=status,
         region=region,
         travel_area_id=travel_area_id,
+        participant_count=participant_count,
         description=description,
     )
     db.add(trip)

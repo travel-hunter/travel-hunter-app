@@ -11,6 +11,8 @@ import { getDefaultTripDateRange } from "../../utils/dateDefaults";
 const TRIP_CREATE_TOTAL_STEPS = 4;
 const tripCreateMaxDays = 5;
 const tripCreateMinDays = 2;
+const tripCreateMinParticipants = 1;
+const tripCreateMaxParticipants = 6;
 const broadTravelAreaRegions = new Set<string>(tripCreatePrimaryRegionValues);
 const legacyTravelAreaQueryRegions = ["속초", "경주", "강릉"] as const;
 const NO_TRAVEL_AREA_HEADING = "세부 지역 선택";
@@ -100,6 +102,7 @@ export function ItineraryCreatePage() {
   const [step, setStep] = useState<TripCreateStep>(1);
   const [startDate, setStartDate] = useState(defaultTripStartDate);
   const [endDate, setEndDate] = useState(defaultTripEndDate);
+  const [participantCount, setParticipantCount] = useState(1);
   const [titleDraft, setTitleDraft] = useState(generatedTripTitle(initialRegion, initialDayCount));
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState("");
@@ -273,6 +276,10 @@ export function ItineraryCreatePage() {
     setTitleDraft((current) => (current.trim() === "" || current === previousAutoTitle ? generatedTripTitle(selectedRegion, nextDayCount) : current));
   };
 
+  const updateParticipantCount = (direction: -1 | 1) => {
+    setParticipantCount((current) => Math.min(tripCreateMaxParticipants, Math.max(tripCreateMinParticipants, current + direction)));
+  };
+
   const goNext = () => {
     if (!canProceed) return;
     if (step < TRIP_CREATE_TOTAL_STEPS) {
@@ -300,6 +307,7 @@ export function ItineraryCreatePage() {
         title,
         region: selectedRegion,
         travelAreaId: selectedTravelArea?.travelAreaId ?? undefined,
+        participantCount,
         style: profile.style,
         ...(linkablePolicySlug ? { policySlug: linkablePolicySlug } : {}),
         startDate,
@@ -422,9 +430,46 @@ export function ItineraryCreatePage() {
                 <input type="date" value={endDate} onChange={(event) => updateDates(startDate, event.target.value)} />
               </label>
             </div>
+            <div className="prototype-party-stepper" aria-label="여행 인원 선택">
+              <div>
+                <span>여행 인원</span>
+                <strong>{participantCount}명</strong>
+              </div>
+              <div className="prototype-party-stepper-controls">
+                <button
+                  aria-label="여행 인원 1명 줄이기"
+                  disabled={participantCount <= tripCreateMinParticipants}
+                  onClick={() => updateParticipantCount(-1)}
+                  type="button"
+                >
+                  -
+                </button>
+                <span aria-live="polite">{participantCount}명</span>
+                <button
+                  aria-label="여행 인원 1명 늘리기"
+                  disabled={participantCount >= tripCreateMaxParticipants}
+                  onClick={() => updateParticipantCount(1)}
+                  type="button"
+                >
+                  +
+                </button>
+              </div>
+            </div>
             <div className={dateRangeError ? "prototype-date-summary invalid" : "prototype-date-summary"}>
-              <span>기간</span>
-              <strong>{dayCount && !dateRangeError ? `총 ${dayCount}일 여행` : dateRangeError}</strong>
+              {dateRangeError ? (
+                <strong>{dateRangeError}</strong>
+              ) : (
+                <>
+                  <div className="prototype-date-summary-row">
+                    <span>여행 기간</span>
+                    <strong>총 {dayCount}일 여행</strong>
+                  </div>
+                  <div className="prototype-date-summary-row">
+                    <span>참여 인원</span>
+                    <strong>{participantCount}명</strong>
+                  </div>
+                </>
+              )}
             </div>
           </section>
         )}
@@ -449,7 +494,7 @@ export function ItineraryCreatePage() {
               <div>
                 일정 · {formatTripCreateDate(startDate)} ~ {formatTripCreateDate(endDate)} ({dayCount ?? "-"}일)
               </div>
-              <div>인원 · 1명</div>
+              <div>인원 · {participantCount}명</div>
               {linkablePolicySlug && <div className="linked">연결 정책 · 선택한 정책</div>}
             </div>
           </section>

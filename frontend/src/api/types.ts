@@ -101,6 +101,7 @@ export type Trip = {
   status: "draft" | "confirmed";
   dates: string;
   people: string[];
+  participantCount: number;
   expectedSaving: string;
   linkedPolicies: LinkedTripPolicy[];
   recommendedPolicies: LinkedTripPolicy[];

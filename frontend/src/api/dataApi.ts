@@ -89,6 +89,7 @@ export type CreateTripRequest = {
   title?: string;
   region?: string;
   travelAreaId?: string;
+  participantCount?: number;
   style?: string;
   description?: string;
   policySlug?: string;

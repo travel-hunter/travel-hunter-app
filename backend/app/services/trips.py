@@ -229,6 +229,7 @@ def trip_to_api(trip: Trip, user: User | None = None, recommended_policies: list
         "travelAreaId": trip.travel_area_id,
         "dates": _format_dates(trip.start_date, trip.end_date),
         "people": people,
+        "participantCount": trip.participant_count or max(1, len(people)),
         "expectedSaving": _format_saving(_policy_saving(trip)),
         "linkedPolicies": _linked_policies(trip),
         "recommendedPolicies": _recommended_policies(trip, recommended_policies),
@@ -340,6 +341,7 @@ def create_trip(
         start_date = date(2026, 6, 15)
         end_date = start_date + timedelta(days=duration_days - 1)
     title = str(payload.get("title") or f"{region} {duration_days}일 여행")
+    participant_count = int(payload.get("participantCount") or 1)
 
     trip = trip_repository.create_trip(
         db,
@@ -350,6 +352,7 @@ def create_trip(
         status="draft",
         region=region,
         travel_area_id=travel_area.id if travel_area else None,
+        participant_count=participant_count,
         description=str(payload.get("description") or seed.PROFILE["style"]),
     )
     trip_repository.add_trip_member(db, trip_id=trip.id, user_id=user.id, role="owner")

@@ -29,6 +29,7 @@ def trip_payload(trip_id: str = "7") -> dict[str, object]:
         "status": "confirmed",
         "dates": "2026.06.15 - 06.17",
         "people": ["Test User"],
+        "participantCount": 1,
         "expectedSaving": "30留뚯썝",
         "linkedPolicies": [
             {
@@ -126,17 +127,19 @@ def test_db_trip_create_route_returns_created_numeric_id(monkeypatch) -> None:
             and payload.title == "New trip"
             and payload.startDate == date(2026, 7, 12)
             and payload.endDate == date(2026, 7, 15)
+            and payload.participantCount == 3
         )
         else trip_payload("7"),
     )
 
     try:
-        response = client.post("/api/trips", json={"title": "New trip", "startDate": "2026-07-12", "endDate": "2026-07-15"})
+        response = client.post("/api/trips", json={"title": "New trip", "startDate": "2026-07-12", "endDate": "2026-07-15", "participantCount": 3})
     finally:
         clear_overrides()
 
     assert response.status_code == 200
     assert response.json()["id"] == "8"
+    assert response.json()["participantCount"] == 1
 
 
 def test_db_trip_create_route_rejects_out_of_range_duration() -> None:
@@ -150,6 +153,22 @@ def test_db_trip_create_route_rejects_out_of_range_duration() -> None:
         clear_overrides()
 
     assert response.status_code == 422
+
+
+def test_db_trip_create_route_rejects_out_of_range_participant_count() -> None:
+    fake_db = object()
+    user = make_user()
+    install_db_route_dependencies(None, fake_db, user)
+
+    try:
+        responses = [
+            client.post("/api/trips", json={"participantCount": 0}),
+            client.post("/api/trips", json={"participantCount": 7}),
+        ]
+    finally:
+        clear_overrides()
+
+    assert [response.status_code for response in responses] == [422, 422]
 
 
 def test_db_trip_create_route_rejects_invalid_date_ranges() -> None:

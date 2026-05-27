@@ -663,6 +663,7 @@ OAuth provider callback 처리.
     "status": "draft",
     "dates": "2026-07-12 ~ 2026-07-14",
     "people": ["나", "친구"],
+    "participantCount": 2,
     "expectedSaving": "최대 15만원",
     "linkedPolicies": [
       {
@@ -710,12 +711,14 @@ Frontend behavior: `/trips` does not expose trip confirmation controls or draft/
   "description": "제주 자연 중심 여행",
   "policySlug": "dgtourcard-2026",
   "durationDays": 3,
+  "participantCount": 3,
   "startDate": "2026-07-12",
   "endDate": "2026-07-14"
 }
 ```
 
 - `durationDays`: 2~5 범위
+- `participantCount`: 1~6. Planned travel party size, stored separately from real member/invite list `people`.
 - `startDate`/`endDate`: 함께 제공하거나 모두 생략. 기간은 2~5일.
 
 **Response 200** → `Trip`
@@ -1062,6 +1065,7 @@ SOLAPI 발송 결과 webhook 수신. `X-Solapi-Secret` 헤더로 검증.
 | status | string | `"draft" \| "confirmed"` |
 | dates | string | 날짜 표시 문자열 |
 | people | string[] | 참여자 닉네임 목록 |
+| participantCount | number | Planned travel party size, separate from real member/invite list `people`. |
 | expectedSaving | string | 예상 절약 금액 표시 |
 | linkedPolicies | LinkedTripPolicy[] | 연결된 정책 목록 |
 | recommendedPolicies | LinkedTripPolicy[] | 일정 지역에 맞춰 추천된 정규화 정책 및 active/fresh TravelMonth 혜택 목록. 이미 연결된 정규화 정책은 제외하며 각 항목은 `/policies/{slug}` 상세로 이동 가능하다. |
@@ -1152,6 +1156,7 @@ Request example:
   "title": "속초·고성·양양 3일 여행",
   "region": "속초·고성·양양",
   "travelAreaId": "gangwon-sokcho-goseong-yangyang",
+  "participantCount": 3,
   "style": "바다",
   "startDate": "2026-06-15",
   "endDate": "2026-06-17"
@@ -1170,7 +1175,8 @@ Trip response includes:
 
 ```json
 {
-  "travelAreaId": "gangwon-sokcho-goseong-yangyang"
+  "travelAreaId": "gangwon-sokcho-goseong-yangyang",
+  "participantCount": 3
 }
 ```
 
