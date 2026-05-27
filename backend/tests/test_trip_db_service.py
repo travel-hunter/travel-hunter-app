@@ -41,6 +41,7 @@ def make_trip() -> Trip:
         end_date=date(2026, 6, 17),
         region="Jeju",
         travel_area_id=None,
+        participant_count=2,
         description="Rest trip",
         created_at=datetime(2026, 5, 4, 0, 0, 0),
         updated_at=datetime(2026, 5, 4, 0, 0, 0),
@@ -84,6 +85,7 @@ def test_trip_to_api_returns_numeric_string_id_and_contract_shape() -> None:
     assert payload["travelAreaId"] is None
     assert payload["dates"] == "2026.06.15 - 06.17"
     assert payload["people"] == ["Test User", "Minseo"]
+    assert payload["participantCount"] == 2
     assert payload["expectedSaving"] == "30만원"
     assert payload["linkedPolicies"] == [
         {
@@ -187,6 +189,176 @@ def test_get_trip_includes_region_matched_recommended_policies(monkeypatch) -> N
             "region": "부산",
         }
     ]
+
+
+def test_get_trip_recommendations_prioritize_travel_area_terms(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    trip = make_trip()
+    trip.region = "\uc18d\ucd08\u00b7\uace0\uc131\u00b7\uc591\uc591"
+    trip.travel_area_id = "gangwon-sokcho-goseong-yangyang"
+    linked_policy = trip.policies[0].policy
+    linked_policy.slug = "fixture-policy"
+    linked_policy.title = "\uc774\ubbf8 \uc5f0\uacb0\ub41c \uc815\ucc45"
+    linked_policy.region = "\uc804\uad6d"
+    jeju_family_policy = Policy(
+        id=4,
+        slug="jeju-family-stay",
+        title="\uc548\uc804 \uc778\uc99d \ub18d\uc5b4\ucd0c\ubbfc\ubc15 \uc774\uc6a9 \ub2e4\uc790\ub140\uac00\uad6c \uc81c\uc8fc\uc5ec\ud589 \ud658\uc601 \ucea0\ud398\uc778",
+        benefit_detail="\uc219\ubc15\ube44 4\ub9cc\uc6d0 \uc9c0\uc6d0",
+        benefit_amount=40000,
+        region="\uc804\uad6d",
+        end_date=date(2026, 5, 31),
+    )
+    sokcho_policy = Policy(
+        id=5,
+        slug="sokcho-stay",
+        title="\uc18d\ucd08 \uc219\ubc15 \ud560\uc778",
+        benefit_detail="\uc18d\ucd08 \uc219\ubc15\ube44 \ud560\uc778",
+        benefit_amount=0,
+        region="\uac15\uc6d0",
+        end_date=date(2026, 7, 31),
+    )
+    yangyang_policy = Policy(
+        id=6,
+        slug="yangyang-experience",
+        title="\uc591\uc591 \ubc14\ub2e4 \uccb4\ud5d8 \ud560\uc778",
+        benefit_detail="\uc591\uc591 \uccb4\ud5d8\uad8c \ud560\uc778",
+        benefit_amount=0,
+        region="\uc804\uad6d",
+        end_date=date(2026, 8, 31),
+    )
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip if db is fake_db and trip_id == 7 and user_id == 1 else None,
+    )
+    monkeypatch.setattr(
+        trip_service.policy_repository,
+        "list_policies",
+        lambda db: [linked_policy, jeju_family_policy, sokcho_policy, yangyang_policy] if db is fake_db else [],
+    )
+
+    payload = trip_service.get_trip("7", fake_db, user)
+
+    assert payload is not None
+    assert [policy["slug"] for policy in payload["recommendedPolicies"]] == ["sokcho-stay", "yangyang-experience"]
+
+
+def test_get_trip_recommendations_downrank_unverified_conditional_policies(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    trip = make_trip()
+    trip.region = "\uc18d\ucd08\u00b7\uace0\uc131\u00b7\uc591\uc591"
+    trip.travel_area_id = "gangwon-sokcho-goseong-yangyang"
+    linked_policy = trip.policies[0].policy
+    linked_policy.slug = "fixture-policy"
+    linked_policy.region = "\uc804\uad6d"
+    general_policy = Policy(
+        id=4,
+        slug="sokcho-general-stay",
+        title="\uc18d\ucd08 \uc219\ubc15 \ud560\uc778",
+        benefit_detail="\uc18d\ucd08 \uc219\ubc15\ube44 \ud560\uc778",
+        benefit_amount=0,
+        region="\uc804\uad6d",
+        end_date=date(2026, 8, 31),
+    )
+    youth_policy = Policy(
+        id=5,
+        slug="sokcho-youth-stay",
+        title="\uc18d\ucd08 \uccad\ub144 \uc219\ubc15 \ud560\uc778",
+        benefit_detail="\uc18d\ucd08 \uccad\ub144 \uc804\uc6a9 \uc219\ubc15\ube44 5\ub9cc\uc6d0 \uc9c0\uc6d0",
+        benefit_amount=50000,
+        region="\uc804\uad6d",
+        end_date=date(2026, 5, 31),
+    )
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip if db is fake_db and trip_id == 7 and user_id == 1 else None,
+    )
+    monkeypatch.setattr(
+        trip_service.policy_repository,
+        "list_policies",
+        lambda db: [linked_policy, youth_policy, general_policy] if db is fake_db else [],
+    )
+
+    payload = trip_service.get_trip("7", fake_db, user)
+
+    assert payload is not None
+    assert [policy["slug"] for policy in payload["recommendedPolicies"]] == ["sokcho-general-stay", "sokcho-youth-stay"]
+
+
+def test_get_trip_recommendations_return_up_to_three_area_matched_policies(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    trip = make_trip()
+    trip.region = "\uc18d\ucd08\u00b7\uace0\uc131\u00b7\uc591\uc591"
+    trip.travel_area_id = "gangwon-sokcho-goseong-yangyang"
+    linked_policy = trip.policies[0].policy
+    linked_policy.slug = "fixture-policy"
+    linked_policy.region = "\uc804\uad6d"
+    policies = [
+        linked_policy,
+        Policy(id=4, slug="sokcho-stay", title="\uc18d\ucd08 \uc219\ubc15 \ud560\uc778", benefit_detail="\uc18d\ucd08 \uc219\ubc15\ube44 \ud560\uc778", region="\uac15\uc6d0", end_date=date(2026, 7, 31)),
+        Policy(id=5, slug="goseong-cafe", title="\uace0\uc131 \uce74\ud398 \ud560\uc778", benefit_detail="\uace0\uc131 \uce74\ud398 \uc774\uc6a9\uad8c", region="\uc804\uad6d", end_date=date(2026, 8, 31)),
+        Policy(id=6, slug="yangyang-surf", title="\uc591\uc591 \uc11c\ud551 \uccb4\ud5d8 \ud560\uc778", benefit_detail="\uc591\uc591 \uccb4\ud5d8\uad8c", region="\uc804\uad6d", end_date=date(2026, 9, 30)),
+        Policy(id=7, slug="gangwon-extra", title="\uac15\uc6d0 \uc5ec\ud589 \uc0c1\ud488 \ud560\uc778", benefit_detail="\uac15\uc6d0 \uc5ec\ud589 \ud560\uc778", region="\uac15\uc6d0", end_date=date(2026, 10, 31)),
+    ]
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip if db is fake_db and trip_id == 7 and user_id == 1 else None,
+    )
+    monkeypatch.setattr(
+        trip_service.policy_repository,
+        "list_policies",
+        lambda db: policies if db is fake_db else [],
+    )
+
+    payload = trip_service.get_trip("7", fake_db, user)
+
+    assert payload is not None
+    assert [policy["slug"] for policy in payload["recommendedPolicies"]] == ["sokcho-stay", "gangwon-extra", "goseong-cafe"]
+
+
+def test_get_trip_recommendations_hide_candidates_below_area_score_threshold(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    trip = make_trip()
+    trip.region = "\uc18d\ucd08\u00b7\uace0\uc131\u00b7\uc591\uc591"
+    trip.travel_area_id = "gangwon-sokcho-goseong-yangyang"
+    linked_policy = trip.policies[0].policy
+    linked_policy.slug = "fixture-policy"
+    linked_policy.region = "\uc804\uad6d"
+    jeju_family_policy = Policy(
+        id=4,
+        slug="jeju-family-stay",
+        title="\uc548\uc804 \uc778\uc99d \ub18d\uc5b4\ucd0c\ubbfc\ubc15 \uc774\uc6a9 \ub2e4\uc790\ub140\uac00\uad6c \uc81c\uc8fc\uc5ec\ud589 \ud658\uc601 \ucea0\ud398\uc778",
+        benefit_detail="\uc81c\uc8fc \uc219\ubc15\ube44 4\ub9cc\uc6d0 \uc9c0\uc6d0",
+        benefit_amount=40000,
+        region="\uc804\uad6d",
+        end_date=date(2026, 5, 31),
+    )
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip if db is fake_db and trip_id == 7 and user_id == 1 else None,
+    )
+    monkeypatch.setattr(
+        trip_service.policy_repository,
+        "list_policies",
+        lambda db: [linked_policy, jeju_family_policy] if db is fake_db else [],
+    )
+
+    payload = trip_service.get_trip("7", fake_db, user)
+
+    assert payload is not None
+    assert payload["recommendedPolicies"] == []
 
 
 def test_get_trip_recommendations_ignore_raw_collected_benefits(monkeypatch) -> None:
@@ -879,6 +1051,7 @@ def install_create_trip_stubs(monkeypatch, *, policy: Policy | None = None):
         created_trip.end_date = kwargs["end_date"]
         created_trip.region = kwargs["region"]
         created_trip.travel_area_id = kwargs["travel_area_id"]
+        created_trip.participant_count = kwargs["participant_count"]
         created_trip.description = kwargs["description"]
         return created_trip
 
@@ -942,6 +1115,23 @@ def test_create_trip_with_travel_area_id_stores_resolved_area(monkeypatch) -> No
     assert "Sokcho-Goseong-Yangyang" in created["title"]
     assert captured["create_trip"]["region"] == "Sokcho-Goseong-Yangyang"
     assert captured["create_trip"]["travel_area_id"] == "gangwon-sokcho-goseong-yangyang"
+    assert captured["create_trip"]["participant_count"] == 1
+
+
+def test_create_trip_persists_participant_count_without_fake_members(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    captured = install_create_trip_stubs(monkeypatch)
+
+    created = trip_service.create_trip(
+        fake_db,
+        user,
+        CreateTripRequest(region="Busan", participantCount=4, durationDays=2),
+    )
+
+    assert created["participantCount"] == 4
+    assert created["people"] == ["Test User", "Minseo"]
+    assert captured["create_trip"]["participant_count"] == 4
 
 
 def test_create_trip_with_unknown_travel_area_id_returns_400(monkeypatch) -> None:

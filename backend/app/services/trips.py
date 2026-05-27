@@ -22,15 +22,28 @@ from app.schemas.trip import (
 from app.services import itinerary_recommendations
 
 try:
-    from app.data.travel_areas import get_travel_area
+    from app.data.travel_areas import get_travel_area, list_travel_areas
 except ModuleNotFoundError:
     def get_travel_area(_area_id: str | None):
         return None
+
+    def list_travel_areas():
+        return ()
 
 
 INVITE_BASE_URL = "travelhunter.app/i"
 NUMERIC_TRIP_ID_PATTERN = re.compile(r"^[1-9][0-9]*$")
 TRIP_EDIT_ROLES = {"owner", "editor"}
+NATIONWIDE_REGION = "\uc804\uad6d"
+MIN_RECOMMENDED_POLICY_SCORE = 40
+CONDITIONAL_POLICY_KEYWORDS = (
+    "\ub2e4\uc790\ub140",
+    "\uc7a5\uc560\uc778",
+    "\ud720\uccb4\uc5b4",
+    "\uc784\uc0b0\ubd80",
+    "\uccad\ub144",
+    "\ud55c\ubd80\ubaa8",
+)
 
 
 class TripServiceError(Exception):
@@ -117,14 +130,114 @@ def _external_source_record_to_trip_policy_candidate(record: ExternalSourceRecor
         "slug": f"{external_source_repository.EXTERNAL_POLICY_SLUG_PREFIX}{record.id}",
         "title": record.title,
         "amount": record.benefit_value_text or record.benefit_text,
-        "region": record.region or ("전국" if record.is_nationwide else ""),
+        "region": record.region or (NATIONWIDE_REGION if record.is_nationwide else ""),
         "benefitAmount": record.extracted_amount_krw or 0,
         "endDate": record.end_date,
         "sortId": record.id or 0,
     }
 
 
-def _recommended_policies(trip: Trip, candidates: list[dict[str, object]] | None = None, limit: int = 2) -> list[dict[str, str]]:
+def _normalized_text(value: object) -> str:
+    return re.sub(r"\s+", "", str(value or "")).lower()
+
+
+def _split_region_terms(value: str | None) -> list[str]:
+    return [
+        term.strip()
+        for term in re.split(r"[\u00b7,/|()\-\s]+", value or "")
+        if term.strip()
+    ]
+
+
+def _unique_terms(values: list[str]) -> list[str]:
+    terms: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        normalized = _normalized_text(value)
+        if not normalized or normalized == _normalized_text(NATIONWIDE_REGION) or normalized in seen:
+            continue
+        seen.add(normalized)
+        terms.append(value)
+    return terms
+
+
+def _trip_policy_match_terms(trip: Trip) -> tuple[list[str], str | None]:
+    area = get_travel_area(trip.travel_area_id)
+    values: list[str] = []
+    area_sido = None
+    if area is not None:
+        area_sido = area.sido
+        values.extend([area.sido, area.name])
+        values.extend(area.included_cities)
+        values.extend(area.aliases)
+    values.extend(_split_region_terms(trip.region))
+    if trip.region:
+        values.append(trip.region)
+    return _unique_terms(values), area_sido
+
+
+def _known_destination_terms() -> list[str]:
+    values: list[str] = []
+    for area in list_travel_areas():
+        values.extend([area.sido, area.name])
+        values.extend(area.included_cities)
+        values.extend(area.aliases)
+    return _unique_terms(values)
+
+
+def _candidate_policy_text(candidate: dict[str, object]) -> str:
+    return _normalized_text(
+        " ".join(
+            [
+                str(candidate.get("title") or ""),
+                str(candidate.get("amount") or ""),
+                str(candidate.get("region") or ""),
+            ]
+        )
+    )
+
+
+def _trip_policy_candidate_score(
+    candidate: dict[str, object],
+    *,
+    match_terms: list[str],
+    area_sido: str | None,
+    known_destination_terms: list[str],
+) -> int:
+    score = 0
+    candidate_region = _normalized_text(candidate.get("region"))
+    candidate_text = _candidate_policy_text(candidate)
+    normalized_terms = {_normalized_text(term) for term in match_terms if _normalized_text(term)}
+    normalized_sido = _normalized_text(area_sido)
+
+    if normalized_sido and candidate_region == normalized_sido:
+        score += 120
+    elif candidate_region and candidate_region in normalized_terms:
+        score += 120
+    elif candidate_region == _normalized_text(NATIONWIDE_REGION):
+        score += 40
+
+    if any(term and term in candidate_text for term in normalized_terms):
+        score += 90
+
+    conflicting_terms = [
+        _normalized_text(term)
+        for term in known_destination_terms
+        if _normalized_text(term) and _normalized_text(term) not in normalized_terms
+    ]
+    if any(term in candidate_text for term in conflicting_terms):
+        score -= 120
+
+    if any(_normalized_text(keyword) in candidate_text for keyword in CONDITIONAL_POLICY_KEYWORDS):
+        score -= 80
+
+    if candidate.get("benefitAmount"):
+        score += 10
+
+    return score
+
+
+def _recommended_policies(trip: Trip, candidates: list[dict[str, object]] | None = None, limit: int = 3) -> list[dict[str, str]]:
     if not candidates:
         return []
 
@@ -133,23 +246,45 @@ def _recommended_policies(trip: Trip, candidates: list[dict[str, object]] | None
         for link in trip.policies
         if link.policy is not None
     }
-    trip_region = (trip.region or "").strip()
-
     available_candidates = [
         candidate
         for candidate in candidates
         if str(candidate["slug"]) not in linked_slugs
     ]
-    region_candidates = [candidate for candidate in available_candidates if trip_region and candidate["region"] == trip_region]
-    if region_candidates:
-        available_candidates = region_candidates
-    available_candidates.sort(
-        key=lambda candidate: (
-            0 if trip_region and candidate["region"] == trip_region else 1,
-            0 if candidate["region"] == "전국" else 1,
-            0 if candidate["benefitAmount"] else 1,
-            candidate["endDate"] or date.max,
-            candidate["sortId"],
+    trip_region = (trip.region or "").strip()
+    if not trip.travel_area_id:
+        region_candidates = [
+            candidate
+            for candidate in available_candidates
+            if trip_region and candidate["region"] == trip_region
+        ]
+        if region_candidates:
+            available_candidates = region_candidates
+    match_terms, area_sido = _trip_policy_match_terms(trip)
+    known_destination_terms = _known_destination_terms()
+    scored_candidates = [
+        (
+            _trip_policy_candidate_score(
+                candidate,
+                match_terms=match_terms,
+                area_sido=area_sido,
+                known_destination_terms=known_destination_terms,
+            ),
+            candidate,
+        )
+        for candidate in available_candidates
+    ]
+    if trip.travel_area_id:
+        scored_candidates = [
+            (score, candidate)
+            for score, candidate in scored_candidates
+            if score >= MIN_RECOMMENDED_POLICY_SCORE
+        ]
+    scored_candidates.sort(
+        key=lambda scored_candidate: (
+            -scored_candidate[0],
+            scored_candidate[1]["endDate"] or date.max,
+            scored_candidate[1]["sortId"],
         )
     )
     return [
@@ -159,7 +294,7 @@ def _recommended_policies(trip: Trip, candidates: list[dict[str, object]] | None
             "amount": str(candidate["amount"] or ""),
             "region": str(candidate["region"] or ""),
         }
-        for candidate in available_candidates[:limit]
+        for _score, candidate in scored_candidates[:limit]
     ]
 
 

@@ -212,7 +212,6 @@ export function ItineraryDetailPage() {
   const routeLinkedPolicy = (location.state as TripDetailLocationState | null)?.linkedPolicy ?? null;
   const linkedPolicies = linkedTripPoliciesForDisplay(trip?.linkedPolicies, routeLinkedPolicy, hiddenRoutePolicySlugs);
   const recommendedPolicies = trip?.recommendedPolicies ?? [];
-  const recommendedPolicyRegion = recommendedPolicies[0]?.region ?? trip?.title.split(" ")[0] ?? "지역";
   const hasLinkedPolicyFallback = linkedPolicies.length === 0 && hasPolicySaving(trip?.expectedSaving);
   const dragSensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -605,9 +604,9 @@ export function ItineraryDetailPage() {
             <Link className="prototype-matching-policy-card" to="/policies">
               <div className="matching-card-head">
                 <span aria-hidden="true">💡</span>
-                <em>{recommendedPolicyRegion} 혜택</em>
+                <em>정책 확인</em>
               </div>
-              <strong>{recommendedPolicyRegion} 추천 정책과 혜택을 확인하세요</strong>
+              <strong>이 일정에 어울리는 정책이 없어요</strong>
             </Link>
           )}
         </div>
