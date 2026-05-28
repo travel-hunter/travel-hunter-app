@@ -8,6 +8,8 @@
 
 ## Latest Validations
 
+- Deep-interview refinement on 2026-05-28: expanded Kakao Map First Pass requirements to include backend Kakao Local coordinate generation/storage/API response verification while allowing catalog fallback to remain coordinate-less with frontend graceful fallback.
+- Deep-interview artifact validation on 2026-05-28: confirmed updated `.omx/specs/deep-interview-travel-hunter-kakao-map.md`, `.omx/plans/prd-kakao-map-first-pass.md`, and `.omx/plans/test-spec-kakao-map-first-pass.md` include Kakao Local, latitude/longitude, and catalog fallback scope. No code tests were run because this pass only updated planning/interview artifacts.
 - `docker compose -f compose.yaml up -d --build` completed successfully.
 - Docker backend health check returned `200`.
 - Docker frontend at `http://127.0.0.1:4173` returned `200`.
