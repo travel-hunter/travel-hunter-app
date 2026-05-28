@@ -61,30 +61,6 @@ Then check:
 http://127.0.0.1:4173/
 ```
 
-## Local Collection And Recommendation Smoke
-
-Cloudflare is not required for the local collection/recommendation smoke. The command starts local Compose services, applies migrations and seed data, runs a one-time TravelMonth collection, verifies collection quality and region recommendations, creates an authenticated trip, checks generated trip days, places, and recommendations, then confirms the trip's recommended policy slug resolves through the policy detail API.
-
-```powershell
-.\scripts\local-recommendation-smoke.ps1
-```
-
-When images are already current:
-
-```powershell
-.\scripts\local-recommendation-smoke.ps1 -SkipBuild
-```
-
-Expected final line:
-
-```text
-== Local recommendation smoke passed ==
-```
-
-The final summary includes `recommendedPolicySlug=...` when the trip detail recommendation can be opened through `/api/policies/{slug}`.
-
-If an existing Docker DB volume was initialized with an older password, either recreate the local volume for a clean smoke run or synchronize the DB role password with the current local env before running migrations. Do not commit real env values.
-
 ## Port Standard
 
 - `5173`: Vite dev frontend, fast UI iteration.
@@ -96,7 +72,7 @@ If an existing Docker DB volume was initialized with an older password, either r
 
 Do not enable LAN/classroom sharing during normal UI development.
 
-When development is complete and other people need to view the app from their devices, use the Cloudflare Tunnel flow in `docs/deployment-cicd/07-infrastructure.md`. That step may require public hostname, CORS, and secret/env settings.
+When development is complete and other people need to view the app from their devices, use the Cloudflare Tunnel flow described in `compose.tunnel.yaml` and `deploy/.env.tunnel.example`. That step may require public hostname, CORS, and secret/env settings.
 
 ## Quick Checks
 

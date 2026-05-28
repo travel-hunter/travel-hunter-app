@@ -102,6 +102,12 @@ function waitForHealth(url, timeoutMs = 60_000) {
 
 function stopProcess(child) {
   if (!child || child.killed) return;
+  if (process.platform === "win32" && child.pid) {
+    spawnSync("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], {
+      stdio: "ignore",
+    });
+    return;
+  }
   child.kill();
 }
 

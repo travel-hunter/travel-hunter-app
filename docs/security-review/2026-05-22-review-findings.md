@@ -27,7 +27,7 @@ Status: HIGH resolved, MEDIUM/LOW follow-up resolved
   - 파일: `frontend/src/api/backendApi.ts:38-46`
   - 내용: dev 실행용 기본값은 환경변수 기반 처리로 정리.
 - [x] **PowerShell 스크립트 변수 alias 충돌 정리**
-  - 파일: `scripts/local-recommendation-smoke.ps1:147-192`
+  - File: `scripts/local-recommendation-smoke.ps1` was removed during repo slimming; this historical finding is no longer tied to a live file.
   - 내용: `-Style`/`-Region` 문자열을 안전하게 비교하도록 고정되어 있어 실행 분기에서 alias 의존성이 남지 않음.
 - [x] **`updated_at` onupdate 누락**
   - 파일: `backend/app/models/tables.py`

@@ -278,3 +278,194 @@ def test_promotes_traffic_and_half_trip_records_to_policies(db: Session) -> None
     assert [policy.policy_type for policy in policies] == ["교통", "지역할인"]
     assert policies[0].official_url == traffic.collected_page_url
     assert policies[1].source_category == "local_half_trip"
+
+
+def test_hides_promoted_local_half_trip_when_source_becomes_ended_or_unknown(
+    db: Session,
+) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                canonical_key="half-trip-ended",
+                external_id="half-trip-ended",
+                source_category="local_half_trip",
+            ),
+            make_source(
+                canonical_key="half-trip-unknown",
+                external_id="half-trip-unknown",
+                source_category="local_half_trip",
+            ),
+        ],
+    )
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+
+    promote_external_benefits_to_policies(db)
+    rows[0].status = "ended"
+    rows[1].status = "unknown"
+
+    result = promote_external_benefits_to_policies(db)
+
+    policies = (
+        db.query(Policy)
+        .filter(Policy.external_source_record_id.in_([row.id for row in rows]))
+        .order_by(Policy.external_source_record_id)
+        .all()
+    )
+    assert result.promoted_count == 0
+    assert [policy.status for policy in policies] == ["hidden", "hidden"]
+    assert [policy.verification_status for policy in policies] == ["fresh", "fresh"]
+
+
+def test_reactivates_hidden_policy_when_source_returns_active_fresh(db: Session) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                canonical_key="half-trip-reactivate",
+                external_id="half-trip-reactivate",
+                source_category="local_half_trip",
+            )
+        ],
+    )
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+
+    promote_external_benefits_to_policies(db)
+    policy = db.query(Policy).filter(Policy.external_source_record_id == rows[0].id).one()
+    rows[0].status = "ended"
+    promote_external_benefits_to_policies(db)
+    assert policy.status == "hidden"
+
+    rows[0].status = "active"
+    rows[0].freshness_status = "fresh"
+    result = promote_external_benefits_to_policies(db)
+
+    assert result.promoted_count == 1
+    assert policy.status == "active"
+
+
+def test_deactivation_hides_admin_override_without_overwriting_protected_fields(
+    db: Session,
+) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                canonical_key="admin-override-half-trip",
+                external_id="admin-override-half-trip",
+                source_category="local_half_trip",
+                title="Source title",
+            )
+        ],
+    )
+    policy = Policy(
+        slug=f"travelmonth-{rows[0].id}",
+        title="Admin title",
+        organization="Admin org",
+        policy_type="etc",
+        description="Admin description",
+        benefit_detail="Admin benefit",
+        target_condition="Admin target",
+        region="Admin region",
+        status="active",
+        admin_override_enabled=True,
+        external_source_record_id=rows[0].id,
+    )
+    db.add(policy)
+    db.flush()
+    rows[0].status = "ended"
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+
+    promote_external_benefits_to_policies(db)
+
+    assert policy.status == "hidden"
+    assert policy.title == "Admin title"
+    assert policy.organization == "Admin org"
+    assert policy.source_category == "local_half_trip"
+    assert policy.verification_status == "fresh"
+
+
+def test_reactivates_admin_override_when_source_returns_active_fresh(
+    db: Session,
+) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                canonical_key="admin-override-reactivate",
+                external_id="admin-override-reactivate",
+                source_category="local_half_trip",
+                title="Source title",
+            )
+        ],
+    )
+    policy = Policy(
+        slug=f"travelmonth-{rows[0].id}",
+        title="Admin title",
+        organization="Admin org",
+        policy_type="etc",
+        description="Admin description",
+        benefit_detail="Admin benefit",
+        target_condition="Admin target",
+        region="Admin region",
+        status="hidden",
+        admin_override_enabled=True,
+        external_source_record_id=rows[0].id,
+    )
+    db.add(policy)
+    db.flush()
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+
+    result = promote_external_benefits_to_policies(db)
+
+    assert result.promoted_count == 1
+    assert policy.status == "active"
+    assert policy.title == "Admin title"
+    assert policy.organization == "Admin org"
+    assert policy.source_category == "local_half_trip"
+
+
+def test_promoting_local_half_trip_hides_legacy_dgtour_seed_policies(
+    db: Session,
+) -> None:
+    upsert_external_source_records(
+        db,
+        [
+            make_source(
+                canonical_key="active-half-trip",
+                external_id="active-half-trip",
+                source_name="대한민국 반값여행",
+                source_url="https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+                source_category="local_half_trip",
+                collected_page_url="https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+                title="Hadong half trip support",
+                region="Gyeongnam",
+                city="Hadong",
+            )
+        ],
+    )
+    legacy_policy = Policy(
+        slug="dgtour-hadong-3",
+        title="Legacy dgtour policy",
+        organization="KTO",
+        policy_type="지역할인",
+        description="Legacy",
+        benefit_detail="Legacy",
+        target_condition="Legacy",
+        region="Gyeongnam",
+        status="active",
+    )
+    db.add(legacy_policy)
+    db.flush()
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+
+    result = promote_external_benefits_to_policies(db)
+
+    assert result.promoted_count == 1
+    assert legacy_policy.status == "hidden"
+    assert db.query(Policy).filter(Policy.slug.like("travelmonth-%")).one().status == "active"

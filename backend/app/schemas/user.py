@@ -11,6 +11,7 @@ class User(BaseModel):
     id: str
     nickname: str
     email: str
+    role: str = "user"
     birthDate: str | None = None
     gender: str | None = None
     region: str | None = None

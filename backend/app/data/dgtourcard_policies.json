@@ -6,18 +6,24 @@
     "region": "경남",
     "deadline": "2026-12-31",
     "amount": "혜택 제공",
-    "summary": "디지털관광주민증 소지자 대상 밀양(경남) 지역 방문 시 혜택을 제공합니다.",
+    "summary": "디지털관광주민증 또는 대한민국 반값여행을 통해 현재 준비중 상태인 밀양 방문 혜택을 확인할 수 있습니다.",
     "match": 75,
     "category": "지역할인",
     "requirements": [
-      "디지털관광주민증 발급자",
-      "경남 방문"
+      "디지털관광주민증 발급 또는 지역별 신청 조건 확인",
+      "경남 밀양 방문"
     ],
     "documents": [
-      "디지털관광주민증"
+      "디지털관광주민증 또는 지역별 신청 확인"
     ],
-    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
-    "applyUrl": null
+    "officialUrl": "https://www.mybanhada.com/",
+    "applyUrl": null,
+    "status": "hidden",
+    "sourceName": "대한민국 반값여행",
+    "sourceCategory": "local_half_trip",
+    "sourceStatus": "준비중",
+    "sourceUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "sourceCanonicalKey": "legacy-dgtour-밀양-1"
   },
   {
     "slug": "dgtour-평창-2",
@@ -26,18 +32,24 @@
     "region": "강원",
     "deadline": "2026-12-31",
     "amount": "혜택 제공",
-    "summary": "디지털관광주민증 소지자 대상 평창(강원) 지역 방문 시 혜택을 제공합니다.",
+    "summary": "디지털관광주민증 또는 대한민국 반값여행을 통해 현재 준비중 상태인 평창 방문 혜택을 확인할 수 있습니다.",
     "match": 75,
     "category": "지역할인",
     "requirements": [
-      "디지털관광주민증 발급자",
-      "강원 방문"
+      "디지털관광주민증 발급 또는 지역별 신청 조건 확인",
+      "강원 평창 방문"
     ],
     "documents": [
-      "디지털관광주민증"
+      "디지털관광주민증 또는 지역별 신청 확인"
     ],
-    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
-    "applyUrl": null
+    "officialUrl": "https://pc.halftrip.kr",
+    "applyUrl": null,
+    "status": "hidden",
+    "sourceName": "대한민국 반값여행",
+    "sourceCategory": "local_half_trip",
+    "sourceStatus": "준비중",
+    "sourceUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "sourceCanonicalKey": "legacy-dgtour-평창-2"
   },
   {
     "slug": "dgtour-하동-3",
@@ -46,18 +58,24 @@
     "region": "경남",
     "deadline": "2026-12-31",
     "amount": "혜택 제공",
-    "summary": "디지털관광주민증 소지자 대상 하동(경남) 지역 방문 시 혜택을 제공합니다.",
+    "summary": "디지털관광주민증 또는 대한민국 반값여행을 통해 신청 가능한 하동 방문 혜택을 확인할 수 있습니다.",
     "match": 75,
     "category": "지역할인",
     "requirements": [
-      "디지털관광주민증 발급자",
-      "경남 방문"
+      "디지털관광주민증 발급 또는 지역별 신청 조건 확인",
+      "경남 하동 방문"
     ],
     "documents": [
-      "디지털관광주민증"
+      "디지털관광주민증 또는 지역별 신청 확인"
     ],
-    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
-    "applyUrl": null
+    "officialUrl": "https://hadongtrip.kr/index.php",
+    "applyUrl": null,
+    "status": "active",
+    "sourceName": "대한민국 반값여행",
+    "sourceCategory": "local_half_trip",
+    "sourceStatus": "신청접수중",
+    "sourceUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "sourceCanonicalKey": "legacy-dgtour-하동-3"
   },
   {
     "slug": "dgtour-거창-4",
@@ -66,18 +84,24 @@
     "region": "경남",
     "deadline": "2026-12-31",
     "amount": "혜택 제공",
-    "summary": "디지털관광주민증 소지자 대상 거창(경남) 지역 방문 시 혜택을 제공합니다.",
+    "summary": "디지털관광주민증 또는 대한민국 반값여행을 통해 현재 준비중 상태인 거창 방문 혜택을 확인할 수 있습니다.",
     "match": 75,
     "category": "지역할인",
     "requirements": [
-      "디지털관광주민증 발급자",
-      "경남 방문"
+      "디지털관광주민증 발급 또는 지역별 신청 조건 확인",
+      "경남 거창 방문"
     ],
     "documents": [
-      "디지털관광주민증"
+      "디지털관광주민증 또는 지역별 신청 확인"
     ],
-    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
-    "applyUrl": null
+    "officialUrl": "https://geochangtour.kr/",
+    "applyUrl": null,
+    "status": "hidden",
+    "sourceName": "대한민국 반값여행",
+    "sourceCategory": "local_half_trip",
+    "sourceStatus": "준비중",
+    "sourceUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "sourceCanonicalKey": "legacy-dgtour-거창-4"
   },
   {
     "slug": "dgtour-영월-5",
@@ -86,18 +110,24 @@
     "region": "강원",
     "deadline": "2026-12-31",
     "amount": "혜택 제공",
-    "summary": "디지털관광주민증 소지자 대상 영월(강원) 지역 방문 시 혜택을 제공합니다.",
+    "summary": "디지털관광주민증 또는 대한민국 반값여행을 통해 현재 준비중 상태인 영월 방문 혜택을 확인할 수 있습니다.",
     "match": 75,
     "category": "지역할인",
     "requirements": [
-      "디지털관광주민증 발급자",
-      "강원 방문"
+      "디지털관광주민증 발급 또는 지역별 신청 조건 확인",
+      "강원 영월 방문"
     ],
     "documents": [
-      "디지털관광주민증"
+      "디지털관광주민증 또는 지역별 신청 확인"
     ],
-    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
-    "applyUrl": null
+    "officialUrl": "https://halftour.kr/",
+    "applyUrl": null,
+    "status": "hidden",
+    "sourceName": "대한민국 반값여행",
+    "sourceCategory": "local_half_trip",
+    "sourceStatus": "준비중",
+    "sourceUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "sourceCanonicalKey": "legacy-dgtour-영월-5"
   },
   {
     "slug": "dgtour-제천-6",
@@ -106,18 +136,24 @@
     "region": "충북",
     "deadline": "2026-12-31",
     "amount": "혜택 제공",
-    "summary": "디지털관광주민증 소지자 대상 제천(충북) 지역 방문 시 혜택을 제공합니다.",
+    "summary": "디지털관광주민증 또는 대한민국 반값여행을 통해 현재 마감 상태인 제천 방문 혜택을 확인할 수 있습니다.",
     "match": 75,
     "category": "지역할인",
     "requirements": [
-      "디지털관광주민증 발급자",
-      "충북 방문"
+      "디지털관광주민증 발급 또는 지역별 신청 조건 확인",
+      "충북 제천 방문"
     ],
     "documents": [
-      "디지털관광주민증"
+      "디지털관광주민증 또는 지역별 신청 확인"
     ],
-    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
-    "applyUrl": null
+    "officialUrl": "https://www.jctour.kr/",
+    "applyUrl": null,
+    "status": "hidden",
+    "sourceName": "대한민국 반값여행",
+    "sourceCategory": "local_half_trip",
+    "sourceStatus": "마감",
+    "sourceUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "sourceCanonicalKey": "legacy-dgtour-제천-6"
   },
   {
     "slug": "dgtour-강진-7",
@@ -126,18 +162,24 @@
     "region": "전남",
     "deadline": "2026-12-31",
     "amount": "혜택 제공",
-    "summary": "디지털관광주민증 소지자 대상 강진(전남) 지역 방문 시 혜택을 제공합니다.",
+    "summary": "디지털관광주민증 또는 대한민국 반값여행을 통해 현재 준비중 상태인 강진 방문 혜택을 확인할 수 있습니다.",
     "match": 75,
     "category": "지역할인",
     "requirements": [
-      "디지털관광주민증 발급자",
-      "전남 방문"
+      "디지털관광주민증 발급 또는 지역별 신청 조건 확인",
+      "전남 강진 방문"
     ],
     "documents": [
-      "디지털관광주민증"
+      "디지털관광주민증 또는 지역별 신청 확인"
     ],
-    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
-    "applyUrl": null
+    "officialUrl": null,
+    "applyUrl": null,
+    "status": "hidden",
+    "sourceName": "대한민국 반값여행",
+    "sourceCategory": "local_half_trip",
+    "sourceStatus": "준비중",
+    "sourceUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "sourceCanonicalKey": "legacy-dgtour-강진-7"
   },
   {
     "slug": "dgtour-영광-8",
@@ -146,18 +188,24 @@
     "region": "전남",
     "deadline": "2026-12-31",
     "amount": "혜택 제공",
-    "summary": "디지털관광주민증 소지자 대상 영광(전남) 지역 방문 시 혜택을 제공합니다.",
+    "summary": "디지털관광주민증 또는 대한민국 반값여행을 통해 신청 가능한 영광 방문 혜택을 확인할 수 있습니다.",
     "match": 75,
     "category": "지역할인",
     "requirements": [
-      "디지털관광주민증 발급자",
-      "전남 방문"
+      "디지털관광주민증 발급 또는 지역별 신청 조건 확인",
+      "전남 영광 방문"
     ],
     "documents": [
-      "디지털관광주민증"
+      "디지털관광주민증 또는 지역별 신청 확인"
     ],
-    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
-    "applyUrl": null
+    "officialUrl": "https://www.yeonggwang.go.kr/travel/",
+    "applyUrl": null,
+    "status": "active",
+    "sourceName": "대한민국 반값여행",
+    "sourceCategory": "local_half_trip",
+    "sourceStatus": "신청접수중",
+    "sourceUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "sourceCanonicalKey": "legacy-dgtour-영광-8"
   },
   {
     "slug": "dgtour-합천-9",
@@ -166,18 +214,24 @@
     "region": "경남",
     "deadline": "2026-12-31",
     "amount": "혜택 제공",
-    "summary": "디지털관광주민증 소지자 대상 합천(경남) 지역 방문 시 혜택을 제공합니다.",
+    "summary": "디지털관광주민증 또는 대한민국 반값여행을 통해 신청 가능한 합천 방문 혜택을 확인할 수 있습니다.",
     "match": 75,
     "category": "지역할인",
     "requirements": [
-      "디지털관광주민증 발급자",
-      "경남 방문"
+      "디지털관광주민증 발급 또는 지역별 신청 조건 확인",
+      "경남 합천 방문"
     ],
     "documents": [
-      "디지털관광주민증"
+      "디지털관광주민증 또는 지역별 신청 확인"
     ],
-    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
-    "applyUrl": null
+    "officialUrl": "https://www.hctour.kr/",
+    "applyUrl": null,
+    "status": "active",
+    "sourceName": "대한민국 반값여행",
+    "sourceCategory": "local_half_trip",
+    "sourceStatus": "신청접수중",
+    "sourceUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "sourceCanonicalKey": "legacy-dgtour-합천-9"
   },
   {
     "slug": "dgtour-해남-10",
@@ -186,18 +240,24 @@
     "region": "전남",
     "deadline": "2026-12-31",
     "amount": "혜택 제공",
-    "summary": "디지털관광주민증 소지자 대상 해남(전남) 지역 방문 시 혜택을 제공합니다.",
+    "summary": "디지털관광주민증 또는 대한민국 반값여행을 통해 신청 가능한 해남 방문 혜택을 확인할 수 있습니다.",
     "match": 75,
     "category": "지역할인",
     "requirements": [
-      "디지털관광주민증 발급자",
-      "전남 방문"
+      "디지털관광주민증 발급 또는 지역별 신청 조건 확인",
+      "전남 해남 방문"
     ],
     "documents": [
-      "디지털관광주민증"
+      "디지털관광주민증 또는 지역별 신청 확인"
     ],
-    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
-    "applyUrl": null
+    "officialUrl": "https://www.haenam50.kr/index",
+    "applyUrl": null,
+    "status": "active",
+    "sourceName": "대한민국 반값여행",
+    "sourceCategory": "local_half_trip",
+    "sourceStatus": "신청접수중",
+    "sourceUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "sourceCanonicalKey": "legacy-dgtour-해남-10"
   },
   {
     "slug": "dgtour-남해-11",
@@ -206,18 +266,24 @@
     "region": "경남",
     "deadline": "2026-12-31",
     "amount": "혜택 제공",
-    "summary": "디지털관광주민증 소지자 대상 남해(경남) 지역 방문 시 혜택을 제공합니다.",
+    "summary": "디지털관광주민증 또는 대한민국 반값여행을 통해 현재 마감 상태인 남해 방문 혜택을 확인할 수 있습니다.",
     "match": 75,
     "category": "지역할인",
     "requirements": [
-      "디지털관광주민증 발급자",
-      "경남 방문"
+      "디지털관광주민증 발급 또는 지역별 신청 조건 확인",
+      "경남 남해 방문"
     ],
     "documents": [
-      "디지털관광주민증"
+      "디지털관광주민증 또는 지역별 신청 확인"
     ],
-    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
-    "applyUrl": null
+    "officialUrl": "https://www.namhae.go.kr/tour/main.web",
+    "applyUrl": null,
+    "status": "hidden",
+    "sourceName": "대한민국 반값여행",
+    "sourceCategory": "local_half_trip",
+    "sourceStatus": "마감",
+    "sourceUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "sourceCanonicalKey": "legacy-dgtour-남해-11"
   },
   {
     "slug": "dgtour-영암-12",
@@ -226,18 +292,24 @@
     "region": "전남",
     "deadline": "2026-12-31",
     "amount": "혜택 제공",
-    "summary": "디지털관광주민증 소지자 대상 영암(전남) 지역 방문 시 혜택을 제공합니다.",
+    "summary": "디지털관광주민증 또는 대한민국 반값여행을 통해 현재 마감 상태인 영암 방문 혜택을 확인할 수 있습니다.",
     "match": 75,
     "category": "지역할인",
     "requirements": [
-      "디지털관광주민증 발급자",
-      "전남 방문"
+      "디지털관광주민증 발급 또는 지역별 신청 조건 확인",
+      "전남 영암 방문"
     ],
     "documents": [
-      "디지털관광주민증"
+      "디지털관광주민증 또는 지역별 신청 확인"
     ],
-    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
-    "applyUrl": null
+    "officialUrl": "https://www.yeongam.go.kr/oneplusone",
+    "applyUrl": null,
+    "status": "hidden",
+    "sourceName": "대한민국 반값여행",
+    "sourceCategory": "local_half_trip",
+    "sourceStatus": "마감",
+    "sourceUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "sourceCanonicalKey": "legacy-dgtour-영암-12"
   },
   {
     "slug": "dgtour-고흥-13",
@@ -246,18 +318,24 @@
     "region": "전남",
     "deadline": "2026-12-31",
     "amount": "혜택 제공",
-    "summary": "디지털관광주민증 소지자 대상 고흥(전남) 지역 방문 시 혜택을 제공합니다.",
+    "summary": "디지털관광주민증 또는 대한민국 반값여행을 통해 현재 준비중 상태인 고흥 방문 혜택을 확인할 수 있습니다.",
     "match": 75,
     "category": "지역할인",
     "requirements": [
-      "디지털관광주민증 발급자",
-      "전남 방문"
+      "디지털관광주민증 발급 또는 지역별 신청 조건 확인",
+      "전남 고흥 방문"
     ],
     "documents": [
-      "디지털관광주민증"
+      "디지털관광주민증 또는 지역별 신청 확인"
     ],
-    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
-    "applyUrl": null
+    "officialUrl": "https://tour.goheung.go.kr/front/M0000361/content/view.do",
+    "applyUrl": null,
+    "status": "hidden",
+    "sourceName": "대한민국 반값여행",
+    "sourceCategory": "local_half_trip",
+    "sourceStatus": "준비중",
+    "sourceUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "sourceCanonicalKey": "legacy-dgtour-고흥-13"
   },
   {
     "slug": "dgtour-횡성-14",
@@ -266,18 +344,24 @@
     "region": "강원",
     "deadline": "2026-12-31",
     "amount": "혜택 제공",
-    "summary": "디지털관광주민증 소지자 대상 횡성(강원) 지역 방문 시 혜택을 제공합니다.",
+    "summary": "디지털관광주민증 또는 대한민국 반값여행을 통해 현재 마감 상태인 횡성 방문 혜택을 확인할 수 있습니다.",
     "match": 75,
     "category": "지역할인",
     "requirements": [
-      "디지털관광주민증 발급자",
-      "강원 방문"
+      "디지털관광주민증 발급 또는 지역별 신청 조건 확인",
+      "강원 횡성 방문"
     ],
     "documents": [
-      "디지털관광주민증"
+      "디지털관광주민증 또는 지역별 신청 확인"
     ],
-    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
-    "applyUrl": null
+    "officialUrl": "https://hs.halftrip.kr/",
+    "applyUrl": null,
+    "status": "hidden",
+    "sourceName": "대한민국 반값여행",
+    "sourceCategory": "local_half_trip",
+    "sourceStatus": "마감",
+    "sourceUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "sourceCanonicalKey": "legacy-dgtour-횡성-14"
   },
   {
     "slug": "dgtour-완도-15",
@@ -286,18 +370,24 @@
     "region": "전남",
     "deadline": "2026-12-31",
     "amount": "혜택 제공",
-    "summary": "디지털관광주민증 소지자 대상 완도(전남) 지역 방문 시 혜택을 제공합니다.",
+    "summary": "디지털관광주민증 또는 대한민국 반값여행을 통해 신청 가능한 완도 방문 혜택을 확인할 수 있습니다.",
     "match": 75,
     "category": "지역할인",
     "requirements": [
-      "디지털관광주민증 발급자",
-      "전남 방문"
+      "디지털관광주민증 발급 또는 지역별 신청 조건 확인",
+      "전남 완도 방문"
     ],
     "documents": [
-      "디지털관광주민증"
+      "디지털관광주민증 또는 지역별 신청 확인"
     ],
-    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
-    "applyUrl": null
+    "officialUrl": "https://www.wandotrip.kr/index.php",
+    "applyUrl": null,
+    "status": "active",
+    "sourceName": "대한민국 반값여행",
+    "sourceCategory": "local_half_trip",
+    "sourceStatus": "신청접수중",
+    "sourceUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "sourceCanonicalKey": "legacy-dgtour-완도-15"
   },
   {
     "slug": "dgtour-고창-16",
@@ -306,17 +396,23 @@
     "region": "전북",
     "deadline": "2026-12-31",
     "amount": "혜택 제공",
-    "summary": "디지털관광주민증 소지자 대상 고창(전북) 지역 방문 시 혜택을 제공합니다.",
+    "summary": "디지털관광주민증 또는 대한민국 반값여행을 통해 현재 준비중 상태인 고창 방문 혜택을 확인할 수 있습니다.",
     "match": 75,
     "category": "지역할인",
     "requirements": [
-      "디지털관광주민증 발급자",
-      "전북 방문"
+      "디지털관광주민증 발급 또는 지역별 신청 조건 확인",
+      "전북 고창 방문"
     ],
     "documents": [
-      "디지털관광주민증"
+      "디지털관광주민증 또는 지역별 신청 확인"
     ],
-    "officialUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
-    "applyUrl": null
+    "officialUrl": "https://gochangtrip.co.kr",
+    "applyUrl": null,
+    "status": "hidden",
+    "sourceName": "대한민국 반값여행",
+    "sourceCategory": "local_half_trip",
+    "sourceStatus": "준비중",
+    "sourceUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    "sourceCanonicalKey": "legacy-dgtour-고창-16"
   }
 ]

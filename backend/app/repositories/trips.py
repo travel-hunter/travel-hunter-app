@@ -92,13 +92,29 @@ def add_trip_place(
     visit_time,
     order_num: int,
     memo: str | None,
+    address: str | None = None,
+    latitude = None,
+    longitude = None,
+    source_provider: str | None = None,
+    external_place_id: str | None = None,
+    category_group_code: str | None = None,
+    category_group_name: str | None = None,
+    place_url: str | None = None,
 ) -> TripPlace:
     place = TripPlace(
         trip_day_id=trip_day_id,
         place_name=place_name,
+        address=address,
+        latitude=latitude,
+        longitude=longitude,
         visit_time=visit_time,
         order_num=order_num,
         memo=memo,
+        source_provider=source_provider,
+        external_place_id=external_place_id,
+        category_group_code=category_group_code,
+        category_group_name=category_group_name,
+        place_url=place_url,
     )
     db.add(place)
     db.flush()

@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import secrets
 import re
+import logging
+import time as monotonic_time
 from datetime import date, datetime, timedelta, time
 from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core import security
 from app.data import seed
 from app.models import Policy, Trip, TripDay, TripInvite, TripPlace, User
@@ -20,6 +23,7 @@ from app.schemas.trip import (
     UpdateTripStatusRequest,
 )
 from app.services import itinerary_recommendations
+from app.services.kakao_local import KakaoLocalClient
 
 try:
     from app.data.travel_areas import get_travel_area, list_travel_areas
@@ -44,6 +48,88 @@ CONDITIONAL_POLICY_KEYWORDS = (
     "\uccad\ub144",
     "\ud55c\ubd80\ubaa8",
 )
+
+logger = logging.getLogger("uvicorn.error")
+
+
+class KakaoItineraryPlaceProvider:
+    def __init__(self, client: KakaoLocalClient) -> None:
+        self._client = client
+
+    def _queries_for_code(
+        self,
+        *,
+        area_name: str,
+        city: str,
+        category_group_code: str,
+    ) -> list[str]:
+        location = city or area_name
+        keyword_by_code = {
+            "AT4": ("가볼만한곳", "관광명소"),
+            "CT1": ("문화시설", "박물관"),
+            "FD6": ("맛집", "식당"),
+            "CE7": ("카페", "디저트"),
+            "AD5": ("숙소", "호텔"),
+        }
+        keywords = keyword_by_code.get(category_group_code, ("",))
+        return [f"{location} {keyword}".strip() for keyword in keywords]
+
+    def search(
+        self,
+        *,
+        area_name: str,
+        city: str,
+        category_group_code: str,
+    ) -> list[itinerary_recommendations.ExternalPlaceCandidate]:
+        candidates: list[itinerary_recommendations.ExternalPlaceCandidate] = []
+        seen_ids: set[str] = set()
+        for query in self._queries_for_code(
+            area_name=area_name,
+            city=city,
+            category_group_code=category_group_code,
+        ):
+            started_at = monotonic_time.monotonic()
+            places = self._client.search_keyword(
+                query=query,
+                category_group_code=category_group_code,
+            )
+            logger.info(
+                "kakao_local_keyword_timing category=%s city=%s query=%s elapsed_seconds=%.3f places=%s",
+                category_group_code,
+                city,
+                query,
+                monotonic_time.monotonic() - started_at,
+                len(places),
+            )
+            for place in places:
+                if place.external_place_id in seen_ids:
+                    continue
+                seen_ids.add(place.external_place_id)
+                candidates.append(
+                    itinerary_recommendations.ExternalPlaceCandidate(
+                        source_provider="kakao_local",
+                        external_place_id=place.external_place_id,
+                        title=place.name,
+                        category_name=place.category_name,
+                        category_group_code=place.category_group_code or category_group_code,
+                        category_group_name=place.category_group_name,
+                        address=place.address,
+                        latitude=place.latitude,
+                        longitude=place.longitude,
+                        place_url=place.place_url,
+                        city=city,
+                    )
+                )
+        return candidates
+
+
+def _build_external_place_provider() -> KakaoItineraryPlaceProvider | None:
+    if not settings.kakao_local_enabled:
+        return None
+    try:
+        return KakaoItineraryPlaceProvider(KakaoLocalClient(settings_obj=settings))
+    except Exception:
+        return None
 
 
 class TripServiceError(Exception):
@@ -106,6 +192,7 @@ def _linked_policies(trip: Trip) -> list[dict[str, str]]:
                 "title": policy.title,
                 "amount": amount,
                 "region": policy.region or "",
+                "status": getattr(policy, "status", "active") or "active",
             }
         )
     return linked
@@ -353,6 +440,14 @@ def trip_to_api(trip: Trip, user: User | None = None, recommended_policies: list
                 "time": place.visit_time.strftime("%H:%M") if place.visit_time else "",
                 "label": place.place_name,
                 "meta": place.memo or place.address or "",
+                "address": place.address,
+                "latitude": float(place.latitude) if place.latitude is not None else None,
+                "longitude": float(place.longitude) if place.longitude is not None else None,
+                "category": getattr(place, "category_group_name", None),
+                "categoryCode": getattr(place, "category_group_code", None),
+                "placeUrl": getattr(place, "place_url", None),
+                "sourceProvider": getattr(place, "source_provider", None),
+                "externalPlaceId": getattr(place, "external_place_id", None),
             }
             for place in places
         ]
@@ -497,6 +592,8 @@ def create_trip(
         style=str(payload.get("style") or seed.PROFILE["style"]),
         start_date=start_date,
         day_count=duration_days,
+        travel_area_id=travel_area.id if travel_area else None,
+        external_provider=_build_external_place_provider(),
     )
     generated_places_by_day: dict[int, list[itinerary_recommendations.GeneratedPlace]] = {}
     for generated_place in generated_course.places:
@@ -517,6 +614,14 @@ def create_trip(
                 visit_time=_parse_time(generated_place.time),
                 order_num=generated_place.order_num,
                 memo=generated_place.meta,
+                address=generated_place.address,
+                latitude=generated_place.latitude,
+                longitude=generated_place.longitude,
+                source_provider=generated_place.source_provider,
+                external_place_id=generated_place.external_place_id,
+                category_group_code=generated_place.category_group_code,
+                category_group_name=generated_place.category_group_name,
+                place_url=generated_place.place_url,
             )
 
     trip_repository.add_recommendation(
@@ -616,6 +721,14 @@ def add_place_to_trip_day(
         visit_time=_parse_optional_time(payload.time),
         order_num=next_order,
         memo=payload.meta.strip() if payload.meta is not None else None,
+        address=payload.address.strip() if payload.address else None,
+        latitude=payload.latitude,
+        longitude=payload.longitude,
+        category_group_code=payload.categoryCode,
+        category_group_name=payload.category,
+        place_url=payload.placeUrl,
+        source_provider=payload.sourceProvider,
+        external_place_id=payload.externalPlaceId,
     )
     db.commit()
     return _refresh_trip_payload(db, trip.id, user)
@@ -694,7 +807,7 @@ def delete_trip_place(
     return _refresh_trip_payload(db, trip.id, user)
 
 
-def _recommendation_items(value: Any) -> list[dict[str, str]]:
+def _recommendation_items(value: Any) -> list[dict[str, object]]:
     if isinstance(value, list):
         raw_items = value
     elif isinstance(value, dict):
@@ -703,17 +816,103 @@ def _recommendation_items(value: Any) -> list[dict[str, str]]:
     else:
         raw_items = []
 
-    items: list[dict[str, str]] = []
+    optional_keys = (
+        "id",
+        "categoryGroup",
+        "categoryCode",
+        "address",
+        "latitude",
+        "longitude",
+        "placeUrl",
+        "suggestedDay",
+        "aiReview",
+        "sourceProvider",
+        "externalPlaceId",
+    )
+    items: list[dict[str, object]] = []
     for item in raw_items:
         if not isinstance(item, dict):
             continue
+        mapped: dict[str, object] = {
+            "label": str(item.get("label") or ""),
+            "title": str(item.get("title") or ""),
+            "meta": str(item.get("meta") or ""),
+            "reason": str(item.get("reason") or ""),
+        }
+        for key in optional_keys:
+            if key in item:
+                mapped[key] = item.get(key)
+        items.append(mapped)
+    return items
+
+
+def _existing_place_keys(trip: Trip) -> tuple[set[tuple[str, str]], set[str], set[str]]:
+    provider_ids: set[tuple[str, str]] = set()
+    external_ids: set[str] = set()
+    titles: set[str] = set()
+    for trip_day in trip.days:
+        for place in trip_day.places:
+            source_provider = getattr(place, "source_provider", None)
+            external_place_id = getattr(place, "external_place_id", None)
+            if source_provider and external_place_id:
+                provider_ids.add((source_provider, external_place_id))
+            if external_place_id:
+                external_ids.add(external_place_id)
+            normalized_title = _normalized_text(place.place_name)
+            if normalized_title:
+                titles.add(normalized_title)
+    return provider_ids, external_ids, titles
+
+
+def _is_duplicate_candidate(
+    candidate: itinerary_recommendations.ExternalPlaceCandidate,
+    *,
+    provider_ids: set[tuple[str, str]],
+    external_ids: set[str],
+    titles: set[str],
+) -> bool:
+    if candidate.source_provider and candidate.external_place_id:
+        if (candidate.source_provider, candidate.external_place_id) in provider_ids:
+            return True
+    if candidate.external_place_id and candidate.external_place_id in external_ids:
+        return True
+    normalized_title = _normalized_text(candidate.title)
+    return bool(normalized_title and normalized_title in titles)
+
+
+def _additional_recommendation_items(trip: Trip) -> list[dict[str, object]]:
+    provider = _build_external_place_provider()
+    if provider is None:
+        return []
+
+    day_numbers = sorted(day.day_number for day in trip.days) or [1]
+    region = trip.region or trip.title
+    style = trip.description or ""
+    provider_ids, external_ids, titles = _existing_place_keys(trip)
+    candidates = itinerary_recommendations.additional_place_candidates(
+        region=region,
+        style=style,
+        day_count=max(len(day_numbers), 4),
+        travel_area_id=trip.travel_area_id,
+        external_provider=provider,
+    )
+    items: list[dict[str, object]] = []
+    for candidate in candidates:
+        if _is_duplicate_candidate(
+            candidate,
+            provider_ids=provider_ids,
+            external_ids=external_ids,
+            titles=titles,
+        ):
+            continue
+        suggested_day = day_numbers[len(items) % len(day_numbers)]
         items.append(
-            {
-                "label": str(item.get("label") or ""),
-                "title": str(item.get("title") or ""),
-                "meta": str(item.get("meta") or ""),
-                "reason": str(item.get("reason") or ""),
-            }
+            itinerary_recommendations.recommendation_from_candidate(
+                candidate,
+                suggested_day=suggested_day,
+                region=region,
+                style=style,
+            )
         )
     return items
 
@@ -722,12 +921,16 @@ def list_recommendations(
     db: Session,
     user: User,
     trip_handle: str,
-) -> list[dict[str, str]] | None:
+) -> list[dict[str, object]] | None:
     trip = _resolve_trip(db, trip_handle, user)
     if trip is None:
         return None
 
-    items: list[dict[str, str]] = []
+    additional_items = _additional_recommendation_items(trip)
+    if additional_items:
+        return additional_items
+
+    items: list[dict[str, object]] = []
     for recommendation in trip_repository.list_recommendations(db, trip_id=trip.id, user_id=user.id):
         items.extend(_recommendation_items(recommendation.result))
     return items

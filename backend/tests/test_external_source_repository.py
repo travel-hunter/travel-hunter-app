@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import datetime
 
@@ -10,17 +10,19 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.db.base import Base
 from app.models import ExternalSourceRecord
 from app.repositories.external_sources import (
+    get_external_source_record_by_policy_slug,
     list_external_source_records,
+    list_policy_deactivation_records,
     upsert_external_source_records,
 )
-from app.schemas.external_sources import TravelMonthRegionalBenefitSource
+from app.schemas.external_sources import ExternalBenefitSource
 
 
 FETCHED_AT = datetime(2026, 5, 21, 9, 0, 0)
 VERIFIED_AT = datetime(2026, 5, 21, 10, 0, 0)
 
 
-def make_source(**overrides) -> TravelMonthRegionalBenefitSource:
+def make_source(**overrides) -> ExternalBenefitSource:
     data = {
         "source_name": "여행가는 달",
         "source_type": "official_campaign",
@@ -58,7 +60,7 @@ def make_source(**overrides) -> TravelMonthRegionalBenefitSource:
         "freshness_status": "fresh",
     }
     data.update(overrides)
-    return TravelMonthRegionalBenefitSource(**data)
+    return ExternalBenefitSource(**data)
 
 
 @pytest.fixture
@@ -99,3 +101,73 @@ def test_upsert_external_source_records_updates_existing_row(db: Session) -> Non
     listed = list_external_source_records(db, source_name="여행가는 달")
     assert len(listed) == 1
     assert listed[0].title == "Updated title"
+
+
+def test_policy_slug_fallback_allows_active_fresh_local_half_trip(db: Session) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                source_name="대한민국 반값여행",
+                source_url="https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+                source_category="local_half_trip",
+                external_id="half-trip-1",
+                canonical_key="half-trip-1",
+                collected_page_url="https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+            )
+        ],
+    )
+
+    found = get_external_source_record_by_policy_slug(db, f"travelmonth-{rows[0].id}")
+
+    assert found is not None
+    assert found.source_category == "local_half_trip"
+
+
+def test_policy_slug_fallback_excludes_non_active_or_non_fresh_records(db: Session) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(canonical_key="scheduled", external_id="scheduled", status="scheduled"),
+            make_source(canonical_key="ended", external_id="ended", status="ended"),
+            make_source(canonical_key="unknown", external_id="unknown", status="unknown"),
+            make_source(canonical_key="stale", external_id="stale", freshness_status="stale"),
+        ],
+    )
+
+    assert [
+        get_external_source_record_by_policy_slug(db, f"travelmonth-{row.id}") for row in rows
+    ] == [None, None, None, None]
+
+
+def test_policy_slug_fallback_excludes_active_fresh_traffic_benefit(db: Session) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                source_category="traffic_benefit",
+                external_id="traffic-1",
+                canonical_key="traffic-1",
+            )
+        ],
+    )
+
+    assert get_external_source_record_by_policy_slug(db, f"travelmonth-{rows[0].id}") is None
+
+
+def test_list_policy_deactivation_records_returns_non_active_or_non_fresh_records(
+    db: Session,
+) -> None:
+    upsert_external_source_records(
+        db,
+        [
+            make_source(canonical_key="active", external_id="active"),
+            make_source(canonical_key="ended", external_id="ended", status="ended"),
+            make_source(canonical_key="unknown", external_id="unknown", status="unknown"),
+            make_source(canonical_key="stale", external_id="stale", freshness_status="stale"),
+        ],
+    )
+
+    records = list_policy_deactivation_records(db)
+
+    assert [record.canonical_key for record in records] == ["ended", "unknown", "stale"]

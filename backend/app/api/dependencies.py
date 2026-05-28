@@ -43,3 +43,17 @@ def get_current_user(
             detail="Not authenticated",
         )
     return user
+
+
+def require_admin_user(current_user: User | None = Depends(get_current_user)) -> User:
+    if current_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    if getattr(current_user, "role", "user") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin permission required",
+        )
+    return current_user

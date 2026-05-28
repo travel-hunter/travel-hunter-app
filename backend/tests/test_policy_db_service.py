@@ -300,6 +300,22 @@ def test_db_list_saved_policies_maps_saved_rows(monkeypatch) -> None:
     assert [policy_payload["slug"] for policy_payload in payload] == ["fixture-policy"]
 
 
+def test_db_list_saved_policies_deduplicates_repository_rows(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    policy = make_policy()
+
+    monkeypatch.setattr(
+        policy_service.policy_repository,
+        "list_saved_policies",
+        lambda db, user_id: [policy, policy] if db is fake_db and user_id == user.id else [],
+    )
+
+    payload = policy_service.list_saved_policies(fake_db, user)
+
+    assert [policy_payload["slug"] for policy_payload in payload] == ["fixture-policy"]
+
+
 def test_db_list_applied_policies_maps_accessible_trip_policy_rows(monkeypatch) -> None:
     fake_db = object()
     user = make_user()

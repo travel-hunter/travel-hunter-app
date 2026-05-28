@@ -28,6 +28,12 @@ import {
   TravelAreaRecommendationOptions,
 } from "./dataApi";
 import {
+  AdminAuditLogListResponse,
+  AdminExternalSourceSummaryResponse,
+  AdminPolicyDetail,
+  AdminPolicyListResponse,
+  AdminUserDetail,
+  AdminUserListResponse,
   AppliedPolicyLink,
   ContactInfo,
   ContactVerificationRequestResponse,
@@ -57,6 +63,15 @@ const makeDefaultSignup = (request: SignupRequest | undefined): SignupRequest =>
   }
   return request;
 };
+
+function queryString(params: Record<string, string | number | boolean | undefined | null>): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== "") search.set(key, String(value));
+  }
+  const query = search.toString();
+  return query ? `?${query}` : "";
+}
 
 export const backendApi: AppDataApi = {
   getProfileOptions: (): Promise<ProfileOptions> => apiClient.get<ProfileOptions>("/api/profile-options"),
@@ -124,4 +139,17 @@ export const backendApi: AppDataApi = {
   getInviteState: (tripId: string): Promise<InviteState> => apiClient.get<InviteState>(`/api/trips/${tripId}/invite`),
   confirmInviteSent: (tripId: string, role?: InviteRole): Promise<InviteState> => apiClient.post<InviteState>(`/api/trips/${tripId}/invite`, role ? { role } : undefined),
   acceptInvite: (inviteToken: string): Promise<InviteState> => apiClient.post<InviteState>(`/api/invites/${inviteToken}/accept`),
+  listAdminUsers: (options): Promise<AdminUserListResponse> =>
+    apiClient.get<AdminUserListResponse>(`/api/admin/users${queryString(options ?? {})}`),
+  getAdminUser: (userId: string): Promise<AdminUserDetail> => apiClient.get<AdminUserDetail>(`/api/admin/users/${userId}`),
+  updateAdminUser: (userId: string, user): Promise<AdminUserDetail> => apiClient.patch<AdminUserDetail>(`/api/admin/users/${userId}`, user),
+  listAdminPolicies: (options): Promise<AdminPolicyListResponse> =>
+    apiClient.get<AdminPolicyListResponse>(`/api/admin/policies${queryString(options ?? {})}`),
+  getAdminExternalSourceSummary: (): Promise<AdminExternalSourceSummaryResponse> =>
+    apiClient.get<AdminExternalSourceSummaryResponse>("/api/admin/external-sources/summary"),
+  getAdminPolicy: (policyId: string): Promise<AdminPolicyDetail> => apiClient.get<AdminPolicyDetail>(`/api/admin/policies/${policyId}`),
+  createAdminPolicy: (policy): Promise<AdminPolicyDetail> => apiClient.post<AdminPolicyDetail>("/api/admin/policies", policy),
+  updateAdminPolicy: (policyId: string, policy): Promise<AdminPolicyDetail> => apiClient.patch<AdminPolicyDetail>(`/api/admin/policies/${policyId}`, policy),
+  listAdminAuditLogs: (options): Promise<AdminAuditLogListResponse> =>
+    apiClient.get<AdminAuditLogListResponse>(`/api/admin/audit-logs${queryString(options ?? {})}`),
 };

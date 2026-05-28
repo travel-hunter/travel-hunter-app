@@ -105,6 +105,81 @@ function matchesAmount(policy: Policy, filter: AmountFilter): boolean {
   return true;
 }
 
+function normalizedSearchText(value: string) {
+  return value.trim().toLocaleLowerCase("ko-KR");
+}
+
+function matchesPolicySearch(policy: Policy, searchTerm: string) {
+  const query = normalizedSearchText(searchTerm);
+  if (!query) return true;
+  const haystack = [
+    policy.title,
+    policy.org,
+    policy.region,
+    policy.category,
+    policy.amount,
+    policy.summary,
+    policy.tag,
+    ...policy.requirements,
+    ...policy.documents,
+  ].join(" ").toLocaleLowerCase("ko-KR");
+  return haystack.includes(query);
+}
+
+function getBenefitClarityScore(policy: Policy) {
+  if (isGenericBenefitAmount(policy.amount)) return -20;
+  const amountText = policy.amount ?? "";
+  let score = 20;
+  if (/%|할인|무료|캐시백|환급|지원/.test(amountText)) score += 18;
+  if (/원|만원|\d/.test(amountText)) score += 16;
+  if (amountText.length >= 10) score += 8;
+  return score;
+}
+
+function getDeadlinePriorityScore(policy: Policy) {
+  if (!policy.deadline) return 0;
+  const days = daysUntilDeadline(policy.deadline);
+  if (days < 0) return -100;
+  if (days <= 7) return 85;
+  if (days <= 30) return 65;
+  if (days <= 90) return 35;
+  return 8;
+}
+
+function getPolicyListPriorityScore(policy: Policy) {
+  return getDeadlinePriorityScore(policy) + getBenefitClarityScore(policy) + Math.round(policy.match / 10);
+}
+
+function sortPoliciesForList(policies: Policy[], shouldDiversifyCategory: boolean) {
+  const candidates = [...policies].sort((left, right) => {
+    const scoreDifference = getPolicyListPriorityScore(right) - getPolicyListPriorityScore(left);
+    if (scoreDifference !== 0) return scoreDifference;
+    const deadlineDifference = daysUntilDeadline(left.deadline) - daysUntilDeadline(right.deadline);
+    if (deadlineDifference !== 0) return deadlineDifference;
+    return left.title.localeCompare(right.title, "ko");
+  });
+  if (!shouldDiversifyCategory) return candidates;
+
+  const sorted: Policy[] = [];
+  const categoryCounts = new Map<PolicyCategory, number>();
+  while (candidates.length > 0) {
+    let bestIndex = 0;
+    let bestScore = Number.NEGATIVE_INFINITY;
+    candidates.forEach((policy, index) => {
+      const diversityPenalty = (categoryCounts.get(policy.category) ?? 0) * 32;
+      const score = getPolicyListPriorityScore(policy) - diversityPenalty;
+      if (score > bestScore) {
+        bestScore = score;
+        bestIndex = index;
+      }
+    });
+    const [selectedPolicy] = candidates.splice(bestIndex, 1);
+    sorted.push(selectedPolicy);
+    categoryCounts.set(selectedPolicy.category, (categoryCounts.get(selectedPolicy.category) ?? 0) + 1);
+  }
+  return sorted;
+}
+
 function getRecommendedPolicies(policies: Policy[]) {
   return [...policies].sort((left, right) => right.match - left.match).slice(0, 3);
 }
@@ -233,6 +308,7 @@ function getPolicyBenefitSections(policy: Policy): PolicyBenefitSection[] {
 }
 
 function requirementDescription(item: string, policy: Policy) {
+  if (/디지털관광주민증|방문/.test(item)) return `${policy.region} 방문 또는 디지털관광주민증 발급 대상에 해당하는지 확인하세요.`;
   if (/제휴\s*카드|카드/.test(item)) return "제휴 카드로 결제한 건에 한해 혜택이 적용됩니다.";
   const paymentRegion = item.match(/^(.+?)\s*결제/);
   if (paymentRegion) return `${paymentRegion[1].trim()} 지역 결제 또는 대상 가맹점 이용 건을 기준으로 적용됩니다.`;
@@ -246,6 +322,7 @@ function requirementDescription(item: string, policy: Policy) {
 }
 
 function classifyRequirement(item: string) {
+  if (/디지털관광주민증|방문/.test(item)) return "target";
   if (/공식|공고|안내|확인|캡처|캡쳐|제시|증빙|서류|문의|필요/.test(item)) return "notice";
   if (/카드|결제|한도|예약|쿠폰|가맹점|이용|사용|구매|온라인|오프라인|탑승|입장|월/.test(item)) return "usage";
   if (/국내|여행자|시민|주민|거주|청년|가족|관광객|대상|만\s*\d|세/.test(item)) return "target";
@@ -314,6 +391,7 @@ export function PolicyListPage() {
   const [isPeriodFilterOpen, setIsPeriodFilterOpen] = useState(false);
   const [isAmountFilterOpen, setIsAmountFilterOpen] = useState(false);
   const [showSavedOnly, setShowSavedOnly] = useState(() => searchParams.get("saved") === "1");
+  const [searchTerm, setSearchTerm] = useState("");
   const { profile, savedSlugs, addSavedSlug, removeSavedSlug } = useSession();
   const { data: policies, error, isLoading } = useAsyncResource(() => appDataApi.listPolicies(), []);
   const categoryParam = searchParams.get("category");
@@ -341,16 +419,17 @@ export function PolicyListPage() {
 
   const visiblePolicies = useMemo(() => {
     if (!policies) return [];
-    return policies.filter((policy) => {
+    const filteredPolicies = policies.filter((policy) => {
       if (showSavedOnly && !savedSlugs.has(policy.slug)) return false;
       const matchesRegion = selectedRegion === allFilter || policy.region === selectedRegion;
       const matchesCategory = selectedCategory === allFilter || policy.category === selectedCategory;
-      return matchesRegion && matchesCategory && matchesPeriod(policy, selectedPeriod) && matchesAmount(policy, selectedAmount);
+      return matchesRegion && matchesCategory && matchesPeriod(policy, selectedPeriod) && matchesAmount(policy, selectedAmount) && matchesPolicySearch(policy, searchTerm);
     });
-  }, [policies, selectedCategory, selectedRegion, selectedPeriod, selectedAmount, showSavedOnly, savedSlugs]);
+    return sortPoliciesForList(filteredPolicies, selectedCategory === allFilter);
+  }, [policies, selectedCategory, selectedRegion, selectedPeriod, selectedAmount, searchTerm, showSavedOnly, savedSlugs]);
 
   const hasActiveFilters =
-    selectedRegion !== allFilter || selectedCategory !== allFilter || selectedPeriod !== "전체" || selectedAmount !== "전체" || showSavedOnly;
+    selectedRegion !== allFilter || selectedCategory !== allFilter || selectedPeriod !== "전체" || selectedAmount !== "전체" || showSavedOnly || normalizedSearchText(searchTerm) !== "";
 
   const setSelectedCategory = (category: CategoryFilter) => {
     setSearchParams((params) => {
@@ -384,6 +463,7 @@ export function PolicyListPage() {
     setSelectedRegion(allFilter);
     setSelectedPeriod("전체");
     setSelectedAmount("전체");
+    setSearchTerm("");
     setShowSavedOnly(false);
     setSearchParams((params) => {
       const next = new URLSearchParams(params);
@@ -434,6 +514,16 @@ export function PolicyListPage() {
         >
           ♥ 즐겨찾기{showSavedOnly ? ` (${savedSlugs.size})` : ""}
         </button>
+        <label className="prototype-policy-search-row" htmlFor="policy-list-search">
+          <span>검색</span>
+          <input
+            id="policy-list-search"
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="정책명, 지역, 혜택으로 검색"
+            type="search"
+            value={searchTerm}
+          />
+        </label>
         <div className="prototype-policy-filter-shell">
           <div className="prototype-policy-filter-row" aria-label="정책 필터">
             <button className={selectedRegion !== allFilter ? "prototype-filter-pill active" : "prototype-filter-pill"} onClick={handleRegionToggle} type="button">
@@ -503,6 +593,11 @@ export function PolicyListPage() {
           </div>
         )}
       </div>
+      {!isLoading && !error && policies && (
+        <div className="prototype-policy-result-row" aria-live="polite">
+          전체 {policies.length}개 중 {visiblePolicies.length}개 표시
+        </div>
+      )}
       {isLoading && <LoadingState label="정책을 불러오는 중입니다" />}
       {error && <ErrorState message={error} action={<LinkButton to="/home" variant="line">홈으로 가기</LinkButton>} />}
       {!isLoading && !error && visiblePolicies.length === 0 && (

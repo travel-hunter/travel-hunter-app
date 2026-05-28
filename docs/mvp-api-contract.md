@@ -287,6 +287,7 @@ OAuth provider callback 처리.
   "id": "uuid",
   "nickname": "여행자123",
   "email": "user@example.com",
+  "role": "user",
   "birthDate": null,
   "gender": null,
   "region": "서울",
@@ -597,7 +598,7 @@ OAuth provider callback 처리.
 
 ### GET /policies
 
-전체 정책 목록. 인증 불필요. DB `policies` 레코드만 `Policy` DTO로 반환한다. TravelMonth, 대한민국 반값여행 등 공식 외부 수집 레코드(`external_source_records`)는 수집/검증 원문 근거로 보존하고, active/fresh `regional_benefit`, `traffic_benefit`, `local_half_trip` 항목은 collection normalization service가 `policies`로 승격한다. 승격된 외부 정책은 기존 호환 slug `travelmonth-{externalSourceRecordId}`를 사용한다.
+전체 정책 목록. 인증 불필요. DB `policies` 레코드만 `Policy` DTO로 반환한다. TravelMonth, 대한민국 반값여행 등 공식 외부 수집 레코드(`external_source_records`)는 수집/검증 원문 근거로 보존하고, active/fresh `regional_benefit`, `traffic_benefit`, `local_half_trip` 항목은 collection normalization service가 `policies`로 승격한다. 승격된 외부 정책은 기존 호환 slug `travelmonth-{externalSourceRecordId}`를 사용한다. 디지털관광주민증/대한민국 반값여행 계열(`local_half_trip`)은 공식 페이지의 지역별 상태가 `신청접수중`인 active/fresh 항목만 public 정책으로 노출하고, 준비중/마감/unknown 또는 stale 항목은 기존 연결 보호를 위해 `policies.status = "hidden"`으로 내려 사용자 목록에서 제외한다.
 
 **Response 200** → `Policy[]`
 ```json
@@ -633,7 +634,7 @@ OAuth provider callback 처리.
 
 ### GET /policies/{policy_slug}
 
-정책 상세. `travelmonth-{externalSourceRecordId}` slug는 정규화된 TravelMonth 정책 상세로 해석한다. migration gap 동안 상세 조회만 기존 raw `external_source_records` fallback을 사용할 수 있지만, 목록/추천/저장/일정 연결 경로는 정규화된 `policies` 기준이다.
+정책 상세. `travelmonth-{externalSourceRecordId}` slug는 정규화된 TravelMonth 정책 상세로 해석한다. migration gap 동안 상세 조회만 기존 raw `external_source_records` fallback을 사용할 수 있지만, 목록/추천/저장/일정 연결 경로는 정규화된 `policies` 기준이다. raw fallback은 active/fresh `regional_benefit`과 `local_half_trip`만 허용하며, `traffic_benefit`이나 non-active/non-fresh source는 상세 404와 동일하게 처리한다. `local_half_trip`의 지역별 상세 URL이 확인된 경우 `officialUrl`은 generic `tour50.do`보다 해당 지역 안내/신청 페이지를 우선한다.
 
 **Response 200** → `Policy`
 
@@ -810,6 +811,18 @@ Frontend behavior: `/trips` does not expose trip confirmation controls or draft/
 
 ### POST /trips/{trip_id}/days/{day_number}/places
 
+Kakao place candidate metadata can be preserved when adding a recommended place.
+
+Optional request fields:
+- `address`: string | null
+- `latitude`: number | null
+- `longitude`: number | null
+- `category`: string | null
+- `categoryCode`: string | null
+- `placeUrl`: string | null
+- `sourceProvider`: string | null
+- `externalPlaceId`: string | null
+
 일정 특정 day에 장소 추가. owner/editor만 가능.
 
 **Request**
@@ -890,6 +903,21 @@ Frontend behavior: `/trips` does not expose trip confirmation controls or draft/
 ---
 
 ### GET /trips/{trip_id}/recommendations
+
+Returns additional AI place candidates for the trip. The backend excludes places already in the itinerary by `sourceProvider + externalPlaceId`, by `externalPlaceId`, and then by normalized place title. Kakao-backed candidates include map metadata when available.
+
+Additional `Recommendation` fields:
+- `id`: string | null
+- `categoryGroup`: `stay` | `food` | `attraction` | `other` | null
+- `categoryCode`: string | null
+- `address`: string | null
+- `latitude`: number | null
+- `longitude`: number | null
+- `placeUrl`: string | null
+- `suggestedDay`: number | null
+- `aiReview`: string | null
+- `sourceProvider`: string | null
+- `externalPlaceId`: string | null
 
 AI 추천 장소 목록 조회.
 
@@ -1072,6 +1100,17 @@ SOLAPI 발송 결과 webhook 수신. `X-Solapi-Secret` 헤더로 검증.
 | days | object | `{ [dayNumber]: ItineraryPlace[] }` |
 | currentUserRole | string | `"owner" \| "editor" \| "viewer"` |
 
+
+### LinkedTripPolicy
+
+| ?? | ?? | ?? |
+|------|------|------|
+| slug | string | ?? ?? URL ??? |
+| title | string | ??? |
+| amount | string | ?? ?? ?? |
+| region | string | ?? ?? |
+| status | `"active" | "hidden"` | ?? ?? ?? ??? ?? ??. ?? ??? `active`? ????, ?? ?? ??? hidden?? ??? `hidden`?? ????. |
+
 ### ItineraryPlace
 
 | 필드 | 타입 | 설명 |
@@ -1080,6 +1119,12 @@ SOLAPI 발송 결과 webhook 수신. `X-Solapi-Secret` 헤더로 검증.
 | time | string | 시간 (`HH:MM` 또는 `""`) |
 | label | string | 장소명 |
 | meta | string | 부가 정보 |
+| address | string \| null | 장소 주소 |
+| latitude | number \| null | 위도 |
+| longitude | number \| null | 경도 |
+| category | string \| null | 장소 카테고리 이름 |
+| categoryCode | string \| null | 장소 카테고리 코드 |
+| placeUrl | string \| null | 장소 상세 URL |
 
 ---
 
@@ -1181,3 +1226,30 @@ Trip response includes:
 ```
 
 Existing trips can return `travelAreaId: null`.
+## Admin external source summary
+
+- `GET /api/admin/external-sources/summary`
+- Auth: bearer token required, admin role required.
+- Purpose: read-only dashboard summary for external policy collection health. This endpoint never starts a collection job and does not expose source-specific manual controls.
+- Response:
+  - `items[]`
+  - `items[].sourceCategory`
+  - `items[].label`
+  - `items[].sourceName`
+  - `items[].totalRecords`
+  - `items[].activeRecords`
+  - `items[].scheduledRecords`
+  - `items[].endedRecords`
+  - `items[].unknownRecords`
+  - `items[].freshRecords`
+  - `items[].promotedPolicyCount`
+  - `items[].activePromotedPolicyCount`
+  - `items[].latestFetchedAt`
+  - `items[].latestVerifiedAt`
+  - `totalRecords`
+  - `activeRecords`
+  - `freshRecords`
+  - `promotedPolicyCount`
+  - `latestFetchedAt`
+
+Admin policy list items additionally expose `sourceCategory` and `sourceLabel` for minimal source identification in `/admin/policies`. Public policy DTOs are unchanged.

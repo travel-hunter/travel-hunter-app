@@ -276,7 +276,7 @@ def test_external_collection_quality_accepts_source_category_filter() -> None:
 
 
 def test_external_collection_quality_report_summarizes_saved_records() -> None:
-    today = date(2026, 5, 21)
+    today = date.today()
     session, engine, id_column, original_type = with_test_db(
         [
             make_source(

@@ -1,4 +1,5 @@
 from datetime import date, datetime, time, timedelta
+from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
@@ -15,7 +16,8 @@ from app.schemas.trip import (
     UpdateTripPlaceRequest,
     UpdateTripStatusRequest,
 )
-from app.services import trips as trip_service
+from app.services.kakao_local import KakaoLocalPlace
+from app.services import itinerary_recommendations, trips as trip_service
 
 
 def make_user(user_id: int = 1, nickname: str = "Test User") -> UserModel:
@@ -76,6 +78,44 @@ def make_trip() -> Trip:
     return trip
 
 
+def test_trip_to_api_includes_place_map_metadata(monkeypatch) -> None:
+    trip = make_trip()
+    day = TripDay(id=10, trip_id=7, day_number=1, date=date(2026, 7, 12))
+    place = TripPlace(
+        id=99,
+        trip_day_id=10,
+        place_name="강원 속초 맛집",
+        address="강원 속초시 중앙로 47",
+        latitude=Decimal("38.2041234"),
+        longitude=Decimal("128.5901234"),
+        visit_time=time(13, 0),
+        order_num=1,
+        memo="식사 추천 장소",
+    )
+    place.category_group_code = "FD6"
+    place.category_group_name = "음식점"
+    place.place_url = "http://place.map.kakao.com/12345"
+    place.source_provider = "kakao_local"
+    place.external_place_id = "12345"
+    day.places = [place]
+    trip.days = [day]
+    trip.members = []
+    trip.policies = []
+    trip.recommendations = []
+
+    payload = trip_service.trip_to_api(trip, make_user(1), recommended_policies=[])
+
+    api_place = payload["days"][1][0]
+    assert api_place["address"] == "강원 속초시 중앙로 47"
+    assert api_place["latitude"] == 38.2041234
+    assert api_place["longitude"] == 128.5901234
+    assert api_place["category"] == "음식점"
+    assert api_place["categoryCode"] == "FD6"
+    assert api_place["placeUrl"] == "http://place.map.kakao.com/12345"
+    assert api_place["sourceProvider"] == "kakao_local"
+    assert api_place["externalPlaceId"] == "12345"
+
+
 def test_trip_to_api_returns_numeric_string_id_and_contract_shape() -> None:
     payload = trip_service.trip_to_api(make_trip())
 
@@ -93,9 +133,20 @@ def test_trip_to_api_returns_numeric_string_id_and_contract_shape() -> None:
             "title": "Vacation policy",
             "amount": "30만원",
             "region": "",
+            "status": "active",
         }
     ]
-    assert payload["days"] == {1: [{"id": "1", "time": "09:00", "label": "Sunrise peak", "meta": "Nature"}]}
+    place = payload["days"][1][0]
+    assert place["id"] == "1"
+    assert place["time"] == "09:00"
+    assert place["label"] == "Sunrise peak"
+    assert place["meta"] == "Nature"
+    assert place["address"] is None
+    assert place["latitude"] is None
+    assert place["longitude"] is None
+    assert place["category"] is None
+    assert place["categoryCode"] is None
+    assert place["placeUrl"] is None
     assert payload["currentUserRole"] == "owner"
 
 
@@ -705,10 +756,18 @@ def test_add_place_to_trip_day_persists_place_and_returns_updated_trip(monkeypat
             id=2,
             trip_day_id=kwargs["trip_day_id"],
             place_name=kwargs["place_name"],
+            address=kwargs["address"],
+            latitude=Decimal(str(kwargs["latitude"])) if kwargs["latitude"] is not None else None,
+            longitude=Decimal(str(kwargs["longitude"])) if kwargs["longitude"] is not None else None,
             visit_time=kwargs["visit_time"],
             order_num=kwargs["order_num"],
             memo=kwargs["memo"],
         )
+        place.category_group_code = kwargs["category_group_code"]
+        place.category_group_name = kwargs["category_group_name"]
+        place.place_url = kwargs["place_url"]
+        place.source_provider = kwargs["source_provider"]
+        place.external_place_id = kwargs["external_place_id"]
         trip.days[0].places.append(place)
         return place
 
@@ -719,15 +778,131 @@ def test_add_place_to_trip_day_persists_place_and_returns_updated_trip(monkeypat
         user,
         "7",
         1,
-        CreateTripPlaceRequest(time="14:30", label="Cafe stop", meta="Dessert"),
+        CreateTripPlaceRequest(
+            time="14:30",
+            label="Cafe stop",
+            meta="Dessert",
+            address="Gangwon road 1",
+            latitude=38.1,
+            longitude=128.6,
+            category="Food",
+            categoryCode="FD6",
+            placeUrl="http://place.map.kakao.com/food-1",
+            sourceProvider="kakao_local",
+            externalPlaceId="food-1",
+        ),
     )
 
     assert captured["trip_day_id"] == 1
     assert captured["place_name"] == "Cafe stop"
     assert captured["visit_time"] == time(14, 30)
     assert captured["order_num"] == 2
-    assert payload["days"][1][-1] == {"id": "2", "time": "14:30", "label": "Cafe stop", "meta": "Dessert"}
+    assert captured["address"] == "Gangwon road 1"
+    assert captured["latitude"] == 38.1
+    assert captured["longitude"] == 128.6
+    assert captured["category_group_name"] == "Food"
+    assert captured["category_group_code"] == "FD6"
+    assert captured["place_url"] == "http://place.map.kakao.com/food-1"
+    assert captured["source_provider"] == "kakao_local"
+    assert captured["external_place_id"] == "food-1"
+    added = payload["days"][1][-1]
+    assert added["id"] == "2"
+    assert added["time"] == "14:30"
+    assert added["label"] == "Cafe stop"
+    assert added["meta"] == "Dessert"
+    assert added["address"] == "Gangwon road 1"
+    assert added["categoryCode"] == "FD6"
+    assert added["sourceProvider"] == "kakao_local"
+    assert added["externalPlaceId"] == "food-1"
     assert fake_db.commits == 1
+
+
+class FakeRecommendationProvider:
+    def __init__(self, candidates_by_code):
+        self.candidates_by_code = candidates_by_code
+
+    def search(self, *, area_name: str, city: str, category_group_code: str):
+        return list(self.candidates_by_code.get(category_group_code, []))
+
+
+def _recommendation_candidate(external_id: str, title: str, category_code: str = "FD6"):
+    return itinerary_recommendations.ExternalPlaceCandidate(
+        source_provider="kakao_local",
+        external_place_id=external_id,
+        title=title,
+        category_group_code=category_code,
+        category_group_name="Food" if category_code == "FD6" else "Attraction",
+        address="Jeju road 1",
+        latitude=33.4,
+        longitude=126.5,
+        place_url=f"http://place.map.kakao.com/{external_id}",
+    )
+
+
+def test_list_recommendations_excludes_existing_trip_places(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    trip.days[0].places[0].source_provider = "kakao_local"
+    trip.days[0].places[0].external_place_id = "same-place"
+    trip.days[0].places[0].place_name = "Existing Food"
+    provider = FakeRecommendationProvider(
+        {
+            "FD6": [
+                _recommendation_candidate("same-place", "Different title"),
+                _recommendation_candidate("new-title", "Existing Food"),
+                _recommendation_candidate("new-food", "New Food"),
+            ]
+        }
+    )
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip
+        if db is fake_db and trip_id == 7 and user_id == 1
+        else None,
+    )
+    monkeypatch.setattr(trip_service, "_build_external_place_provider", lambda: provider)
+
+    items = trip_service.list_recommendations(fake_db, user, "7")
+
+    assert items is not None
+    assert [item["externalPlaceId"] for item in items] == ["new-food"]
+    assert items[0]["categoryGroup"] == "food"
+    assert items[0]["suggestedDay"] == 1
+
+
+def test_list_recommendations_assigns_suggested_day_round_robin(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    day_two = TripDay(id=2, trip_id=7, day_number=2, date=date(2026, 6, 16))
+    day_two.places = []
+    trip.days.append(day_two)
+    provider = FakeRecommendationProvider(
+        {
+            "FD6": [
+                _recommendation_candidate("food-1", "Food 1"),
+                _recommendation_candidate("food-2", "Food 2"),
+            ],
+            "AT4": [_recommendation_candidate("spot-1", "Spot 1", "AT4")],
+        }
+    )
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip
+        if db is fake_db and trip_id == 7 and user_id == 1
+        else None,
+    )
+    monkeypatch.setattr(trip_service, "_build_external_place_provider", lambda: provider)
+
+    items = trip_service.list_recommendations(fake_db, user, "7")
+
+    assert items is not None
+    assert [item["suggestedDay"] for item in items[:3]] == [1, 2, 1]
 
 
 def test_update_trip_place_changes_existing_place(monkeypatch) -> None:
@@ -748,7 +923,11 @@ def test_update_trip_place_changes_existing_place(monkeypatch) -> None:
         UpdateTripPlaceRequest(time="10:15", label="Updated peak", meta="New memo"),
     )
 
-    assert payload["days"][1][0] == {"id": "1", "time": "10:15", "label": "Updated peak", "meta": "New memo"}
+    updated = payload["days"][1][0]
+    assert updated["id"] == "1"
+    assert updated["time"] == "10:15"
+    assert updated["label"] == "Updated peak"
+    assert updated["meta"] == "New memo"
     assert fake_db.commits == 1
 
 
@@ -892,6 +1071,61 @@ def test_trip_place_crud_returns_404_for_missing_day_or_place(monkeypatch) -> No
             raise AssertionError("expected TripServiceError")
 
     assert fake_db.commits == 0
+
+
+def test_repository_add_trip_place_accepts_kakao_metadata(sqlite_db_session) -> None:
+    user = UserModel(
+        email="owner@example.com",
+        password_hash="hashed",
+        nickname="Owner",
+        onboarding_completed=True,
+    )
+    sqlite_db_session.add(user)
+    sqlite_db_session.flush()
+
+    trip = trip_service.trip_repository.create_trip(
+        sqlite_db_session,
+        owner_id=user.id,
+        title="속초",
+        start_date=date(2026, 7, 12),
+        end_date=date(2026, 7, 13),
+        status="draft",
+        region="강원 속초시",
+        travel_area_id="gangwon-sokcho-goseong-yangyang",
+        participant_count=2,
+        description="식사 위주",
+    )
+    trip_day = trip_service.trip_repository.add_trip_day(
+        sqlite_db_session,
+        trip_id=trip.id,
+        day_number=1,
+        date_value=date(2026, 7, 12),
+    )
+
+    place = trip_service.trip_repository.add_trip_place(
+        sqlite_db_session,
+        trip_day_id=trip_day.id,
+        place_name="속초 중앙시장",
+        visit_time=time(13, 0),
+        order_num=1,
+        memo="식사 추천 장소",
+        address="강원 속초시 중앙로 47",
+        latitude=Decimal("38.2041234"),
+        longitude=Decimal("128.5901234"),
+        source_provider="kakao_local",
+        external_place_id="12345",
+        category_group_code="FD6",
+        category_group_name="음식점",
+        place_url="http://place.map.kakao.com/12345",
+    )
+
+    assert place.source_provider == "kakao_local"
+    assert place.external_place_id == "12345"
+    assert place.category_group_code == "FD6"
+    assert place.category_group_name == "음식점"
+    assert place.place_url == "http://place.map.kakao.com/12345"
+    assert str(place.latitude) == "38.2041234"
+    assert str(place.longitude) == "128.5901234"
 
 
 def test_move_trip_place_rejects_invalid_position(monkeypatch) -> None:
@@ -1118,6 +1352,62 @@ def test_create_trip_with_travel_area_id_stores_resolved_area(monkeypatch) -> No
     assert captured["create_trip"]["participant_count"] == 1
 
 
+def test_kakao_itinerary_provider_queries_multiple_keywords_and_dedupes() -> None:
+    class FakeKakaoClient:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, object]] = []
+
+        def search_keyword(self, *, query: str, category_group_code: str):
+            self.calls.append({"query": query, "category_group_code": category_group_code})
+            if len(self.calls) == 1:
+                return [
+                    KakaoLocalPlace(
+                        external_place_id="same-id",
+                        name="Same place",
+                        category_name="Food",
+                        category_group_code="FD6",
+                        category_group_name="Food",
+                        address="Busan road",
+                        latitude=35.1,
+                        longitude=129.1,
+                        place_url="http://place.map.kakao.com/same-id",
+                    )
+                ]
+            return [
+                KakaoLocalPlace(
+                    external_place_id="same-id",
+                    name="Same place duplicate",
+                    category_name="Food",
+                    category_group_code="FD6",
+                    category_group_name="Food",
+                    address="Busan road",
+                    latitude=35.1,
+                    longitude=129.1,
+                    place_url="http://place.map.kakao.com/same-id",
+                ),
+                KakaoLocalPlace(
+                    external_place_id=f"new-{len(self.calls)}",
+                    name=f"New place {len(self.calls)}",
+                    category_name="Food",
+                    category_group_code="FD6",
+                    category_group_name="Food",
+                    address="Busan road",
+                    latitude=35.2,
+                    longitude=129.2,
+                    place_url=f"http://place.map.kakao.com/new-{len(self.calls)}",
+                ),
+            ]
+
+    client = FakeKakaoClient()
+    provider = trip_service.KakaoItineraryPlaceProvider(client)
+
+    candidates = provider.search(area_name="Busan", city="Busan", category_group_code="FD6")
+
+    assert len(client.calls) == 2
+    assert all(call["category_group_code"] == "FD6" for call in client.calls)
+    assert [candidate.external_place_id for candidate in candidates] == ["same-id", "new-2"]
+
+
 def test_create_trip_persists_participant_count_without_fake_members(monkeypatch) -> None:
     fake_db = FakeDb()
     user = make_user()
@@ -1172,6 +1462,7 @@ def test_create_trip_generates_catalog_places_and_recommendations(monkeypatch) -
     fake_db = FakeDb()
     user = make_user()
     captured = install_create_trip_stubs(monkeypatch)
+    monkeypatch.setattr(trip_service, "_build_external_place_provider", lambda: None)
 
     trip_service.create_trip(
         fake_db,
@@ -1192,7 +1483,60 @@ def test_create_trip_generates_catalog_places_and_recommendations(monkeypatch) -
     assert fake_db.commits == 1
 
 
-def test_create_trip_persists_generated_days_places_and_recommendations_in_db(sqlite_db_session) -> None:
+def test_create_trip_persists_generated_external_place_metadata(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    captured = install_create_trip_stubs(monkeypatch)
+    generated = itinerary_recommendations.GeneratedCourse(
+        places=[
+            itinerary_recommendations.GeneratedPlace(
+                day_number=1,
+                date=date(2026, 7, 12),
+                time="13:00",
+                order_num=1,
+                region="Busan",
+                style="Food",
+                label="FO",
+                title="Kakao food place",
+                meta="Food · Busan road",
+                reason="Kakao candidate",
+                address="Busan road",
+                latitude=35.1,
+                longitude=129.1,
+                source_provider="kakao_local",
+                external_place_id="12345",
+                category_group_code="FD6",
+                category_group_name="Food",
+                place_url="http://place.map.kakao.com/12345",
+            )
+        ],
+        recommendations=[],
+    )
+    monkeypatch.setattr(
+        trip_service.itinerary_recommendations,
+        "generate_auto_course",
+        lambda **_kwargs: generated,
+    )
+
+    trip_service.create_trip(
+        fake_db,
+        user,
+        CreateTripRequest(region="Busan", style="Food", startDate=date(2026, 7, 12), endDate=date(2026, 7, 13)),
+    )
+
+    place_kwargs = captured["trip_places"][0]
+    assert place_kwargs["address"] == "Busan road"
+    assert place_kwargs["latitude"] == 35.1
+    assert place_kwargs["longitude"] == 129.1
+    assert place_kwargs["source_provider"] == "kakao_local"
+    assert place_kwargs["external_place_id"] == "12345"
+    assert place_kwargs["category_group_code"] == "FD6"
+    assert place_kwargs["category_group_name"] == "Food"
+    assert place_kwargs["place_url"] == "http://place.map.kakao.com/12345"
+
+
+def test_create_trip_persists_generated_days_places_and_recommendations_in_db(sqlite_db_session, monkeypatch) -> None:
+    monkeypatch.setattr(trip_service, "_build_external_place_provider", lambda: None)
     user = UserModel(
         email="auto-course@example.com",
         password_hash="hashed",

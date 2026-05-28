@@ -14,6 +14,14 @@ class ItineraryPlace(BaseModel):
     time: str
     label: str
     meta: str
+    address: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    category: str | None = None
+    categoryCode: str | None = None
+    placeUrl: str | None = None
+    sourceProvider: str | None = None
+    externalPlaceId: str | None = None
 
 
 class LinkedTripPolicy(BaseModel):
@@ -21,6 +29,7 @@ class LinkedTripPolicy(BaseModel):
     title: str
     amount: str
     region: str
+    status: Literal["active", "hidden"] = "active"
 
 
 class CreateTripRequest(BaseModel):
@@ -64,10 +73,21 @@ class Trip(BaseModel):
 
 
 class Recommendation(BaseModel):
+    id: str | None = None
     label: str
     title: str
     meta: str
     reason: str
+    categoryGroup: str | None = None
+    categoryCode: str | None = None
+    address: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    placeUrl: str | None = None
+    suggestedDay: int | None = None
+    aiReview: str | None = None
+    sourceProvider: str | None = None
+    externalPlaceId: str | None = None
 
 
 class InviteState(BaseModel):
@@ -102,6 +122,14 @@ class CreateTripPlaceRequest(BaseModel):
     time: str | None = None
     label: str = Field(min_length=1, max_length=200)
     meta: str | None = None
+    address: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    category: str | None = None
+    categoryCode: str | None = None
+    placeUrl: str | None = None
+    sourceProvider: str | None = None
+    externalPlaceId: str | None = None
 
 
 class UpdateTripPlaceRequest(BaseModel):

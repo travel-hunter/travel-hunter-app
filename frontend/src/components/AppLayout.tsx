@@ -1,5 +1,6 @@
-import { CalendarDays, Home, Search, UserRound, WalletCards } from "lucide-react";
+﻿import { CalendarDays, Home, ShieldCheck, UserRound, WalletCards } from "lucide-react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { useSession } from "../app/session";
 
 export function PublicLayout() {
   const { pathname } = useLocation();
@@ -42,6 +43,7 @@ function topTabClass({ isActive }: { isActive: boolean }) {
 }
 
 function TopNavigation() {
+  const { currentUser } = useSession();
   return (
     <header className="service-top-navigation" aria-label="데스크톱 주요 메뉴">
       <div className="service-top-brand">
@@ -51,10 +53,6 @@ function TopNavigation() {
         <span className="service-top-brand-copy">
           <strong>Travel Hunter</strong>
         </span>
-      </div>
-      <div className="service-top-search" aria-hidden="true">
-        <Search size={15} />
-        <span>지역, 정책, 일정 검색</span>
       </div>
       <nav className="top-tabs" aria-label="주요 메뉴">
         <NavLink className={topTabClass} to="/home">
@@ -73,14 +71,22 @@ function TopNavigation() {
           <UserRound size={17} />
           <span>마이</span>
         </NavLink>
+        {currentUser?.role === "admin" && (
+          <NavLink className={topTabClass} to="/admin">
+            <ShieldCheck size={17} />
+            <span>관리자</span>
+          </NavLink>
+        )}
       </nav>
     </header>
   );
 }
 
 export function BottomTabs() {
+  const { currentUser } = useSession();
+  const isAdmin = currentUser?.role === "admin";
   return (
-    <nav className="bottom-tabs" aria-label="주요 메뉴">
+    <nav className={isAdmin ? "bottom-tabs admin-tabs" : "bottom-tabs"} aria-label="주요 메뉴">
       <NavLink className={tabClass} to="/home">
         <Home size={19} />
         <span>홈</span>
@@ -97,6 +103,12 @@ export function BottomTabs() {
         <UserRound size={19} />
         <span>마이</span>
       </NavLink>
+      {isAdmin && (
+        <NavLink className={tabClass} to="/admin">
+          <ShieldCheck size={19} />
+          <span>관리자</span>
+        </NavLink>
+      )}
     </nav>
   );
 }

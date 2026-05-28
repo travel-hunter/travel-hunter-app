@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Literal
 from sqlalchemy.orm import Session
@@ -143,7 +143,15 @@ def get_policy(policy_slug: str, db: Session | None = None) -> dict[str, object]
     if db is None:
         raise RuntimeError("DB session is required.")
 
-    policy = policy_repository.get_policy_by_slug(db, policy_slug)
+    try:
+        policy = policy_repository.get_policy_by_slug_any_status(db, policy_slug)
+    except AttributeError:
+        policy = policy_repository.get_policy_by_slug(db, policy_slug)
+    if policy is not None:
+        if (getattr(policy, "status", "active") or "active") != "active":
+            return None
+        return policy_to_api(policy)
+
     if policy is None:
         external_record = external_source_repository.get_external_source_record_by_policy_slug(
             db,
@@ -152,7 +160,6 @@ def get_policy(policy_slug: str, db: Session | None = None) -> dict[str, object]
         if external_record is None:
             return None
         return external_source_record_to_policy_api(external_record)
-    return policy_to_api(policy)
 
 
 def save_policy(
@@ -197,10 +204,16 @@ def list_saved_policies(
     if user is None:
         raise RuntimeError("User is required.")
 
-    return [
-        policy_to_api(policy)
-        for policy in policy_repository.list_saved_policies(db, user_id=user.id)
-    ]
+    seen_slugs: set[str] = set()
+    saved_policies: list[dict[str, object]] = []
+    for policy in policy_repository.list_saved_policies(db, user_id=user.id):
+        policy_payload = policy_to_api(policy)
+        slug = str(policy_payload["slug"])
+        if slug in seen_slugs:
+            continue
+        seen_slugs.add(slug)
+        saved_policies.append(policy_payload)
+    return saved_policies
 
 
 def list_applied_policies(

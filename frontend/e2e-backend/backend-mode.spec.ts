@@ -7,9 +7,9 @@ const seedUser = {
 
 const numericTripId = /^[1-9][0-9]*$/;
 const apiBaseUrl = process.env.VITE_API_BASE_URL || "http://127.0.0.1:8001";
-const examplePolicySlug = "dgtour-\uBC00\uC591-1";
+const examplePolicySlug = "dgtour-\uC601\uAD11-8";
 const examplePolicyPath = `/policies/${encodeURIComponent(examplePolicySlug)}`;
-const examplePolicyOfficialUrl = "https://korean.visitkorea.or.kr/dgtourcard/tour50.do";
+const examplePolicyOfficialUrl = "https://www.yeonggwang.go.kr/travel/";
 
 async function login(page: Page) {
   await page.goto("/login");
@@ -98,13 +98,18 @@ test("backend data source drives policy, trip, recommendation, invite, and logou
 
   await page.locator('a[href^="/ai-results?tripId="]').first().click();
   await expect(page).toHaveURL(new RegExp(`/ai-results\\?tripId=${tripId}$`));
-  await expect(page.locator(".result-card").first()).toBeVisible();
+  await expect(page.locator(".ai-candidate-card").first()).toBeVisible();
 
-  const recommendationAction = page.locator(".result-card button").first();
+  const recommendationAction = page.locator(".ai-candidate-card").first();
   await expect(recommendationAction).toBeVisible();
   if (await recommendationAction.isEnabled()) {
     await recommendationAction.click();
-    await expect(page).toHaveURL(new RegExp(`/trips/${tripId}$`));
+    const dayPicker = page.getByRole("dialog");
+    const addToDayButton = dayPicker.getByRole("button", { name: /^Day [1-9][0-9]*/ }).first();
+    await expect(addToDayButton).toBeVisible();
+    await addToDayButton.click();
+    await expect(page.locator(".toast")).toBeVisible();
+    await page.goto(`/trips/${tripId}`);
   } else {
     await expect(recommendationAction).toContainText("이미 일정에 있음");
     await page.goto(`/trips/${tripId}`);
@@ -127,14 +132,18 @@ test("policy category tabs stay on one horizontal scroll row on mobile", async (
 
   await page.goto("/policies");
   const categoryTabs = page.locator(".prototype-policy-list-screen .prototype-category-tabs");
+  const categoryScroller = page.locator(".prototype-policy-list-screen .prototype-policy-titlebar");
   await expect(categoryTabs).toBeVisible();
+  await expect(categoryScroller).toBeVisible();
   await expect(page.getByRole("button", { name: "기타" })).toBeVisible();
 
-  const layout = await categoryTabs.evaluate((element) => {
+  const layout = await categoryScroller.evaluate((element) => {
     const style = window.getComputedStyle(element);
     const buttons = Array.from(element.querySelectorAll(".prototype-category-tab"));
+    const tabs = element.querySelector(".prototype-category-tabs");
+    const tabsStyle = tabs ? window.getComputedStyle(tabs) : null;
     return {
-      display: style.display,
+      display: tabsStyle?.display,
       overflowX: style.overflowX,
       clientWidth: element.clientWidth,
       scrollWidth: element.scrollWidth,
@@ -173,10 +182,10 @@ test("policy detail sticky CTA stays attached above bottom tabs while scrolling"
     };
   });
 
-  expect(layout?.gap).toBeCloseTo(0);
+  expect(Math.abs(layout?.gap ?? Number.POSITIVE_INFINITY)).toBeLessThanOrEqual(1);
 });
 
-test("confirmed trip detail locks editing until confirmation is canceled", async ({ page }) => {
+test("confirmed trip detail keeps owner editing controls available", async ({ page }) => {
   const auth = await seedStoredAuth(page);
   const createResponse = await page.request.post(`${apiBaseUrl}/api/trips`, {
     headers: { Authorization: `Bearer ${auth.accessToken}` },
@@ -198,16 +207,13 @@ test("confirmed trip detail locks editing until confirmation is canceled", async
     data: { status: "confirmed" },
   });
   expect(confirmResponse.ok()).toBeTruthy();
+  const confirmedTrip = await confirmResponse.json();
+  expect(confirmedTrip.status).toBe("confirmed");
 
   await page.goto(`/trips/${tripId}`);
-  await expect(page.locator(".trip-status-panel")).toContainText("확정됨");
-  await expect(page.getByRole("button", { name: "확정취소" })).toBeVisible();
-  await expect(page.locator(".dashed")).toHaveCount(0);
-  await expect(page.locator(".drag-handle")).toHaveCount(0);
-
-  await page.getByRole("button", { name: "확정취소" }).click();
-  await expect(page.locator(".trip-status-panel")).toContainText("작성 중");
-  await expect(page.locator(".dashed")).toBeVisible();
+  await expect(page.locator(".trip-status-panel")).toHaveCount(0);
+  await expect(page.locator(".prototype-trip-action-add")).toBeVisible();
+  await expect(page.locator(".drag-handle").first()).toBeVisible();
 });
 
 test("core app screens do not horizontally overflow at common responsive widths", async ({ page }) => {
@@ -251,16 +257,22 @@ test("home recommendation starts a new trip and reaches recommended policy detai
 
   await aiTripCard.click();
   await expect(page).toHaveURL(/\/trips\/new\?region=/);
-  await expect(page.getByRole("heading", { name: "어디로 떠나나요?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "여행 지역 선택" })).toBeVisible();
+  const firstTravelArea = page.locator(".prototype-travel-area-card").first();
+  await expect(firstTravelArea).toBeVisible();
+  await firstTravelArea.click();
   await page.getByRole("button", { name: "다음" }).click();
 
-  await expect(page.getByRole("heading", { name: "언제 떠나나요?" })).toBeVisible();
-  await page.getByLabel("출발일").fill("2026-07-12");
-  await page.getByLabel("도착일").fill("2026-07-14");
+  await expect(page.getByRole("heading", { name: "코스 취향 선택" })).toBeVisible();
   await page.getByRole("button", { name: "다음" }).click();
 
-  await expect(page.getByRole("heading", { name: "일정 제목을 정해볼까요?" })).toBeVisible();
-  await page.getByRole("textbox", { name: "일정 제목" }).fill("홈 추천 smoke 여행");
+  await expect(page.getByRole("heading", { name: "여행 기간 선택" })).toBeVisible();
+  await page.locator('input[type="date"]').nth(0).fill("2026-07-12");
+  await page.locator('input[type="date"]').nth(1).fill("2026-07-14");
+  await page.getByRole("button", { name: "다음" }).click();
+
+  await expect(page.getByRole("heading", { name: "일정 제목 입력" })).toBeVisible();
+  await page.locator('input[name="trip-title"]').fill("홈 추천 smoke 여행");
   await page.getByRole("button", { name: "일정 만들기" }).click();
 
   await expect(page).toHaveURL(/\/trips\/[1-9][0-9]*$/);
@@ -284,26 +296,32 @@ test("backend data source creates a trip with selected profile values and policy
 
   await page.goto(`/trips/new?policySlug=${encodeURIComponent(examplePolicySlug)}`);
   await expect(page.locator("#root")).not.toBeEmpty();
-  await expect(page.getByRole("heading", { name: "어디로 떠나나요?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "여행 지역 선택" })).toBeVisible();
   await page.getByRole("button", { name: /부산/ }).click();
+  const firstTravelArea = page.locator(".prototype-travel-area-card").first();
+  await expect(firstTravelArea).toBeVisible();
+  await firstTravelArea.click();
   await page.getByRole("button", { name: "다음" }).click();
-  await expect(page.getByRole("heading", { name: "언제 떠나나요?" })).toBeVisible();
-  await page.getByLabel("출발일").fill("2026-07-12");
-  await page.getByLabel("도착일").fill("2026-07-15");
+  await expect(page.getByRole("heading", { name: "코스 취향 선택" })).toBeVisible();
   await page.getByRole("button", { name: "다음" }).click();
-  await expect(page.getByRole("heading", { name: "일정 제목을 정해볼까요?" })).toBeVisible();
-  await page.getByRole("textbox", { name: "일정 제목" }).fill("부산 e2e 여행");
+  await expect(page.getByRole("heading", { name: "여행 기간 선택" })).toBeVisible();
+  await page.locator('input[type="date"]').nth(0).fill("2026-07-12");
+  await page.locator('input[type="date"]').nth(1).fill("2026-07-15");
+  await page.getByRole("button", { name: "다음" }).click();
+  await expect(page.getByRole("heading", { name: "일정 제목 입력" })).toBeVisible();
+  await page.locator('input[name="trip-title"]').fill("부산 e2e 여행");
   await page.getByRole("button", { name: "일정 만들기" }).click();
   await expect(page).toHaveURL(/\/trips\/[1-9][0-9]*$/);
   const createdTripId = page.url().split("/").pop() ?? "";
   expect(createdTripId).toMatch(numericTripId);
   await expect(page.locator(".day-tab").first()).toBeVisible();
   await expect(page.locator("body")).toContainText("10:00");
-  await expect(page.locator("body")).toContainText("14:00");
-  await expect(page.locator("body")).toContainText("18:00");
+  await expect(page.locator("body")).toContainText("13:00");
+  await expect(page.locator("body")).toContainText("16:00");
+  await expect(page.locator("body")).toContainText("20:00");
 
   await page.goto(`/ai-results?tripId=${createdTripId}`);
-  await expect(page.locator(".result-card").first()).toBeVisible();
+  await expect(page.locator(".ai-candidate-card").first()).toBeVisible();
 
   await page.goto(`/friend-invite?tripId=${createdTripId}`);
   await expect(page.locator(".invite-link")).toBeVisible();

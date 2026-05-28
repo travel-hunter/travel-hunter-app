@@ -1,5 +1,24 @@
 import os
 from dataclasses import dataclass
+from pathlib import Path
+
+
+def load_env_file(path: Path) -> None:
+    if not path.exists():
+        return
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if not key or key in os.environ:
+            continue
+        value = value.strip().strip('"').strip("'")
+        os.environ[key] = value
+
+
+load_env_file(Path(__file__).resolve().parents[2] / ".env")
 
 
 def split_csv(value: str) -> tuple[str, ...]:
@@ -99,6 +118,11 @@ class Settings:
     google_client_id: str = os.getenv("GOOGLE_CLIENT_ID", "")
     google_client_secret: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
     google_redirect_uri: str = os.getenv("GOOGLE_REDIRECT_URI", "")
+    kakao_local_enabled: bool = os.getenv(
+        "KAKAO_LOCAL_ENABLED", "false"
+    ).strip().lower() in {"1", "true", "yes", "on"}
+    kakao_local_rest_api_key: str = os.getenv("KAKAO_LOCAL_REST_API_KEY", "")
+    kakao_local_timeout_seconds: float = float(os.getenv("KAKAO_LOCAL_TIMEOUT_SECONDS", "5"))
     oauth_state_cookie_name: str = os.getenv(
         "OAUTH_STATE_COOKIE_NAME", "travel_hunter_oauth_state"
     )

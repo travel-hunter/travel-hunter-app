@@ -9,6 +9,15 @@ import { useAsyncResource } from "../api/useAsyncResource";
 
 type InfoSheetType = "faq" | "terms" | "privacy";
 
+function uniquePoliciesBySlug(policies: Policy[]) {
+  const seen = new Set<string>();
+  return policies.filter((policy) => {
+    if (seen.has(policy.slug)) return false;
+    seen.add(policy.slug);
+    return true;
+  });
+}
+
 export function MyPage() {
   const navigate = useNavigate();
   const { currentUser, likedPolicy, logout, profile, removeSavedSlug, saveNickname, saveProfile, savedSlugs } = useSession();
@@ -68,7 +77,7 @@ export function MyPage() {
     ]).then(([savedResult, tripsResult, appliedResult, notifResult, contactResult]) => {
       if (!isCurrent) return;
 
-      if (savedResult.status === "fulfilled") setSavedPolicies(savedResult.value);
+      if (savedResult.status === "fulfilled") setSavedPolicies(uniquePoliciesBySlug(savedResult.value));
       else setSavedPolicyError("저장한 정책을 불러오지 못했어요.");
       setIsLoadingSavedPolicies(false);
 
@@ -237,7 +246,8 @@ export function MyPage() {
     }
   };
 
-  const savedPolicyCount = savedSlugs.size || (likedPolicy ? 1 : 0);
+  const visibleSavedPolicies = uniquePoliciesBySlug(savedPolicies);
+  const savedPolicyCount = visibleSavedPolicies.length;
   const tripCount = tripError ? 0 : trips.length;
   const deadlineEnabled = notificationSettings?.deadlineEnabled ?? true;
   const deadlineLeadDays = notificationSettings?.deadlineLeadDays ?? [7, 1];
@@ -285,7 +295,7 @@ export function MyPage() {
               }
             />
           )}
-          {!isLoadingSavedPolicies && !savedPolicyError && savedPolicies.length === 0 && (
+          {!isLoadingSavedPolicies && !savedPolicyError && visibleSavedPolicies.length === 0 && (
             <div className="prototype-favorite-empty">
               <EmptyState
                 compact
@@ -300,9 +310,9 @@ export function MyPage() {
               />
             </div>
           )}
-          {!isLoadingSavedPolicies && !savedPolicyError && savedPolicies.length > 0 && (
+          {!isLoadingSavedPolicies && !savedPolicyError && visibleSavedPolicies.length > 0 && (
             <div className="prototype-favorite-list">
-              {savedPolicies.map((policy) => (
+              {visibleSavedPolicies.map((policy) => (
                 <FavoritePolicyCard
                   isRemoving={removingPolicySlug === policy.slug}
                   key={policy.slug}

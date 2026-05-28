@@ -6,6 +6,7 @@ import { useEffect, useState, type KeyboardEvent } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { appDataApi, type ItineraryPlace, type LinkedTripPolicy, type Trip, type TripPlaceRequest } from "../../api";
 import { useAsyncResource } from "../../api/useAsyncResource";
+import { KakaoMapView, type KakaoMapMarker } from "../../components/map/KakaoMapView";
 import { Button, ConfirmDialog, EmptyState, ErrorState, IconButton, LinkButton, LoadingState, Toast, TopBar } from "../../components/ui";
 import { getPolicyMoodIcon, getPolicyMoodTone, getTripRegionEmojiFromTitle } from "../../data/displayConfig";
 import { clearDraft, createDraftKey, readDraft, saveDraft } from "../../utils/draftStorage";
@@ -551,28 +552,41 @@ export function ItineraryDetailPage() {
       <section className="prototype-linked-policy-section" aria-label="연결된 정책">
         <h2>🎯 연결된 정책</h2>
         {linkedPolicies.length > 0 ? (
-          linkedPolicies.map((policy) => (
-            <div className="benefit-banner linked-policy-card" key={policy.slug}>
-              <Link className="linked-policy-card-main" to={`/policies/${policy.slug}`}>
-                <span className="benefit-banner-icon" aria-hidden="true">💴</span>
-                <div>
-                  <strong>{policy.title}</strong>
-                  <div className="meta">{`${policy.amount || "혜택 확인"} · ${policy.region || "지역 확인"}`}</div>
-                </div>
-              </Link>
-              {canEditTrip && (
-                <button
-                  aria-label={`${policy.title} 연결 삭제`}
-                  className="linked-policy-remove"
-                  disabled={removingPolicySlug === policy.slug}
-                  onClick={() => void removeLinkedPolicy(policy)}
-                  type="button"
-                >
-                  {removingPolicySlug === policy.slug ? "삭제 중" : "삭제"}
-                </button>
-              )}
-            </div>
-          ))
+          linkedPolicies.map((policy) => {
+            const isHiddenPolicy = policy.status === "hidden";
+            return (
+              <div className={isHiddenPolicy ? "benefit-banner linked-policy-card hidden-policy" : "benefit-banner linked-policy-card"} key={policy.slug}>
+                {isHiddenPolicy ? (
+                  <div className="linked-policy-card-main" aria-label={`${policy.title} 숨김 정책`}>
+                    <span className="benefit-banner-icon" aria-hidden="true">🚫</span>
+                    <div>
+                      <strong>{policy.title}</strong>
+                      <div className="meta">{`${policy.amount || "혜택 확인"} · 숨김 처리됨`}</div>
+                    </div>
+                  </div>
+                ) : (
+                  <Link className="linked-policy-card-main" to={`/policies/${policy.slug}`}>
+                    <span className="benefit-banner-icon" aria-hidden="true">💴</span>
+                    <div>
+                      <strong>{policy.title}</strong>
+                      <div className="meta">{`${policy.amount || "혜택 확인"} · ${policy.region || "전국"}`}</div>
+                    </div>
+                  </Link>
+                )}
+                {canEditTrip && (
+                  <button
+                    aria-label={`${policy.title} 연결 삭제`}
+                    className="linked-policy-remove"
+                    disabled={removingPolicySlug === policy.slug}
+                    onClick={() => void removeLinkedPolicy(policy)}
+                    type="button"
+                  >
+                    {removingPolicySlug === policy.slug ? "삭제 중" : "삭제"}
+                  </button>
+                )}
+              </div>
+            );
+          })
         ) : (
           <Link className="benefit-banner" to="/policies">
             <span className="benefit-banner-icon" aria-hidden="true">💴</span>
@@ -770,6 +784,13 @@ function PrototypeTripMap({
     point: getPlaceMapPoint(index, dayNumber),
   }));
   const routePoints = mapPlaces.map(({ point }) => `${point.x},${point.y}`).join(" ");
+  const markers: KakaoMapMarker[] = places.map((place, index) => ({
+    id: place.id ?? `${place.label}-${index}`,
+    label: place.label,
+    subtitle: place.address || place.meta,
+    latitude: place.latitude,
+    longitude: place.longitude,
+  }));
 
   if (places.length === 0) {
     return (
@@ -783,9 +804,8 @@ function PrototypeTripMap({
     );
   }
 
-  return (
-    <div className="prototype-map-wrap">
-      <div className="prototype-full-map" aria-label={`Day ${dayNumber} 지도`} onMouseDown={() => onSelectPlace(null)}>
+  const fallbackMap = (
+    <div className="prototype-full-map" onMouseDown={() => onSelectPlace(null)}>
         <svg className="prototype-map-terrain" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           <path d="M 8,22 Q 30,5 55,15 T 95,30 L 95,75 Q 70,90 40,82 Q 12,78 5,55 Z" fill="rgba(255,255,255,.2)" stroke="rgba(255,255,255,.45)" strokeWidth=".3" />
           <path d="M 8,42 Q 35,46 55,42 T 95,55" fill="none" stroke="rgba(255,255,255,.55)" strokeWidth=".7" strokeDasharray="1.5,1" />
@@ -818,14 +838,25 @@ function PrototypeTripMap({
             </button>
           );
         })}
-        {selectedPlace && (
-          <PlaceMapBottomSheet
-            onClose={() => onSelectPlace(null)}
-            onShowPlaceDetail={onShowPlaceDetail}
-            place={selectedPlace}
-          />
-        )}
       </div>
+  );
+
+  return (
+    <div className="prototype-map-wrap">
+      <KakaoMapView
+        ariaLabel={`Day ${dayNumber} 지도`}
+        fallback={fallbackMap}
+        markers={markers}
+        onSelectMarker={(markerId) => onSelectPlace(markerId)}
+        selectedMarkerId={selectedPlaceId}
+      />
+      {selectedPlace && (
+        <PlaceMapBottomSheet
+          onClose={() => onSelectPlace(null)}
+          onShowPlaceDetail={onShowPlaceDetail}
+          place={selectedPlace}
+        />
+      )}
       <div className="prototype-map-caption">
         <span>Day {dayNumber} · <strong>{places.length}곳</strong></span>
         <span>핀을 탭하면 상세가 나타나요</span>
@@ -843,7 +874,8 @@ function PlaceMapBottomSheet({
   onShowPlaceDetail: () => void;
   place: ItineraryPlace;
 }) {
-  const kakaoSearchUrl = `https://map.kakao.com/link/search/${encodeURIComponent(place.label)}`;
+  const kakaoSearchUrl = place.placeUrl || `https://map.kakao.com/link/search/${encodeURIComponent(place.label)}`;
+  const detailText = place.address || place.meta || "상세 메모가 아직 없어요.";
 
   return (
     <section className="place-map-bottom-sheet" aria-label={`${place.label} 지도 상세`} role="dialog" onMouseDown={(event) => event.stopPropagation()}>
@@ -855,7 +887,7 @@ function PlaceMapBottomSheet({
             <em>Day 장소</em>
           </div>
           <strong>{place.label}</strong>
-          <p>{place.meta || "상세 메모가 아직 없어요."}</p>
+          <p>{detailText}</p>
         </div>
         <button aria-label="지도 장소 상세 닫기" className="place-map-sheet-close" onClick={onClose} type="button">
           <X size={14} />

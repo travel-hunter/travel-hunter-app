@@ -1,4 +1,10 @@
 import {
+  AdminAuditLogListResponse,
+  AdminExternalSourceSummaryResponse,
+  AdminPolicyDetail,
+  AdminPolicyListResponse,
+  AdminUserDetail,
+  AdminUserListResponse,
   AppliedPolicyLink,
   ContactInfo,
   ContactVerificationRequestResponse,
@@ -110,6 +116,14 @@ export type TripPlaceRequest = {
   time?: string;
   label: string;
   meta?: string;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  category?: string | null;
+  categoryCode?: string | null;
+  placeUrl?: string | null;
+  sourceProvider?: string | null;
+  externalPlaceId?: string | null;
 };
 
 export type TripPlaceUpdateRequest = Partial<TripPlaceRequest>;
@@ -180,4 +194,13 @@ export type AppDataApi = {
   getInviteState: (tripId: string) => Promise<InviteState>;
   confirmInviteSent: (tripId: string, role?: InviteRole) => Promise<InviteState>;
   acceptInvite: (inviteToken: string) => Promise<InviteState>;
+  listAdminUsers: (options?: { q?: string; onboardingCompleted?: boolean; limit?: number; offset?: number }) => Promise<AdminUserListResponse>;
+  getAdminUser: (userId: string) => Promise<AdminUserDetail>;
+  updateAdminUser: (userId: string, user: Partial<AdminUserDetail>) => Promise<AdminUserDetail>;
+  listAdminPolicies: (options?: { q?: string; category?: string; region?: string; sourceType?: string; status?: string; limit?: number; offset?: number }) => Promise<AdminPolicyListResponse>;
+  getAdminExternalSourceSummary: () => Promise<AdminExternalSourceSummaryResponse>;
+  getAdminPolicy: (policyId: string) => Promise<AdminPolicyDetail>;
+  createAdminPolicy: (policy: Record<string, unknown>) => Promise<AdminPolicyDetail>;
+  updateAdminPolicy: (policyId: string, policy: Record<string, unknown>) => Promise<AdminPolicyDetail>;
+  listAdminAuditLogs: (options?: { targetType?: string; targetId?: string; action?: string; limit?: number; offset?: number }) => Promise<AdminAuditLogListResponse>;
 };

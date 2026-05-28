@@ -2,6 +2,7 @@
   id: string;
   nickname: string;
   email: string;
+  role: "user" | "admin";
   birthDate: string | null;
   gender: string | null;
   region: string | null;
@@ -84,15 +85,135 @@ export type ItineraryPlace = {
   time: string;
   label: string;
   meta: string;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  category?: string | null;
+  categoryCode?: string | null;
+  placeUrl?: string | null;
+  sourceProvider?: string | null;
+  externalPlaceId?: string | null;
 };
+
+export type RecommendationCategoryGroup = "stay" | "food" | "attraction" | "other";
 
 export type LinkedTripPolicy = {
   slug: string;
   title: string;
   amount: string;
   region: string;
+  status?: "active" | "hidden";
   category?: PolicyCategory;
   tag?: string;
+};
+
+export type AdminUserListItem = {
+  id: string;
+  email: string;
+  nickname: string;
+  role: "user" | "admin";
+  onboardingCompleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminUserDetail = AdminUserListItem & {
+  region: string | null;
+  residenceArea: string | null;
+  preferredRegions: string | null;
+  travelStyle: string | null;
+  travelBudget: string | null;
+};
+
+export type AdminUserListResponse = {
+  items: AdminUserListItem[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+export type AdminPolicyStatus = "active" | "hidden";
+
+export type AdminPolicyListItem = {
+  id: string;
+  slug: string;
+  title: string;
+  organization: string | null;
+  policyType: string | null;
+  region: string;
+  status: AdminPolicyStatus;
+  sourceType: string;
+  sourceCategory: string | null;
+  sourceLabel: string;
+  updatedAt: string;
+};
+
+export type AdminPolicyDetail = AdminPolicyListItem & {
+  startDate: string | null;
+  endDate: string | null;
+  benefitAmount: number | null;
+  benefitDetail: string | null;
+  description: string | null;
+  requirements: string[];
+  documents: string[];
+  officialUrl: string | null;
+  applyUrl: string | null;
+  policyComment: string | null;
+  policyPeriod: string | null;
+  adminOverrideEnabled: boolean;
+  createdAt: string;
+};
+
+export type AdminPolicyListResponse = {
+  items: AdminPolicyListItem[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+export type AdminAuditLogListItem = {
+  id: string;
+  adminUserId: string;
+  adminEmail: string;
+  action: string;
+  targetType: string;
+  targetId: string;
+  summary: string | null;
+  beforeJson: Record<string, unknown> | null;
+  afterJson: Record<string, unknown> | null;
+  createdAt: string;
+};
+
+export type AdminAuditLogListResponse = {
+  items: AdminAuditLogListItem[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+export type AdminExternalSourceSummaryItem = {
+  sourceCategory: string;
+  label: string;
+  sourceName: string;
+  totalRecords: number;
+  activeRecords: number;
+  scheduledRecords: number;
+  endedRecords: number;
+  unknownRecords: number;
+  freshRecords: number;
+  promotedPolicyCount: number;
+  activePromotedPolicyCount: number;
+  latestFetchedAt: string | null;
+  latestVerifiedAt: string | null;
+};
+
+export type AdminExternalSourceSummaryResponse = {
+  items: AdminExternalSourceSummaryItem[];
+  totalRecords: number;
+  activeRecords: number;
+  freshRecords: number;
+  promotedPolicyCount: number;
+  latestFetchedAt: string | null;
 };
 
 export type Trip = {
@@ -110,10 +231,21 @@ export type Trip = {
 };
 
 export type Recommendation = {
+  id?: string | null;
   label: string;
   title: string;
   meta: string;
   reason: string;
+  categoryGroup?: RecommendationCategoryGroup | null;
+  categoryCode?: string | null;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  placeUrl?: string | null;
+  suggestedDay?: number | null;
+  aiReview?: string | null;
+  sourceProvider?: string | null;
+  externalPlaceId?: string | null;
 };
 
 export type RegionRecommendation = {
