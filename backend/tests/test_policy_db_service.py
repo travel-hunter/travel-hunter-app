@@ -11,7 +11,7 @@ from app.services import policies as policy_service
 def make_policy() -> PolicyModel:
     policy = PolicyModel(
         id=1,
-        slug="local-vacation",
+        slug="fixture-policy",
         title="Local Vacation Support",
         organization="Travel Hunter",
         policy_type="지역할인",
@@ -35,12 +35,12 @@ def make_policy() -> PolicyModel:
 def test_policy_to_api_preserves_contract_shape() -> None:
     payload = policy_service.policy_to_api(make_policy())
 
-    assert payload["id"] == "local-vacation"
-    assert payload["slug"] == "local-vacation"
-    assert payload["label"] == "TH"
+    assert payload["id"] == "fixture-policy"
+    assert payload["slug"] == "fixture-policy"
+    assert payload["label"] == "FI"
     assert payload["deadline"] == "2026-10-31"
     assert payload["amount"] == "Up to 300000 KRW"
-    assert payload["match"] == 98
+    assert payload["match"] == 90
     assert payload["requirements"] == [
         "Domestic resident",
         "At least one night",
@@ -64,7 +64,7 @@ def test_db_policy_service_uses_repository_boundary(monkeypatch) -> None:
     monkeypatch.setattr(
         policy_service.policy_repository,
         "get_policy_by_slug",
-        lambda db, slug: policy if db is fake_db and slug == "local-vacation" else None,
+        lambda db, slug: policy if db is fake_db and slug == "fixture-policy" else None,
     )
     monkeypatch.setattr(
         policy_service.external_source_repository,
@@ -78,10 +78,10 @@ def test_db_policy_service_uses_repository_boundary(monkeypatch) -> None:
     )
 
     policies = policy_service.list_policies(fake_db)
-    detail = policy_service.get_policy("local-vacation", fake_db)
+    detail = policy_service.get_policy("fixture-policy", fake_db)
     missing = policy_service.get_policy("missing", fake_db)
 
-    assert policies[0]["slug"] == "local-vacation"
+    assert policies[0]["slug"] == "fixture-policy"
     assert detail is not None
     assert detail["title"] == "Local Vacation Support"
     assert missing is None
@@ -133,12 +133,12 @@ def test_db_policy_list_uses_normalized_policies_without_raw_external_merge(monk
 
     payload = policy_service.list_policies(fake_db)
 
-    assert [policy_payload["slug"] for policy_payload in payload] == ["local-vacation"]
+    assert [policy_payload["slug"] for policy_payload in payload] == ["fixture-policy"]
     assert external_record.title not in [policy_payload["title"] for policy_payload in payload]
     return
 
     assert [policy_payload["slug"] for policy_payload in payload] == [
-        "local-vacation",
+        "fixture-policy",
         "travelmonth-58",
     ]
     collected = payload[1]
@@ -182,6 +182,18 @@ def test_external_policy_category_uses_official_source_not_travel_styles() -> No
     assert payload["category"] == "교통"
 
 
+def test_external_policy_category_scores_text_before_regional_default() -> None:
+    record = make_external_record()
+    record.source_category = "regional_benefit"
+    record.title = "남도 기차둘레길 1박 2일 최대 35% 할인행사"
+    record.benefit_text = "남도 기차 여행상품 최대 35% 할인"
+    record.collected_page_url = "https://korean.visitkorea.or.kr/travelmonth/benefit.do"
+
+    payload = policy_service.external_source_record_to_policy_api(record)
+
+    assert payload["category"] == "교통"
+
+
 def test_external_policy_fallback_copy_uses_official_benefit_wording() -> None:
     record = make_external_record()
     record.benefit_value_text = None
@@ -190,7 +202,7 @@ def test_external_policy_fallback_copy_uses_official_benefit_wording() -> None:
     payload = policy_service.external_source_record_to_policy_api(record)
 
     assert payload["amount"] == "혜택 확인 필요"
-    assert payload["tag"] == "지역할인"
+    assert payload["tag"] == "여행상품"
     assert payload["summary"] == "공식 혜택 안내를 확인해 주세요."
     assert payload["documents"] == ["혜택 안내 확인"]
 
@@ -216,7 +228,7 @@ def test_db_save_policy_creates_idempotent_saved_policy(monkeypatch) -> None:
     monkeypatch.setattr(
         policy_service.policy_repository,
         "get_policy_by_slug",
-        lambda db, slug: policy if db is fake_db and slug == "local-vacation" else None,
+        lambda db, slug: policy if db is fake_db and slug == "fixture-policy" else None,
     )
     monkeypatch.setattr(
         policy_service.policy_repository,
@@ -230,9 +242,9 @@ def test_db_save_policy_creates_idempotent_saved_policy(monkeypatch) -> None:
 
     monkeypatch.setattr(policy_service.policy_repository, "add_saved_policy", add_saved_policy_stub)
 
-    payload = policy_service.save_policy("local-vacation", fake_db, user)
+    payload = policy_service.save_policy("fixture-policy", fake_db, user)
 
-    assert payload == {"policyId": "local-vacation", "saved": True}
+    assert payload == {"policyId": "fixture-policy", "saved": True}
     assert added_rows == [{"user_id": 7, "policy_id": 1}]
     assert fake_db.commits == 1
 
@@ -255,9 +267,9 @@ def test_db_save_policy_returns_existing_saved_policy_without_duplicate(monkeypa
         lambda _db, **kwargs: added_rows.append(kwargs),
     )
 
-    payload = policy_service.save_policy("local-vacation", fake_db, user)
+    payload = policy_service.save_policy("fixture-policy", fake_db, user)
 
-    assert payload == {"policyId": "local-vacation", "saved": True}
+    assert payload == {"policyId": "fixture-policy", "saved": True}
     assert added_rows == []
     assert fake_db.commits == 0
 
@@ -285,7 +297,23 @@ def test_db_list_saved_policies_maps_saved_rows(monkeypatch) -> None:
 
     payload = policy_service.list_saved_policies(fake_db, user)
 
-    assert [policy_payload["slug"] for policy_payload in payload] == ["local-vacation"]
+    assert [policy_payload["slug"] for policy_payload in payload] == ["fixture-policy"]
+
+
+def test_db_list_saved_policies_deduplicates_repository_rows(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    policy = make_policy()
+
+    monkeypatch.setattr(
+        policy_service.policy_repository,
+        "list_saved_policies",
+        lambda db, user_id: [policy, policy] if db is fake_db and user_id == user.id else [],
+    )
+
+    payload = policy_service.list_saved_policies(fake_db, user)
+
+    assert [policy_payload["slug"] for policy_payload in payload] == ["fixture-policy"]
 
 
 def test_db_list_applied_policies_maps_accessible_trip_policy_rows(monkeypatch) -> None:
@@ -301,7 +329,7 @@ def test_db_list_applied_policies_maps_accessible_trip_policy_rows(monkeypatch) 
 
     payload = policy_service.list_applied_policies(fake_db, user)
 
-    assert [policy_payload["slug"] for policy_payload in payload] == ["local-vacation"]
+    assert [policy_payload["slug"] for policy_payload in payload] == ["fixture-policy"]
 
 
 def test_db_remove_saved_policy_is_idempotent_for_existing_policy(monkeypatch) -> None:
@@ -318,8 +346,39 @@ def test_db_remove_saved_policy_is_idempotent_for_existing_policy(monkeypatch) -
 
     monkeypatch.setattr(policy_service.policy_repository, "remove_saved_policy", remove_saved_policy_stub)
 
-    payload = policy_service.remove_saved_policy("local-vacation", fake_db, user)
+    payload = policy_service.remove_saved_policy("fixture-policy", fake_db, user)
 
-    assert payload == {"policyId": "local-vacation", "saved": False}
+    assert payload == {"policyId": "fixture-policy", "saved": False}
     assert removed_rows == [{"user_id": 7, "policy_id": 1}]
     assert fake_db.commits == 1
+
+
+def test_policy_to_api_source_type_normalized_to_internal_external() -> None:
+    policy_with_official_source = make_policy()
+    policy_with_official_source.id = 90
+    policy_with_official_source.slug = "official-source-policy"
+    policy_with_official_source.source_type = "official_campaign"
+    policy_with_official_source.external_source_record_id = None
+
+    policy_with_unknown_source = make_policy()
+    policy_with_unknown_source.id = 91
+    policy_with_unknown_source.slug = "legacy-source-policy"
+    policy_with_unknown_source.source_type = "legacy_source"
+    policy_with_unknown_source.external_source_record_id = None
+
+    policy_with_internal_source = make_policy()
+    policy_with_internal_source.id = 92
+    policy_with_internal_source.slug = "internal-source-policy"
+    policy_with_internal_source.source_type = "internal"
+    policy_with_internal_source.external_source_record_id = None
+
+    policy_with_external_record = make_policy()
+    policy_with_external_record.id = 93
+    policy_with_external_record.slug = "external-linked-policy"
+    policy_with_external_record.source_type = "internal"
+    policy_with_external_record.external_source_record_id = 7
+
+    assert policy_service.policy_to_api(policy_with_official_source)["sourceType"] == "external"
+    assert policy_service.policy_to_api(policy_with_unknown_source)["sourceType"] == "external"
+    assert policy_service.policy_to_api(policy_with_internal_source)["sourceType"] == "internal"
+    assert policy_service.policy_to_api(policy_with_external_record)["sourceType"] == "external"

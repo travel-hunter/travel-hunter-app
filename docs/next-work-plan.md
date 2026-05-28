@@ -1,95 +1,101 @@
-# Travel Hunter 다음 작업 우선순위
+# Travel Hunter ?ㅼ쓬 ?묒뾽 ?곗꽑?쒖쐞
 
-## 기준
+## 湲곗?
 
-- 기준일: 2026-05-20
-- 기준 검증 기준: `9bdcb73` 및 현재 문서 작업트리
-- 브랜치: `develop`
-- 원격 상태: PR #17, #18, #19, #20, #23이 `develop`에 병합됐고 staging smoke 준비로 전환하는 기준이다.
-- 기준 상태: DB-backed-only MVP, numeric trip id 계약, 문서/계약/eval 동기화, frontend/backend 검증이 완료된 상태다.
+- 湲곗??? 2026-05-23
+- 湲곗? 寃利?湲곗?: `9bdcb73` 諛??꾩옱 臾몄꽌 ?묒뾽?몃━
+- 釉뚮옖移? `develop`
+- ?먭꺽 ?곹깭: `develop` 蹂묓빀 ?댄썑 濡쒖뺄?먯꽌 怨듭떇 ?쒗깮 ?섏쭛/?밴꺽, ?붾? ?뺤콉 ??젣, ?뺤콉 UI/?뚯뒪??臾몄꽌 ?뺥빀??蹂듦뎄瑜??댁뼱媛??湲곗??대떎.
+- 湲곗? ?곹깭: DB-backed-only MVP, numeric trip id 怨꾩빟, 臾몄꽌/怨꾩빟/eval ?숆린?? frontend/backend 寃利앹씠 ?꾨즺???곹깭??
 
 ## Current Local Priority
 
-Cloudflare는 뒤로 미루고, 현재 1순위는 로컬 Docker Compose에서 공식 데이터 수집과 일정 자동 생성 추천 흐름을 끝까지 반복 검증 가능하게 만드는 것이다.
+Cloudflare???ㅻ줈 誘몃（怨? ?꾩옱 1?쒖쐞??濡쒖뺄 Docker Compose?먯꽌 怨듭떇 ?곗씠???섏쭛怨??쇱젙 ?먮룞 ?앹꽦 異붿쿇 ?먮쫫???앷퉴吏 諛섎났 寃利?媛?ν븯寃?留뚮뱶??寃껋씠??
 
-작업명세:
+?묒뾽紐낆꽭:
 
-- `docs/superpowers/specs/2026-05-21-local-collection-itinerary-recommendation-smoke-design.md`
+- `docs/current-work-spec.md`
 
-성공 기준:
+?깃났 湲곗?:
 
-- TravelMonth 공식 페이지 수집이 수동 명령으로 실행된다.
-- 수집 결과가 `external_source_records`에 저장된다.
-- `/api/policies`와 `/policies` 목록이 `policies`로 정규화 승격된 TravelMonth 공식 혜택을 노출한다.
-- `/api/ops/external-collection/quality`가 저장 품질과 recommendation preview를 보여준다.
-- `/api/recommendations/regions`가 저장 데이터 기반 지역 추천을 반환한다.
-- `/home` 추천 UI가 해당 API를 사용한다.
-- `/trips/new`에서 새 일정을 만들면 `trip_days`, `trip_places`, `recommendations`가 자동 저장된다.
-- `/trips/{id}`와 `/ai-results?tripId={id}`에서 생성 결과를 확인할 수 있다.
+- TravelMonth 怨듭떇 ?섏씠吏 ?섏쭛???섎룞 紐낅졊?쇰줈 ?ㅽ뻾?쒕떎.
+- ?섏쭛 寃곌낵媛 `external_source_records`????λ맂??
+- `/api/policies`? `/policies` 紐⑸줉??`policies`濡??뺢퇋???밴꺽??TravelMonth 怨듭떇 ?쒗깮???몄텧?쒕떎.
+- `/api/ops/external-collection/quality`媛 ????덉쭏怨?recommendation preview瑜?蹂댁뿬以??
+- `/api/recommendations/regions`媛 ????곗씠??湲곕컲 吏??異붿쿇??諛섑솚?쒕떎.
+- `/home` 異붿쿇 UI媛 ?대떦 API瑜??ъ슜?쒕떎.
+- `/trips/new`?먯꽌 ???쇱젙??留뚮뱾硫?`trip_days`, `trip_places`, `recommendations`媛 ?먮룞 ??λ맂??
+- `/trips/{id}`? `/ai-results?tripId={id}`?먯꽌 ?앹꽦 寃곌낵瑜??뺤씤?????덈떎.
 
-2026-05-22 보강 기준:
+2026-05-22 蹂닿컯 湲곗?:
 
-- `/trips/new?region=...`는 홈 추천 지역을 새 일정 생성 지역으로 유지한다.
-- `travelmonth-{id}` TravelMonth 혜택 slug는 정규화된 `policies` 레코드로 저장/일정 연결 요청에 사용할 수 있다. raw 수집 레코드는 원문 근거와 품질 확인용으로 유지하고 사용자 action 경로에는 직접 섞지 않는다.
-- `/trips/{id}` 추천 정책 카드는 hardcoded article 대신 backend `recommendedPolicies`를 렌더링하고 정규화된 정책 및 `travelmonth-{id}` TravelMonth 혜택 상세인 `/policies/{slug}`로 이동한다.
-- `/ai-results?tripId=...`는 현재 일정에 이미 있는 추천 장소를 중복 추가하지 않는다.
+- `/trips/new?region=...`????異붿쿇 吏??쓣 ???쇱젙 ?앹꽦 吏??쑝濡??좎??쒕떎.
+- `travelmonth-{id}` TravelMonth ?쒗깮 slug???뺢퇋?붾맂 `policies` ?덉퐫?쒕줈 ????쇱젙 ?곌껐 ?붿껌???ъ슜?????덈떎. raw ?섏쭛 ?덉퐫?쒕뒗 ?먮Ц 洹쇨굅? ?덉쭏 ?뺤씤?⑹쑝濡??좎??섍퀬 ?ъ슜??action 寃쎈줈?먮뒗 吏곸젒 ?욎? ?딅뒗??
+- `/trips/{id}` 異붿쿇 ?뺤콉 移대뱶??hardcoded article ???backend `recommendedPolicies`瑜??뚮뜑留곹븯怨??뺢퇋?붾맂 ?뺤콉 諛?`travelmonth-{id}` TravelMonth ?쒗깮 ?곸꽭??`/policies/{slug}`濡??대룞?쒕떎.
+- `/ai-results?tripId=...`???꾩옱 ?쇱젙???대? ?덈뒗 異붿쿇 ?μ냼瑜?以묐났 異붽??섏? ?딅뒗??
 
-## 최근 완료
+## 理쒓렐 ?꾨즺
 
-- 문서 산출물을 핵심 문서와 `docs/deployment-cicd/` 기준으로 정리했다.
-- DB schema 기준을 `docs/db-schema-current.md`, `docs/db-schema-current.sql`로 교체했다.
-- frontend itinerary page를 개별 page 파일로 분리하고 기존 route import를 유지했다.
-- 정책 상세 CTA가 `신청하러 가기`, `혜택 안내 보기`, `신청 링크 준비 중`으로 분리됐다.
-- 정책 JSON URL validation이 `localhost`, `127.0.0.1`, `example.*`, 빈 문자열, 잘못된 scheme을 잡도록 강화됐다.
-- `/home` 인기 국내 여행지 rail이 정책 데이터 기반으로 생성되고 가짜 별점 문구를 제거했다.
-- `/mypage` 신청 정책 카운트가 `GET /api/me/applied-policies`에 연결됐다.
-- `/mypage`와 정책 목록/상세의 즐겨찾기 상태가 `SessionProvider.savedSlugs` 기준으로 동기화됐다.
-- 미사용 untracked 후보였던 `TripCreateModal.tsx`, `TripItinerary.tsx`는 현재 route/import와 연결되지 않는 임시 파일로 판단해 정리했다.
-- `/mypage` 공지사항/FAQ, 이용약관, 개인정보처리방침 sheet 콘텐츠를 실제 서비스 안내 수준으로 보강했다.
-- PR #17, #18, #19, #20, #23이 `develop`에 병합됐다.
-- 기존 non-numeric 제주 3일 trip handle 지원을 제거하고 `trip_id`는 numeric string `Trip.id`만 지원하도록 계약, backend, frontend, tests, `.agent/evals`를 동기화했다.
-- Frontend `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build`, backend `python -m pytest`, compose config, stale alias search, API eval JSON validation, `git diff --check`가 통과했다.
-- `docs/deployment-cicd/staging-ops-work-orders.md`에 외주/인프라 담당자용 남은 운영 검증 작업지시서를 추가했다.
-- `/policies` 목록과 수집 정책 상세는 TravelMonth `external_source_records`에서 정규화 승격된 `policies`를 노출한다. 사용자 화면에는 `internal/external` 같은 구현 구분 라벨을 표시하지 않고, 모든 노출 정책은 공식 혜택으로 동일하게 저장/일정 연결 action을 제공한다.
+- 臾몄꽌 ?곗텧臾쇱쓣 ?듭떖 臾몄꽌? `docs/deployment-cicd/` 湲곗??쇰줈 ?뺣━?덈떎.
+- DB schema 湲곗???`docs/db-schema-current.md`, `docs/db-schema-current.sql`濡?援먯껜?덈떎.
+- frontend itinerary page瑜?媛쒕퀎 page ?뚯씪濡?遺꾨━?섍퀬 湲곗〈 route import瑜??좎??덈떎.
+- ?뺤콉 ?곸꽭 CTA媛 `?좎껌?섎윭 媛湲?, `?쒗깮 ?덈궡 蹂닿린`, `?좎껌 留곹겕 以鍮?以??쇰줈 遺꾨━?먮떎.
+- ?뺤콉 JSON URL validation??`localhost`, `127.0.0.1`, `example.*`, 鍮?臾몄옄?? ?섎せ??scheme???〓룄濡?媛뺥솕?먮떎.
+- `/home` ?멸린 援?궡 ?ы뻾吏 rail???뺤콉 ?곗씠??湲곕컲?쇰줈 ?앹꽦?섍퀬 媛吏?蹂꾩젏 臾멸뎄瑜??쒓굅?덈떎.
+- `/mypage` ?좎껌 ?뺤콉 移댁슫?멸? `GET /api/me/applied-policies`???곌껐?먮떎.
+- `/mypage`? ?뺤콉 紐⑸줉/?곸꽭??利먭꺼李얘린 ?곹깭媛 `SessionProvider.savedSlugs` 湲곗??쇰줈 ?숆린?붾릱??
+- 誘몄궗??untracked ?꾨낫???`TripCreateModal.tsx`, `TripItinerary.tsx`???꾩옱 route/import? ?곌껐?섏? ?딅뒗 ?꾩떆 ?뚯씪濡??먮떒???뺣━?덈떎.
+- `/mypage` 怨듭??ы빆/FAQ, ?댁슜?쎄?, 媛쒖씤?뺣낫泥섎━諛⑹묠 sheet 肄섑뀗痢좊? ?ㅼ젣 ?쒕퉬???덈궡 ?섏??쇰줈 蹂닿컯?덈떎.
+- legacy dummy policy(`local-vacation`, `sokcho-stay`, `busan-cashback`)??runtime seed?먯꽌 ?쒓굅?먭퀬, ?꾩옱 ?덉떆 ?뺤콉? ?섏쭛 ?곗씠?곗뿉 議댁옱?섎뒗 `dgtour-諛??1`???ъ슜?쒕떎.
+- 湲곗〈 non-numeric ?쒖＜ 3??trip handle 吏?먯쓣 ?쒓굅?섍퀬 `trip_id`??numeric string `Trip.id`留?吏?먰븯?꾨줉 怨꾩빟, backend, frontend, tests, `.agent/evals`瑜??숆린?뷀뻽??
+- Frontend `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build`, backend `python -m pytest`, compose config, stale alias search, API eval JSON validation, `git diff --check`媛 ?듦낵?덈떎.
+- 배포 검증은 `docs/deployment-cicd/09-release-checklist.md`를 기준으로 한다.
+- `/policies` 紐⑸줉怨??섏쭛 ?뺤콉 ?곸꽭??TravelMonth `external_source_records`?먯꽌 ?뺢퇋???밴꺽??`policies`瑜??몄텧?쒕떎. ?ъ슜???붾㈃?먮뒗 `internal/external` 媛숈? 援ы쁽 援щ텇 ?쇰꺼???쒖떆?섏? ?딄퀬, 紐⑤뱺 ?몄텧 ?뺤콉? 怨듭떇 ?쒗깮?쇰줈 ?숈씪?섍쾶 ????쇱젙 ?곌껐 action???쒓났?쒕떎.
 
-## 다음 우선순위
+## ?ㅼ쓬 ?곗꽑?쒖쐞
 
-| 우선순위 | 작업 | 성공 기준 |
+| ?곗꽑?쒖쐞 | ?묒뾽 | ?깃났 湲곗? |
 |---:|---|---|
-| 1 | Cloudflare Tunnel staging env 준비 | 실제 domain, tunnel token, DB, auth, CORS, public base URL 값이 준비됐는지 확인하고 누락값을 명시한다. |
-| 2 | Cloudflare Tunnel actual env full-up | 실제 `deploy/.env.tunnel` 값으로 migration, seed, compose up, `/api/health` smoke가 통과한다. |
-| 3 | public HTTPS route smoke | public HTTPS 기준 `/login`, `/policies`, `/trips`, `/mypage`가 blank root 없이 동작한다. |
-| 4 | SMTP password reset staging smoke | 실제 SMTP provider와 HTTPS staging URL로 reset email 수신, token confirm, 새 비밀번호 로그인이 통과한다. |
-| 5 | Kakao/Google OAuth provider smoke | provider console redirect URI와 runtime env를 맞춘 뒤 실제 social login callback과 session 복구가 통과한다. |
-| 6 | SOLAPI Kakao AlimTalk staging smoke | 실제 SOLAPI/Kakao channel/template/env로 발송 요청, retry, webhook 수신이 확인된다. |
-| 7 | Jenkins CD staging 자동화 | 수동 Compose 배포 흐름을 Jenkins job으로 재현하고 secret은 credentials로만 관리한다. |
-| 8 | 홈 추천 목적지 ranking 운영 검증 | 정책 수, 마감 임박, 혜택 금액, 취향 보정, 프로필 지역 최종 tie-breaker 기준이 live data에서 기대대로 작동하는지 확인한다. |
-| 9 | 전화번호 OTP 실제 발송 smoke | env-gated SOLAPI SMS provider를 실제 운영 env로 켜고, 비용 제한과 실패 처리 기준에 맞춰 staging smoke를 완료한다. |
-| 10 | 여행가는 달 live collector 운영 모니터링 | 공식 여행가는 달 지역 여행할인 모아보기 live HTML 58건 수집 기준을 유지하고, `EXTERNAL_COLLECTION_MIN_PARSED_COUNT` 미달 수집을 실패로 처리한다. |
-| 11 | external collection scheduler cadence 운영 검증 | 외부 수집 주기, 재검증 기준, freshness 상태 전환, 실패 재시도 정책이 live 운영 데이터에서 기대대로 동작하는지 확인한다. scheduler는 마지막 시도/성공/parsed count/outcome/error 내부 상태를 `GET /api/ops/external-collection`에서 확인하고, 저장 품질과 추천 반영 preview는 `GET /api/ops/external-collection/quality`에서 확인한다. |
-| 12 | external source records 기반 홈 지역 추천 API | `external_source_records`의 지역/상태/혜택/선호도 파생 필드를 사용해 홈 지역 추천 API 후보와 정렬 기준을 구현한다. |
-| 13 | AppDataApi 경유 홈 추천 UI | frontend 홈 추천 UI가 backend 추천 API를 `AppDataApi` 경계로 호출하고 loading/error/empty 상태를 처리한다. |
+| 1 | Cloudflare Tunnel staging env 以鍮?| ?ㅼ젣 domain, tunnel token, DB, auth, CORS, public base URL 媛믪씠 以鍮꾨릱?붿? ?뺤씤?섍퀬 ?꾨씫媛믪쓣 紐낆떆?쒕떎. |
+| 2 | Cloudflare Tunnel actual env full-up | ?ㅼ젣 `deploy/.env.tunnel` 媛믪쑝濡?migration, seed, compose up, `/api/health` smoke媛 ?듦낵?쒕떎. |
+| 3 | public HTTPS route smoke | public HTTPS 湲곗? `/login`, `/policies`, `/trips`, `/mypage`媛 blank root ?놁씠 ?숈옉?쒕떎. |
+| 4 | SMTP password reset staging smoke | ?ㅼ젣 SMTP provider? HTTPS staging URL濡?reset email ?섏떊, token confirm, ??鍮꾨?踰덊샇 濡쒓렇?몄씠 ?듦낵?쒕떎. |
+| 5 | Kakao/Google OAuth provider smoke | provider console redirect URI? runtime env瑜?留욎텣 ???ㅼ젣 social login callback怨?session 蹂듦뎄媛 ?듦낵?쒕떎. |
+| 6 | SOLAPI Kakao AlimTalk staging smoke | ?ㅼ젣 SOLAPI/Kakao channel/template/env濡?諛쒖넚 ?붿껌, retry, webhook ?섏떊???뺤씤?쒕떎. |
+| 7 | Jenkins CD staging ?먮룞??| ?섎룞 Compose 諛고룷 ?먮쫫??Jenkins job?쇰줈 ?ы쁽?섍퀬 secret? credentials濡쒕쭔 愿由ы븳?? |
+| 8 | ??異붿쿇 紐⑹쟻吏 ranking ?댁쁺 寃利?| ?뺤콉 ?? 留덇컧 ?꾨컯, ?쒗깮 湲덉븸, 痍⑦뼢 蹂댁젙, ?꾨줈??吏??理쒖쥌 tie-breaker 湲곗???live data?먯꽌 湲곕??濡??묐룞?섎뒗吏 ?뺤씤?쒕떎. |
+| 9 | ?꾪솕踰덊샇 OTP ?ㅼ젣 諛쒖넚 smoke | env-gated SOLAPI SMS provider瑜??ㅼ젣 ?댁쁺 env濡?耳쒓퀬, 鍮꾩슜 ?쒗븳怨??ㅽ뙣 泥섎━ 湲곗???留욎떠 staging smoke瑜??꾨즺?쒕떎. |
+| 10 | ?ы뻾媛????live collector ?댁쁺 紐⑤땲?곕쭅 | 怨듭떇 ?ы뻾媛????吏???ы뻾?좎씤 紐⑥븘蹂닿린 live HTML 58嫄??섏쭛 湲곗????좎??섍퀬, `EXTERNAL_COLLECTION_MIN_PARSED_COUNT` 誘몃떖 ?섏쭛???ㅽ뙣濡?泥섎━?쒕떎. |
+| 11 | external collection scheduler cadence ?댁쁺 寃利?| ?몃? ?섏쭛 二쇨린, ?ш?利?湲곗?, freshness ?곹깭 ?꾪솚, ?ㅽ뙣 ?ъ떆???뺤콉??live ?댁쁺 ?곗씠?곗뿉??湲곕??濡??숈옉?섎뒗吏 ?뺤씤?쒕떎. scheduler??留덉?留??쒕룄/?깃났/parsed count/outcome/error ?대? ?곹깭瑜?`GET /api/ops/external-collection`?먯꽌 ?뺤씤?섍퀬, ????덉쭏怨?異붿쿇 諛섏쁺 preview??`GET /api/ops/external-collection/quality`?먯꽌 ?뺤씤?쒕떎. |
+| 12 | external source records 湲곕컲 ??吏??異붿쿇 API | `external_source_records`??吏???곹깭/?쒗깮/?좏샇???뚯깮 ?꾨뱶瑜??ъ슜????吏??異붿쿇 API ?꾨낫? ?뺣젹 湲곗???援ы쁽?쒕떎. |
+| 13 | AppDataApi 寃쎌쑀 ??異붿쿇 UI | frontend ??異붿쿇 UI媛 backend 異붿쿇 API瑜?`AppDataApi` 寃쎄퀎濡??몄텧?섍퀬 loading/error/empty ?곹깭瑜?泥섎━?쒕떎. |
 
-## 기능 개발 후보
+## 湲곕뒫 媛쒕컻 ?꾨낫
 
-- 홈 추천 목적지 ranking 운영 검증.
-- 여행가는 달 live collector 운영 모니터링.
-- external collection scheduler cadence 운영 검증.
-- external source records 기반 홈 지역 추천 API.
-- AppDataApi 경유 홈 추천 UI.
-- 정책 신청 URL 데이터 품질 보강.
-- 정책 신청 상태 모델 확장.
-- 전화번호 OTP 실제 발송 staging smoke.
-- PWA service worker 1차 적용 여부 결정.
+- ??異붿쿇 紐⑹쟻吏 ranking ?댁쁺 寃利?
+- ?ы뻾媛????live collector ?댁쁺 紐⑤땲?곕쭅.
+- external collection scheduler cadence ?댁쁺 寃利?
+- external source records 湲곕컲 ??吏??異붿쿇 API.
+- AppDataApi 寃쎌쑀 ??異붿쿇 UI.
+- ?뺤콉 ?좎껌 URL ?곗씠???덉쭏 蹂닿컯.
+- ?뺤콉 ?좎껌 ?곹깭 紐⑤뜽 ?뺤옣.
+- ?꾪솕踰덊샇 OTP ?ㅼ젣 諛쒖넚 staging smoke.
+- PWA service worker 1李??곸슜 ?щ? 寃곗젙.
 
-## 운영 검증 후보
+## 2026-05-23 吏꾪뻾 硫붾え
+
+- Cloudflare Tunnel staging env 준비 상태는 `deploy/.env.tunnel.example`와 `compose.tunnel.yaml` 기준으로 기록한다.
+- 濡쒖뺄 `deploy/.env.tunnel`? Git ignore ??곸씠怨?Compose config shape???듦낵?섏?留? ?ㅼ젣 domain, DB password, auth secret, public URLs, Cloudflare tunnel token??placeholder??OPS-02 actual full-up? ?꾩쭅 blocked ?곹깭??
+- ?ㅼ쓬 ?ㅽ뻾 媛???묒뾽? staging host?먯꽌 ?ㅼ젣 env 媛믪쓣 梨꾩슫 ??`docker compose --env-file deploy/.env.tunnel -f compose.tunnel.yaml config --quiet`瑜??ъ떎?됲븯??寃껋씠??
+
+## ?댁쁺 寃利??꾨낫
 
 - Cloudflare Tunnel named tunnel full-up.
-- public HTTPS 기준 `/login`, `/policies`, `/trips`, `/mypage` smoke.
+- public HTTPS 湲곗? `/login`, `/policies`, `/trips`, `/mypage` smoke.
 - SMTP password reset staging smoke.
 - Kakao/Google OAuth staging smoke.
-- SOLAPI Kakao AlimTalk 실제 발송 smoke.
-- Jenkins CD staging 자동화.
+- SOLAPI Kakao AlimTalk ?ㅼ젣 諛쒖넚 smoke.
+- Jenkins CD staging ?먮룞??
 
 ## Fast Lane
 
@@ -104,14 +110,14 @@ cd ..\backend
 python -m pytest
 ```
 
-Migration이 바뀌면 추가로 실행한다.
+Migration??諛붾뚮㈃ 異붽?濡??ㅽ뻾?쒕떎.
 
 ```powershell
 cd backend
 alembic upgrade head --sql
 ```
 
-문서만 변경한 경우에는 아래를 기본 검증으로 둔다.
+臾몄꽌留?蹂寃쏀븳 寃쎌슦?먮뒗 ?꾨옒瑜?湲곕낯 寃利앹쑝濡??붾떎.
 
 ```powershell
 git diff --check
@@ -121,8 +127,8 @@ rg -n "<stale-reference-pattern>" docs README.md PLANS.md CHECKLIST.md .agent
 
 ## Guardrails
 
-- Runtime mock mode를 다시 추가하지 않는다.
-- 실제 secret/env 값은 repo에 기록하지 않는다.
-- API DTO는 `camelCase`, DB column은 `snake_case`를 유지한다.
-- trip route handle은 numeric string `Trip.id`만 지원하고 `trips.slug`는 추가하지 않는다.
-- 현재 route URL과 DB-backed source of truth를 유지한다.
+- Runtime mock mode瑜??ㅼ떆 異붽??섏? ?딅뒗??
+- ?ㅼ젣 secret/env 媛믪? repo??湲곕줉?섏? ?딅뒗??
+- API DTO??`camelCase`, DB column? `snake_case`瑜??좎??쒕떎.
+- trip route handle? numeric string `Trip.id`留?吏?먰븯怨?`trips.slug`??異붽??섏? ?딅뒗??
+- ?꾩옱 route URL怨?DB-backed source of truth瑜??좎??쒕떎.

@@ -1,3 +1,5 @@
+import threading
+from collections import deque
 from collections.abc import Callable
 from typing import Any, Protocol
 
@@ -21,11 +23,15 @@ class PhoneVerificationProvider(Protocol):
 
 
 class DevPhoneVerificationProvider:
+    MAX_STORED_MESSAGES = 100
+
     def __init__(self) -> None:
-        self.sent_messages: list[tuple[str, str]] = []
+        self.sent_messages = deque[tuple[str, str]](maxlen=self.MAX_STORED_MESSAGES)
+        self._lock = threading.Lock()
 
     def send_verification_code(self, *, phone_number: str, code: str) -> None:
-        self.sent_messages.append((phone_number, code))
+        with self._lock:
+            self.sent_messages.append((phone_number, code))
 
 
 dev_phone_verification_provider = DevPhoneVerificationProvider()

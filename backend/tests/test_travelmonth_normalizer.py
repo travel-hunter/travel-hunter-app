@@ -91,6 +91,18 @@ def test_extract_benefit_value_reads_percent_when_amount_missing() -> None:
     assert value.value_text == "최대 50%"
 
 
+def test_extract_benefit_value_reads_percent_from_title_when_detail_has_conditions() -> None:
+    value = normalizer.extract_benefit_value(
+        "행사 기간 중 온라인 체험상품 예약 결제 후 사용 완료 참여자 26년 4월 중순부터 5월 말",
+        title="웰촌 체험상품 30% 할인",
+    )
+
+    assert value.amount_krw is None
+    assert value.discount_percent == 30
+    assert value.value_type == "percent"
+    assert value.value_text == "최대 30%"
+
+
 def test_extract_benefit_value_reads_free_benefit() -> None:
     value = normalizer.extract_benefit_value("루프탑 전망대 무료 개방")
 

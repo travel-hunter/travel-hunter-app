@@ -96,7 +96,8 @@
           "onboardingCompleted": "boolean",
           "socialAccounts": "array",
           "createdAt": "string",
-          "updatedAt": "string"
+          "updatedAt": "string",
+          "role": "string enum(user|admin)"
         }
       }
     },
@@ -115,7 +116,8 @@
           "nickname": "string",
           "email": "string",
           "onboardingCompleted": "boolean",
-          "socialAccounts": "array"
+          "socialAccounts": "array",
+          "role": "string enum(user|admin)"
         }
       }
     },
@@ -140,7 +142,8 @@
         "user": {
           "id": "string",
           "email": "string",
-          "socialAccounts": "array"
+          "socialAccounts": "array",
+          "role": "string enum(user|admin)"
         }
       }
     },
@@ -214,7 +217,8 @@
         "email": "string",
         "homeRegion": "string",
         "onboardingCompleted": "boolean",
-        "socialAccounts": "array"
+        "socialAccounts": "array",
+        "role": "string enum(user|admin)"
       }
     },
     {
@@ -227,9 +231,25 @@
         "budgets": "array"
       },
       "example": {
-        "regions": ["제주", "부산", "강원", "전국"],
-        "travelStyles": ["휴식", "맛집", "체험", "자연", "사진"],
-        "budgets": ["1인 30만원 이하", "1인 40만원 이하", "1인 60만원 이하", "상관없음"]
+        "regions": [
+          "제주",
+          "부산",
+          "강원",
+          "전국"
+        ],
+        "travelStyles": [
+          "휴식",
+          "맛집",
+          "체험",
+          "자연",
+          "사진"
+        ],
+        "budgets": [
+          "1인 30만원 이하",
+          "1인 40만원 이하",
+          "1인 60만원 이하",
+          "상관없음"
+        ]
       },
       "authRequired": false
     },
@@ -435,13 +455,20 @@
         "applyUrl": "string|null",
         "sourceType": "string"
       },
-      "allowedPolicyCategories": ["교통", "숙박", "여행상품", "지역할인", "이벤트", "기타"],
-      "exampleSlug": "local-vacation",
-      "dbModeBehavior": "Returns official-benefit Policy DTOs from DB policies only. Active/fresh TravelMonth regional_benefit external_source_records are promoted into policies by the collection normalization service and keep backward-compatible travelmonth-{externalSourceRecordId} slugs. sourceType remains in the DTO for compatibility/internal diagnostics, but user-facing UI must not expose internal/external wording and all exposed policies share save/trip behavior. Policy category is a benefit/source type; TravelMonth records derive category from source URL/sourceCategory and do not use travelStyles for category filtering."
+      "allowedPolicyCategories": [
+        "교통",
+        "숙박",
+        "여행상품",
+        "지역할인",
+        "이벤트",
+        "기타"
+      ],
+      "exampleSlug": "dgtour-밀양-1",
+      "dbModeBehavior": "Returns official-benefit Policy DTOs from DB policies only. Active/fresh TravelMonth regional_benefit, traffic_benefit, and local_half_trip external_source_records are promoted into policies by the collection normalization service and keep backward-compatible travelmonth-{externalSourceRecordId} slugs. local_half_trip records that are scheduled, ended, unknown, or non-fresh are hidden from public policy lists by setting policies.status to hidden when a promoted policy exists. sourceType remains in the DTO for compatibility/internal diagnostics, but user-facing UI must not expose internal/external wording and all exposed policies share save/trip behavior. Policy category is a benefit/source type; TravelMonth records derive category from source URL/sourceCategory and do not use travelStyles for category filtering. Hidden policies are excluded by backend query and public Policy.status is not exposed in v1."
     },
     {
       "method": "GET",
-      "path": "/api/policies/local-vacation",
+      "path": "/api/policies/dgtour-%EB%B0%80%EC%96%91-1",
       "status": 200,
       "requiredFields": {
         "id": "string",
@@ -454,7 +481,7 @@
         "applyUrl": "string|null",
         "sourceType": "string"
       },
-      "dbModeBehavior": "Also accepts travelmonth-{externalSourceRecordId} slugs for normalized TravelMonth policies. A temporary raw external_source_records fallback may resolve detail during migration gaps, but list/recommendation surfaces use normalized policies."
+      "dbModeBehavior": "Also accepts travelmonth-{externalSourceRecordId} slugs for normalized TravelMonth and local_half_trip policies. A temporary raw external_source_records fallback may resolve active/fresh regional_benefit and local_half_trip detail during migration gaps, but traffic_benefit and non-active/non-fresh records do not resolve through the public fallback. Hidden policies return 404 from the public detail route."
     },
     {
       "method": "GET",
@@ -480,7 +507,7 @@
     },
     {
       "method": "POST",
-      "path": "/api/me/saved-policies/local-vacation",
+      "path": "/api/me/saved-policies/dgtour-%EB%B0%80%EC%96%91-1",
       "status": 200,
       "requiredFields": {
         "policyId": "string",
@@ -490,7 +517,7 @@
     },
     {
       "method": "DELETE",
-      "path": "/api/me/saved-policies/local-vacation",
+      "path": "/api/me/saved-policies/dgtour-%EB%B0%80%EC%96%91-1",
       "status": 200,
       "requiredFields": {
         "policyId": "string",
@@ -508,16 +535,21 @@
         "status": "string enum(draft|confirmed)",
         "dates": "string",
         "people": "array",
+        "participantCount": "number",
         "expectedSaving": "string",
         "linkedPolicies": "array of { slug, title, amount, region }",
         "recommendedPolicies": "array of { slug, title, amount, region }",
-        "days": "object",
+        "days": "object (id:string, time:string, label:string, meta:string, address:string|null, latitude:number|null, longitude:number|null, category:string|null, categoryCode:string|null, placeUrl:string|null)",
         "currentUserRole": "string enum(owner|editor|viewer)"
       },
       "exampleTripId": "1",
       "dbModeTripIdPolicy": "The API returns numeric trip ids as strings and accepts only numeric string trip handles.",
       "numericHandlePattern": "^[1-9][0-9]*$",
-      "invalidNumericLikeHandles": ["0", "001", "1.0"],
+      "invalidNumericLikeHandles": [
+        "0",
+        "001",
+        "1.0"
+      ],
       "nonNumericHandleBehavior": "Returns 404 not found."
     },
     {
@@ -531,6 +563,7 @@
         "description": "string",
         "policySlug": "string",
         "durationDays": "number",
+        "participantCount": "number",
         "startDate": "YYYY-MM-DD string",
         "endDate": "YYYY-MM-DD string"
       },
@@ -540,10 +573,11 @@
         "status": "string enum(draft|confirmed)",
         "dates": "string",
         "people": "array",
+        "participantCount": "number",
         "expectedSaving": "string",
-        "linkedPolicies": "array of { slug, title, amount, region }",
-        "recommendedPolicies": "array of { slug, title, amount, region }",
-        "days": "object",
+        "linkedPolicies": "array of { slug, title, amount, region, status }",
+        "recommendedPolicies": "array of { slug, title, amount, region, status }",
+        "days": "object (id:string, time:string, label:string, meta:string, address:string|null, latitude:number|null, longitude:number|null, category:string|null, categoryCode:string|null, placeUrl:string|null)",
         "currentUserRole": "string enum(owner|editor|viewer)"
       },
       "dbModePolicySlugBehavior": "When policySlug is present, create the trip and link trip_policies; unknown policySlug returns 404 Policy not found.",
@@ -560,10 +594,11 @@
         "status": "string enum(draft|confirmed)",
         "dates": "string",
         "people": "array",
+        "participantCount": "number",
         "expectedSaving": "string",
-        "linkedPolicies": "array of { slug, title, amount, region }",
-        "recommendedPolicies": "array of { slug, title, amount, region }",
-        "days": "object",
+        "linkedPolicies": "array of { slug, title, amount, region, status }",
+        "recommendedPolicies": "array of { slug, title, amount, region, status }",
+        "days": "object (id:string, time:string, label:string, meta:string, address:string|null, latitude:number|null, longitude:number|null, category:string|null, categoryCode:string|null, placeUrl:string|null)",
         "currentUserRole": "string enum(owner|editor|viewer)"
       }
     },
@@ -584,13 +619,24 @@
     },
     {
       "method": "POST",
-      "path": "/api/trips/1/policies/local-vacation",
+      "path": "/api/trips/1/policies/dgtour-%EB%B0%80%EC%96%91-1",
       "status": 200,
       "requiredFields": {
         "tripId": "string",
         "policyId": "string",
         "added": "boolean"
       }
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/trips/1/policies/dgtour-%EB%B0%80%EC%96%91-1",
+      "status": 200,
+      "requiredFields": {
+        "tripId": "string",
+        "policyId": "string",
+        "added": "boolean"
+      },
+      "dbModeBehavior": "Requires owner/editor access, removes the trip-policy link idempotently, and returns added=false. Viewer access returns 403 Trip edit permission required."
     },
     {
       "method": "PATCH",
@@ -606,7 +652,7 @@
         "days": "object",
         "currentUserRole": "string enum(owner|editor|viewer)"
       },
-      "dbModeBehavior": "Requires owner/editor access, stores trips.status, and returns the updated Trip. Viewer access returns 403 Trip edit permission required."
+      "dbModeBehavior": "Requires owner/editor access, stores trips.status, and returns the updated Trip. Accepts both confirmed and draft. The frontend trip list displays draft/confirmed status without an inline confirmation panel; the detail page can cancel confirmation by sending draft. Viewer access returns 403 Trip edit permission required."
     },
     {
       "method": "PATCH",
@@ -633,7 +679,21 @@
         "title": "string",
         "meta": "string",
         "reason": "string"
-      }
+      },
+      "optionalArrayItemFields": {
+        "id": "string|null",
+        "categoryGroup": "string|null",
+        "categoryCode": "string|null",
+        "address": "string|null",
+        "latitude": "number|null",
+        "longitude": "number|null",
+        "placeUrl": "string|null",
+        "suggestedDay": "number|null",
+        "aiReview": "string|null",
+        "sourceProvider": "string|null",
+        "externalPlaceId": "string|null"
+      },
+      "dbModeBehavior": "Returns additional place candidates for the trip, excluding places already in the itinerary. Kakao-backed candidates include map metadata when available."
     },
     {
       "method": "GET",
@@ -672,6 +732,159 @@
         "role": "string enum(viewer|editor)"
       },
       "dbModeBehavior": "Requires bearer auth, marks trip_invites.accepted_at, and inserts trip_members idempotently with the invite role."
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/users",
+      "status": 200,
+      "authRequired": true,
+      "adminRequired": true,
+      "requiredFields": {
+        "items": "array",
+        "total": "number",
+        "limit": "number",
+        "offset": "number"
+      },
+      "dbModeBehavior": "Lists users for admins only. Supports q, onboardingCompleted, limit, and offset. User role is exposed as user/admin."
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/users/{userId}",
+      "status": 200,
+      "authRequired": true,
+      "adminRequired": true,
+      "requiredFields": {
+        "id": "string",
+        "email": "string",
+        "nickname": "string",
+        "role": "string enum(user|admin)",
+        "onboardingCompleted": "boolean"
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/users/{userId}",
+      "status": 200,
+      "authRequired": true,
+      "adminRequired": true,
+      "optionalRequestFields": {
+        "nickname": "string",
+        "region": "string|null",
+        "residenceArea": "string|null",
+        "preferredRegions": "string|null",
+        "travelStyle": "string|null",
+        "travelBudget": "string|null",
+        "onboardingCompleted": "boolean",
+        "role": "string enum(user|admin)"
+      },
+      "dbModeBehavior": "Updates editable admin user fields only. homeRegion, persona, email, password, phone verification, and social accounts are not editable. Self-demotion and final-admin removal return 409."
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/policies",
+      "status": 200,
+      "authRequired": true,
+      "adminRequired": true,
+      "requiredFields": {
+        "items": "array",
+        "total": "number",
+        "limit": "number",
+        "offset": "number"
+      },
+      "dbModeBehavior": "Lists active and hidden policies for admins, sorted by policies.updated_at desc."
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/policies",
+      "status": 200,
+      "authRequired": true,
+      "adminRequired": true,
+      "requiredRequestFields": {
+        "slug": "string",
+        "title": "string",
+        "policyType": "string",
+        "region": "string"
+      },
+      "optionalRequestFields": {
+        "requirements": "array",
+        "documents": "array",
+        "status": "string enum(active|hidden)"
+      },
+      "dbModeBehavior": "Creates an internal policy. sourceType, match, label, and tag are rejected. requirements are stored in policies.target_condition and documents replace policy_documents rows."
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/policies/{policyId}",
+      "status": 200,
+      "authRequired": true,
+      "adminRequired": true,
+      "requiredFields": {
+        "id": "string",
+        "slug": "string",
+        "title": "string",
+        "status": "string enum(active|hidden)",
+        "sourceType": "string",
+        "updatedAt": "string"
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/policies/{policyId}",
+      "status": 200,
+      "authRequired": true,
+      "adminRequired": true,
+      "optionalRequestFields": {
+        "title": "string",
+        "policyType": "string",
+        "requirements": "array",
+        "documents": "array",
+        "status": "string enum(active|hidden)"
+      },
+      "dbModeBehavior": "Updates normalized policy save fields. slug, sourceType, match, label, and tag are rejected. Editing an external policy sets adminOverrideEnabled=true."
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/audit-logs",
+      "status": 200,
+      "authRequired": true,
+      "adminRequired": true,
+      "requiredFields": {
+        "items": "array of AdminAuditLogListItem",
+        "total": "number",
+        "limit": "number",
+        "offset": "number"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/external-sources/summary",
+      "status": 200,
+      "authRequired": true,
+      "adminRequired": true,
+      "requiredFields": {
+        "items": "array",
+        "totalRecords": "number",
+        "activeRecords": "number",
+        "freshRecords": "number",
+        "promotedPolicyCount": "number",
+        "latestFetchedAt": "string|null"
+      },
+      "itemFields": {
+        "sourceCategory": "string",
+        "label": "string",
+        "sourceName": "string",
+        "totalRecords": "number",
+        "activeRecords": "number",
+        "scheduledRecords": "number",
+        "endedRecords": "number",
+        "unknownRecords": "number",
+        "freshRecords": "number",
+        "promotedPolicyCount": "number",
+        "activePromotedPolicyCount": "number",
+        "latestFetchedAt": "string|null",
+        "latestVerifiedAt": "string|null"
+      },
+      "dbModeBehavior": "Admin-only read endpoint. Summarizes external_source_records and promoted policies by generic source category without starting collection jobs or exposing source-specific controls."
     }
   ]
 }

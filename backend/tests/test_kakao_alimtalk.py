@@ -43,7 +43,7 @@ def make_target(*, lead_day: int = 7, phone_number: str | None = "010-1234-5678"
         userName="테스트 사용자",
         policyId=11,
         policyTitle="지역사랑 휴가지원",
-        policySlug="local-vacation",
+        policySlug="fixture-policy",
         phoneNumber=phone_number,
         leadDay=lead_day,
         targetDeadlineDate=date(2026, 5, 14),
@@ -124,7 +124,7 @@ def test_solapi_deadline_message_contains_ata_kakao_options_and_variables() -> N
         "#{정책명}": "지역사랑 휴가지원",
         "#{마감일}": "2026-05-14",
         "#{남은일수}": "7",
-        "#{정책URL}": "https://travel.example/policies/local-vacation",
+        "#{정책URL}": "https://travel.example/policies/fixture-policy",
     }
 
 

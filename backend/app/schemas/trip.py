@@ -14,6 +14,14 @@ class ItineraryPlace(BaseModel):
     time: str
     label: str
     meta: str
+    address: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    category: str | None = None
+    categoryCode: str | None = None
+    placeUrl: str | None = None
+    sourceProvider: str | None = None
+    externalPlaceId: str | None = None
 
 
 class LinkedTripPolicy(BaseModel):
@@ -21,11 +29,14 @@ class LinkedTripPolicy(BaseModel):
     title: str
     amount: str
     region: str
+    status: Literal["active", "hidden"] = "active"
 
 
 class CreateTripRequest(BaseModel):
     title: str | None = Field(default=None, max_length=100)
     region: str | None = None
+    travelAreaId: str | None = Field(default=None, max_length=120)
+    participantCount: int = Field(default=1, ge=1, le=6)
     style: str | None = None
     description: str | None = Field(default=None, max_length=500)
     policySlug: str | None = None
@@ -50,8 +61,10 @@ class Trip(BaseModel):
     id: str
     title: str
     status: TripStatus
+    travelAreaId: str | None = None
     dates: str
     people: list[str]
+    participantCount: int
     expectedSaving: str
     linkedPolicies: list[LinkedTripPolicy]
     recommendedPolicies: list[LinkedTripPolicy] = Field(default_factory=list)
@@ -60,10 +73,21 @@ class Trip(BaseModel):
 
 
 class Recommendation(BaseModel):
+    id: str | None = None
     label: str
     title: str
     meta: str
     reason: str
+    categoryGroup: str | None = None
+    categoryCode: str | None = None
+    address: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    placeUrl: str | None = None
+    suggestedDay: int | None = None
+    aiReview: str | None = None
+    sourceProvider: str | None = None
+    externalPlaceId: str | None = None
 
 
 class InviteState(BaseModel):
@@ -98,6 +122,14 @@ class CreateTripPlaceRequest(BaseModel):
     time: str | None = None
     label: str = Field(min_length=1, max_length=200)
     meta: str | None = None
+    address: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    category: str | None = None
+    categoryCode: str | None = None
+    placeUrl: str | None = None
+    sourceProvider: str | None = None
+    externalPlaceId: str | None = None
 
 
 class UpdateTripPlaceRequest(BaseModel):

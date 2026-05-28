@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import date, datetime, time, timedelta
 from typing import Any
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy import delete, select
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.security import hash_password
 from app.data import seed
@@ -12,6 +12,7 @@ from app.db.session import get_session_factory
 from app.models import (
     Policy,
     PolicyDocument,
+    NotificationDelivery,
     Recommendation,
     Trip,
     TripDay,
@@ -20,14 +21,12 @@ from app.models import (
     TripPlace,
     TripPolicy,
     User,
+    UserSavedPolicy,
 )
 
 
-BENEFIT_AMOUNTS = {
-    "local-vacation": 300000,
-    "sokcho-stay": None,
-    "busan-cashback": None,
-}
+LEGACY_DUMMY_POLICY_SLUGS = {"local-vacation", "sokcho-stay", "busan-cashback"}
+BENEFIT_AMOUNTS: dict[str, int | None] = {}
 
 
 def parse_date(value: str | None) -> date | None:
@@ -86,8 +85,21 @@ def seed_users(db: Session) -> dict[str, User]:
 
 
 def seed_policies(db: Session) -> dict[str, Policy]:
+    legacy_policy_ids = db.scalars(
+        select(Policy.id).where(Policy.slug.in_(LEGACY_DUMMY_POLICY_SLUGS))
+    ).all()
+    if legacy_policy_ids:
+        for model in (TripPolicy, UserSavedPolicy, NotificationDelivery, PolicyDocument):
+            db.execute(delete(model).where(model.policy_id.in_(legacy_policy_ids)))
+        db.execute(delete(Policy).where(Policy.id.in_(legacy_policy_ids)))
+        db.flush()
+
+    seed_policy_items = list(seed.POLICIES)
+    active_seed_slugs = {str(item["slug"]) for item in seed_policy_items}
+    _cleanup_legacy_dgtour_policies(db, active_seed_slugs)
+
     policies: dict[str, Policy] = {}
-    for item in seed.POLICIES:
+    for item in seed_policy_items:
         slug = str(item["slug"])
         policy = db.scalar(select(Policy).where(Policy.slug == slug))
         if policy is None:
@@ -105,21 +117,49 @@ def seed_policies(db: Session) -> dict[str, Policy]:
         policy.end_date = parse_date(str(item["deadline"]))
         policy.official_url = item.get("officialUrl")
         policy.apply_url = item.get("applyUrl")
+        policy.status = str(item.get("status") or "active")
+        policy.source_name = item.get("sourceName")
+        policy.source_category = item.get("sourceCategory")
+        policy.source_url = item.get("sourceUrl")
+        policy.source_canonical_key = item.get("sourceCanonicalKey")
         policy.policy_comment = str(item["summary"])
         policy.policy_period = f"~ {item['deadline']}"
         db.flush()
 
-        existing_documents = {
-            document.document_name: document for document in policy.documents
-        }
-        for document_name in item["documents"]:
-            name = str(document_name)
-            if name not in existing_documents:
-                db.add(PolicyDocument(policy_id=policy.id, document_name=name))
+        policy.documents = [
+            PolicyDocument(document_name=str(document_name))
+            for document_name in item["documents"]
+        ]
         policies[slug] = policy
 
     db.flush()
     return policies
+
+
+def _policy_has_links(policy: Policy) -> bool:
+    return bool(policy.user_saves or policy.trip_links or policy.notification_deliveries)
+
+
+def _cleanup_legacy_dgtour_policies(db: Session, active_seed_slugs: set[str]) -> None:
+    legacy_policies = list(
+        db.scalars(
+            select(Policy)
+            .options(
+                selectinload(Policy.user_saves),
+                selectinload(Policy.trip_links),
+                selectinload(Policy.notification_deliveries),
+            )
+            .where(Policy.slug.like("dgtour-%"))
+            .order_by(Policy.id)
+        ).all()
+    )
+    for policy in legacy_policies:
+        if policy.slug in active_seed_slugs:
+            continue
+        if _policy_has_links(policy):
+            policy.status = "hidden"
+        else:
+            db.delete(policy)
 
 
 def get_or_create_trip(db: Session, owner: User) -> Trip:
@@ -245,7 +285,12 @@ def seed_dev_data(db: Session) -> None:
     trip = get_or_create_trip(db, main_user)
     seed_trip_days_and_places(db, trip)
     seed_trip_members(db, trip, users_by_name)
-    seed_trip_policy(db, trip, policies["local-vacation"])
+    first_policy = next(
+        (policy for policy in policies.values() if policy.status == "active"),
+        None,
+    )
+    if first_policy is not None:
+        seed_trip_policy(db, trip, first_policy)
     seed_trip_invite(db, trip, main_user)
     seed_recommendations(db, main_user, trip)
 

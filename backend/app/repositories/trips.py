@@ -57,6 +57,8 @@ def create_trip(
     end_date: date,
     status: str,
     region: str | None,
+    travel_area_id: str | None,
+    participant_count: int,
     description: str | None,
 ) -> Trip:
     trip = Trip(
@@ -66,6 +68,8 @@ def create_trip(
         end_date=end_date,
         status=status,
         region=region,
+        travel_area_id=travel_area_id,
+        participant_count=participant_count,
         description=description,
     )
     db.add(trip)
@@ -88,13 +92,29 @@ def add_trip_place(
     visit_time,
     order_num: int,
     memo: str | None,
+    address: str | None = None,
+    latitude = None,
+    longitude = None,
+    source_provider: str | None = None,
+    external_place_id: str | None = None,
+    category_group_code: str | None = None,
+    category_group_name: str | None = None,
+    place_url: str | None = None,
 ) -> TripPlace:
     place = TripPlace(
         trip_day_id=trip_day_id,
         place_name=place_name,
+        address=address,
+        latitude=latitude,
+        longitude=longitude,
         visit_time=visit_time,
         order_num=order_num,
         memo=memo,
+        source_provider=source_provider,
+        external_place_id=external_place_id,
+        category_group_code=category_group_code,
+        category_group_name=category_group_name,
+        place_url=place_url,
     )
     db.add(place)
     db.flush()
@@ -127,6 +147,10 @@ def add_trip_policy(db: Session, *, trip_id: int, policy_id: int) -> TripPolicy:
     link = TripPolicy(trip_id=trip_id, policy_id=policy_id)
     db.add(link)
     return link
+
+
+def remove_trip_policy(db: Session, link: TripPolicy) -> None:
+    db.delete(link)
 
 
 def list_recommendations(db: Session, *, trip_id: int, user_id: int) -> list[Recommendation]:

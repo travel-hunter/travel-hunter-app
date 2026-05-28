@@ -77,7 +77,7 @@ TravelMonth external collection scheduler 운영 확인용 상태를 반환한�
 
 ### GET /ops/external-collection/quality
 
-TravelMonth regional benefit 수집 품질 리포트를 반환한다. 현재 DB의 `external_source_records`를 집계하며 live network fetch는 실행하지 않는다.
+외부 공식 혜택 수집 품질 리포트를 반환한다. 현재 DB의 `external_source_records`를 집계하며 live network fetch는 실행하지 않는다.
 Bearer 인증이 필요하다.
 
 **Query params**
@@ -86,6 +86,7 @@ Bearer 인증이 필요하다.
 |------|------|-------------|
 | style | string, optional | 추천 preview에 전달할 취향 보정 값 |
 | region | string, optional | 추천 preview에 전달할 최종 tie-breaker 지역 |
+| sourceCategory | string, optional | `regional_benefit`, `traffic_benefit`, `local_half_trip` 같은 외부 수집 source category 필터 |
 | limit | number, optional | 추천 preview 개수. 기본 3, 1~10 |
 
 **Response 200**
@@ -286,6 +287,7 @@ OAuth provider callback 처리.
   "id": "uuid",
   "nickname": "여행자123",
   "email": "user@example.com",
+  "role": "user",
   "birthDate": null,
   "gender": null,
   "region": "서울",
@@ -483,6 +485,30 @@ OAuth provider callback 처리.
 
 ---
 
+### GET /me/applied-policy-links
+
+내 일정에 담긴 정책을 정책 기준으로 묶어서 반환한다. 기존 `GET /me/applied-policies`는 카운트 및 단순 정책 목록 호환용으로 유지하고, 이 엔드포인트는 "정책 -> 연결된 일정들" 화면에 사용한다.
+
+**Response 200** - `AppliedPolicyLink[]`
+
+```json
+[
+  {
+    "policy": { "...": "Policy DTO" },
+    "linkedTrips": [
+      {
+        "id": "55",
+        "title": "부산 주말 여행",
+        "region": "부산",
+        "startDate": "2026-06-12",
+        "endDate": "2026-06-13"
+      }
+    ]
+  }
+]
+```
+
+---
 ### POST /me/saved-policies/{policy_slug}
 
 정책 저장.
@@ -572,7 +598,7 @@ OAuth provider callback 처리.
 
 ### GET /policies
 
-전체 정책 목록. 인증 불필요. DB `policies` 레코드만 `Policy` DTO로 반환한다. TravelMonth 등 공식 외부 수집 레코드(`external_source_records`)는 수집/검증 원문 근거로 보존하고, active/fresh `regional_benefit` 항목은 collection normalization service가 `policies`로 승격한다. 승격된 TravelMonth 정책은 기존 호환 slug `travelmonth-{externalSourceRecordId}`를 사용한다.
+전체 정책 목록. 인증 불필요. DB `policies` 레코드만 `Policy` DTO로 반환한다. TravelMonth, 대한민국 반값여행 등 공식 외부 수집 레코드(`external_source_records`)는 수집/검증 원문 근거로 보존하고, active/fresh `regional_benefit`, `traffic_benefit`, `local_half_trip` 항목은 collection normalization service가 `policies`로 승격한다. 승격된 외부 정책은 기존 호환 slug `travelmonth-{externalSourceRecordId}`를 사용한다. 디지털관광주민증/대한민국 반값여행 계열(`local_half_trip`)은 공식 페이지의 지역별 상태가 `신청접수중`인 active/fresh 항목만 public 정책으로 노출하고, 준비중/마감/unknown 또는 stale 항목은 기존 연결 보호를 위해 `policies.status = "hidden"`으로 내려 사용자 목록에서 제외한다.
 
 **Response 200** → `Policy[]`
 ```json
@@ -601,12 +627,14 @@ OAuth provider callback 처리.
 
 `category` 허용 값: `"교통" | "숙박" | "여행상품" | "지역할인" | "이벤트" | "기타"`
 `sourceType` 허용 값은 `"internal" | "external"`이며 API 호환과 내부 진단을 위해 유지한다. 사용자 화면은 `internal/external` 같은 구현 구분 문구를 노출하지 않는다. 사용자에게 노출되는 모든 정책은 정규화된 `policies` 레코드이므로 저장/일정 연결 동작을 동일하게 지원한다.
+`external_source_records.source_category` 중 정책 승격 대상은 `regional_benefit`, `traffic_benefit`, `local_half_trip`이다. 목적지/지역 추천 점수에는 `traffic_benefit`을 제외한다.
+외부 수집 정책의 `category`는 `external_source_records`의 제목, 혜택 본문, 태그, 출처 URL, source category를 점수화한 deterministic classifier 결과다. 단순 source URL/source category 매핑이 아니며, 동점이면 `교통 > 숙박 > 여행상품 > 이벤트 > 지역할인 > 기타` 우선순위를 따른다.
 
 ---
 
 ### GET /policies/{policy_slug}
 
-정책 상세. `travelmonth-{externalSourceRecordId}` slug는 정규화된 TravelMonth 정책 상세로 해석한다. migration gap 동안 상세 조회만 기존 raw `external_source_records` fallback을 사용할 수 있지만, 목록/추천/저장/일정 연결 경로는 정규화된 `policies` 기준이다.
+정책 상세. `travelmonth-{externalSourceRecordId}` slug는 정규화된 TravelMonth 정책 상세로 해석한다. migration gap 동안 상세 조회만 기존 raw `external_source_records` fallback을 사용할 수 있지만, 목록/추천/저장/일정 연결 경로는 정규화된 `policies` 기준이다. raw fallback은 active/fresh `regional_benefit`과 `local_half_trip`만 허용하며, `traffic_benefit`이나 non-active/non-fresh source는 상세 404와 동일하게 처리한다. `local_half_trip`의 지역별 상세 URL이 확인된 경우 `officialUrl`은 generic `tour50.do`보다 해당 지역 안내/신청 페이지를 우선한다.
 
 **Response 200** → `Policy`
 
@@ -636,6 +664,7 @@ OAuth provider callback 처리.
     "status": "draft",
     "dates": "2026-07-12 ~ 2026-07-14",
     "people": ["나", "친구"],
+    "participantCount": 2,
     "expectedSaving": "최대 15만원",
     "linkedPolicies": [
       {
@@ -648,7 +677,7 @@ OAuth provider callback 처리.
     "recommendedPolicies": [
       {
         "slug": "travelmonth-58",
-        "title": "부산 여행 캐시백",
+        "title": "부산 공식 캐시백",
         "amount": "카드 결제 5% 캐시백",
         "region": "부산"
       }
@@ -664,6 +693,8 @@ OAuth provider callback 처리.
 ```
 
 `status` 허용 값: `"draft" | "confirmed"`
+
+Frontend behavior: `/trips` does not expose trip confirmation controls or draft/confirmed status badges. `/trips/{tripId}` keeps owner/editor editing controls available regardless of persisted `draft` or `confirmed` status. Viewer users remain read-only by role.
 `currentUserRole` 허용 값: `"owner" | "editor" | "viewer"`
 
 ---
@@ -681,12 +712,14 @@ OAuth provider callback 처리.
   "description": "제주 자연 중심 여행",
   "policySlug": "dgtourcard-2026",
   "durationDays": 3,
+  "participantCount": 3,
   "startDate": "2026-07-12",
   "endDate": "2026-07-14"
 }
 ```
 
 - `durationDays`: 2~5 범위
+- `participantCount`: 1~6. Planned travel party size, stored separately from real member/invite list `people`.
 - `startDate`/`endDate`: 함께 제공하거나 모두 생략. 기간은 2~5일.
 
 **Response 200** → `Trip`
@@ -746,7 +779,7 @@ OAuth provider callback 처리.
 ```json
 {
   "tripId": "1",
-  "policyId": "local-vacation",
+  "policyId": "dgtour-밀양-1",
   "added": true
 }
 ```
@@ -757,7 +790,38 @@ OAuth provider callback 처리.
 
 ---
 
+### DELETE /trips/{trip_id}/policies/{policy_slug}
+
+일정에 연결된 정책을 해제. owner/editor만 가능.
+
+**Response 200**
+```json
+{
+  "tripId": "1",
+  "policyId": "dgtour-밀양-1",
+  "added": false
+}
+```
+
+**Errors**
+- 403: viewer는 해제 불가
+- 404: 일정 또는 정책 없음
+
+---
+
 ### POST /trips/{trip_id}/days/{day_number}/places
+
+Kakao place candidate metadata can be preserved when adding a recommended place.
+
+Optional request fields:
+- `address`: string | null
+- `latitude`: number | null
+- `longitude`: number | null
+- `category`: string | null
+- `categoryCode`: string | null
+- `placeUrl`: string | null
+- `sourceProvider`: string | null
+- `externalPlaceId`: string | null
 
 일정 특정 day에 장소 추가. owner/editor만 가능.
 
@@ -839,6 +903,21 @@ OAuth provider callback 처리.
 ---
 
 ### GET /trips/{trip_id}/recommendations
+
+Returns additional AI place candidates for the trip. The backend excludes places already in the itinerary by `sourceProvider + externalPlaceId`, by `externalPlaceId`, and then by normalized place title. Kakao-backed candidates include map metadata when available.
+
+Additional `Recommendation` fields:
+- `id`: string | null
+- `categoryGroup`: `stay` | `food` | `attraction` | `other` | null
+- `categoryCode`: string | null
+- `address`: string | null
+- `latitude`: number | null
+- `longitude`: number | null
+- `placeUrl`: string | null
+- `suggestedDay`: number | null
+- `aiReview`: string | null
+- `sourceProvider`: string | null
+- `externalPlaceId`: string | null
 
 AI 추천 장소 목록 조회.
 
@@ -1014,11 +1093,23 @@ SOLAPI 발송 결과 webhook 수신. `X-Solapi-Secret` 헤더로 검증.
 | status | string | `"draft" \| "confirmed"` |
 | dates | string | 날짜 표시 문자열 |
 | people | string[] | 참여자 닉네임 목록 |
+| participantCount | number | Planned travel party size, separate from real member/invite list `people`. |
 | expectedSaving | string | 예상 절약 금액 표시 |
 | linkedPolicies | LinkedTripPolicy[] | 연결된 정책 목록 |
 | recommendedPolicies | LinkedTripPolicy[] | 일정 지역에 맞춰 추천된 정규화 정책 및 active/fresh TravelMonth 혜택 목록. 이미 연결된 정규화 정책은 제외하며 각 항목은 `/policies/{slug}` 상세로 이동 가능하다. |
 | days | object | `{ [dayNumber]: ItineraryPlace[] }` |
 | currentUserRole | string | `"owner" \| "editor" \| "viewer"` |
+
+
+### LinkedTripPolicy
+
+| ?? | ?? | ?? |
+|------|------|------|
+| slug | string | ?? ?? URL ??? |
+| title | string | ??? |
+| amount | string | ?? ?? ?? |
+| region | string | ?? ?? |
+| status | `"active" | "hidden"` | ?? ?? ?? ??? ?? ??. ?? ??? `active`? ????, ?? ?? ??? hidden?? ??? `hidden`?? ????. |
 
 ### ItineraryPlace
 
@@ -1028,3 +1119,137 @@ SOLAPI 발송 결과 webhook 수신. `X-Solapi-Secret` 헤더로 검증.
 | time | string | 시간 (`HH:MM` 또는 `""`) |
 | label | string | 장소명 |
 | meta | string | 부가 정보 |
+| address | string \| null | 장소 주소 |
+| latitude | number \| null | 위도 |
+| longitude | number \| null | 경도 |
+| category | string \| null | 장소 카테고리 이름 |
+| categoryCode | string \| null | 장소 카테고리 코드 |
+| placeUrl | string \| null | 장소 상세 URL |
+
+---
+
+## 2026-05-26 Travel-area itinerary contract addendum
+
+This addendum defines the AI itinerary travel-area contract. It preserves the existing `GET /api/recommendations/regions` endpoint as the policy-backed region ranking API.
+
+### GET /recommendations/travel-areas
+
+Returns travel-area candidates for the AI itinerary creation wizard.
+
+Query params:
+
+| name | type | description |
+|---|---|---|
+| `sido` | string, optional | Return travel areas inside a specific province/metropolitan city, for example `강원`. |
+| `query` | string, optional | Search by travel-area name, sido, included city, alias, tag, or style. |
+| `mode` | `nationwide`, optional | Return nationwide recommendations. If no query params are provided, this is the default behavior. |
+| `style` | string, optional | User preference used as a ranking boost. |
+| `limit` | number, optional | Default 6, minimum 1, maximum 20. |
+
+Request priority:
+
+```text
+query > sido > mode=nationwide > default nationwide
+```
+
+When `query` and `sido` are both provided, `sido` limits the search scope.
+
+Response 200:
+
+```json
+{
+  "mode": "sido",
+  "sido": "강원",
+  "query": null,
+  "emptyReason": null,
+  "items": [
+    {
+      "travelAreaId": "gangwon-sokcho-goseong-yangyang",
+      "travelAreaName": "속초·고성·양양",
+      "sido": "강원",
+      "includedCities": ["속초", "고성", "양양"],
+      "summary": "바다와 설악산, 감성 카페를 함께 즐기는 동해 북부 권역",
+      "tags": ["바다", "산", "카페", "2박3일"],
+      "reason": "강원 지역 혜택과 속초·고성·양양 여행 동선이 잘 맞아요.",
+      "policyCount": 5,
+      "localPolicyCount": 4,
+      "nationwidePolicyCount": 1,
+      "endingSoonCount": 1,
+      "estimatedValueKrw": 120000,
+      "score": 86
+    }
+  ]
+}
+```
+
+`emptyReason` values:
+
+| value | meaning |
+|---|---|
+| `unsupported_sido` | The requested `sido` does not exist in the v1 travel-area catalog. |
+| `no_match` | The search query does not match any travel area. |
+| `null` | Normal response. |
+
+### POST /trips travel-area extension
+
+`POST /api/trips` accepts optional `travelAreaId` in addition to legacy `region`.
+
+Request example:
+
+```json
+{
+  "title": "속초·고성·양양 3일 여행",
+  "region": "속초·고성·양양",
+  "travelAreaId": "gangwon-sokcho-goseong-yangyang",
+  "participantCount": 3,
+  "style": "바다",
+  "startDate": "2026-06-15",
+  "endDate": "2026-06-17"
+}
+```
+
+Rules:
+
+| input | behavior |
+|---|---|
+| `travelAreaId` present and valid | Resolve backend travel-area catalog, store `trips.travel_area_id`, and use the travel-area display name as `trips.region`. |
+| `travelAreaId` present and invalid | Return 400 with `Travel area not found`. |
+| `travelAreaId` absent and `region` present | Preserve legacy region-only trip creation behavior. |
+
+Trip response includes:
+
+```json
+{
+  "travelAreaId": "gangwon-sokcho-goseong-yangyang",
+  "participantCount": 3
+}
+```
+
+Existing trips can return `travelAreaId: null`.
+## Admin external source summary
+
+- `GET /api/admin/external-sources/summary`
+- Auth: bearer token required, admin role required.
+- Purpose: read-only dashboard summary for external policy collection health. This endpoint never starts a collection job and does not expose source-specific manual controls.
+- Response:
+  - `items[]`
+  - `items[].sourceCategory`
+  - `items[].label`
+  - `items[].sourceName`
+  - `items[].totalRecords`
+  - `items[].activeRecords`
+  - `items[].scheduledRecords`
+  - `items[].endedRecords`
+  - `items[].unknownRecords`
+  - `items[].freshRecords`
+  - `items[].promotedPolicyCount`
+  - `items[].activePromotedPolicyCount`
+  - `items[].latestFetchedAt`
+  - `items[].latestVerifiedAt`
+  - `totalRecords`
+  - `activeRecords`
+  - `freshRecords`
+  - `promotedPolicyCount`
+  - `latestFetchedAt`
+
+Admin policy list items additionally expose `sourceCategory` and `sourceLabel` for minimal source identification in `/admin/policies`. Public policy DTOs are unchanged.

@@ -1,4 +1,6 @@
 from datetime import date, datetime, time, timedelta
+from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import BigInteger, Integer, create_engine
@@ -14,7 +16,8 @@ from app.schemas.trip import (
     UpdateTripPlaceRequest,
     UpdateTripStatusRequest,
 )
-from app.services import trips as trip_service
+from app.services.kakao_local import KakaoLocalPlace
+from app.services import itinerary_recommendations, trips as trip_service
 
 
 def make_user(user_id: int = 1, nickname: str = "Test User") -> UserModel:
@@ -39,6 +42,8 @@ def make_trip() -> Trip:
         start_date=date(2026, 6, 15),
         end_date=date(2026, 6, 17),
         region="Jeju",
+        travel_area_id=None,
+        participant_count=2,
         description="Rest trip",
         created_at=datetime(2026, 5, 4, 0, 0, 0),
         updated_at=datetime(2026, 5, 4, 0, 0, 0),
@@ -64,7 +69,7 @@ def make_trip() -> Trip:
     ]
     trip.days = [day]
 
-    policy = Policy(id=3, slug="local-vacation", title="Vacation policy", benefit_amount=300000)
+    policy = Policy(id=3, slug="fixture-policy", title="Vacation policy", benefit_amount=300000)
     trip_policy = TripPolicy(id=1, trip_id=7, policy_id=3)
     trip_policy.policy = policy
     trip.policies = [trip_policy]
@@ -73,24 +78,75 @@ def make_trip() -> Trip:
     return trip
 
 
+def test_trip_to_api_includes_place_map_metadata(monkeypatch) -> None:
+    trip = make_trip()
+    day = TripDay(id=10, trip_id=7, day_number=1, date=date(2026, 7, 12))
+    place = TripPlace(
+        id=99,
+        trip_day_id=10,
+        place_name="강원 속초 맛집",
+        address="강원 속초시 중앙로 47",
+        latitude=Decimal("38.2041234"),
+        longitude=Decimal("128.5901234"),
+        visit_time=time(13, 0),
+        order_num=1,
+        memo="식사 추천 장소",
+    )
+    place.category_group_code = "FD6"
+    place.category_group_name = "음식점"
+    place.place_url = "http://place.map.kakao.com/12345"
+    place.source_provider = "kakao_local"
+    place.external_place_id = "12345"
+    day.places = [place]
+    trip.days = [day]
+    trip.members = []
+    trip.policies = []
+    trip.recommendations = []
+
+    payload = trip_service.trip_to_api(trip, make_user(1), recommended_policies=[])
+
+    api_place = payload["days"][1][0]
+    assert api_place["address"] == "강원 속초시 중앙로 47"
+    assert api_place["latitude"] == 38.2041234
+    assert api_place["longitude"] == 128.5901234
+    assert api_place["category"] == "음식점"
+    assert api_place["categoryCode"] == "FD6"
+    assert api_place["placeUrl"] == "http://place.map.kakao.com/12345"
+    assert api_place["sourceProvider"] == "kakao_local"
+    assert api_place["externalPlaceId"] == "12345"
+
+
 def test_trip_to_api_returns_numeric_string_id_and_contract_shape() -> None:
     payload = trip_service.trip_to_api(make_trip())
 
     assert payload["id"] == "7"
     assert payload["title"] == "Jeju 3-day trip"
     assert payload["status"] == "confirmed"
+    assert payload["travelAreaId"] is None
     assert payload["dates"] == "2026.06.15 - 06.17"
     assert payload["people"] == ["Test User", "Minseo"]
+    assert payload["participantCount"] == 2
     assert payload["expectedSaving"] == "30만원"
     assert payload["linkedPolicies"] == [
         {
-            "slug": "local-vacation",
+            "slug": "fixture-policy",
             "title": "Vacation policy",
             "amount": "30만원",
             "region": "",
+            "status": "active",
         }
     ]
-    assert payload["days"] == {1: [{"id": "1", "time": "09:00", "label": "Sunrise peak", "meta": "Nature"}]}
+    place = payload["days"][1][0]
+    assert place["id"] == "1"
+    assert place["time"] == "09:00"
+    assert place["label"] == "Sunrise peak"
+    assert place["meta"] == "Nature"
+    assert place["address"] is None
+    assert place["latitude"] is None
+    assert place["longitude"] is None
+    assert place["category"] is None
+    assert place["categoryCode"] is None
+    assert place["placeUrl"] is None
     assert payload["currentUserRole"] == "owner"
 
 
@@ -142,12 +198,12 @@ def test_get_trip_includes_region_matched_recommended_policies(monkeypatch) -> N
     trip.region = "부산"
     trip.title = "부산 3일 여행"
     linked_policy = trip.policies[0].policy
-    linked_policy.slug = "local-vacation"
+    linked_policy.slug = "fixture-policy"
     linked_policy.title = "지역사랑 휴가지원"
     linked_policy.region = "전국"
     recommended_policy = Policy(
         id=4,
-        slug="busan-cashback",
+        slug="fixture-busan-cashback",
         title="부산 여행 캐시백",
         benefit_detail="카드 결제 5% 캐시백",
         region="부산",
@@ -178,12 +234,182 @@ def test_get_trip_includes_region_matched_recommended_policies(monkeypatch) -> N
     assert payload is not None
     assert payload["recommendedPolicies"] == [
         {
-            "slug": "busan-cashback",
+            "slug": "fixture-busan-cashback",
             "title": "부산 여행 캐시백",
             "amount": "카드 결제 5% 캐시백",
             "region": "부산",
         }
     ]
+
+
+def test_get_trip_recommendations_prioritize_travel_area_terms(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    trip = make_trip()
+    trip.region = "\uc18d\ucd08\u00b7\uace0\uc131\u00b7\uc591\uc591"
+    trip.travel_area_id = "gangwon-sokcho-goseong-yangyang"
+    linked_policy = trip.policies[0].policy
+    linked_policy.slug = "fixture-policy"
+    linked_policy.title = "\uc774\ubbf8 \uc5f0\uacb0\ub41c \uc815\ucc45"
+    linked_policy.region = "\uc804\uad6d"
+    jeju_family_policy = Policy(
+        id=4,
+        slug="jeju-family-stay",
+        title="\uc548\uc804 \uc778\uc99d \ub18d\uc5b4\ucd0c\ubbfc\ubc15 \uc774\uc6a9 \ub2e4\uc790\ub140\uac00\uad6c \uc81c\uc8fc\uc5ec\ud589 \ud658\uc601 \ucea0\ud398\uc778",
+        benefit_detail="\uc219\ubc15\ube44 4\ub9cc\uc6d0 \uc9c0\uc6d0",
+        benefit_amount=40000,
+        region="\uc804\uad6d",
+        end_date=date(2026, 5, 31),
+    )
+    sokcho_policy = Policy(
+        id=5,
+        slug="sokcho-stay",
+        title="\uc18d\ucd08 \uc219\ubc15 \ud560\uc778",
+        benefit_detail="\uc18d\ucd08 \uc219\ubc15\ube44 \ud560\uc778",
+        benefit_amount=0,
+        region="\uac15\uc6d0",
+        end_date=date(2026, 7, 31),
+    )
+    yangyang_policy = Policy(
+        id=6,
+        slug="yangyang-experience",
+        title="\uc591\uc591 \ubc14\ub2e4 \uccb4\ud5d8 \ud560\uc778",
+        benefit_detail="\uc591\uc591 \uccb4\ud5d8\uad8c \ud560\uc778",
+        benefit_amount=0,
+        region="\uc804\uad6d",
+        end_date=date(2026, 8, 31),
+    )
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip if db is fake_db and trip_id == 7 and user_id == 1 else None,
+    )
+    monkeypatch.setattr(
+        trip_service.policy_repository,
+        "list_policies",
+        lambda db: [linked_policy, jeju_family_policy, sokcho_policy, yangyang_policy] if db is fake_db else [],
+    )
+
+    payload = trip_service.get_trip("7", fake_db, user)
+
+    assert payload is not None
+    assert [policy["slug"] for policy in payload["recommendedPolicies"]] == ["sokcho-stay", "yangyang-experience"]
+
+
+def test_get_trip_recommendations_downrank_unverified_conditional_policies(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    trip = make_trip()
+    trip.region = "\uc18d\ucd08\u00b7\uace0\uc131\u00b7\uc591\uc591"
+    trip.travel_area_id = "gangwon-sokcho-goseong-yangyang"
+    linked_policy = trip.policies[0].policy
+    linked_policy.slug = "fixture-policy"
+    linked_policy.region = "\uc804\uad6d"
+    general_policy = Policy(
+        id=4,
+        slug="sokcho-general-stay",
+        title="\uc18d\ucd08 \uc219\ubc15 \ud560\uc778",
+        benefit_detail="\uc18d\ucd08 \uc219\ubc15\ube44 \ud560\uc778",
+        benefit_amount=0,
+        region="\uc804\uad6d",
+        end_date=date(2026, 8, 31),
+    )
+    youth_policy = Policy(
+        id=5,
+        slug="sokcho-youth-stay",
+        title="\uc18d\ucd08 \uccad\ub144 \uc219\ubc15 \ud560\uc778",
+        benefit_detail="\uc18d\ucd08 \uccad\ub144 \uc804\uc6a9 \uc219\ubc15\ube44 5\ub9cc\uc6d0 \uc9c0\uc6d0",
+        benefit_amount=50000,
+        region="\uc804\uad6d",
+        end_date=date(2026, 5, 31),
+    )
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip if db is fake_db and trip_id == 7 and user_id == 1 else None,
+    )
+    monkeypatch.setattr(
+        trip_service.policy_repository,
+        "list_policies",
+        lambda db: [linked_policy, youth_policy, general_policy] if db is fake_db else [],
+    )
+
+    payload = trip_service.get_trip("7", fake_db, user)
+
+    assert payload is not None
+    assert [policy["slug"] for policy in payload["recommendedPolicies"]] == ["sokcho-general-stay", "sokcho-youth-stay"]
+
+
+def test_get_trip_recommendations_return_up_to_three_area_matched_policies(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    trip = make_trip()
+    trip.region = "\uc18d\ucd08\u00b7\uace0\uc131\u00b7\uc591\uc591"
+    trip.travel_area_id = "gangwon-sokcho-goseong-yangyang"
+    linked_policy = trip.policies[0].policy
+    linked_policy.slug = "fixture-policy"
+    linked_policy.region = "\uc804\uad6d"
+    policies = [
+        linked_policy,
+        Policy(id=4, slug="sokcho-stay", title="\uc18d\ucd08 \uc219\ubc15 \ud560\uc778", benefit_detail="\uc18d\ucd08 \uc219\ubc15\ube44 \ud560\uc778", region="\uac15\uc6d0", end_date=date(2026, 7, 31)),
+        Policy(id=5, slug="goseong-cafe", title="\uace0\uc131 \uce74\ud398 \ud560\uc778", benefit_detail="\uace0\uc131 \uce74\ud398 \uc774\uc6a9\uad8c", region="\uc804\uad6d", end_date=date(2026, 8, 31)),
+        Policy(id=6, slug="yangyang-surf", title="\uc591\uc591 \uc11c\ud551 \uccb4\ud5d8 \ud560\uc778", benefit_detail="\uc591\uc591 \uccb4\ud5d8\uad8c", region="\uc804\uad6d", end_date=date(2026, 9, 30)),
+        Policy(id=7, slug="gangwon-extra", title="\uac15\uc6d0 \uc5ec\ud589 \uc0c1\ud488 \ud560\uc778", benefit_detail="\uac15\uc6d0 \uc5ec\ud589 \ud560\uc778", region="\uac15\uc6d0", end_date=date(2026, 10, 31)),
+    ]
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip if db is fake_db and trip_id == 7 and user_id == 1 else None,
+    )
+    monkeypatch.setattr(
+        trip_service.policy_repository,
+        "list_policies",
+        lambda db: policies if db is fake_db else [],
+    )
+
+    payload = trip_service.get_trip("7", fake_db, user)
+
+    assert payload is not None
+    assert [policy["slug"] for policy in payload["recommendedPolicies"]] == ["sokcho-stay", "gangwon-extra", "goseong-cafe"]
+
+
+def test_get_trip_recommendations_hide_candidates_below_area_score_threshold(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    trip = make_trip()
+    trip.region = "\uc18d\ucd08\u00b7\uace0\uc131\u00b7\uc591\uc591"
+    trip.travel_area_id = "gangwon-sokcho-goseong-yangyang"
+    linked_policy = trip.policies[0].policy
+    linked_policy.slug = "fixture-policy"
+    linked_policy.region = "\uc804\uad6d"
+    jeju_family_policy = Policy(
+        id=4,
+        slug="jeju-family-stay",
+        title="\uc548\uc804 \uc778\uc99d \ub18d\uc5b4\ucd0c\ubbfc\ubc15 \uc774\uc6a9 \ub2e4\uc790\ub140\uac00\uad6c \uc81c\uc8fc\uc5ec\ud589 \ud658\uc601 \ucea0\ud398\uc778",
+        benefit_detail="\uc81c\uc8fc \uc219\ubc15\ube44 4\ub9cc\uc6d0 \uc9c0\uc6d0",
+        benefit_amount=40000,
+        region="\uc804\uad6d",
+        end_date=date(2026, 5, 31),
+    )
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip if db is fake_db and trip_id == 7 and user_id == 1 else None,
+    )
+    monkeypatch.setattr(
+        trip_service.policy_repository,
+        "list_policies",
+        lambda db: [linked_policy, jeju_family_policy] if db is fake_db else [],
+    )
+
+    payload = trip_service.get_trip("7", fake_db, user)
+
+    assert payload is not None
+    assert payload["recommendedPolicies"] == []
 
 
 def test_get_trip_recommendations_ignore_raw_collected_benefits(monkeypatch) -> None:
@@ -456,6 +682,60 @@ def test_viewer_member_cannot_add_policy_to_trip(monkeypatch) -> None:
     assert fake_db.commits == 0
 
 
+def test_remove_policy_from_trip_deletes_existing_link(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    policy = trip.policies[0].policy
+    removed_links: list[TripPolicy] = []
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda *_args, **_kwargs: trip,
+    )
+    monkeypatch.setattr(
+        trip_service.policy_repository,
+        "get_policy_by_slug",
+        lambda *_args, **_kwargs: policy,
+    )
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_trip_policy",
+        lambda *_args, **_kwargs: trip.policies[0],
+    )
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "remove_trip_policy",
+        lambda _db, link: removed_links.append(link),
+    )
+
+    result = trip_service.remove_policy_from_trip(fake_db, user, "7", "fixture-policy")
+
+    assert result == {"tripId": "7", "policyId": "fixture-policy", "added": False}
+    assert removed_links == [trip.policies[0]]
+    assert fake_db.commits == 1
+
+
+def test_remove_policy_from_trip_is_idempotent_when_link_missing(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    policy = trip.policies[0].policy
+    removed_links: list[TripPolicy] = []
+
+    monkeypatch.setattr(trip_service.trip_repository, "get_accessible_trip_by_id", lambda *_args, **_kwargs: trip)
+    monkeypatch.setattr(trip_service.policy_repository, "get_policy_by_slug", lambda *_args, **_kwargs: policy)
+    monkeypatch.setattr(trip_service.trip_repository, "get_trip_policy", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(trip_service.trip_repository, "remove_trip_policy", lambda _db, link: removed_links.append(link))
+
+    result = trip_service.remove_policy_from_trip(fake_db, user, "7", "fixture-policy")
+
+    assert result == {"tripId": "7", "policyId": "fixture-policy", "added": False}
+    assert removed_links == []
+    assert fake_db.commits == 0
+
+
 def test_add_place_to_trip_day_persists_place_and_returns_updated_trip(monkeypatch) -> None:
     fake_db = FakeDb()
     user = make_user()
@@ -476,10 +756,18 @@ def test_add_place_to_trip_day_persists_place_and_returns_updated_trip(monkeypat
             id=2,
             trip_day_id=kwargs["trip_day_id"],
             place_name=kwargs["place_name"],
+            address=kwargs["address"],
+            latitude=Decimal(str(kwargs["latitude"])) if kwargs["latitude"] is not None else None,
+            longitude=Decimal(str(kwargs["longitude"])) if kwargs["longitude"] is not None else None,
             visit_time=kwargs["visit_time"],
             order_num=kwargs["order_num"],
             memo=kwargs["memo"],
         )
+        place.category_group_code = kwargs["category_group_code"]
+        place.category_group_name = kwargs["category_group_name"]
+        place.place_url = kwargs["place_url"]
+        place.source_provider = kwargs["source_provider"]
+        place.external_place_id = kwargs["external_place_id"]
         trip.days[0].places.append(place)
         return place
 
@@ -490,15 +778,131 @@ def test_add_place_to_trip_day_persists_place_and_returns_updated_trip(monkeypat
         user,
         "7",
         1,
-        CreateTripPlaceRequest(time="14:30", label="Cafe stop", meta="Dessert"),
+        CreateTripPlaceRequest(
+            time="14:30",
+            label="Cafe stop",
+            meta="Dessert",
+            address="Gangwon road 1",
+            latitude=38.1,
+            longitude=128.6,
+            category="Food",
+            categoryCode="FD6",
+            placeUrl="http://place.map.kakao.com/food-1",
+            sourceProvider="kakao_local",
+            externalPlaceId="food-1",
+        ),
     )
 
     assert captured["trip_day_id"] == 1
     assert captured["place_name"] == "Cafe stop"
     assert captured["visit_time"] == time(14, 30)
     assert captured["order_num"] == 2
-    assert payload["days"][1][-1] == {"id": "2", "time": "14:30", "label": "Cafe stop", "meta": "Dessert"}
+    assert captured["address"] == "Gangwon road 1"
+    assert captured["latitude"] == 38.1
+    assert captured["longitude"] == 128.6
+    assert captured["category_group_name"] == "Food"
+    assert captured["category_group_code"] == "FD6"
+    assert captured["place_url"] == "http://place.map.kakao.com/food-1"
+    assert captured["source_provider"] == "kakao_local"
+    assert captured["external_place_id"] == "food-1"
+    added = payload["days"][1][-1]
+    assert added["id"] == "2"
+    assert added["time"] == "14:30"
+    assert added["label"] == "Cafe stop"
+    assert added["meta"] == "Dessert"
+    assert added["address"] == "Gangwon road 1"
+    assert added["categoryCode"] == "FD6"
+    assert added["sourceProvider"] == "kakao_local"
+    assert added["externalPlaceId"] == "food-1"
     assert fake_db.commits == 1
+
+
+class FakeRecommendationProvider:
+    def __init__(self, candidates_by_code):
+        self.candidates_by_code = candidates_by_code
+
+    def search(self, *, area_name: str, city: str, category_group_code: str):
+        return list(self.candidates_by_code.get(category_group_code, []))
+
+
+def _recommendation_candidate(external_id: str, title: str, category_code: str = "FD6"):
+    return itinerary_recommendations.ExternalPlaceCandidate(
+        source_provider="kakao_local",
+        external_place_id=external_id,
+        title=title,
+        category_group_code=category_code,
+        category_group_name="Food" if category_code == "FD6" else "Attraction",
+        address="Jeju road 1",
+        latitude=33.4,
+        longitude=126.5,
+        place_url=f"http://place.map.kakao.com/{external_id}",
+    )
+
+
+def test_list_recommendations_excludes_existing_trip_places(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    trip.days[0].places[0].source_provider = "kakao_local"
+    trip.days[0].places[0].external_place_id = "same-place"
+    trip.days[0].places[0].place_name = "Existing Food"
+    provider = FakeRecommendationProvider(
+        {
+            "FD6": [
+                _recommendation_candidate("same-place", "Different title"),
+                _recommendation_candidate("new-title", "Existing Food"),
+                _recommendation_candidate("new-food", "New Food"),
+            ]
+        }
+    )
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip
+        if db is fake_db and trip_id == 7 and user_id == 1
+        else None,
+    )
+    monkeypatch.setattr(trip_service, "_build_external_place_provider", lambda: provider)
+
+    items = trip_service.list_recommendations(fake_db, user, "7")
+
+    assert items is not None
+    assert [item["externalPlaceId"] for item in items] == ["new-food"]
+    assert items[0]["categoryGroup"] == "food"
+    assert items[0]["suggestedDay"] == 1
+
+
+def test_list_recommendations_assigns_suggested_day_round_robin(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    day_two = TripDay(id=2, trip_id=7, day_number=2, date=date(2026, 6, 16))
+    day_two.places = []
+    trip.days.append(day_two)
+    provider = FakeRecommendationProvider(
+        {
+            "FD6": [
+                _recommendation_candidate("food-1", "Food 1"),
+                _recommendation_candidate("food-2", "Food 2"),
+            ],
+            "AT4": [_recommendation_candidate("spot-1", "Spot 1", "AT4")],
+        }
+    )
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip
+        if db is fake_db and trip_id == 7 and user_id == 1
+        else None,
+    )
+    monkeypatch.setattr(trip_service, "_build_external_place_provider", lambda: provider)
+
+    items = trip_service.list_recommendations(fake_db, user, "7")
+
+    assert items is not None
+    assert [item["suggestedDay"] for item in items[:3]] == [1, 2, 1]
 
 
 def test_update_trip_place_changes_existing_place(monkeypatch) -> None:
@@ -519,7 +923,11 @@ def test_update_trip_place_changes_existing_place(monkeypatch) -> None:
         UpdateTripPlaceRequest(time="10:15", label="Updated peak", meta="New memo"),
     )
 
-    assert payload["days"][1][0] == {"id": "1", "time": "10:15", "label": "Updated peak", "meta": "New memo"}
+    updated = payload["days"][1][0]
+    assert updated["id"] == "1"
+    assert updated["time"] == "10:15"
+    assert updated["label"] == "Updated peak"
+    assert updated["meta"] == "New memo"
     assert fake_db.commits == 1
 
 
@@ -663,6 +1071,61 @@ def test_trip_place_crud_returns_404_for_missing_day_or_place(monkeypatch) -> No
             raise AssertionError("expected TripServiceError")
 
     assert fake_db.commits == 0
+
+
+def test_repository_add_trip_place_accepts_kakao_metadata(sqlite_db_session) -> None:
+    user = UserModel(
+        email="owner@example.com",
+        password_hash="hashed",
+        nickname="Owner",
+        onboarding_completed=True,
+    )
+    sqlite_db_session.add(user)
+    sqlite_db_session.flush()
+
+    trip = trip_service.trip_repository.create_trip(
+        sqlite_db_session,
+        owner_id=user.id,
+        title="속초",
+        start_date=date(2026, 7, 12),
+        end_date=date(2026, 7, 13),
+        status="draft",
+        region="강원 속초시",
+        travel_area_id="gangwon-sokcho-goseong-yangyang",
+        participant_count=2,
+        description="식사 위주",
+    )
+    trip_day = trip_service.trip_repository.add_trip_day(
+        sqlite_db_session,
+        trip_id=trip.id,
+        day_number=1,
+        date_value=date(2026, 7, 12),
+    )
+
+    place = trip_service.trip_repository.add_trip_place(
+        sqlite_db_session,
+        trip_day_id=trip_day.id,
+        place_name="속초 중앙시장",
+        visit_time=time(13, 0),
+        order_num=1,
+        memo="식사 추천 장소",
+        address="강원 속초시 중앙로 47",
+        latitude=Decimal("38.2041234"),
+        longitude=Decimal("128.5901234"),
+        source_provider="kakao_local",
+        external_place_id="12345",
+        category_group_code="FD6",
+        category_group_name="음식점",
+        place_url="http://place.map.kakao.com/12345",
+    )
+
+    assert place.source_provider == "kakao_local"
+    assert place.external_place_id == "12345"
+    assert place.category_group_code == "FD6"
+    assert place.category_group_name == "음식점"
+    assert place.place_url == "http://place.map.kakao.com/12345"
+    assert str(place.latitude) == "38.2041234"
+    assert str(place.longitude) == "128.5901234"
 
 
 def test_move_trip_place_rejects_invalid_position(monkeypatch) -> None:
@@ -817,6 +1280,13 @@ def install_create_trip_stubs(monkeypatch, *, policy: Policy | None = None):
     def create_trip_stub(db, **kwargs):
         captured["create_trip"] = kwargs
         created_trip.status = kwargs["status"]
+        created_trip.title = kwargs["title"]
+        created_trip.start_date = kwargs["start_date"]
+        created_trip.end_date = kwargs["end_date"]
+        created_trip.region = kwargs["region"]
+        created_trip.travel_area_id = kwargs["travel_area_id"]
+        created_trip.participant_count = kwargs["participant_count"]
+        created_trip.description = kwargs["description"]
         return created_trip
 
     def add_trip_day_stub(_db, *, trip_id, day_number, date_value):
@@ -855,10 +1325,144 @@ def install_create_trip_stubs(monkeypatch, *, policy: Policy | None = None):
     return captured
 
 
+def test_create_trip_with_travel_area_id_stores_resolved_area(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    captured = install_create_trip_stubs(monkeypatch)
+    area = SimpleNamespace(
+        id="gangwon-sokcho-goseong-yangyang",
+        name="Sokcho-Goseong-Yangyang",
+    )
+    monkeypatch.setattr(trip_service, "get_travel_area", lambda area_id: area if area_id == area.id else None)
+
+    created = trip_service.create_trip(
+        fake_db,
+        user,
+        CreateTripRequest(
+            travelAreaId="gangwon-sokcho-goseong-yangyang",
+            style="Sea",
+            durationDays=2,
+        ),
+    )
+
+    assert created["travelAreaId"] == "gangwon-sokcho-goseong-yangyang"
+    assert "Sokcho-Goseong-Yangyang" in created["title"]
+    assert captured["create_trip"]["region"] == "Sokcho-Goseong-Yangyang"
+    assert captured["create_trip"]["travel_area_id"] == "gangwon-sokcho-goseong-yangyang"
+    assert captured["create_trip"]["participant_count"] == 1
+
+
+def test_kakao_itinerary_provider_queries_multiple_keywords_and_dedupes() -> None:
+    class FakeKakaoClient:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, object]] = []
+
+        def search_keyword(self, *, query: str, category_group_code: str):
+            self.calls.append({"query": query, "category_group_code": category_group_code})
+            if len(self.calls) == 1:
+                return [
+                    KakaoLocalPlace(
+                        external_place_id="same-id",
+                        name="Same place",
+                        category_name="Food",
+                        category_group_code="FD6",
+                        category_group_name="Food",
+                        address="Busan road",
+                        latitude=35.1,
+                        longitude=129.1,
+                        place_url="http://place.map.kakao.com/same-id",
+                    )
+                ]
+            return [
+                KakaoLocalPlace(
+                    external_place_id="same-id",
+                    name="Same place duplicate",
+                    category_name="Food",
+                    category_group_code="FD6",
+                    category_group_name="Food",
+                    address="Busan road",
+                    latitude=35.1,
+                    longitude=129.1,
+                    place_url="http://place.map.kakao.com/same-id",
+                ),
+                KakaoLocalPlace(
+                    external_place_id=f"new-{len(self.calls)}",
+                    name=f"New place {len(self.calls)}",
+                    category_name="Food",
+                    category_group_code="FD6",
+                    category_group_name="Food",
+                    address="Busan road",
+                    latitude=35.2,
+                    longitude=129.2,
+                    place_url=f"http://place.map.kakao.com/new-{len(self.calls)}",
+                ),
+            ]
+
+    client = FakeKakaoClient()
+    provider = trip_service.KakaoItineraryPlaceProvider(client)
+
+    candidates = provider.search(area_name="Busan", city="Busan", category_group_code="FD6")
+
+    assert len(client.calls) == 2
+    assert all(call["category_group_code"] == "FD6" for call in client.calls)
+    assert [candidate.external_place_id for candidate in candidates] == ["same-id", "new-2"]
+
+
+def test_create_trip_persists_participant_count_without_fake_members(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    captured = install_create_trip_stubs(monkeypatch)
+
+    created = trip_service.create_trip(
+        fake_db,
+        user,
+        CreateTripRequest(region="Busan", participantCount=4, durationDays=2),
+    )
+
+    assert created["participantCount"] == 4
+    assert created["people"] == ["Test User", "Minseo"]
+    assert captured["create_trip"]["participant_count"] == 4
+
+
+def test_create_trip_with_unknown_travel_area_id_returns_400(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    monkeypatch.setattr(trip_service, "get_travel_area", lambda _area_id: None)
+
+    with pytest.raises(trip_service.TripServiceError) as error:
+        trip_service.create_trip(
+            fake_db,
+            user,
+            CreateTripRequest(travelAreaId="missing-area"),
+        )
+
+    assert error.value.status_code == 400
+    assert error.value.detail == "Travel area not found"
+    assert fake_db.commits == 0
+
+
+def test_create_trip_region_only_remains_legacy_compatible(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    captured = install_create_trip_stubs(monkeypatch)
+
+    created = trip_service.create_trip(
+        fake_db,
+        user,
+        CreateTripRequest(region="Gangwon", durationDays=2),
+    )
+
+    assert created["travelAreaId"] is None
+    assert "Gangwon" in created["title"]
+    assert captured["create_trip"]["region"] == "Gangwon"
+    assert captured["create_trip"]["travel_area_id"] is None
+
+
 def test_create_trip_generates_catalog_places_and_recommendations(monkeypatch) -> None:
     fake_db = FakeDb()
     user = make_user()
     captured = install_create_trip_stubs(monkeypatch)
+    monkeypatch.setattr(trip_service, "_build_external_place_provider", lambda: None)
 
     trip_service.create_trip(
         fake_db,
@@ -879,7 +1483,60 @@ def test_create_trip_generates_catalog_places_and_recommendations(monkeypatch) -
     assert fake_db.commits == 1
 
 
-def test_create_trip_persists_generated_days_places_and_recommendations_in_db(sqlite_db_session) -> None:
+def test_create_trip_persists_generated_external_place_metadata(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    captured = install_create_trip_stubs(monkeypatch)
+    generated = itinerary_recommendations.GeneratedCourse(
+        places=[
+            itinerary_recommendations.GeneratedPlace(
+                day_number=1,
+                date=date(2026, 7, 12),
+                time="13:00",
+                order_num=1,
+                region="Busan",
+                style="Food",
+                label="FO",
+                title="Kakao food place",
+                meta="Food · Busan road",
+                reason="Kakao candidate",
+                address="Busan road",
+                latitude=35.1,
+                longitude=129.1,
+                source_provider="kakao_local",
+                external_place_id="12345",
+                category_group_code="FD6",
+                category_group_name="Food",
+                place_url="http://place.map.kakao.com/12345",
+            )
+        ],
+        recommendations=[],
+    )
+    monkeypatch.setattr(
+        trip_service.itinerary_recommendations,
+        "generate_auto_course",
+        lambda **_kwargs: generated,
+    )
+
+    trip_service.create_trip(
+        fake_db,
+        user,
+        CreateTripRequest(region="Busan", style="Food", startDate=date(2026, 7, 12), endDate=date(2026, 7, 13)),
+    )
+
+    place_kwargs = captured["trip_places"][0]
+    assert place_kwargs["address"] == "Busan road"
+    assert place_kwargs["latitude"] == 35.1
+    assert place_kwargs["longitude"] == 129.1
+    assert place_kwargs["source_provider"] == "kakao_local"
+    assert place_kwargs["external_place_id"] == "12345"
+    assert place_kwargs["category_group_code"] == "FD6"
+    assert place_kwargs["category_group_name"] == "Food"
+    assert place_kwargs["place_url"] == "http://place.map.kakao.com/12345"
+
+
+def test_create_trip_persists_generated_days_places_and_recommendations_in_db(sqlite_db_session, monkeypatch) -> None:
+    monkeypatch.setattr(trip_service, "_build_external_place_provider", lambda: None)
     user = UserModel(
         email="auto-course@example.com",
         password_hash="hashed",
@@ -921,7 +1578,7 @@ def test_create_trip_persists_empty_recommendations_when_catalog_has_no_region(m
     trip_service.create_trip(
         fake_db,
         user,
-        CreateTripRequest(region="경주", style="자연", durationDays=2),
+        CreateTripRequest(region="미지원", style="자연", durationDays=2),
     )
 
     assert len(captured["trip_days"]) == 2
@@ -1025,10 +1682,10 @@ def test_create_trip_uses_request_date_range_for_dates_and_days(monkeypatch) -> 
 def test_create_trip_links_policy_when_policy_slug_is_present(monkeypatch) -> None:
     fake_db = FakeDb()
     user = make_user()
-    policy = Policy(id=3, slug="local-vacation", title="Vacation policy", benefit_amount=300000)
+    policy = Policy(id=3, slug="fixture-policy", title="Vacation policy", benefit_amount=300000)
     captured = install_create_trip_stubs(monkeypatch, policy=policy)
 
-    trip_service.create_trip(fake_db, user, CreateTripRequest(policySlug="local-vacation"))
+    trip_service.create_trip(fake_db, user, CreateTripRequest(policySlug="fixture-policy"))
 
     assert captured["add_trip_policy"] == {"trip_id": 11, "policy_id": 3}
 

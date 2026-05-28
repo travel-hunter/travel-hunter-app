@@ -1,4 +1,4 @@
-import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, type DragEndEvent, type DragStartEvent, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
+﻿import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, type DragEndEvent, type DragStartEvent, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Car, ChevronLeft, GripVertical, Info, List, Map as MapIcon, X } from "lucide-react";
@@ -6,8 +6,9 @@ import { useEffect, useState, type KeyboardEvent } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { appDataApi, type ItineraryPlace, type LinkedTripPolicy, type Trip, type TripPlaceRequest } from "../../api";
 import { useAsyncResource } from "../../api/useAsyncResource";
+import { KakaoMapView, type KakaoMapMarker } from "../../components/map/KakaoMapView";
 import { Button, ConfirmDialog, EmptyState, ErrorState, IconButton, LinkButton, LoadingState, Toast, TopBar } from "../../components/ui";
-import { getTripRegionEmojiFromTitle } from "../../data/displayConfig";
+import { getPolicyMoodIcon, getPolicyMoodTone, getTripRegionEmojiFromTitle } from "../../data/displayConfig";
 import { clearDraft, createDraftKey, readDraft, saveDraft } from "../../utils/draftStorage";
 import { DraftRestoreNotice } from "./_shared";
 
@@ -43,7 +44,11 @@ function hasPolicySaving(expectedSaving: string | undefined): boolean {
   return Boolean(value && !value.startsWith("0"));
 }
 
-function linkedTripPoliciesForDisplay(apiPolicies: LinkedTripPolicy[] | undefined, routePolicy: LinkedTripPolicy | null): LinkedTripPolicy[] {
+function linkedTripPoliciesForDisplay(
+  apiPolicies: LinkedTripPolicy[] | undefined,
+  routePolicy: LinkedTripPolicy | null,
+  hiddenRoutePolicySlugs: Set<string>,
+): LinkedTripPolicy[] {
   const seen = new Set<string>();
   const policies: LinkedTripPolicy[] = [];
   const append = (policy: LinkedTripPolicy | null | undefined) => {
@@ -52,7 +57,7 @@ function linkedTripPoliciesForDisplay(apiPolicies: LinkedTripPolicy[] | undefine
     policies.push(policy);
   };
 
-  append(routePolicy);
+  if (!routePolicy || !hiddenRoutePolicySlugs.has(routePolicy.slug)) append(routePolicy);
   for (const policy of apiPolicies ?? []) append(policy);
   return policies;
 }
@@ -189,21 +194,25 @@ export function ItineraryDetailPage() {
   const [moveError, setMoveError] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [deleteCandidatePlace, setDeleteCandidatePlace] = useState<ItineraryPlace | null>(null);
+  const [removingPolicySlug, setRemovingPolicySlug] = useState<string | null>(null);
+  const [policyRemoveError, setPolicyRemoveError] = useState("");
+  const [hiddenRoutePolicySlugs, setHiddenRoutePolicySlugs] = useState<Set<string>>(() => new Set());
   const [placeDraftNotice, setPlaceDraftNotice] = useState("");
   const dayNumbers = trip ? tripDayNumbers(trip.days) : [];
   const visibleDay = dayNumbers.includes(activeDay) ? activeDay : (dayNumbers[0] ?? 1);
   const dayPlaces = trip?.days[visibleDay] ?? [];
   const sortablePlaceIds = dayPlaces.flatMap((place) => (place.id ? [placeDragId(place.id)] : []));
   const stayLabel = formatStayLabel(dayNumbers.length || 3);
-  const canEditTrip = trip?.currentUserRole === "owner" || trip?.currentUserRole === "editor";
+  const canManageTripStatus = trip?.currentUserRole === "owner" || trip?.currentUserRole === "editor";
+  const isTripViewer = Boolean(trip && !canManageTripStatus);
+  const canEditTrip = Boolean(canManageTripStatus);
   const activeDraggingPlaceLabel = draggingPlaceLabel(trip, draggingPlaceId);
   const tripPeople = trip?.people.length ? trip.people : ["지영", "민수", "수현"];
   const tripRegionEmojiLabel = trip ? getTripRegionEmojiFromTitle(trip.title) : "🧳";
   const tripDdayLabel = trip ? formatTripDday(trip.dates) : "D-day";
   const routeLinkedPolicy = (location.state as TripDetailLocationState | null)?.linkedPolicy ?? null;
-  const linkedPolicies = linkedTripPoliciesForDisplay(trip?.linkedPolicies, routeLinkedPolicy);
+  const linkedPolicies = linkedTripPoliciesForDisplay(trip?.linkedPolicies, routeLinkedPolicy, hiddenRoutePolicySlugs);
   const recommendedPolicies = trip?.recommendedPolicies ?? [];
-  const recommendedPolicyRegion = recommendedPolicies[0]?.region ?? trip?.title.split(" ")[0] ?? "지역";
   const hasLinkedPolicyFallback = linkedPolicies.length === 0 && hasPolicySaving(trip?.expectedSaving);
   const dragSensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -417,6 +426,34 @@ export function ItineraryDetailPage() {
     }
   };
 
+  const removeLinkedPolicy = async (policy: LinkedTripPolicy) => {
+    if (!trip || removingPolicySlug) return;
+    if (!canEditTrip) {
+      setPolicyRemoveError("이 일정은 보기 권한으로 참여 중이라 정책 연결을 삭제할 수 없어요.");
+      return;
+    }
+    setRemovingPolicySlug(policy.slug);
+    setPolicyRemoveError("");
+    try {
+      await appDataApi.removePolicyFromTrip(trip.id, policy.slug);
+      if (routeLinkedPolicy?.slug === policy.slug) {
+        setHiddenRoutePolicySlugs((current) => new Set(current).add(policy.slug));
+      }
+      const nextLinkedPolicies = trip.linkedPolicies.filter((linkedPolicy) => linkedPolicy.slug !== policy.slug);
+      setTrip({
+        ...trip,
+        expectedSaving: nextLinkedPolicies.length === 0 ? "0원" : trip.expectedSaving,
+        linkedPolicies: nextLinkedPolicies,
+      });
+      setNotice("정책 연결을 해제했어요.");
+      window.setTimeout(() => setNotice(null), 1800);
+    } catch {
+      setPolicyRemoveError("정책 연결을 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setRemovingPolicySlug(null);
+    }
+  };
+
   const updatePlaceForm = (nextForm: TripPlaceRequest) => {
     setPlaceForm(nextForm);
     if (!trip || !placeEditor) return;
@@ -515,16 +552,41 @@ export function ItineraryDetailPage() {
       <section className="prototype-linked-policy-section" aria-label="연결된 정책">
         <h2>🎯 연결된 정책</h2>
         {linkedPolicies.length > 0 ? (
-          linkedPolicies.map((policy) => (
-            <Link className="benefit-banner" key={policy.slug} to={`/policies/${policy.slug}`}>
-              <span className="benefit-banner-icon" aria-hidden="true">💴</span>
-              <div>
-                <strong>{policy.title}</strong>
-                <div className="meta">{`${policy.amount || "혜택 확인"} · ${policy.region || "지역 확인"}`}</div>
+          linkedPolicies.map((policy) => {
+            const isHiddenPolicy = policy.status === "hidden";
+            return (
+              <div className={isHiddenPolicy ? "benefit-banner linked-policy-card hidden-policy" : "benefit-banner linked-policy-card"} key={policy.slug}>
+                {isHiddenPolicy ? (
+                  <div className="linked-policy-card-main" aria-label={`${policy.title} 숨김 정책`}>
+                    <span className="benefit-banner-icon" aria-hidden="true">🚫</span>
+                    <div>
+                      <strong>{policy.title}</strong>
+                      <div className="meta">{`${policy.amount || "혜택 확인"} · 숨김 처리됨`}</div>
+                    </div>
+                  </div>
+                ) : (
+                  <Link className="linked-policy-card-main" to={`/policies/${policy.slug}`}>
+                    <span className="benefit-banner-icon" aria-hidden="true">💴</span>
+                    <div>
+                      <strong>{policy.title}</strong>
+                      <div className="meta">{`${policy.amount || "혜택 확인"} · ${policy.region || "전국"}`}</div>
+                    </div>
+                  </Link>
+                )}
+                {canEditTrip && (
+                  <button
+                    aria-label={`${policy.title} 연결 삭제`}
+                    className="linked-policy-remove"
+                    disabled={removingPolicySlug === policy.slug}
+                    onClick={() => void removeLinkedPolicy(policy)}
+                    type="button"
+                  >
+                    {removingPolicySlug === policy.slug ? "삭제 중" : "삭제"}
+                  </button>
+                )}
               </div>
-              <span className="benefit-banner-arrow" aria-hidden="true">›</span>
-            </Link>
-          ))
+            );
+          })
         ) : (
           <Link className="benefit-banner" to="/policies">
             <span className="benefit-banner-icon" aria-hidden="true">💴</span>
@@ -537,6 +599,7 @@ export function ItineraryDetailPage() {
             <span className="benefit-banner-arrow" aria-hidden="true">›</span>
           </Link>
         )}
+        {policyRemoveError && <p className="form-error">{policyRemoveError}</p>}
       </section>
       <section className="trip-benefit-grid" aria-label="이 일정에 어울리는 정책">
         <h2>💡 이 일정에 어울리는 정책</h2>
@@ -555,9 +618,9 @@ export function ItineraryDetailPage() {
             <Link className="prototype-matching-policy-card" to="/policies">
               <div className="matching-card-head">
                 <span aria-hidden="true">💡</span>
-                <em>{recommendedPolicyRegion} 혜택</em>
+                <em>정책 확인</em>
               </div>
-              <strong>{recommendedPolicyRegion} 추천 정책과 혜택을 확인하세요</strong>
+              <strong>이 일정에 어울리는 정책이 없어요</strong>
             </Link>
           )}
         </div>
@@ -586,7 +649,7 @@ export function ItineraryDetailPage() {
 
         <ListMapToggle value={viewMode} onChange={selectViewMode} />
 
-        {!canEditTrip && (
+        {isTripViewer && (
           <div className="card">
             <div className="card-body stack tight">
               <strong>보기 권한으로 참여 중입니다</strong>
@@ -631,12 +694,16 @@ export function ItineraryDetailPage() {
                   />
                 ))}
               </SortableContext>
-              <button className="dashed" type="button" onClick={openAddPlace} hidden={!canEditTrip}>
-                + 장소 추가
-              </button>
-              <Link className="btn secondary full" to={`/ai-results?tripId=${encodeURIComponent(trip.id)}`}>
-                AI 추천 일정 보기
-              </Link>
+              <div className="prototype-trip-action-row">
+                {canEditTrip && (
+                  <button className="prototype-trip-action-button prototype-trip-action-add" type="button" onClick={openAddPlace}>
+                    + 장소 추가
+                  </button>
+                )}
+                <Link className="prototype-trip-action-button prototype-trip-action-ai" to={`/ai-results?tripId=${encodeURIComponent(trip.id)}`}>
+                  ✨ AI 추천 일정 보기
+                </Link>
+              </div>
             </div>
           </>
         ) : (
@@ -717,6 +784,13 @@ function PrototypeTripMap({
     point: getPlaceMapPoint(index, dayNumber),
   }));
   const routePoints = mapPlaces.map(({ point }) => `${point.x},${point.y}`).join(" ");
+  const markers: KakaoMapMarker[] = places.map((place, index) => ({
+    id: place.id ?? `${place.label}-${index}`,
+    label: place.label,
+    subtitle: place.address || place.meta,
+    latitude: place.latitude,
+    longitude: place.longitude,
+  }));
 
   if (places.length === 0) {
     return (
@@ -730,9 +804,8 @@ function PrototypeTripMap({
     );
   }
 
-  return (
-    <div className="prototype-map-wrap">
-      <div className="prototype-full-map" aria-label={`Day ${dayNumber} 지도`} onMouseDown={() => onSelectPlace(null)}>
+  const fallbackMap = (
+    <div className="prototype-full-map" onMouseDown={() => onSelectPlace(null)}>
         <svg className="prototype-map-terrain" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           <path d="M 8,22 Q 30,5 55,15 T 95,30 L 95,75 Q 70,90 40,82 Q 12,78 5,55 Z" fill="rgba(255,255,255,.2)" stroke="rgba(255,255,255,.45)" strokeWidth=".3" />
           <path d="M 8,42 Q 35,46 55,42 T 95,55" fill="none" stroke="rgba(255,255,255,.55)" strokeWidth=".7" strokeDasharray="1.5,1" />
@@ -765,14 +838,25 @@ function PrototypeTripMap({
             </button>
           );
         })}
-        {selectedPlace && (
-          <PlaceMapBottomSheet
-            onClose={() => onSelectPlace(null)}
-            onShowPlaceDetail={onShowPlaceDetail}
-            place={selectedPlace}
-          />
-        )}
       </div>
+  );
+
+  return (
+    <div className="prototype-map-wrap">
+      <KakaoMapView
+        ariaLabel={`Day ${dayNumber} 지도`}
+        fallback={fallbackMap}
+        markers={markers}
+        onSelectMarker={(markerId) => onSelectPlace(markerId)}
+        selectedMarkerId={selectedPlaceId}
+      />
+      {selectedPlace && (
+        <PlaceMapBottomSheet
+          onClose={() => onSelectPlace(null)}
+          onShowPlaceDetail={onShowPlaceDetail}
+          place={selectedPlace}
+        />
+      )}
       <div className="prototype-map-caption">
         <span>Day {dayNumber} · <strong>{places.length}곳</strong></span>
         <span>핀을 탭하면 상세가 나타나요</span>
@@ -790,7 +874,8 @@ function PlaceMapBottomSheet({
   onShowPlaceDetail: () => void;
   place: ItineraryPlace;
 }) {
-  const kakaoSearchUrl = `https://map.kakao.com/link/search/${encodeURIComponent(place.label)}`;
+  const kakaoSearchUrl = place.placeUrl || `https://map.kakao.com/link/search/${encodeURIComponent(place.label)}`;
+  const detailText = place.address || place.meta || "상세 메모가 아직 없어요.";
 
   return (
     <section className="place-map-bottom-sheet" aria-label={`${place.label} 지도 상세`} role="dialog" onMouseDown={(event) => event.stopPropagation()}>
@@ -802,7 +887,7 @@ function PlaceMapBottomSheet({
             <em>Day 장소</em>
           </div>
           <strong>{place.label}</strong>
-          <p>{place.meta || "상세 메모가 아직 없어요."}</p>
+          <p>{detailText}</p>
         </div>
         <button aria-label="지도 장소 상세 닫기" className="place-map-sheet-close" onClick={onClose} type="button">
           <X size={14} />
@@ -951,14 +1036,16 @@ function SortablePlaceItem({
           <div className="meta">{place.meta}</div>
         </div>
         {isMoving && <span className="place-moving-badge">이동 중</span>}
-        <div className="place-actions" hidden={!canEditTrip}>
-          <button className="btn sm ghost" type="button" onClick={() => onEdit(place)} disabled={!place.id || disabled}>
-            수정
-          </button>
-          <button className="btn sm line" type="button" onClick={() => onDelete(place)} disabled={!place.id || disabled || isMoving}>
-            삭제
-          </button>
-        </div>
+        {canEditTrip && (
+          <div className="place-actions">
+            <button className="btn sm ghost" type="button" onClick={() => onEdit(place)} disabled={!place.id || disabled}>
+              수정
+            </button>
+            <button className="btn sm line" type="button" onClick={() => onDelete(place)} disabled={!place.id || disabled || isMoving}>
+              삭제
+            </button>
+          </div>
+        )}
       </article>
     </div>
   );

@@ -7,18 +7,28 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 SourceType = Literal["official_campaign"]
-SourceCategory = Literal["regional_benefit"]
+SourceCategory = Literal["regional_benefit", "traffic_benefit", "local_half_trip"]
 SourceStatus = Literal["active", "ended", "scheduled", "unknown"]
 BenefitValueType = Literal["amount", "percent", "free", "upgrade", "mixed", "unknown"]
 FreshnessStatus = Literal["fresh", "stale", "expired", "unknown"]
 TravelStyle = Literal["휴식", "맛집", "체험", "자연", "사진"]
 
 
-class TravelMonthRegionalBenefitSource(BaseModel):
-    source_name: Literal["여행가는 달"] = "여행가는 달"
-    source_type: SourceType = "official_campaign"
-    source_url: str = "https://korean.visitkorea.or.kr/travelmonth/benefit.do"
-    source_category: SourceCategory = "regional_benefit"
+def _to_camel_case(value: str) -> str:
+    parts = value.split("_")
+    return parts[0] + "".join(part.title() for part in parts[1:])
+
+
+class ExternalBenefitSource(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=_to_camel_case,
+        populate_by_name=True,
+    )
+
+    source_name: str
+    source_type: SourceType
+    source_url: str
+    source_category: SourceCategory
     external_id: str
     canonical_key: str
     detail_url: str | None = None
@@ -49,6 +59,13 @@ class TravelMonthRegionalBenefitSource(BaseModel):
     last_fetched_at: datetime
     last_verified_at: datetime | None = None
     freshness_status: FreshnessStatus
+
+
+class TravelMonthRegionalBenefitSource(ExternalBenefitSource):
+    source_name: Literal["여행가는 달"] = "여행가는 달"
+    source_type: SourceType = "official_campaign"
+    source_url: str = "https://korean.visitkorea.or.kr/travelmonth/benefit.do"
+    source_category: Literal["regional_benefit"] = "regional_benefit"
 
 
 class ExternalSourceRecordRead(BaseModel):

@@ -111,8 +111,8 @@ def _ranking_key(stats: _RegionStats) -> tuple[int, int, int, int, int, str]:
         stats.policy_count,
         stats.ending_soon_count,
         stats.estimated_value_krw,
-        stats.style_matched_count,
         1 if stats.profile_region_match else 0,
+        stats.style_matched_count,
         _reverse_string_sort(stats.region),
     )
 

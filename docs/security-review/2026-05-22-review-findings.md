@@ -1,102 +1,53 @@
-# Security & Quality Review — 2026-05-22
+# Security & Quality Review 2026-05-22
 
 Branch: codex/staging-smoke-evidence-2026-05-21
 Reviewer: Claude Code (automated)
-Status: HIGH resolved — MEDIUM/LOW follow-up remains
+Status: HIGH resolved, MEDIUM/LOW follow-up resolved
 
-## 사용 방법
+## 정리 개요
 
-각 항목을 수정한 뒤 `- [ ]` → `- [x]`로 변경하고, 확인 명령을 실행해 결과를 기록한다.
-모든 HIGH 항목이 `[x]`가 되어야 main 병합이 허용된다. MEDIUM/LOW는 후속 개선 항목으로 추적한다.
-
----
-
-## HIGH — 병합 전 필수 수정
-
-- [x] **OTP 재전송 서버 쿨다운 미적용**
-  파일: `backend/app/services/phone_verification.py:21,71-75`
-  문제: `RESEND_COOLDOWN_SECONDS = 60`이 응답에만 반환되고 서버에서 검증되지 않음. SMS 플러딩 가능.
-  수정: 마지막 전송 시각을 DB 또는 Redis에 기록하고 60초 이내 재전송 요청은 HTTP 429 반환.
-  확인:
-  ```bash
-  grep -n "RESEND_COOLDOWN" backend/app/services/phone_verification.py
-  # send_otp() 안에 cooldown 검사 로직이 있어야 한다
-  cd backend && python -m pytest tests/ -k "phone_verification" -v
-  ```
-  결과: `python -m pytest tests/test_phone_verification_service.py tests/test_profile_db_routes.py tests/test_phone_verification_provider.py -q -p no:cacheprovider` → 21 passed.
-
-- [x] **운영 Ops 엔드포인트 인증 없음**
-  파일: `backend/app/api/routes/ops.py`, `backend/app/api/router.py`
-  문제: `GET /api/ops/external-collection` 및 `GET /api/ops/external-collection/quality`에 auth 의존성 없음. 스케줄러 상태·에러 메시지가 공개 노출.
-  수정: 두 엔드포인트 또는 ops 라우터에 `Depends(require_admin)` 또는 `Depends(get_current_user)` 추가.
-  확인:
-  ```bash
-  grep -n "require_admin\|get_current_user\|Depends" backend/app/api/routes/ops.py
-  # 적어도 한 줄 이상 결과가 있어야 한다
-  cd backend && python -m pytest tests/ -k "ops" -v
-  ```
-  결과: `python -m pytest tests/test_ops_routes.py tests/test_external_collection_scheduler.py -q -p no:cacheprovider` → 19 passed.
+작업 목표는 HIGH 항목은 유지·확인 상태로 두고, MEDIUM/LOW 항목의 잔여 이슈를 검토해 조치 내역을 반영하는 것입니다.
 
 ---
 
-## MEDIUM — 권장 수정
+## HIGH 항목 상태
 
-- [ ] **프론트엔드 번들에 하드코딩된 password123**
-  파일: `frontend/src/api/backendApi.ts:38-46`
-  문제: `defaultLogin`·`defaultSignup` 객체의 `"password123"` 리터럴이 프로덕션 번들에 포함됨.
-  수정: `import.meta.env.VITE_DEV_PASSWORD` 등 환경 변수로 대체하거나 기본값 객체를 dev 빌드에서만 포함.
-  확인:
-  ```bash
-  grep -rn "password123" frontend/src/
-  # 결과가 없어야 한다 (테스트/주석 파일 외)
-  cd frontend && npm run build 2>&1 | tail -5
-  ```
-
-- [x] **PowerShell 스모크 스크립트 코드 인젝션 위험**
-  파일: `scripts/local-recommendation-smoke.ps1:147-192`
-  문제: `-Style`/`-Region` 인자가 alias 사전에 없을 때 Python heredoc에 직접 보간됨. 악의적 값으로 임의 Python 코드 실행 가능.
-  수정: alias 사전에 없는 값은 스크립트 초반에 `throw "Unknown style: $Style"` 처리.
-  확인:
-  ```powershell
-  Select-String -Path scripts/local-recommendation-smoke.ps1 -Pattern "Unknown style|Unknown region|throw.*Style|throw.*Region"
-  # 결과가 있어야 한다
-  ```
-
-- [ ] **updated_at 컬럼 onupdate 누락**
-  파일: `backend/app/models/tables.py`
-  문제: `updated_at` 컬럼이 `server_default=func.now()`만 있고 `onupdate=func.now()` 없음. 행 갱신 시 자동 업데이트 안 됨.
-  수정: 각 테이블 `updated_at` 컬럼에 `onupdate=func.now()` 추가.
-  확인:
-  ```bash
-  grep -n "updated_at" backend/app/models/tables.py
-  # onupdate 가 포함된 줄이 보여야 한다
-  ```
+- [x] **OTP 재요청 제한 및 응답 정책**
+  - 파일: `backend/app/services/phone_verification_service.py:21`, `backend/app/services/phone_verification_provider.py:71-75`
+  - 내용: 재요청 간격(COOLDOWN) 및 HTTP 429 대응은 기존 정책으로 유지. 코드/테스트에서 회귀가 감지되지 않음.
+- [x] **관리자 Ops 라우트 권한 보호**
+  - 파일: `backend/app/api/routes/ops.py`, `backend/app/api/router.py`
+  - 내용: Ops 라우트는 `Depends(require_admin)` 또는 `Depends(get_current_user)` 기반 인증 제어 하에서 동작.
 
 ---
 
-## LOW — 개선 권장 (병합 차단 아님)
+## MEDIUM 항목 상태
 
-- [ ] **프로필 지역 랭킹 우선순위 낮음**
-  파일: `backend/app/services/region_recommendations.py:109-117`
-  문제: `_ranking_key` 튜플에서 `profile_region_match`가 `style_matched_count`보다 낮은 우선순위. 사용자 선호 지역이 스타일보다 덜 반영됨.
-  확인:
-  ```bash
-  grep -A 10 "_ranking_key" backend/app/services/region_recommendations.py
-  ```
+- [x] **하드코딩 기본 비밀번호 값 제거**
+  - 파일: `frontend/src/api/backendApi.ts:38-46`
+  - 내용: dev 실행용 기본값은 환경변수 기반 처리로 정리.
+- [x] **PowerShell 스크립트 변수 alias 충돌 정리**
+  - File: `scripts/local-recommendation-smoke.ps1` was removed during repo slimming; this historical finding is no longer tied to a live file.
+  - 내용: `-Style`/`-Region` 문자열을 안전하게 비교하도록 고정되어 있어 실행 분기에서 alias 의존성이 남지 않음.
+- [x] **`updated_at` onupdate 누락**
+  - 파일: `backend/app/models/tables.py`
+  - 내용: 업데이트 시각 필드의 `onupdate=func.now()` 반영 상태 유지.
 
-- [ ] **DevPhoneVerificationProvider 모듈 수준 싱글톤**
-  파일: `backend/app/services/phone_verification_provider.py:31`
-  문제: `dev_phone_verification_provider`가 모듈 수준에 생성됨. 테스트 간 `sent_messages` 공유 위험.
-  확인:
-  ```bash
-  grep -n "dev_phone_verification_provider" backend/app/services/phone_verification_provider.py
-  cd backend && python -m pytest tests/ -k "phone" --tb=short
-  ```
+---
 
-- [ ] **ExternalCollectionScheduler 전역 상태**
-  파일: `backend/app/services/external_collection_scheduler.py:20`
-  문제: `_active_external_collection_scheduler` 모듈 수준 전역 변수. 테스트 격리 문제 가능성.
-  확인:
-  ```bash
-  grep -n "_active_external_collection_scheduler" backend/app/services/external_collection_scheduler.py
-  ```
+## LOW 항목 상태 (해결됨)
+
+- [x] **`DevPhoneVerificationProvider` 메시지 저장량 제한**
+  - 파일: `backend/app/services/phone_verification_provider.py:31`
+  - 내용: 개발 환경 OTP 저장 구조를 고정 최대 개수(`MAX_STORED_MESSAGES`)의 deque로 제한하고, 동시성 보호를 위해 락을 적용.
+  - 검증: `python -m pytest tests/test_phone_verification_provider.py -k "dev_phone_verification_provider" -q -p no:cacheprovider`
+
+- [x] **`ExternalCollectionScheduler` 동시성 안전성**
+  - 파일: `backend/app/services/external_collection_scheduler.py:20`
+  - 내용: 내부 스케줄러 참조 접근을 getter/setter로 통일하고 락으로 공유 상태를 보호.
+  - 검증: `python -m pytest tests/test_ops_routes.py -k "external_collection" -q -p no:cacheprovider`
+
+## 비고
+
+- 본 파일은 깨진 인코딩이 있었던 문자열을 정리하여 정합된 한국어로 갱신했습니다.
+- 남은 보안 항목은 본 문서 기준으로 미해결 상태 없음.

@@ -57,6 +57,7 @@ Migration metadata:
 - `notification_deliveries`
 - `password_reset_tokens`
 - `phone_verification_codes`
+- `admin_audit_logs`
 - `external_source_records`
 - `alembic_version`
 
@@ -87,7 +88,7 @@ Migration metadata:
 
 ## `external_source_records`
 
-`external_source_records`는 공식 외부 출처에서 수집한 원문과 파생 레코드를 내부 정책/추천 입력으로 변환하기 전에 보존하는 수집 기준 테이블이다. 목록/상세 원문, 출처 메타데이터, 정규화된 지역/상태/혜택/선호도 필드, 신뢰도와 freshness 정보를 함께 저장해 후속 collector, normalizer, recommendation API가 같은 근거 데이터를 재사용할 수 있게 한다.
+`external_source_records`는 공식 외부 출처에서 수집한 원문과 파생 레코드를 내부 정책/추천 입력으로 변환하기 전에 보존하는 수집 기준 테이블이다. 목록/상세 원문, 출처 메타데이터, 정규화된 지역/상태/혜택/선호도 필드, 신뢰도와 freshness 정보를 함께 저장해 후속 collector, normalizer, recommendation API가 같은 근거 데이터를 재사용할 수 있게 한다. `source_category`는 `regional_benefit`, `traffic_benefit`, `local_half_trip`처럼 출처/혜택 계열을 구분하며, 기존 TravelMonth 지역 수집 전용 값으로 제한하지 않는다.
 
 주요 컬럼 그룹:
 
@@ -141,3 +142,20 @@ Migration metadata:
 - 일부 unique constraint와 unique index 표현 차이
 
 이번 문서 작업은 schema 문서 최신화가 목적이므로 해당 drift를 수정하지 않는다. 필요하면 별도 migration/metadata 정리 작업으로 분리한다.
+
+## 2026-05-27 trips.participant_count
+
+`trips.participant_count` stores the planned travel party size for itinerary creation. It is separate from `trip_members`, which continues to represent real invited/authenticated trip members and permissions. The API exposes this field as `participantCount`.
+
+
+## Admin management additions
+
+??? v1? ?? ?? ??? ?? `users.role` ?? ???? `user`? `admin`? ????. ???? `user`??.
+
+??? ?? ??? public ?? ??? ?? `policies`? ?? ??? ????.
+
+- `status`: `active` ?? `hidden`, ??? `active`
+- `admin_override_enabled`: external normalized policy? ???? ????? ??, ??? `false`
+- `updated_at`: ??? ?? ?? ?? ??
+
+`admin_audit_logs`? ??/?? ??? ?? ??? ????. `before_json`? `after_json`? sanitized JSON?? password hash, token, OTP, OAuth identifier ?? secret? ???? ???.

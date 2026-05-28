@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.db.base import Base
 from app.models import ExternalSourceRecord, Policy
 from app.repositories.external_sources import upsert_external_source_records
-from app.schemas.external_sources import TravelMonthRegionalBenefitSource
+from app.schemas.external_sources import ExternalBenefitSource
 from app.services.region_recommendations import recommend_regions
 
 
@@ -41,27 +41,32 @@ def make_source(
     *,
     region: str,
     title: str,
+    source_name: str = "여행가는 달",
+    source_category: str = "regional_benefit",
+    source_url: str = "https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+    collected_page_url: str = "https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+    city: str | None = None,
     amount: int | None = None,
     end_date: date | None = None,
     styles: list[str] | None = None,
     is_nationwide: bool = False,
     status: str = "active",
     freshness_status: str = "fresh",
-) -> TravelMonthRegionalBenefitSource:
-    return TravelMonthRegionalBenefitSource(
-        source_name="여행가는 달",
+) -> ExternalBenefitSource:
+    return ExternalBenefitSource(
+        source_name=source_name,
         source_type="official_campaign",
-        source_url="https://korean.visitkorea.or.kr/travelmonth/benefit.do",
-        source_category="regional_benefit",
+        source_url=source_url,
+        source_category=source_category,
         external_id=canonical_key,
         canonical_key=canonical_key,
         detail_url=None,
-        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+        collected_page_url=collected_page_url,
         title=title,
         organizer_text=f"{region} 관광",
         organizers=[f"{region} 관광"],
         region=region,
-        city=None,
+        city=city,
         is_nationwide=is_nationwide,
         status_text="[진행중]",
         status=status,
@@ -176,6 +181,72 @@ def test_region_recommendations_ignore_inactive_or_stale_records(db: Session) ->
     recommendations = recommend_regions(db, today=today, limit=3)
 
     assert [item.region for item in recommendations] == ["부산"]
+
+
+def test_region_recommendations_prefers_profile_region_over_style_match_on_tie(db: Session) -> None:
+    today = date(2026, 5, 21)
+    upsert_external_source_records(
+        db,
+        [
+            make_source(
+                "busan-1",
+                region="Busan",
+                title="Busan general support",
+                amount=10000,
+                styles=[],
+            ),
+            make_source(
+                "jeju-1",
+                region="Jeju",
+                title="Jeju relax support",
+                amount=10000,
+                styles=["휴식"],
+            ),
+        ],
+    )
+
+    recommendations = recommend_regions(
+        db,
+        today=today,
+        style="휴식",
+        region="Busan",
+        limit=2,
+    )
+
+    assert [item.region for item in recommendations] == ["Busan", "Jeju"]
+
+
+def test_region_recommendations_include_half_trip_and_exclude_traffic(db: Session) -> None:
+    upsert_external_source_records(
+        db,
+        [
+            make_source(
+                "half-trip-hapcheon",
+                source_name="대한민국 반값여행",
+                source_category="local_half_trip",
+                source_url="https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+                collected_page_url="https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+                region="경남",
+                city="합천",
+                title="합천 반값여행 지원",
+                amount=200000,
+            ),
+            make_source(
+                "traffic-rail",
+                source_category="traffic_benefit",
+                source_url="https://korean.visitkorea.or.kr/travelmonth/benefits/traffic.do",
+                collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefits/traffic.do",
+                region="전국",
+                title="테마열차 할인",
+                is_nationwide=True,
+            ),
+        ],
+    )
+
+    recommendations = recommend_regions(db, today=date(2026, 5, 23), limit=3)
+
+    assert [item.region for item in recommendations] == ["경남"]
+    assert recommendations[0].policyCount == 1
 
 
 def test_region_recommendations_read_records_created_by_travelmonth_collection(db: Session) -> None:

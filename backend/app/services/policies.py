@@ -1,5 +1,6 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
+from typing import Literal
 from sqlalchemy.orm import Session
 
 from app.data.policy_display import DISPLAY_OVERRIDES, SUPPORTED_CATEGORIES
@@ -8,6 +9,7 @@ from app.models import User
 from app.models import Policy as PolicyModel
 from app.repositories import external_sources as external_source_repository
 from app.repositories import policies as policy_repository
+from app.services.policy_category_classifier import classify_external_policy_category
 
 
 LEGACY_CATEGORY_MAP = {
@@ -17,6 +19,18 @@ LEGACY_CATEGORY_MAP = {
 }
 
 
+API_POLICY_SOURCE_TYPES = {"internal", "external"}
+
+
+def _normalize_policy_source_type(policy: PolicyModel) -> Literal["internal", "external"]:
+    if policy.external_source_record_id is not None:
+        return "external"
+    source_type = (policy.source_type or "internal").lower()
+    if source_type in API_POLICY_SOURCE_TYPES:
+        return source_type
+    return "external"
+
+
 def _normalize_policy_category(policy_type: str | None) -> str:
     if policy_type in SUPPORTED_CATEGORIES:
         return policy_type
@@ -24,28 +38,7 @@ def _normalize_policy_category(policy_type: str | None) -> str:
 
 
 def _external_policy_category(record: ExternalSourceRecord) -> str:
-    source_parts = [
-        record.collected_page_url,
-        record.detail_url,
-        record.source_category,
-    ]
-    source_text = " ".join(part for part in source_parts if part).lower()
-
-    if "benefits/traffic.do" in source_text:
-        return "교통"
-    if "benefits/stay.do" in source_text:
-        return "숙박"
-    if "benefits/special.do" in source_text:
-        return "여행상품"
-    if "travelmonth/event.do" in source_text:
-        return "이벤트"
-    if "travel-info.do" in source_text:
-        return "기타"
-    if "benefits/depopulation.do" in source_text or "travelmonth/benefit.do" in source_text:
-        return "지역할인"
-    if record.source_category == "regional_benefit":
-        return "지역할인"
-    return "기타"
+    return classify_external_policy_category(record).category
 
 
 def _format_benefit_amount(value: int | None) -> str | None:
@@ -68,7 +61,7 @@ def policy_to_api(policy: PolicyModel) -> dict[str, object]:
     benefit_prefix = _format_benefit_amount(policy.benefit_amount)
     amount = policy.benefit_detail or benefit_prefix or ""
     category = _normalize_policy_category(policy.policy_type)
-    source_type = "external" if policy.external_source_record_id is not None or policy.source_type else "internal"
+    source_type = _normalize_policy_source_type(policy)
 
     return {
         "id": slug,
@@ -150,7 +143,15 @@ def get_policy(policy_slug: str, db: Session | None = None) -> dict[str, object]
     if db is None:
         raise RuntimeError("DB session is required.")
 
-    policy = policy_repository.get_policy_by_slug(db, policy_slug)
+    try:
+        policy = policy_repository.get_policy_by_slug_any_status(db, policy_slug)
+    except AttributeError:
+        policy = policy_repository.get_policy_by_slug(db, policy_slug)
+    if policy is not None:
+        if (getattr(policy, "status", "active") or "active") != "active":
+            return None
+        return policy_to_api(policy)
+
     if policy is None:
         external_record = external_source_repository.get_external_source_record_by_policy_slug(
             db,
@@ -159,7 +160,6 @@ def get_policy(policy_slug: str, db: Session | None = None) -> dict[str, object]
         if external_record is None:
             return None
         return external_source_record_to_policy_api(external_record)
-    return policy_to_api(policy)
 
 
 def save_policy(
@@ -204,10 +204,16 @@ def list_saved_policies(
     if user is None:
         raise RuntimeError("User is required.")
 
-    return [
-        policy_to_api(policy)
-        for policy in policy_repository.list_saved_policies(db, user_id=user.id)
-    ]
+    seen_slugs: set[str] = set()
+    saved_policies: list[dict[str, object]] = []
+    for policy in policy_repository.list_saved_policies(db, user_id=user.id):
+        policy_payload = policy_to_api(policy)
+        slug = str(policy_payload["slug"])
+        if slug in seen_slugs:
+            continue
+        seen_slugs.add(slug)
+        saved_policies.append(policy_payload)
+    return saved_policies
 
 
 def list_applied_policies(
@@ -223,6 +229,40 @@ def list_applied_policies(
         policy_to_api(policy)
         for policy in policy_repository.list_applied_policies(db, user_id=user.id)
     ]
+
+
+def list_applied_policy_links(
+    db: Session | None = None,
+    user: User | None = None,
+) -> list[dict[str, object]]:
+    if db is None:
+        raise RuntimeError("DB session is required.")
+    if user is None:
+        raise RuntimeError("User is required.")
+
+    grouped: dict[int, dict[str, object]] = {}
+    for link in policy_repository.list_applied_policy_links(db, user_id=user.id):
+        policy = link.policy
+        trip = link.trip
+        if policy is None or trip is None:
+            continue
+        if policy.id not in grouped:
+            grouped[policy.id] = {
+                "policy": policy_to_api(policy),
+                "linkedTrips": [],
+            }
+        linked_trips = grouped[policy.id]["linkedTrips"]
+        assert isinstance(linked_trips, list)
+        linked_trips.append(
+            {
+                "id": str(trip.id),
+                "title": trip.title,
+                "region": trip.region or "",
+                "startDate": trip.start_date.isoformat() if trip.start_date else None,
+                "endDate": trip.end_date.isoformat() if trip.end_date else None,
+            }
+        )
+    return list(grouped.values())
 
 
 def remove_saved_policy(

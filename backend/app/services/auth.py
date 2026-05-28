@@ -53,6 +53,7 @@ def user_to_api(user: UserModel) -> dict[str, object]:
         "id": str(user.id),
         "nickname": user.nickname,
         "email": user.email,
+        "role": getattr(user, "role", "user") or "user",
         "birthDate": user.birth_date.isoformat() if user.birth_date else None,
         "gender": user.gender,
         "region": user.region,

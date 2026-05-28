@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
@@ -44,6 +45,7 @@ class User(Base):
     phone_verified_at: Mapped[datetime | None] = mapped_column(DateTime)
     travel_style: Mapped[str | None] = mapped_column(String(50))
     travel_budget: Mapped[str | None] = mapped_column(String(50))
+    role: Mapped[str] = mapped_column(String(20), nullable=False, server_default="user")
     onboarding_completed: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default="false"
     )
@@ -51,7 +53,7 @@ class User(Base):
         DateTime, nullable=False, server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, server_default=func.now()
+        DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
     refresh_tokens: Mapped[list[AuthRefreshToken]] = relationship(
@@ -79,6 +81,7 @@ class User(Base):
     notification_deliveries: Mapped[list[NotificationDelivery]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+    admin_audit_logs: Mapped[list[AdminAuditLog]] = relationship(back_populates="admin_user")
 
 
 class AuthRefreshToken(Base):
@@ -185,8 +188,15 @@ class Policy(Base):
     normalized_at: Mapped[datetime | None] = mapped_column(DateTime)
     last_verified_at: Mapped[datetime | None] = mapped_column(DateTime)
     verification_status: Mapped[str | None] = mapped_column(String(30))
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="active")
+    admin_override_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
     documents: Mapped[list[PolicyDocument]] = relationship(
@@ -197,6 +207,26 @@ class Policy(Base):
     notification_deliveries: Mapped[list[NotificationDelivery]] = relationship(
         back_populates="policy"
     )
+
+
+class AdminAuditLog(Base):
+    __tablename__ = "admin_audit_logs"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    admin_user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id"), nullable=False, index=True
+    )
+    action: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    target_type: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    target_id: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    summary: Mapped[str | None] = mapped_column(String(300))
+    before_json: Mapped[dict[str, Any] | None] = mapped_column(postgres_json)
+    after_json: Mapped[dict[str, Any] | None] = mapped_column(postgres_json)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+
+    admin_user: Mapped[User] = relationship(back_populates="admin_audit_logs")
 
 
 class PolicyDocument(Base):
@@ -260,7 +290,7 @@ class ExternalSourceRecord(Base):
         DateTime, nullable=False, server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, server_default=func.now()
+        DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
 
@@ -274,12 +304,14 @@ class Trip(Base):
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="draft")
     region: Mapped[str | None] = mapped_column(String(100))
+    travel_area_id: Mapped[str | None] = mapped_column(String(120), index=True)
+    participant_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1", default=1)
     description: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, server_default=func.now()
+        DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
     owner: Mapped[User] = relationship(back_populates="owned_trips")
@@ -329,6 +361,11 @@ class TripPlace(Base):
     address: Mapped[str | None] = mapped_column(String(500))
     latitude: Mapped[Decimal | None] = mapped_column(Numeric(10, 7))
     longitude: Mapped[Decimal | None] = mapped_column(Numeric(10, 7))
+    source_provider: Mapped[str | None] = mapped_column(String(40))
+    external_place_id: Mapped[str | None] = mapped_column(String(80), index=True)
+    category_group_code: Mapped[str | None] = mapped_column(String(20))
+    category_group_name: Mapped[str | None] = mapped_column(String(80))
+    place_url: Mapped[str | None] = mapped_column(String(500))
     visit_time: Mapped[time | None] = mapped_column(Time)
     order_num: Mapped[int | None] = mapped_column(Integer)
     memo: Mapped[str | None] = mapped_column(Text)
@@ -407,7 +444,7 @@ class UserNotificationSetting(Base):
         DateTime, nullable=False, server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, server_default=func.now()
+        DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
     user: Mapped[User] = relationship(back_populates="notification_settings")
@@ -450,7 +487,7 @@ class NotificationDelivery(Base):
         DateTime, nullable=False, server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, server_default=func.now()
+        DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
     user: Mapped[User] = relationship(back_populates="notification_deliveries")

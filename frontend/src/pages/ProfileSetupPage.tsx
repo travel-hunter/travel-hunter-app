@@ -1,41 +1,82 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { appDataApi } from "../api";
 import { useSession } from "../app/session";
-import { Button, IconButton, PageHead } from "../components/ui";
+import { useAsyncResource } from "../api/useAsyncResource";
+import { ProfileSetupStep } from "../components/patterns";
+import { Button, ErrorState, IconButton } from "../components/ui";
 
-const profileOptions = appDataApi.getProfileOptions();
-
-const steps = [
-  {
-    key: "region",
-    title: "어디로 떠나고 싶나요?",
-    body: "관심 지역을 기준으로 정책과 일정을 먼저 추천합니다.",
-    choices: profileOptions.regions,
-  },
-  {
-    key: "style",
-    title: "어떤 여행을 선호하나요?",
-    body: "장소와 동선을 맞출 때 여행 스타일을 반영합니다.",
-    choices: profileOptions.travelStyles,
-  },
-  {
-    key: "budget",
-    title: "예산 범위를 알려주세요",
-    body: "예산에 맞는 환급 정책과 예약 옵션을 보여드립니다.",
-    choices: profileOptions.budgets,
-  },
-] as const;
+type ProfileSetupField = "region" | "style" | "budget";
 
 export function ProfileSetupPage() {
   const navigate = useNavigate();
   const { profile, updateProfile, saveProfile } = useSession();
+  const { data: profileOptions, error: profileOptionsError, isLoading: profileOptionsLoading } = useAsyncResource(
+    () => appDataApi.getProfileOptions(),
+    [],
+  );
   const [stepIndex, setStepIndex] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const steps = [
+    {
+      key: "region" as ProfileSetupField,
+      title: "어디로 떠나고 싶나요?",
+      body: "관심 지역을 기준으로 정책과 일정을 먼저 추천합니다.",
+      choices: profileOptions?.regions ?? [],
+    },
+    {
+      key: "style" as ProfileSetupField,
+      title: "어떤 여행을 선호하나요?",
+      body: "장소와 동선을 맞출 때 여행 스타일을 반영합니다.",
+      choices: profileOptions?.travelStyles ?? [],
+    },
+    {
+      key: "budget" as ProfileSetupField,
+      title: "예산 범위를 알려주세요",
+      body: "예산에 맞는 혜택과 예약 옵션을 보여드립니다.",
+      choices: profileOptions?.budgets ?? [],
+    },
+  ];
+
   const step = steps[stepIndex];
   const selected = profile[step.key];
+
+  if (profileOptionsLoading || !profileOptions) {
+    return (
+      <section className="screen">
+        <div className="top-bar">
+          <IconButton label="뒤로" onClick={() => navigate("/nickname-setup")}>
+            <ChevronLeft size={20} />
+          </IconButton>
+          <h1>정보 입력</h1>
+          <span className="meta top-count">1/3</span>
+        </div>
+        <div className="content stack padded">
+          <ErrorState compact message="프로필 항목을 불러오는 중입니다." />
+        </div>
+      </section>
+    );
+  }
+
+  if (profileOptionsError) {
+    return (
+      <section className="screen">
+        <div className="top-bar">
+          <IconButton label="뒤로" onClick={() => navigate("/nickname-setup")}>
+            <ChevronLeft size={20} />
+          </IconButton>
+          <h1>정보 입력</h1>
+          <span className="meta top-count">1/3</span>
+        </div>
+        <div className="content stack padded">
+          <ErrorState compact message={profileOptionsError} />
+        </div>
+      </section>
+    );
+  }
 
   const next = async () => {
     setError("");
@@ -73,23 +114,13 @@ export function ProfileSetupPage() {
         <div className="progress-bar">
           <div className="progress-fill" style={{ width: `${((stepIndex + 1) / steps.length) * 100}%` }} />
         </div>
-        <div className="card">
-          <div className="card-body stack">
-            <PageHead eyebrow="맞춤 추천 설정" title={step.title} body={step.body} />
-            <div className="choice-grid">
-              {step.choices.map((choice) => (
-                <button
-                  className={selected === choice ? "choice active" : "choice"}
-                  key={choice}
-                  onClick={() => updateProfile(step.key, choice)}
-                  type="button"
-                >
-                  {choice}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+        <ProfileSetupStep eyebrow="맞춤 추천 설정" title={step.title} body={step.body}>
+          {step.choices.map((choice) => (
+            <button className={selected === choice ? "choice active" : "choice"} key={choice} onClick={() => updateProfile(step.key, choice)} type="button">
+              {choice}
+            </button>
+          ))}
+        </ProfileSetupStep>
         {error && (
           <p className="form-error" role="alert">
             {error}

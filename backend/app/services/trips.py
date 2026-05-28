@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import secrets
 import re
+import logging
+import time as monotonic_time
 from datetime import date, datetime, timedelta, time
 from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core import security
 from app.data import seed
 from app.models import Policy, Trip, TripDay, TripInvite, TripPlace, User
@@ -20,11 +23,113 @@ from app.schemas.trip import (
     UpdateTripStatusRequest,
 )
 from app.services import itinerary_recommendations
+from app.services.kakao_local import KakaoLocalClient
+
+try:
+    from app.data.travel_areas import get_travel_area, list_travel_areas
+except ModuleNotFoundError:
+    def get_travel_area(_area_id: str | None):
+        return None
+
+    def list_travel_areas():
+        return ()
 
 
 INVITE_BASE_URL = "travelhunter.app/i"
 NUMERIC_TRIP_ID_PATTERN = re.compile(r"^[1-9][0-9]*$")
 TRIP_EDIT_ROLES = {"owner", "editor"}
+NATIONWIDE_REGION = "\uc804\uad6d"
+MIN_RECOMMENDED_POLICY_SCORE = 40
+CONDITIONAL_POLICY_KEYWORDS = (
+    "\ub2e4\uc790\ub140",
+    "\uc7a5\uc560\uc778",
+    "\ud720\uccb4\uc5b4",
+    "\uc784\uc0b0\ubd80",
+    "\uccad\ub144",
+    "\ud55c\ubd80\ubaa8",
+)
+
+logger = logging.getLogger("uvicorn.error")
+
+
+class KakaoItineraryPlaceProvider:
+    def __init__(self, client: KakaoLocalClient) -> None:
+        self._client = client
+
+    def _queries_for_code(
+        self,
+        *,
+        area_name: str,
+        city: str,
+        category_group_code: str,
+    ) -> list[str]:
+        location = city or area_name
+        keyword_by_code = {
+            "AT4": ("가볼만한곳", "관광명소"),
+            "CT1": ("문화시설", "박물관"),
+            "FD6": ("맛집", "식당"),
+            "CE7": ("카페", "디저트"),
+            "AD5": ("숙소", "호텔"),
+        }
+        keywords = keyword_by_code.get(category_group_code, ("",))
+        return [f"{location} {keyword}".strip() for keyword in keywords]
+
+    def search(
+        self,
+        *,
+        area_name: str,
+        city: str,
+        category_group_code: str,
+    ) -> list[itinerary_recommendations.ExternalPlaceCandidate]:
+        candidates: list[itinerary_recommendations.ExternalPlaceCandidate] = []
+        seen_ids: set[str] = set()
+        for query in self._queries_for_code(
+            area_name=area_name,
+            city=city,
+            category_group_code=category_group_code,
+        ):
+            started_at = monotonic_time.monotonic()
+            places = self._client.search_keyword(
+                query=query,
+                category_group_code=category_group_code,
+            )
+            logger.info(
+                "kakao_local_keyword_timing category=%s city=%s query=%s elapsed_seconds=%.3f places=%s",
+                category_group_code,
+                city,
+                query,
+                monotonic_time.monotonic() - started_at,
+                len(places),
+            )
+            for place in places:
+                if place.external_place_id in seen_ids:
+                    continue
+                seen_ids.add(place.external_place_id)
+                candidates.append(
+                    itinerary_recommendations.ExternalPlaceCandidate(
+                        source_provider="kakao_local",
+                        external_place_id=place.external_place_id,
+                        title=place.name,
+                        category_name=place.category_name,
+                        category_group_code=place.category_group_code or category_group_code,
+                        category_group_name=place.category_group_name,
+                        address=place.address,
+                        latitude=place.latitude,
+                        longitude=place.longitude,
+                        place_url=place.place_url,
+                        city=city,
+                    )
+                )
+        return candidates
+
+
+def _build_external_place_provider() -> KakaoItineraryPlaceProvider | None:
+    if not settings.kakao_local_enabled:
+        return None
+    try:
+        return KakaoItineraryPlaceProvider(KakaoLocalClient(settings_obj=settings))
+    except Exception:
+        return None
 
 
 class TripServiceError(Exception):
@@ -87,6 +192,7 @@ def _linked_policies(trip: Trip) -> list[dict[str, str]]:
                 "title": policy.title,
                 "amount": amount,
                 "region": policy.region or "",
+                "status": getattr(policy, "status", "active") or "active",
             }
         )
     return linked
@@ -111,14 +217,114 @@ def _external_source_record_to_trip_policy_candidate(record: ExternalSourceRecor
         "slug": f"{external_source_repository.EXTERNAL_POLICY_SLUG_PREFIX}{record.id}",
         "title": record.title,
         "amount": record.benefit_value_text or record.benefit_text,
-        "region": record.region or ("전국" if record.is_nationwide else ""),
+        "region": record.region or (NATIONWIDE_REGION if record.is_nationwide else ""),
         "benefitAmount": record.extracted_amount_krw or 0,
         "endDate": record.end_date,
         "sortId": record.id or 0,
     }
 
 
-def _recommended_policies(trip: Trip, candidates: list[dict[str, object]] | None = None, limit: int = 2) -> list[dict[str, str]]:
+def _normalized_text(value: object) -> str:
+    return re.sub(r"\s+", "", str(value or "")).lower()
+
+
+def _split_region_terms(value: str | None) -> list[str]:
+    return [
+        term.strip()
+        for term in re.split(r"[\u00b7,/|()\-\s]+", value or "")
+        if term.strip()
+    ]
+
+
+def _unique_terms(values: list[str]) -> list[str]:
+    terms: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        normalized = _normalized_text(value)
+        if not normalized or normalized == _normalized_text(NATIONWIDE_REGION) or normalized in seen:
+            continue
+        seen.add(normalized)
+        terms.append(value)
+    return terms
+
+
+def _trip_policy_match_terms(trip: Trip) -> tuple[list[str], str | None]:
+    area = get_travel_area(trip.travel_area_id)
+    values: list[str] = []
+    area_sido = None
+    if area is not None:
+        area_sido = area.sido
+        values.extend([area.sido, area.name])
+        values.extend(area.included_cities)
+        values.extend(area.aliases)
+    values.extend(_split_region_terms(trip.region))
+    if trip.region:
+        values.append(trip.region)
+    return _unique_terms(values), area_sido
+
+
+def _known_destination_terms() -> list[str]:
+    values: list[str] = []
+    for area in list_travel_areas():
+        values.extend([area.sido, area.name])
+        values.extend(area.included_cities)
+        values.extend(area.aliases)
+    return _unique_terms(values)
+
+
+def _candidate_policy_text(candidate: dict[str, object]) -> str:
+    return _normalized_text(
+        " ".join(
+            [
+                str(candidate.get("title") or ""),
+                str(candidate.get("amount") or ""),
+                str(candidate.get("region") or ""),
+            ]
+        )
+    )
+
+
+def _trip_policy_candidate_score(
+    candidate: dict[str, object],
+    *,
+    match_terms: list[str],
+    area_sido: str | None,
+    known_destination_terms: list[str],
+) -> int:
+    score = 0
+    candidate_region = _normalized_text(candidate.get("region"))
+    candidate_text = _candidate_policy_text(candidate)
+    normalized_terms = {_normalized_text(term) for term in match_terms if _normalized_text(term)}
+    normalized_sido = _normalized_text(area_sido)
+
+    if normalized_sido and candidate_region == normalized_sido:
+        score += 120
+    elif candidate_region and candidate_region in normalized_terms:
+        score += 120
+    elif candidate_region == _normalized_text(NATIONWIDE_REGION):
+        score += 40
+
+    if any(term and term in candidate_text for term in normalized_terms):
+        score += 90
+
+    conflicting_terms = [
+        _normalized_text(term)
+        for term in known_destination_terms
+        if _normalized_text(term) and _normalized_text(term) not in normalized_terms
+    ]
+    if any(term in candidate_text for term in conflicting_terms):
+        score -= 120
+
+    if any(_normalized_text(keyword) in candidate_text for keyword in CONDITIONAL_POLICY_KEYWORDS):
+        score -= 80
+
+    if candidate.get("benefitAmount"):
+        score += 10
+
+    return score
+
+
+def _recommended_policies(trip: Trip, candidates: list[dict[str, object]] | None = None, limit: int = 3) -> list[dict[str, str]]:
     if not candidates:
         return []
 
@@ -127,23 +333,45 @@ def _recommended_policies(trip: Trip, candidates: list[dict[str, object]] | None
         for link in trip.policies
         if link.policy is not None
     }
-    trip_region = (trip.region or "").strip()
-
     available_candidates = [
         candidate
         for candidate in candidates
         if str(candidate["slug"]) not in linked_slugs
     ]
-    region_candidates = [candidate for candidate in available_candidates if trip_region and candidate["region"] == trip_region]
-    if region_candidates:
-        available_candidates = region_candidates
-    available_candidates.sort(
-        key=lambda candidate: (
-            0 if trip_region and candidate["region"] == trip_region else 1,
-            0 if candidate["region"] == "전국" else 1,
-            0 if candidate["benefitAmount"] else 1,
-            candidate["endDate"] or date.max,
-            candidate["sortId"],
+    trip_region = (trip.region or "").strip()
+    if not trip.travel_area_id:
+        region_candidates = [
+            candidate
+            for candidate in available_candidates
+            if trip_region and candidate["region"] == trip_region
+        ]
+        if region_candidates:
+            available_candidates = region_candidates
+    match_terms, area_sido = _trip_policy_match_terms(trip)
+    known_destination_terms = _known_destination_terms()
+    scored_candidates = [
+        (
+            _trip_policy_candidate_score(
+                candidate,
+                match_terms=match_terms,
+                area_sido=area_sido,
+                known_destination_terms=known_destination_terms,
+            ),
+            candidate,
+        )
+        for candidate in available_candidates
+    ]
+    if trip.travel_area_id:
+        scored_candidates = [
+            (score, candidate)
+            for score, candidate in scored_candidates
+            if score >= MIN_RECOMMENDED_POLICY_SCORE
+        ]
+    scored_candidates.sort(
+        key=lambda scored_candidate: (
+            -scored_candidate[0],
+            scored_candidate[1]["endDate"] or date.max,
+            scored_candidate[1]["sortId"],
         )
     )
     return [
@@ -153,7 +381,7 @@ def _recommended_policies(trip: Trip, candidates: list[dict[str, object]] | None
             "amount": str(candidate["amount"] or ""),
             "region": str(candidate["region"] or ""),
         }
-        for candidate in available_candidates[:limit]
+        for _score, candidate in scored_candidates[:limit]
     ]
 
 
@@ -212,6 +440,14 @@ def trip_to_api(trip: Trip, user: User | None = None, recommended_policies: list
                 "time": place.visit_time.strftime("%H:%M") if place.visit_time else "",
                 "label": place.place_name,
                 "meta": place.memo or place.address or "",
+                "address": place.address,
+                "latitude": float(place.latitude) if place.latitude is not None else None,
+                "longitude": float(place.longitude) if place.longitude is not None else None,
+                "category": getattr(place, "category_group_name", None),
+                "categoryCode": getattr(place, "category_group_code", None),
+                "placeUrl": getattr(place, "place_url", None),
+                "sourceProvider": getattr(place, "source_provider", None),
+                "externalPlaceId": getattr(place, "external_place_id", None),
             }
             for place in places
         ]
@@ -220,8 +456,10 @@ def trip_to_api(trip: Trip, user: User | None = None, recommended_policies: list
         "id": str(trip.id),
         "title": trip.title,
         "status": trip.status or "confirmed",
+        "travelAreaId": trip.travel_area_id,
         "dates": _format_dates(trip.start_date, trip.end_date),
         "people": people,
+        "participantCount": trip.participant_count or max(1, len(people)),
         "expectedSaving": _format_saving(_policy_saving(trip)),
         "linkedPolicies": _linked_policies(trip),
         "recommendedPolicies": _recommended_policies(trip, recommended_policies),
@@ -317,7 +555,11 @@ def create_trip(
     payload = (payload or CreateTripRequest()).model_dump()
     if payload.get("description") is None and payload.get("style") is not None:
         payload["description"] = payload["style"]
-    region = str(payload.get("region") or seed.PROFILE["region"])
+    travel_area_id = str(payload.get("travelAreaId") or "").strip() or None
+    travel_area = get_travel_area(travel_area_id)
+    if travel_area_id and travel_area is None:
+        raise TripServiceError(400, "Travel area not found")
+    region = str(travel_area.name if travel_area else payload.get("region") or seed.PROFILE["region"])
     start_date_value = payload.get("startDate")
     end_date_value = payload.get("endDate")
     if isinstance(start_date_value, date) and isinstance(end_date_value, date):
@@ -329,6 +571,7 @@ def create_trip(
         start_date = date(2026, 6, 15)
         end_date = start_date + timedelta(days=duration_days - 1)
     title = str(payload.get("title") or f"{region} {duration_days}일 여행")
+    participant_count = int(payload.get("participantCount") or 1)
 
     trip = trip_repository.create_trip(
         db,
@@ -338,6 +581,8 @@ def create_trip(
         end_date=end_date,
         status="draft",
         region=region,
+        travel_area_id=travel_area.id if travel_area else None,
+        participant_count=participant_count,
         description=str(payload.get("description") or seed.PROFILE["style"]),
     )
     trip_repository.add_trip_member(db, trip_id=trip.id, user_id=user.id, role="owner")
@@ -347,6 +592,8 @@ def create_trip(
         style=str(payload.get("style") or seed.PROFILE["style"]),
         start_date=start_date,
         day_count=duration_days,
+        travel_area_id=travel_area.id if travel_area else None,
+        external_provider=_build_external_place_provider(),
     )
     generated_places_by_day: dict[int, list[itinerary_recommendations.GeneratedPlace]] = {}
     for generated_place in generated_course.places:
@@ -367,6 +614,14 @@ def create_trip(
                 visit_time=_parse_time(generated_place.time),
                 order_num=generated_place.order_num,
                 memo=generated_place.meta,
+                address=generated_place.address,
+                latitude=generated_place.latitude,
+                longitude=generated_place.longitude,
+                source_provider=generated_place.source_provider,
+                external_place_id=generated_place.external_place_id,
+                category_group_code=generated_place.category_group_code,
+                category_group_name=generated_place.category_group_name,
+                place_url=generated_place.place_url,
             )
 
     trip_repository.add_recommendation(
@@ -411,6 +666,26 @@ def add_policy_to_trip(
     return {"tripId": str(trip.id), "policyId": policy_slug, "added": True}
 
 
+def remove_policy_from_trip(
+    db: Session,
+    user: User,
+    trip_handle: str,
+    policy_slug: str,
+) -> dict[str, object]:
+    trip = _resolve_required_trip(db, trip_handle, user)
+    _require_trip_editor(trip, user)
+    policy = policy_repository.get_policy_by_slug(db, policy_slug)
+    if policy is None:
+        raise TripServiceError(404, "Policy not found")
+
+    existing = trip_repository.get_trip_policy(db, trip_id=trip.id, policy_id=policy.id)
+    if existing is not None:
+        trip_repository.remove_trip_policy(db, existing)
+        db.commit()
+
+    return {"tripId": str(trip.id), "policyId": policy_slug, "added": False}
+
+
 def update_trip_status(
     db: Session,
     user: User,
@@ -446,6 +721,14 @@ def add_place_to_trip_day(
         visit_time=_parse_optional_time(payload.time),
         order_num=next_order,
         memo=payload.meta.strip() if payload.meta is not None else None,
+        address=payload.address.strip() if payload.address else None,
+        latitude=payload.latitude,
+        longitude=payload.longitude,
+        category_group_code=payload.categoryCode,
+        category_group_name=payload.category,
+        place_url=payload.placeUrl,
+        source_provider=payload.sourceProvider,
+        external_place_id=payload.externalPlaceId,
     )
     db.commit()
     return _refresh_trip_payload(db, trip.id, user)
@@ -524,7 +807,7 @@ def delete_trip_place(
     return _refresh_trip_payload(db, trip.id, user)
 
 
-def _recommendation_items(value: Any) -> list[dict[str, str]]:
+def _recommendation_items(value: Any) -> list[dict[str, object]]:
     if isinstance(value, list):
         raw_items = value
     elif isinstance(value, dict):
@@ -533,17 +816,103 @@ def _recommendation_items(value: Any) -> list[dict[str, str]]:
     else:
         raw_items = []
 
-    items: list[dict[str, str]] = []
+    optional_keys = (
+        "id",
+        "categoryGroup",
+        "categoryCode",
+        "address",
+        "latitude",
+        "longitude",
+        "placeUrl",
+        "suggestedDay",
+        "aiReview",
+        "sourceProvider",
+        "externalPlaceId",
+    )
+    items: list[dict[str, object]] = []
     for item in raw_items:
         if not isinstance(item, dict):
             continue
+        mapped: dict[str, object] = {
+            "label": str(item.get("label") or ""),
+            "title": str(item.get("title") or ""),
+            "meta": str(item.get("meta") or ""),
+            "reason": str(item.get("reason") or ""),
+        }
+        for key in optional_keys:
+            if key in item:
+                mapped[key] = item.get(key)
+        items.append(mapped)
+    return items
+
+
+def _existing_place_keys(trip: Trip) -> tuple[set[tuple[str, str]], set[str], set[str]]:
+    provider_ids: set[tuple[str, str]] = set()
+    external_ids: set[str] = set()
+    titles: set[str] = set()
+    for trip_day in trip.days:
+        for place in trip_day.places:
+            source_provider = getattr(place, "source_provider", None)
+            external_place_id = getattr(place, "external_place_id", None)
+            if source_provider and external_place_id:
+                provider_ids.add((source_provider, external_place_id))
+            if external_place_id:
+                external_ids.add(external_place_id)
+            normalized_title = _normalized_text(place.place_name)
+            if normalized_title:
+                titles.add(normalized_title)
+    return provider_ids, external_ids, titles
+
+
+def _is_duplicate_candidate(
+    candidate: itinerary_recommendations.ExternalPlaceCandidate,
+    *,
+    provider_ids: set[tuple[str, str]],
+    external_ids: set[str],
+    titles: set[str],
+) -> bool:
+    if candidate.source_provider and candidate.external_place_id:
+        if (candidate.source_provider, candidate.external_place_id) in provider_ids:
+            return True
+    if candidate.external_place_id and candidate.external_place_id in external_ids:
+        return True
+    normalized_title = _normalized_text(candidate.title)
+    return bool(normalized_title and normalized_title in titles)
+
+
+def _additional_recommendation_items(trip: Trip) -> list[dict[str, object]]:
+    provider = _build_external_place_provider()
+    if provider is None:
+        return []
+
+    day_numbers = sorted(day.day_number for day in trip.days) or [1]
+    region = trip.region or trip.title
+    style = trip.description or ""
+    provider_ids, external_ids, titles = _existing_place_keys(trip)
+    candidates = itinerary_recommendations.additional_place_candidates(
+        region=region,
+        style=style,
+        day_count=max(len(day_numbers), 4),
+        travel_area_id=trip.travel_area_id,
+        external_provider=provider,
+    )
+    items: list[dict[str, object]] = []
+    for candidate in candidates:
+        if _is_duplicate_candidate(
+            candidate,
+            provider_ids=provider_ids,
+            external_ids=external_ids,
+            titles=titles,
+        ):
+            continue
+        suggested_day = day_numbers[len(items) % len(day_numbers)]
         items.append(
-            {
-                "label": str(item.get("label") or ""),
-                "title": str(item.get("title") or ""),
-                "meta": str(item.get("meta") or ""),
-                "reason": str(item.get("reason") or ""),
-            }
+            itinerary_recommendations.recommendation_from_candidate(
+                candidate,
+                suggested_day=suggested_day,
+                region=region,
+                style=style,
+            )
         )
     return items
 
@@ -552,12 +921,16 @@ def list_recommendations(
     db: Session,
     user: User,
     trip_handle: str,
-) -> list[dict[str, str]] | None:
+) -> list[dict[str, object]] | None:
     trip = _resolve_trip(db, trip_handle, user)
     if trip is None:
         return None
 
-    items: list[dict[str, str]] = []
+    additional_items = _additional_recommendation_items(trip)
+    if additional_items:
+        return additional_items
+
+    items: list[dict[str, object]] = []
     for recommendation in trip_repository.list_recommendations(db, trip_id=trip.id, user_id=user.id):
         items.extend(_recommendation_items(recommendation.result))
     return items

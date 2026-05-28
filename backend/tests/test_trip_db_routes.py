@@ -29,10 +29,11 @@ def trip_payload(trip_id: str = "7") -> dict[str, object]:
         "status": "confirmed",
         "dates": "2026.06.15 - 06.17",
         "people": ["Test User"],
+        "participantCount": 1,
         "expectedSaving": "30留뚯썝",
         "linkedPolicies": [
             {
-                "slug": "local-vacation",
+                "slug": "fixture-policy",
                 "title": "Vacation policy",
                 "amount": "30留뚯썝",
                 "region": "Jeju",
@@ -126,17 +127,19 @@ def test_db_trip_create_route_returns_created_numeric_id(monkeypatch) -> None:
             and payload.title == "New trip"
             and payload.startDate == date(2026, 7, 12)
             and payload.endDate == date(2026, 7, 15)
+            and payload.participantCount == 3
         )
         else trip_payload("7"),
     )
 
     try:
-        response = client.post("/api/trips", json={"title": "New trip", "startDate": "2026-07-12", "endDate": "2026-07-15"})
+        response = client.post("/api/trips", json={"title": "New trip", "startDate": "2026-07-12", "endDate": "2026-07-15", "participantCount": 3})
     finally:
         clear_overrides()
 
     assert response.status_code == 200
     assert response.json()["id"] == "8"
+    assert response.json()["participantCount"] == 1
 
 
 def test_db_trip_create_route_rejects_out_of_range_duration() -> None:
@@ -150,6 +153,22 @@ def test_db_trip_create_route_rejects_out_of_range_duration() -> None:
         clear_overrides()
 
     assert response.status_code == 422
+
+
+def test_db_trip_create_route_rejects_out_of_range_participant_count() -> None:
+    fake_db = object()
+    user = make_user()
+    install_db_route_dependencies(None, fake_db, user)
+
+    try:
+        responses = [
+            client.post("/api/trips", json={"participantCount": 0}),
+            client.post("/api/trips", json={"participantCount": 7}),
+        ]
+    finally:
+        clear_overrides()
+
+    assert [response.status_code for response in responses] == [422, 422]
 
 
 def test_db_trip_create_route_rejects_invalid_date_ranges() -> None:
@@ -290,6 +309,29 @@ def test_db_add_policy_maps_service_errors(monkeypatch) -> None:
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Policy not found"}
+
+
+def test_db_remove_policy_from_trip_route_returns_response(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    install_db_route_dependencies(monkeypatch, fake_db, user)
+
+    def remove_policy(db, current_user, trip_id, policy_slug):
+        assert db is fake_db
+        assert current_user is user
+        assert trip_id == "7"
+        assert policy_slug == "fixture-policy"
+        return {"tripId": "7", "policyId": "fixture-policy", "added": False}
+
+    monkeypatch.setattr(trip_routes.trip_service, "remove_policy_from_trip", remove_policy)
+
+    try:
+        response = client.delete("/api/trips/7/policies/fixture-policy")
+    finally:
+      clear_overrides()
+
+    assert response.status_code == 200
+    assert response.json() == {"tripId": "7", "policyId": "fixture-policy", "added": False}
 
 
 def test_db_trip_status_update_route_returns_updated_trip(monkeypatch) -> None:

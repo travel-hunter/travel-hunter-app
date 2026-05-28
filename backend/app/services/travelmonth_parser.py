@@ -299,7 +299,7 @@ def parse_regional_benefits(
 
         status = normalize_status(status_text, start_date, end_date, today)
         region = normalize_region(organizer_text, title=title, benefit_text=benefit_text)
-        benefit_value = extract_benefit_value(benefit_text)
+        benefit_value = extract_benefit_value(benefit_text, title=title)
         canonical_text = "|".join([title, organizer_text, period_text])
         external_id = str(raw_record.get("external_id", "")) or stable_hash(canonical_text)
         canonical_key = str(raw_record.get("canonical_key", "")) or stable_hash(canonical_text)

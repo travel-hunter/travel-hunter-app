@@ -6,15 +6,24 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import ExternalSourceRecord
-from app.schemas.external_sources import TravelMonthRegionalBenefitSource
+from app.schemas.external_sources import ExternalBenefitSource
 
 
 EXTERNAL_POLICY_SLUG_PREFIX = "travelmonth-"
+POLICY_PROMOTION_SOURCE_CATEGORIES = (
+    "regional_benefit",
+    "traffic_benefit",
+    "local_half_trip",
+)
+RECOMMENDATION_SOURCE_CATEGORIES = (
+    "regional_benefit",
+    "local_half_trip",
+)
 
 
 def _assign_record(
     record: ExternalSourceRecord,
-    source: TravelMonthRegionalBenefitSource,
+    source: ExternalBenefitSource,
 ) -> ExternalSourceRecord:
     column_names = set(ExternalSourceRecord.__table__.columns.keys())
     for key, value in source.model_dump().items():
@@ -40,7 +49,7 @@ def get_external_source_record(
 
 def upsert_external_source_records(
     db: Session,
-    sources: Iterable[TravelMonthRegionalBenefitSource],
+    sources: Iterable[ExternalBenefitSource],
 ) -> list[ExternalSourceRecord]:
     records: list[ExternalSourceRecord] = []
     for source in sources:
@@ -81,9 +90,37 @@ def list_regional_benefit_recommendation_records(
 ) -> list[ExternalSourceRecord]:
     statement = (
         select(ExternalSourceRecord)
-        .where(ExternalSourceRecord.source_category == "regional_benefit")
+        .where(ExternalSourceRecord.source_category.in_(RECOMMENDATION_SOURCE_CATEGORIES))
         .where(ExternalSourceRecord.status == "active")
         .where(ExternalSourceRecord.freshness_status == "fresh")
+        .order_by(ExternalSourceRecord.id)
+    )
+    return list(db.scalars(statement).all())
+
+
+def list_policy_promotion_records(
+    db: Session,
+) -> list[ExternalSourceRecord]:
+    statement = (
+        select(ExternalSourceRecord)
+        .where(ExternalSourceRecord.source_category.in_(POLICY_PROMOTION_SOURCE_CATEGORIES))
+        .where(ExternalSourceRecord.status == "active")
+        .where(ExternalSourceRecord.freshness_status == "fresh")
+        .order_by(ExternalSourceRecord.id)
+    )
+    return list(db.scalars(statement).all())
+
+
+def list_policy_deactivation_records(
+    db: Session,
+) -> list[ExternalSourceRecord]:
+    statement = (
+        select(ExternalSourceRecord)
+        .where(ExternalSourceRecord.source_category.in_(POLICY_PROMOTION_SOURCE_CATEGORIES))
+        .where(
+            (ExternalSourceRecord.status != "active")
+            | (ExternalSourceRecord.freshness_status != "fresh")
+        )
         .order_by(ExternalSourceRecord.id)
     )
     return list(db.scalars(statement).all())
@@ -101,7 +138,14 @@ def get_external_source_record_by_policy_slug(
     statement = (
         select(ExternalSourceRecord)
         .where(ExternalSourceRecord.id == int(raw_id))
-        .where(ExternalSourceRecord.source_category == "regional_benefit")
+        .where(
+            ExternalSourceRecord.source_category.in_(
+                (
+                    "regional_benefit",
+                    "local_half_trip",
+                )
+            )
+        )
         .where(ExternalSourceRecord.status == "active")
         .where(ExternalSourceRecord.freshness_status == "fresh")
     )

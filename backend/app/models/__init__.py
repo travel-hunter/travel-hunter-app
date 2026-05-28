@@ -1,4 +1,5 @@
 from app.models.tables import (
+    AdminAuditLog,
     AuthRefreshToken,
     ExternalSourceRecord,
     NotificationDelivery,
@@ -20,6 +21,7 @@ from app.models.tables import (
 )
 
 __all__ = [
+    "AdminAuditLog",
     "AuthRefreshToken",
     "ExternalSourceRecord",
     "NotificationDelivery",

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import get_current_user
 from app.db.session import get_optional_db
 from app.models import User
-from app.schemas.policy import Policy, SavePolicyResponse
+from app.schemas.policy import AppliedPolicyLink, Policy, SavePolicyResponse
 from app.services import policies as policy_service
 
 router = APIRouter(tags=["policies"])
@@ -53,6 +53,18 @@ def list_applied_policies(
         _require_user(current_user),
     )
     return [Policy(**policy) for policy in applied_policies]
+
+
+@router.get("/me/applied-policy-links", response_model=list[AppliedPolicyLink])
+def list_applied_policy_links(
+    db: Session | None = Depends(get_optional_db),
+    current_user: User | None = Depends(get_current_user),
+) -> list[AppliedPolicyLink]:
+    applied_policy_links = policy_service.list_applied_policy_links(
+        db,
+        _require_user(current_user),
+    )
+    return [AppliedPolicyLink(**link) for link in applied_policy_links]
 
 
 @router.post("/me/saved-policies/{policy_slug}", response_model=SavePolicyResponse)

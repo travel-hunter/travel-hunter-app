@@ -1,10 +1,3 @@
-import {
-  budgets,
-  itinerary,
-  regions,
-  travelStyles,
-  user,
-} from "../data/seedData";
 import { apiClient, apiConfig } from "./client";
 import {
   AppDataApi,
@@ -32,25 +25,58 @@ import {
   TripPlaceUpdateRequest,
   TripPolicyResponse,
   TripStatusUpdateRequest,
+  TravelAreaRecommendationOptions,
 } from "./dataApi";
-import { ContactInfo, ContactVerificationRequestResponse, InviteRole, InviteState, NotificationSettings, Policy, Profile, ProfileOptions, Recommendation, RegionRecommendation, Trip, User } from "./types";
+import {
+  AdminAuditLogListResponse,
+  AdminExternalSourceSummaryResponse,
+  AdminPolicyDetail,
+  AdminPolicyListResponse,
+  AdminUserDetail,
+  AdminUserListResponse,
+  AppliedPolicyLink,
+  ContactInfo,
+  ContactVerificationRequestResponse,
+  InviteRole,
+  InviteState,
+  NotificationSettings,
+  Policy,
+  Profile,
+  ProfileOptions,
+  Recommendation,
+  RegionRecommendation,
+  TravelAreaRecommendationResponse,
+  Trip,
+  User,
+} from "./types";
 
-const defaultLogin: LoginRequest = {
-  email: user.email,
-  password: "password123",
+const makeDefaultLogin = (request: LoginRequest | undefined): LoginRequest => {
+  if (!request || !request.email || !request.password) {
+    throw new Error("TRAVEL_HUNTER: login request must include email and password.");
+  }
+  return request;
 };
 
-const defaultSignup: SignupRequest = {
-  email: user.email,
-  password: "password123",
+const makeDefaultSignup = (request: SignupRequest | undefined): SignupRequest => {
+  if (!request || !request.email || !request.password) {
+    throw new Error("TRAVEL_HUNTER: signup request must include email and password.");
+  }
+  return request;
 };
+
+function queryString(params: Record<string, string | number | boolean | undefined | null>): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== "") search.set(key, String(value));
+  }
+  const query = search.toString();
+  return query ? `?${query}` : "";
+}
 
 export const backendApi: AppDataApi = {
-  getPreviewUser: (): User => user,
-  getProfileOptions: (): ProfileOptions => ({ regions, travelStyles, budgets }),
-  getPreviewTrip: (): Trip => itinerary,
-  login: (request = defaultLogin): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/login", request),
-  signup: (request = defaultSignup): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/signup", request),
+  getProfileOptions: (): Promise<ProfileOptions> => apiClient.get<ProfileOptions>("/api/profile-options"),
+  login: (request?: LoginRequest): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/login", makeDefaultLogin(request)),
+  signup: (request?: SignupRequest): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/signup", makeDefaultSignup(request)),
   checkEmailAvailability: (request: EmailAvailabilityRequest): Promise<EmailAvailabilityResponse> => apiClient.post<EmailAvailabilityResponse>("/api/auth/email-check", request),
   getNicknameSuggestion: (): Promise<NicknameSuggestionResponse> => apiClient.get<NicknameSuggestionResponse>("/api/me/nickname-suggestion"),
   updateNickname: (request: NicknameUpdateRequest): Promise<User> => apiClient.patch<User>("/api/me/nickname", request),
@@ -82,10 +108,21 @@ export const backendApi: AppDataApi = {
     const query = params.toString();
     return apiClient.get<RegionRecommendation[]>(`/api/recommendations/regions${query ? `?${query}` : ""}`);
   },
-  getPolicy: (policySlug = "local-vacation"): Promise<Policy> => apiClient.get<Policy>(`/api/policies/${policySlug}`),
+  listTravelAreaRecommendations: (options?: TravelAreaRecommendationOptions): Promise<TravelAreaRecommendationResponse> => {
+    const params = new URLSearchParams();
+    if (options?.sido) params.set("sido", options.sido);
+    if (options?.query) params.set("query", options.query);
+    if (options?.mode) params.set("mode", options.mode);
+    if (options?.style) params.set("style", options.style);
+    if (options?.limit !== undefined) params.set("limit", String(options.limit));
+    const query = params.toString();
+    return apiClient.get<TravelAreaRecommendationResponse>(`/api/recommendations/travel-areas${query ? `?${query}` : ""}`);
+  },
+  getPolicy: (policySlug = ""): Promise<Policy> => apiClient.get<Policy>(`/api/policies/${policySlug}`),
   savePolicy: (policySlug: string): Promise<SavePolicyResponse> => apiClient.post<SavePolicyResponse>(`/api/me/saved-policies/${policySlug}`),
   listSavedPolicies: (): Promise<Policy[]> => apiClient.get<Policy[]>("/api/me/saved-policies"),
   listAppliedPolicies: (): Promise<Policy[]> => apiClient.get<Policy[]>("/api/me/applied-policies"),
+  listAppliedPolicyLinks: (): Promise<AppliedPolicyLink[]> => apiClient.get<AppliedPolicyLink[]>("/api/me/applied-policy-links"),
   removeSavedPolicy: (policySlug: string): Promise<SavePolicyResponse> => apiClient.delete<SavePolicyResponse>(`/api/me/saved-policies/${policySlug}`),
   listTrips: (): Promise<Trip[]> => apiClient.get<Trip[]>("/api/trips"),
   createTrip: (trip?: CreateTripRequest): Promise<Trip> => apiClient.post<Trip>("/api/trips", trip),
@@ -97,8 +134,22 @@ export const backendApi: AppDataApi = {
   moveTripPlace: (tripId: string, placeId: string, move: TripPlaceMoveRequest): Promise<Trip> => apiClient.patch<Trip>(`/api/trips/${tripId}/places/${placeId}/move`, move),
   deleteTripPlace: (tripId: string, placeId: string): Promise<Trip> => apiClient.delete<Trip>(`/api/trips/${tripId}/places/${placeId}`),
   addPolicyToTrip: (tripId: string, policySlug: string): Promise<TripPolicyResponse> => apiClient.post<TripPolicyResponse>(`/api/trips/${tripId}/policies/${policySlug}`),
+  removePolicyFromTrip: (tripId: string, policySlug: string): Promise<TripPolicyResponse> => apiClient.delete<TripPolicyResponse>(`/api/trips/${tripId}/policies/${policySlug}`),
   listRecommendations: (tripId: string): Promise<Recommendation[]> => apiClient.get<Recommendation[]>(`/api/trips/${tripId}/recommendations`),
   getInviteState: (tripId: string): Promise<InviteState> => apiClient.get<InviteState>(`/api/trips/${tripId}/invite`),
   confirmInviteSent: (tripId: string, role?: InviteRole): Promise<InviteState> => apiClient.post<InviteState>(`/api/trips/${tripId}/invite`, role ? { role } : undefined),
   acceptInvite: (inviteToken: string): Promise<InviteState> => apiClient.post<InviteState>(`/api/invites/${inviteToken}/accept`),
+  listAdminUsers: (options): Promise<AdminUserListResponse> =>
+    apiClient.get<AdminUserListResponse>(`/api/admin/users${queryString(options ?? {})}`),
+  getAdminUser: (userId: string): Promise<AdminUserDetail> => apiClient.get<AdminUserDetail>(`/api/admin/users/${userId}`),
+  updateAdminUser: (userId: string, user): Promise<AdminUserDetail> => apiClient.patch<AdminUserDetail>(`/api/admin/users/${userId}`, user),
+  listAdminPolicies: (options): Promise<AdminPolicyListResponse> =>
+    apiClient.get<AdminPolicyListResponse>(`/api/admin/policies${queryString(options ?? {})}`),
+  getAdminExternalSourceSummary: (): Promise<AdminExternalSourceSummaryResponse> =>
+    apiClient.get<AdminExternalSourceSummaryResponse>("/api/admin/external-sources/summary"),
+  getAdminPolicy: (policyId: string): Promise<AdminPolicyDetail> => apiClient.get<AdminPolicyDetail>(`/api/admin/policies/${policyId}`),
+  createAdminPolicy: (policy): Promise<AdminPolicyDetail> => apiClient.post<AdminPolicyDetail>("/api/admin/policies", policy),
+  updateAdminPolicy: (policyId: string, policy): Promise<AdminPolicyDetail> => apiClient.patch<AdminPolicyDetail>(`/api/admin/policies/${policyId}`, policy),
+  listAdminAuditLogs: (options): Promise<AdminAuditLogListResponse> =>
+    apiClient.get<AdminAuditLogListResponse>(`/api/admin/audit-logs${queryString(options ?? {})}`),
 };

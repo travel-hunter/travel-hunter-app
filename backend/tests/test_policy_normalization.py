@@ -9,11 +9,12 @@ from app.db.base import Base
 from app.models import ExternalSourceRecord, Policy
 from app.repositories.external_sources import upsert_external_source_records
 from app.repositories.policies import get_policy_by_slug
-from app.schemas.external_sources import TravelMonthRegionalBenefitSource
+from app.schemas.external_sources import ExternalBenefitSource
 
 
-def make_source(**overrides) -> TravelMonthRegionalBenefitSource:
+def make_source(**overrides) -> ExternalBenefitSource:
     data = {
+        "source_name": "여행가는 달",
         "source_type": "official_campaign",
         "source_url": "https://korean.visitkorea.or.kr/travelmonth/benefit.do",
         "source_category": "regional_benefit",
@@ -49,7 +50,7 @@ def make_source(**overrides) -> TravelMonthRegionalBenefitSource:
         "freshness_status": "fresh",
     }
     data.update(overrides)
-    return TravelMonthRegionalBenefitSource(**data)
+    return ExternalBenefitSource(**data)
 
 
 @pytest.fixture
@@ -120,6 +121,60 @@ def test_promotion_is_idempotent_by_external_source_record_id(db: Session) -> No
     assert len(db.query(Policy).filter(Policy.external_source_record_id == rows[0].id).all()) == 1
 
 
+def test_promotion_reclassifies_existing_policy_type(db: Session) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                canonical_key="namdo-train",
+                title="남도 기차둘레길 1박 2일 최대 35% 할인행사",
+                benefit_text="남도 기차 여행상품 최대 35% 할인",
+            )
+        ],
+    )
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+
+    result = promote_external_benefits_to_policies(db)
+    policy = db.query(Policy).filter(Policy.external_source_record_id == rows[0].id).one()
+    policy.policy_type = "지역할인"
+    db.flush()
+
+    second = promote_external_benefits_to_policies(db)
+
+    assert result.promoted_count == 1
+    assert second.promoted_count == 1
+    assert policy.policy_type == "교통"
+
+
+def test_promotion_derives_missing_percent_value_from_title(db: Session) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                canonical_key="welchon-percent-title",
+                external_id="welchon-percent-title",
+                title="웰촌 체험상품 30% 할인",
+                benefit_text="행사 기간 중 온라인 체험상품 예약 결제 후 사용 완료 참여자 26년 4월 중순부터 5월 말",
+                benefit_value_text=None,
+                extracted_amount_krw=None,
+                extracted_discount_percent=None,
+                benefit_value_type="unknown",
+            )
+        ],
+    )
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+
+    promote_external_benefits_to_policies(db)
+
+    policy = get_policy_by_slug(db, f"travelmonth-{rows[0].id}")
+    assert policy is not None
+    assert policy.benefit_detail == "최대 30%"
+    assert policy.benefit_amount is None
+    assert policy.policy_comment == "행사 기간 중 온라인 체험상품 예약 결제 후 사용 완료 참여자 26년 4월 중순부터 5월 말"
+
+
 def test_skips_inactive_or_stale_records(db: Session) -> None:
     upsert_external_source_records(
         db,
@@ -135,3 +190,282 @@ def test_skips_inactive_or_stale_records(db: Session) -> None:
 
     assert result.promoted_count == 0
     assert db.query(Policy).count() == 0
+
+
+def test_upsert_accepts_non_regional_external_source(db: Session) -> None:
+    source = ExternalBenefitSource(
+        source_name="여행가는 달",
+        source_type="official_campaign",
+        source_url="https://korean.visitkorea.or.kr/travelmonth/benefits/traffic.do",
+        source_category="traffic_benefit",
+        external_id="traffic-rail-1",
+        canonical_key="traffic-rail-1",
+        detail_url="https://www.korail.com",
+        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefits/traffic.do",
+        title="TravelMonth rail discount",
+        organizer_text="Korail",
+        organizers=["Korail"],
+        region="Nationwide",
+        city=None,
+        is_nationwide=True,
+        status_text="active",
+        status="active",
+        start_date=None,
+        end_date=None,
+        benefit_text="Theme train fare 50% discount",
+        benefit_value_text="50% discount",
+        extracted_amount_krw=None,
+        extracted_discount_percent=50,
+        benefit_value_type="percent",
+        tags=["traffic", "rail"],
+        contact_text="Korail customer center",
+        inferred_travel_styles=[],
+        confidence=90,
+        field_completeness=90,
+        raw_list_text="Theme train fare 50% discount",
+        raw_detail_text="Theme train fare 50% discount",
+        raw_payload={"source": "traffic"},
+        last_fetched_at="2026-05-23T09:00:00",
+        last_verified_at="2026-05-23T09:00:00",
+        freshness_status="fresh",
+    )
+
+    rows = upsert_external_source_records(db, [source])
+
+    assert len(rows) == 1
+    assert rows[0].source_category == "traffic_benefit"
+    assert rows[0].benefit_value_type == "percent"
+
+
+def test_promotes_traffic_and_half_trip_records_to_policies(db: Session) -> None:
+    traffic = make_source(
+        canonical_key="traffic",
+        external_id="traffic",
+        title="Theme train discount",
+        source_url="https://korean.visitkorea.or.kr/travelmonth/benefits/traffic.do",
+        source_category="traffic_benefit",
+        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefits/traffic.do",
+        detail_url=None,
+        region="전국",
+        benefit_text="Theme train fare 50% discount",
+        benefit_value_text="50% discount",
+        extracted_amount_krw=None,
+        extracted_discount_percent=50,
+        benefit_value_type="percent",
+    )
+    half_trip = make_source(
+        canonical_key="hapcheon-half-trip",
+        external_id="hapcheon-half-trip",
+        title="Hapcheon half trip support",
+        source_name="대한민국 반값여행",
+        source_url="https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+        source_category="local_half_trip",
+        collected_page_url="https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+        region="경남",
+        city="합천",
+        benefit_text="Travel expense 50% refund",
+        benefit_value_text="Up to 200,000 KRW refund",
+        extracted_amount_krw=200000,
+    )
+    upsert_external_source_records(db, [traffic, half_trip])
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+
+    result = promote_external_benefits_to_policies(db)
+
+    policies = db.query(Policy).order_by(Policy.id).all()
+    assert result.promoted_count == 2
+    assert [policy.policy_type for policy in policies] == ["교통", "지역할인"]
+    assert policies[0].official_url == traffic.collected_page_url
+    assert policies[1].source_category == "local_half_trip"
+
+
+def test_hides_promoted_local_half_trip_when_source_becomes_ended_or_unknown(
+    db: Session,
+) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                canonical_key="half-trip-ended",
+                external_id="half-trip-ended",
+                source_category="local_half_trip",
+            ),
+            make_source(
+                canonical_key="half-trip-unknown",
+                external_id="half-trip-unknown",
+                source_category="local_half_trip",
+            ),
+        ],
+    )
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+
+    promote_external_benefits_to_policies(db)
+    rows[0].status = "ended"
+    rows[1].status = "unknown"
+
+    result = promote_external_benefits_to_policies(db)
+
+    policies = (
+        db.query(Policy)
+        .filter(Policy.external_source_record_id.in_([row.id for row in rows]))
+        .order_by(Policy.external_source_record_id)
+        .all()
+    )
+    assert result.promoted_count == 0
+    assert [policy.status for policy in policies] == ["hidden", "hidden"]
+    assert [policy.verification_status for policy in policies] == ["fresh", "fresh"]
+
+
+def test_reactivates_hidden_policy_when_source_returns_active_fresh(db: Session) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                canonical_key="half-trip-reactivate",
+                external_id="half-trip-reactivate",
+                source_category="local_half_trip",
+            )
+        ],
+    )
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+
+    promote_external_benefits_to_policies(db)
+    policy = db.query(Policy).filter(Policy.external_source_record_id == rows[0].id).one()
+    rows[0].status = "ended"
+    promote_external_benefits_to_policies(db)
+    assert policy.status == "hidden"
+
+    rows[0].status = "active"
+    rows[0].freshness_status = "fresh"
+    result = promote_external_benefits_to_policies(db)
+
+    assert result.promoted_count == 1
+    assert policy.status == "active"
+
+
+def test_deactivation_hides_admin_override_without_overwriting_protected_fields(
+    db: Session,
+) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                canonical_key="admin-override-half-trip",
+                external_id="admin-override-half-trip",
+                source_category="local_half_trip",
+                title="Source title",
+            )
+        ],
+    )
+    policy = Policy(
+        slug=f"travelmonth-{rows[0].id}",
+        title="Admin title",
+        organization="Admin org",
+        policy_type="etc",
+        description="Admin description",
+        benefit_detail="Admin benefit",
+        target_condition="Admin target",
+        region="Admin region",
+        status="active",
+        admin_override_enabled=True,
+        external_source_record_id=rows[0].id,
+    )
+    db.add(policy)
+    db.flush()
+    rows[0].status = "ended"
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+
+    promote_external_benefits_to_policies(db)
+
+    assert policy.status == "hidden"
+    assert policy.title == "Admin title"
+    assert policy.organization == "Admin org"
+    assert policy.source_category == "local_half_trip"
+    assert policy.verification_status == "fresh"
+
+
+def test_reactivates_admin_override_when_source_returns_active_fresh(
+    db: Session,
+) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                canonical_key="admin-override-reactivate",
+                external_id="admin-override-reactivate",
+                source_category="local_half_trip",
+                title="Source title",
+            )
+        ],
+    )
+    policy = Policy(
+        slug=f"travelmonth-{rows[0].id}",
+        title="Admin title",
+        organization="Admin org",
+        policy_type="etc",
+        description="Admin description",
+        benefit_detail="Admin benefit",
+        target_condition="Admin target",
+        region="Admin region",
+        status="hidden",
+        admin_override_enabled=True,
+        external_source_record_id=rows[0].id,
+    )
+    db.add(policy)
+    db.flush()
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+
+    result = promote_external_benefits_to_policies(db)
+
+    assert result.promoted_count == 1
+    assert policy.status == "active"
+    assert policy.title == "Admin title"
+    assert policy.organization == "Admin org"
+    assert policy.source_category == "local_half_trip"
+
+
+def test_promoting_local_half_trip_hides_legacy_dgtour_seed_policies(
+    db: Session,
+) -> None:
+    upsert_external_source_records(
+        db,
+        [
+            make_source(
+                canonical_key="active-half-trip",
+                external_id="active-half-trip",
+                source_name="대한민국 반값여행",
+                source_url="https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+                source_category="local_half_trip",
+                collected_page_url="https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+                title="Hadong half trip support",
+                region="Gyeongnam",
+                city="Hadong",
+            )
+        ],
+    )
+    legacy_policy = Policy(
+        slug="dgtour-hadong-3",
+        title="Legacy dgtour policy",
+        organization="KTO",
+        policy_type="지역할인",
+        description="Legacy",
+        benefit_detail="Legacy",
+        target_condition="Legacy",
+        region="Gyeongnam",
+        status="active",
+    )
+    db.add(legacy_policy)
+    db.flush()
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+
+    result = promote_external_benefits_to_policies(db)
+
+    assert result.promoted_count == 1
+    assert legacy_policy.status == "hidden"
+    assert db.query(Policy).filter(Policy.slug.like("travelmonth-%")).one().status == "active"

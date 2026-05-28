@@ -36,11 +36,13 @@ def get_external_collection_quality_report(
     style: str | None = None,
     region: str | None = None,
     limit: int = 3,
+    source_category: str | None = None,
 ) -> ExternalCollectionQualityReport:
     run_date = today or date.today()
+    target_source_category = source_category or SOURCE_CATEGORY
     records = external_source_repository.list_external_source_records_by_category(
         db,
-        source_category=SOURCE_CATEGORY,
+        source_category=target_source_category,
     )
     source_name = str(records[0].source_name) if records else str(SOURCE_NAME)
     region_stats: dict[str, _RegionQualityStats] = {}
@@ -58,7 +60,7 @@ def get_external_collection_quality_report(
 
     return ExternalCollectionQualityReport(
         sourceName=source_name,
-        sourceCategory=SOURCE_CATEGORY,
+        sourceCategory=target_source_category,
         totalRecords=len(records),
         freshRecords=sum(1 for record in records if record.freshness_status == "fresh"),
         activeRecords=sum(1 for record in records if record.status == "active"),

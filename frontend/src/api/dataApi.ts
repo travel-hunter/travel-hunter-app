@@ -1,4 +1,25 @@
-import { ContactInfo, ContactVerificationRequestResponse, InviteRole, InviteState, NotificationSettings, Policy, Profile, ProfileOptions, Recommendation, RegionRecommendation, Trip, User } from "./types";
+import {
+  AdminAuditLogListResponse,
+  AdminExternalSourceSummaryResponse,
+  AdminPolicyDetail,
+  AdminPolicyListResponse,
+  AdminUserDetail,
+  AdminUserListResponse,
+  AppliedPolicyLink,
+  ContactInfo,
+  ContactVerificationRequestResponse,
+  InviteRole,
+  InviteState,
+  NotificationSettings,
+  Policy,
+  Profile,
+  ProfileOptions,
+  Recommendation,
+  RegionRecommendation,
+  TravelAreaRecommendationResponse,
+  Trip,
+  User,
+} from "./types";
 
 export type LoginRequest = {
   email: string;
@@ -73,6 +94,8 @@ export type DeleteTripResponse = {
 export type CreateTripRequest = {
   title?: string;
   region?: string;
+  travelAreaId?: string;
+  participantCount?: number;
   style?: string;
   description?: string;
   policySlug?: string;
@@ -81,10 +104,26 @@ export type CreateTripRequest = {
   endDate?: string;
 };
 
+export type TravelAreaRecommendationOptions = {
+  sido?: string;
+  query?: string;
+  mode?: string;
+  style?: string;
+  limit?: number;
+};
+
 export type TripPlaceRequest = {
   time?: string;
   label: string;
   meta?: string;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  category?: string | null;
+  categoryCode?: string | null;
+  placeUrl?: string | null;
+  sourceProvider?: string | null;
+  externalPlaceId?: string | null;
 };
 
 export type TripPlaceUpdateRequest = Partial<TripPlaceRequest>;
@@ -111,9 +150,7 @@ export type ContactVerificationConfirmRequest = {
 };
 
 export type AppDataApi = {
-  getPreviewUser: () => User;
-  getProfileOptions: () => ProfileOptions;
-  getPreviewTrip: () => Trip;
+  getProfileOptions: () => Promise<ProfileOptions>;
   login: (request?: LoginRequest) => Promise<AuthResponse>;
   signup: (request?: SignupRequest) => Promise<AuthResponse>;
   checkEmailAvailability: (request: EmailAvailabilityRequest) => Promise<EmailAvailabilityResponse>;
@@ -135,10 +172,12 @@ export type AppDataApi = {
   updateNotificationSettings: (settings: Pick<NotificationSettings, "deadlineEnabled">) => Promise<NotificationSettings>;
   listPolicies: () => Promise<Policy[]>;
   listRegionRecommendations: (options?: { style?: string; region?: string; limit?: number }) => Promise<RegionRecommendation[]>;
+  listTravelAreaRecommendations: (options?: TravelAreaRecommendationOptions) => Promise<TravelAreaRecommendationResponse>;
   getPolicy: (policySlug?: string) => Promise<Policy>;
   savePolicy: (policySlug: string) => Promise<SavePolicyResponse>;
   listSavedPolicies: () => Promise<Policy[]>;
   listAppliedPolicies: () => Promise<Policy[]>;
+  listAppliedPolicyLinks: () => Promise<AppliedPolicyLink[]>;
   removeSavedPolicy: (policySlug: string) => Promise<SavePolicyResponse>;
   listTrips: () => Promise<Trip[]>;
   createTrip: (trip?: CreateTripRequest) => Promise<Trip>;
@@ -150,8 +189,18 @@ export type AppDataApi = {
   moveTripPlace: (tripId: string, placeId: string, move: TripPlaceMoveRequest) => Promise<Trip>;
   deleteTripPlace: (tripId: string, placeId: string) => Promise<Trip>;
   addPolicyToTrip: (tripId: string, policySlug: string) => Promise<TripPolicyResponse>;
+  removePolicyFromTrip: (tripId: string, policySlug: string) => Promise<TripPolicyResponse>;
   listRecommendations: (tripId: string) => Promise<Recommendation[]>;
   getInviteState: (tripId: string) => Promise<InviteState>;
   confirmInviteSent: (tripId: string, role?: InviteRole) => Promise<InviteState>;
   acceptInvite: (inviteToken: string) => Promise<InviteState>;
+  listAdminUsers: (options?: { q?: string; onboardingCompleted?: boolean; limit?: number; offset?: number }) => Promise<AdminUserListResponse>;
+  getAdminUser: (userId: string) => Promise<AdminUserDetail>;
+  updateAdminUser: (userId: string, user: Partial<AdminUserDetail>) => Promise<AdminUserDetail>;
+  listAdminPolicies: (options?: { q?: string; category?: string; region?: string; sourceType?: string; status?: string; limit?: number; offset?: number }) => Promise<AdminPolicyListResponse>;
+  getAdminExternalSourceSummary: () => Promise<AdminExternalSourceSummaryResponse>;
+  getAdminPolicy: (policyId: string) => Promise<AdminPolicyDetail>;
+  createAdminPolicy: (policy: Record<string, unknown>) => Promise<AdminPolicyDetail>;
+  updateAdminPolicy: (policyId: string, policy: Record<string, unknown>) => Promise<AdminPolicyDetail>;
+  listAdminAuditLogs: (options?: { targetType?: string; targetId?: string; action?: string; limit?: number; offset?: number }) => Promise<AdminAuditLogListResponse>;
 };

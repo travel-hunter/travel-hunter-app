@@ -32,6 +32,42 @@ CREATE TABLE public.alembic_version (
 
 
 --
+-- Name: admin_audit_logs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.admin_audit_logs (
+    id bigint NOT NULL,
+    admin_user_id bigint NOT NULL,
+    action character varying(80) NOT NULL,
+    target_type character varying(40) NOT NULL,
+    target_id character varying(120) NOT NULL,
+    summary text,
+    before_json jsonb,
+    after_json jsonb,
+    created_at timestamp without time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: admin_audit_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.admin_audit_logs_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: admin_audit_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.admin_audit_logs_id_seq OWNED BY public.admin_audit_logs.id;
+
+
+--
 -- Name: auth_refresh_tokens; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -268,7 +304,10 @@ CREATE TABLE public.policies (
     source_canonical_key character varying(160),
     normalized_at timestamp without time zone,
     last_verified_at timestamp without time zone,
-    verification_status character varying(30)
+    verification_status character varying(30),
+    status character varying(20) DEFAULT 'active'::character varying NOT NULL,
+    admin_override_enabled boolean DEFAULT false NOT NULL,
+    updated_at timestamp without time zone DEFAULT now() NOT NULL
 );
 
 
@@ -565,6 +604,8 @@ CREATE TABLE public.trips (
     start_date date NOT NULL,
     end_date date NOT NULL,
     region character varying(100),
+    travel_area_id character varying(120),
+    participant_count integer DEFAULT 1 NOT NULL,
     description text,
     created_at timestamp without time zone DEFAULT now() NOT NULL,
     updated_at timestamp without time zone DEFAULT now() NOT NULL,
@@ -674,7 +715,8 @@ CREATE TABLE public.users (
     travel_style character varying(50),
     travel_budget character varying(50),
     phone_number character varying(30),
-    phone_verified_at timestamp without time zone
+    phone_verified_at timestamp without time zone,
+    role character varying(20) DEFAULT 'user'::character varying NOT NULL
 );
 
 
@@ -695,6 +737,13 @@ CREATE SEQUENCE public.users_id_seq
 --
 
 ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
+
+
+--
+-- Name: admin_audit_logs id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.admin_audit_logs ALTER COLUMN id SET DEFAULT nextval('public.admin_audit_logs_id_seq'::regclass);
 
 
 --
@@ -829,6 +878,14 @@ ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_
 
 ALTER TABLE ONLY public.alembic_version
     ADD CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num);
+
+
+--
+-- Name: admin_audit_logs admin_audit_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.admin_audit_logs
+    ADD CONSTRAINT admin_audit_logs_pkey PRIMARY KEY (id);
 
 
 --
@@ -1122,6 +1179,27 @@ CREATE INDEX ix_external_source_records_source_category ON public.external_sourc
 
 
 --
+-- Name: ix_admin_audit_logs_admin_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_admin_audit_logs_admin_user_id ON public.admin_audit_logs USING btree (admin_user_id);
+
+
+--
+-- Name: ix_admin_audit_logs_action; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_admin_audit_logs_action ON public.admin_audit_logs USING btree (action);
+
+
+--
+-- Name: ix_admin_audit_logs_target_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_admin_audit_logs_target_type ON public.admin_audit_logs USING btree (target_type);
+
+
+--
 -- Name: ix_external_source_records_source_name; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1252,6 +1330,14 @@ CREATE INDEX ix_user_saved_policies_policy_id ON public.user_saved_policies USIN
 --
 
 CREATE INDEX ix_user_saved_policies_user_id ON public.user_saved_policies USING btree (user_id);
+
+
+--
+-- Name: admin_audit_logs admin_audit_logs_admin_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.admin_audit_logs
+    ADD CONSTRAINT admin_audit_logs_admin_user_id_fkey FOREIGN KEY (admin_user_id) REFERENCES public.users(id);
 
 
 --
