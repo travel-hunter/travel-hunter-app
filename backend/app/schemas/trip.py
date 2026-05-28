@@ -80,6 +80,8 @@ class Recommendation(BaseModel):
     reason: str
     categoryGroup: str | None = None
     categoryCode: str | None = None
+    categoryName: str | None = None
+    phone: str | None = None
     address: str | None = None
     latitude: float | None = None
     longitude: float | None = None

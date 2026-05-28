@@ -9,7 +9,22 @@ export type KakaoMapsNamespace = {
     Marker: new (options: Record<string, unknown>) => {
       setMap: (map: unknown | null) => void;
     };
+    CustomOverlay: new (options: Record<string, unknown>) => {
+      setMap: (map: unknown | null) => void;
+    };
     event: { addListener: (target: unknown, eventName: string, handler: () => void) => void };
+    services?: {
+      Status: { OK: string };
+      Geocoder: new () => {
+        addressSearch: (query: string, callback: (results: Array<{ x: string; y: string }>, status: string) => void) => void;
+      };
+      Places: new () => {
+        keywordSearch: (
+          query: string,
+          callback: (results: Array<{ x: string; y: string }>, status: string) => void,
+        ) => void;
+      };
+    };
     load: (callback: () => void) => void;
   };
 };
@@ -59,7 +74,7 @@ export function loadKakaoMaps(): Promise<KakaoMapsNamespace> {
     const script = document.createElement("script");
     script.async = true;
     script.dataset.kakaoMapSdk = "true";
-    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(appKey)}&autoload=false`;
+    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(appKey)}&autoload=false&libraries=services`;
     script.addEventListener("load", resolveWhenReady, { once: true });
     script.addEventListener("error", () => reject(new Error("Failed to load Kakao Maps SDK")), { once: true });
     document.head.appendChild(script);

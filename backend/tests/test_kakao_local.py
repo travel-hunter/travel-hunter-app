@@ -56,6 +56,7 @@ def test_search_keyword_maps_documents_and_uses_query_filters() -> None:
                         "category_group_name": "관광명소",
                         "address_name": "제주 제주시 수렴동 2454",
                         "road_address_name": "제주 제주시 용천로 56",
+                        "phone": "064-123-4567",
                         "x": "126.1234567",
                         "y": "33.4567891",
                         "place_url": "http://place.map.kakao.com/26338954",
@@ -85,6 +86,8 @@ def test_search_keyword_maps_documents_and_uses_query_filters() -> None:
     assert place.name == "성산 일출봉"
     assert place.category_group_code == "AT4"
     assert place.category_group_name == "관광명소"
+    assert place.category_name == "관광>자연휴양"
+    assert place.phone == "064-123-4567"
     assert place.address == "제주 제주시 수렴동 2454"
     assert place.latitude == 33.4567891
     assert place.longitude == 126.1234567

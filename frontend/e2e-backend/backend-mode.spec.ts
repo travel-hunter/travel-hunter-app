@@ -100,18 +100,24 @@ test("backend data source drives policy, trip, recommendation, invite, and logou
   await expect(page).toHaveURL(new RegExp(`/ai-results\\?tripId=${tripId}$`));
   await expect(page.locator(".ai-candidate-card").first()).toBeVisible();
 
-  const recommendationAction = page.locator(".ai-candidate-card").first();
-  await expect(recommendationAction).toBeVisible();
-  if (await recommendationAction.isEnabled()) {
-    await recommendationAction.click();
+  const recommendationCard = page.locator(".ai-candidate-card").first();
+  await expect(recommendationCard).toBeVisible();
+  const recommendationAddButton = recommendationCard.getByRole("button", {
+    name: /추가$/,
+  });
+  if (await recommendationAddButton.isVisible()) {
+    await recommendationAddButton.click();
     const dayPicker = page.getByRole("dialog");
-    const addToDayButton = dayPicker.getByRole("button", { name: /^Day [1-9][0-9]*/ }).first();
+    await expect(dayPicker).toBeVisible();
+    const addToDayButton = dayPicker
+      .getByRole("button", { name: /^Day [1-9][0-9]*에 추가/ })
+      .first();
     await expect(addToDayButton).toBeVisible();
     await addToDayButton.click();
     await expect(page.locator(".toast")).toBeVisible();
     await page.goto(`/trips/${tripId}`);
   } else {
-    await expect(recommendationAction).toContainText("이미 일정에 있음");
+    await expect(recommendationCard).toContainText("이미 추가됨");
     await page.goto(`/trips/${tripId}`);
   }
 

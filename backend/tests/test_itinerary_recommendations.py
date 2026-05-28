@@ -76,6 +76,7 @@ def test_recommendation_from_candidate_includes_map_metadata() -> None:
         category_name="Restaurant",
         category_group_code="FD6",
         category_group_name="Food",
+        phone="033-123-4567",
         address="Gangwon road 1",
         latitude=38.1,
         longitude=128.6,
@@ -92,6 +93,8 @@ def test_recommendation_from_candidate_includes_map_metadata() -> None:
     assert item["id"] == "kakao_local:food-1"
     assert item["categoryGroup"] == "food"
     assert item["categoryCode"] == "FD6"
+    assert item["categoryName"] == "Restaurant"
+    assert item["phone"] == "033-123-4567"
     assert item["address"] == "Gangwon road 1"
     assert item["latitude"] == 38.1
     assert item["longitude"] == 128.6
@@ -99,6 +102,64 @@ def test_recommendation_from_candidate_includes_map_metadata() -> None:
     assert item["suggestedDay"] == 2
     assert item["sourceProvider"] == "kakao_local"
     assert item["externalPlaceId"] == "food-1"
+
+
+def _category_counts(candidates):
+    counts: dict[str, int] = {}
+    for candidate in candidates:
+        category = recommendations.category_group_for_code(candidate.category_group_code)
+        counts[category] = counts.get(category, 0) + 1
+    return counts
+
+
+def test_additional_place_candidates_balances_minimum_ten_candidates() -> None:
+    provider = FakeExternalProvider(
+        {
+            "AT4": [external_candidate(index, "AT4", f"Attraction {index}") for index in range(1, 5)],
+            "FD6": [external_candidate(index, "FD6", f"Food {index}") for index in range(10, 15)],
+            "CE7": [external_candidate(index, "CE7", f"Cafe {index}") for index in range(20, 25)],
+            "AD5": [external_candidate(index, "AD5", f"Stay {index}") for index in range(30, 34)],
+        }
+    )
+
+    candidates = recommendations.additional_place_candidates(
+        region="Jeju",
+        style="맛집",
+        day_count=4,
+        travel_area_id=None,
+        external_provider=provider,
+        limit=10,
+    )
+
+    counts = _category_counts(candidates)
+    assert len(candidates) >= 10
+    assert counts["attraction"] >= 3
+    assert counts["food"] >= 3
+    assert counts["stay"] >= 2
+
+
+def test_additional_place_candidates_backfills_when_stays_are_sparse() -> None:
+    provider = FakeExternalProvider(
+        {
+            "AT4": [external_candidate(1, "AT4", "Only attraction")],
+            "FD6": [external_candidate(index, "FD6", f"Food {index}") for index in range(10, 16)],
+            "CE7": [external_candidate(index, "CE7", f"Cafe {index}") for index in range(20, 26)],
+            "AD5": [],
+        }
+    )
+
+    candidates = recommendations.additional_place_candidates(
+        region="Jeju",
+        style="맛집",
+        day_count=6,
+        travel_area_id=None,
+        external_provider=provider,
+        limit=10,
+    )
+
+    assert len(candidates) >= 10
+    assert _category_counts(candidates).get("stay", 0) == 0
+    assert all(candidate.source_provider == "kakao_local" for candidate in candidates)
 
 
 def test_generate_course_uses_external_candidates_before_catalog() -> None:

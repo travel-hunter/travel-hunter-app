@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 import logging
 import time
-from typing import Protocol
+from typing import Callable, Protocol
 
 from app.data.itinerary_catalog import ITINERARY_PLACE_CATALOG
 
@@ -26,6 +26,11 @@ EXTERNAL_CATEGORY_CODES = ("AT4", "CT1", "FD6", "CE7", "AD5")
 FALLBACK_MIN_DAYTIME_RATIO = 0.5
 EXTERNAL_MAX_CITY_QUERIES = 2
 EXTERNAL_SEARCH_TIME_BUDGET_SECONDS = 8.0
+ADDITIONAL_RECOMMENDATION_CATEGORY_TARGETS = {
+    "attraction": 3,
+    "food": 3,
+    "stay": 2,
+}
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -76,6 +81,7 @@ class ExternalPlaceCandidate:
     category_name: str | None = None
     category_group_code: str | None = None
     category_group_name: str | None = None
+    phone: str | None = None
     address: str | None = None
     latitude: float | None = None
     longitude: float | None = None
@@ -184,6 +190,8 @@ def recommendation_from_candidate(
         "reason": reason,
         "categoryGroup": category_group_for_code(candidate.category_group_code),
         "categoryCode": candidate.category_group_code,
+        "categoryName": candidate.category_name,
+        "phone": candidate.phone,
         "address": candidate.address,
         "latitude": candidate.latitude,
         "longitude": candidate.longitude,
@@ -435,6 +443,77 @@ def _pop_candidate(
     return None
 
 
+def _candidate_identity(candidate: ExternalPlaceCandidate) -> str:
+    return candidate.external_place_id or _normalize_text(candidate.title)
+
+
+def _append_unique_candidate(
+    selected: list[ExternalPlaceCandidate],
+    candidate: ExternalPlaceCandidate,
+    used_ids: set[str],
+    *,
+    limit: int,
+) -> bool:
+    if len(selected) >= limit:
+        return False
+    key = _candidate_identity(candidate)
+    if key in used_ids:
+        return False
+    used_ids.add(key)
+    selected.append(candidate)
+    return True
+
+
+def _flatten_additional_candidates(
+    candidates_by_code: dict[str, list[ExternalPlaceCandidate]],
+) -> list[ExternalPlaceCandidate]:
+    flattened: list[ExternalPlaceCandidate] = []
+    seen: set[str] = set()
+    for code in ("AT4", "CT1", "FD6", "CE7", "AD5"):
+        for candidate in candidates_by_code.get(code, []):
+            key = _candidate_identity(candidate)
+            if key in seen:
+                continue
+            seen.add(key)
+            flattened.append(candidate)
+    return flattened
+
+
+def _balanced_additional_candidates(
+    candidates_by_code: dict[str, list[ExternalPlaceCandidate]],
+    *,
+    limit: int,
+) -> list[ExternalPlaceCandidate]:
+    if limit <= 0:
+        return []
+
+    all_candidates = _flatten_additional_candidates(candidates_by_code)
+    candidates_by_category: dict[str, list[ExternalPlaceCandidate]] = {
+        "attraction": [],
+        "food": [],
+        "stay": [],
+        "other": [],
+    }
+    for candidate in all_candidates:
+        candidates_by_category.setdefault(
+            category_group_for_code(candidate.category_group_code),
+            [],
+        ).append(candidate)
+
+    selected: list[ExternalPlaceCandidate] = []
+    used_ids: set[str] = set()
+    for category, target in ADDITIONAL_RECOMMENDATION_CATEGORY_TARGETS.items():
+        for candidate in candidates_by_category.get(category, [])[:target]:
+            _append_unique_candidate(selected, candidate, used_ids, limit=limit)
+
+    for candidate in all_candidates:
+        _append_unique_candidate(selected, candidate, used_ids, limit=limit)
+        if len(selected) >= limit:
+            break
+
+    return selected
+
+
 def additional_place_candidates(
     *,
     region: str,
@@ -443,6 +522,7 @@ def additional_place_candidates(
     travel_area_id: str | None,
     external_provider: ExternalPlaceProvider,
     limit: int = 12,
+    exclude_candidate: Callable[[ExternalPlaceCandidate], bool] | None = None,
 ) -> list[ExternalPlaceCandidate]:
     candidates_by_code = _external_candidates(
         region=region,
@@ -451,19 +531,12 @@ def additional_place_candidates(
         travel_area_id=travel_area_id,
         external_provider=external_provider,
     )
-    ordered_codes = ("AT4", "CT1", "FD6", "CE7", "AD5")
-    candidates: list[ExternalPlaceCandidate] = []
-    seen: set[str] = set()
-    for code in ordered_codes:
-        for candidate in candidates_by_code.get(code, []):
-            key = candidate.external_place_id or _normalize_text(candidate.title)
-            if key in seen:
-                continue
-            seen.add(key)
-            candidates.append(candidate)
-            if len(candidates) >= limit:
-                return candidates
-    return candidates
+    if exclude_candidate is not None:
+        candidates_by_code = {
+            code: [candidate for candidate in candidates if not exclude_candidate(candidate)]
+            for code, candidates in candidates_by_code.items()
+        }
+    return _balanced_additional_candidates(candidates_by_code, limit=limit)
 
 
 def _generated_from_candidate(

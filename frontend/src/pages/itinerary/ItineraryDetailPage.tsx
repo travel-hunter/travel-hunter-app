@@ -701,7 +701,7 @@ export function ItineraryDetailPage() {
                   </button>
                 )}
                 <Link className="prototype-trip-action-button prototype-trip-action-ai" to={`/ai-results?tripId=${encodeURIComponent(trip.id)}`}>
-                  ✨ AI 추천 일정 보기
+                  ✨ 추천 후보 추가
                 </Link>
               </div>
             </div>
@@ -790,6 +790,7 @@ function PrototypeTripMap({
     subtitle: place.address || place.meta,
     latitude: place.latitude,
     longitude: place.longitude,
+    query: place.address || place.label,
   }));
 
   if (places.length === 0) {
