@@ -24,6 +24,7 @@ class KakaoLocalPlace:
     category_name: str | None
     category_group_code: str | None
     category_group_name: str | None
+    phone: str | None
     address: str | None
     latitude: float | None
     longitude: float | None
@@ -76,6 +77,7 @@ def _to_place_payload(document: dict[str, Any]) -> KakaoLocalPlace:
         category_name=(document.get("category_name") or None) or None,
         category_group_code=(document.get("category_group_code") or None) or None,
         category_group_name=(document.get("category_group_name") or None) or None,
+        phone=(document.get("phone") or None) or None,
         address=(document.get("address_name") or document.get("road_address_name") or None)
         if document.get("address_name") or document.get("road_address_name")
         else None,

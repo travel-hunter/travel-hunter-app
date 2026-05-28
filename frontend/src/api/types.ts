@@ -238,6 +238,8 @@ export type Recommendation = {
   reason: string;
   categoryGroup?: RecommendationCategoryGroup | null;
   categoryCode?: string | null;
+  categoryName?: string | null;
+  phone?: string | null;
   address?: string | null;
   latitude?: number | null;
   longitude?: number | null;

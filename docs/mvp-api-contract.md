@@ -904,12 +904,14 @@ Optional request fields:
 
 ### GET /trips/{trip_id}/recommendations
 
-Returns additional AI place candidates for the trip. The backend excludes places already in the itinerary by `sourceProvider + externalPlaceId`, by `externalPlaceId`, and then by normalized place title. Kakao-backed candidates include map metadata when available.
+Returns additional AI place candidates for the trip. The backend treats `(sourceProvider, externalPlaceId)` as the durable external identity, then applies a conservative same-provider `externalPlaceId` and normalized-title duplicate exclusion for existing MVP data. Kakao-backed candidates include official Kakao Local API map metadata when available; ratings/reviews are not exposed because the official API response does not provide those fields. When official Kakao data can supply enough non-duplicate places, the response targets at least 10 candidates with a useful mix of attractions, food, and stays; sparse categories are backfilled from other official candidates instead of creating synthetic places.
 
 Additional `Recommendation` fields:
 - `id`: string | null
 - `categoryGroup`: `stay` | `food` | `attraction` | `other` | null
 - `categoryCode`: string | null
+- `categoryName`: string | null
+- `phone`: string | null
 - `address`: string | null
 - `latitude`: number | null
 - `longitude`: number | null
@@ -928,7 +930,9 @@ AI 추천 장소 목록 조회.
     "label": "🏖️",
     "title": "함덕해수욕장",
     "meta": "제주시 조천읍",
-    "reason": "제주 북동부 대표 해수욕장으로 물이 맑습니다."
+    "reason": "제주 북동부 대표 해수욕장으로 물이 맑습니다.",
+    "categoryName": "관광명소 > 해수욕장",
+    "phone": "064-000-0000"
   }
 ]
 ```
@@ -1125,6 +1129,10 @@ SOLAPI 발송 결과 webhook 수신. `X-Solapi-Secret` 헤더로 검증.
 | category | string \| null | 장소 카테고리 이름 |
 | categoryCode | string \| null | 장소 카테고리 코드 |
 | placeUrl | string \| null | 장소 상세 URL |
+| sourceProvider | string \| null | 외부 장소 제공자 식별자 |
+| externalPlaceId | string \| null | 외부 장소 ID |
+
+`externalPlaceId` is scoped by `sourceProvider`; the durable external identity is the pair `(sourceProvider, externalPlaceId)`.
 
 ---
 

@@ -113,6 +113,7 @@ class KakaoItineraryPlaceProvider:
                         category_name=place.category_name,
                         category_group_code=place.category_group_code or category_group_code,
                         category_group_name=place.category_group_name,
+                        phone=place.phone,
                         address=place.address,
                         latitude=place.latitude,
                         longitude=place.longitude,
@@ -820,6 +821,8 @@ def _recommendation_items(value: Any) -> list[dict[str, object]]:
         "id",
         "categoryGroup",
         "categoryCode",
+        "categoryName",
+        "phone",
         "address",
         "latitude",
         "longitude",
@@ -892,19 +895,19 @@ def _additional_recommendation_items(trip: Trip) -> list[dict[str, object]]:
     candidates = itinerary_recommendations.additional_place_candidates(
         region=region,
         style=style,
-        day_count=max(len(day_numbers), 4),
+        day_count=max(len(day_numbers), 6),
         travel_area_id=trip.travel_area_id,
         external_provider=provider,
-    )
-    items: list[dict[str, object]] = []
-    for candidate in candidates:
-        if _is_duplicate_candidate(
+        limit=18,
+        exclude_candidate=lambda candidate: _is_duplicate_candidate(
             candidate,
             provider_ids=provider_ids,
             external_ids=external_ids,
             titles=titles,
-        ):
-            continue
+        ),
+    )
+    items: list[dict[str, object]] = []
+    for candidate in candidates:
         suggested_day = day_numbers[len(items) % len(day_numbers)]
         items.append(
             itinerary_recommendations.recommendation_from_candidate(

@@ -539,7 +539,7 @@
         "expectedSaving": "string",
         "linkedPolicies": "array of { slug, title, amount, region }",
         "recommendedPolicies": "array of { slug, title, amount, region }",
-        "days": "object (id:string, time:string, label:string, meta:string, address:string|null, latitude:number|null, longitude:number|null, category:string|null, categoryCode:string|null, placeUrl:string|null)",
+        "days": "object (id:string, time:string, label:string, meta:string, address:string|null, latitude:number|null, longitude:number|null, category:string|null, categoryCode:string|null, placeUrl:string|null, sourceProvider:string|null, externalPlaceId:string|null)",
         "currentUserRole": "string enum(owner|editor|viewer)"
       },
       "exampleTripId": "1",
@@ -577,7 +577,7 @@
         "expectedSaving": "string",
         "linkedPolicies": "array of { slug, title, amount, region, status }",
         "recommendedPolicies": "array of { slug, title, amount, region, status }",
-        "days": "object (id:string, time:string, label:string, meta:string, address:string|null, latitude:number|null, longitude:number|null, category:string|null, categoryCode:string|null, placeUrl:string|null)",
+        "days": "object (id:string, time:string, label:string, meta:string, address:string|null, latitude:number|null, longitude:number|null, category:string|null, categoryCode:string|null, placeUrl:string|null, sourceProvider:string|null, externalPlaceId:string|null)",
         "currentUserRole": "string enum(owner|editor|viewer)"
       },
       "dbModePolicySlugBehavior": "When policySlug is present, create the trip and link trip_policies; unknown policySlug returns 404 Policy not found.",
@@ -598,7 +598,7 @@
         "expectedSaving": "string",
         "linkedPolicies": "array of { slug, title, amount, region, status }",
         "recommendedPolicies": "array of { slug, title, amount, region, status }",
-        "days": "object (id:string, time:string, label:string, meta:string, address:string|null, latitude:number|null, longitude:number|null, category:string|null, categoryCode:string|null, placeUrl:string|null)",
+        "days": "object (id:string, time:string, label:string, meta:string, address:string|null, latitude:number|null, longitude:number|null, category:string|null, categoryCode:string|null, placeUrl:string|null, sourceProvider:string|null, externalPlaceId:string|null)",
         "currentUserRole": "string enum(owner|editor|viewer)"
       }
     },
@@ -691,9 +691,11 @@
         "suggestedDay": "number|null",
         "aiReview": "string|null",
         "sourceProvider": "string|null",
-        "externalPlaceId": "string|null"
+        "externalPlaceId": "string|null",
+        "categoryName": "string|null",
+        "phone": "string|null"
       },
-      "dbModeBehavior": "Returns additional place candidates for the trip, excluding places already in the itinerary. Kakao-backed candidates include map metadata when available."
+      "dbModeBehavior": "Returns additional place candidates for the trip, excluding places already in the itinerary. Kakao-backed candidates include official Local API map metadata such as categoryName, phone, address, coordinates, and placeUrl when available."
     },
     {
       "method": "GET",
