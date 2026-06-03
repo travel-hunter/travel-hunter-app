@@ -8,6 +8,18 @@
 
 ## Latest Validations
 
+- Screen feature report on 2026-05-29: created `docs/screen-feature-status-report.md` and recorded `/login` feature status for login, password reset, signup, Kakao OAuth, and Google OAuth.
+- Screen feature report validation on 2026-05-29: Docker stack was rebuilt and started through Windows `docker.exe`; `GET /api/health` returned 200, seeded policy count was 68, demo email/password login returned 200, existing-email password reset returned 503 because SMTP is not configured, and Kakao/Google OAuth start returned 503 because provider credentials are not configured.
+- Screen feature report on 2026-05-29: added `/home` button/function status to `docs/screen-feature-status-report.md`, including policy exploration entry, mypage avatar, featured policy, weekly benefit cards, destination cards, AI trip CTA, and service navigation tabs.
+- Screen feature report `/home` validation on 2026-05-29: `docker.exe compose -f compose.yaml ps` showed backend/db healthy and frontend running; `GET /api/policies`, `GET /api/recommendations/regions?style=휴식&region=제주&limit=3`, and frontend `HEAD /home` returned 200.
+- Screen feature report on 2026-05-29: added `/policies` policy list status to `docs/screen-feature-status-report.md`, including category tabs, saved-only filter, card heart save/remove, search, region/period/amount filters, reset, result counts, policy cards, and navigation.
+- Screen feature report `/policies` validation on 2026-05-29: `GET /api/policies` returned 200 with 57 active policies, first active policy `travelmonth-1`; frontend `HEAD /policies` returned 200; Docker compose status still showed backend/db healthy and frontend running.
+- Screen feature report on 2026-05-29: added policy collection logic summary to `docs/screen-feature-status-report.md`, documenting official-source HTML fetch, parser categories, `external_source_records` upsert, policy promotion, hidden deactivation, scheduler settings, and current compose default scheduler-disabled state.
+- Screen feature report on 2026-05-29: added Kakao Map API pre-check to `docs/screen-feature-status-report.md`; current Docker frontend bundle lacks `VITE_KAKAO_MAP_JS_KEY`, so the trip detail map uses fallback UI instead of the live Kakao Maps SDK.
+- Docker rebuild on 2026-05-29: `docker.exe compose -f compose.yaml up -d --build` rebuilt/recreated frontend and backend; backend health returned 200 with database connected, frontend `/` returned 200, and the rebuilt frontend bundle still reported `Kakao Maps JavaScript key is not configured`.
+- Kakao Map Docker wiring on 2026-05-29: added `VITE_KAKAO_MAP_JS_KEY` frontend build-arg support to `frontend/Dockerfile` and `compose.yaml`, rebuilt with the local key loaded from `frontend/.env`, and confirmed the frontend bundle now contains a Kakao SDK appkey URL. Direct SDK checks still return 401 `domain mismatched` for both `http://127.0.0.1:4173/` and `http://localhost:4173/`, so Kakao developer console Web platform domain registration remains required.
+- Kakao Map SDK domain validation on 2026-05-29: after registering local Web platform domains, direct SDK checks with `http://127.0.0.1:4173/` and `http://localhost:4173/` Referers both returned 200 and SDK content containing the Kakao namespace; frontend `/` still returns 200 and the running bundle contains the Kakao SDK appkey URL.
+- Docker rebuild through WSL integration on 2026-05-29: after Docker Desktop WSL Integration was enabled, `docker compose -f compose.yaml up -d --build` ran directly from WSL with `VITE_KAKAO_MAP_JS_KEY` loaded from `frontend/.env`; frontend/backend images rebuilt, backend/db became healthy, frontend `/` returned 200, backend `/api/health` returned 200 with database connected, and the frontend bundle contains the Kakao SDK appkey URL.
 - Deep-interview refinement on 2026-05-28: expanded Kakao Map First Pass requirements to include backend Kakao Local coordinate generation/storage/API response verification while allowing catalog fallback to remain coordinate-less with frontend graceful fallback.
 - Deep-interview artifact validation on 2026-05-28: confirmed updated `.omx/specs/deep-interview-travel-hunter-kakao-map.md`, `.omx/plans/prd-kakao-map-first-pass.md`, and `.omx/plans/test-spec-kakao-map-first-pass.md` include Kakao Local, latitude/longitude, and catalog fallback scope. No code tests were run because this pass only updated planning/interview artifacts.
 - `docker compose -f compose.yaml up -d --build` completed successfully.
@@ -408,3 +420,51 @@
 - [x] Validation passed: `python3 -m json.tool .agent/evals/api-contract-golden.json`.
 - [x] Validation passed: `PATH="/tmp/travel-hunter-docker-wrapper:$PATH" docker compose -f compose.yaml config --quiet`.
 - [x] Validation passed: `cd frontend && PATH="/tmp/travel-hunter-docker-wrapper:$PATH" PYTHON="../backend/.venv/bin/python" VITE_KAKAO_MAP_JS_KEY=real-ci-key LD_LIBRARY_PATH="/tmp/pw-libs/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}" npm run test:e2e` (9 passed after updating the e2e selector to the current inline Day selector UX).
+
+## 2026-05-29 - New-trip recommendation coverage diagnostic
+
+- [x] Added `backend/app/scripts/check_new_trip_recommendation_coverage.py`, a local diagnostic that creates one new trip per configured travel area through the backend API path, calls `/api/trips/{tripId}/recommendations`, prints PASS/FAIL plus `/ai-results?tripId={id}` links, and keeps generated trips for browser inspection.
+- [x] Added focused tests in `backend/tests/test_recommendation_coverage_script.py` for PASS/FAIL classification and markdown table output.
+- [x] Validation passed: `cd backend && .venv/bin/python -m pytest tests/test_recommendation_coverage_script.py` (6 passed after adding safety/diagnostic regression coverage).
+- [x] Validation passed: `cd backend && .venv/bin/python -m py_compile app/scripts/check_new_trip_recommendation_coverage.py tests/test_recommendation_coverage_script.py`.
+- [x] Validation passed: `docker compose -f compose.yaml config`.
+- [x] Validation passed: `git diff --check -- backend/app/scripts/check_new_trip_recommendation_coverage.py backend/tests/test_recommendation_coverage_script.py CHECKLIST.md`.
+- [x] Diagnostic executed inside the backend container: `.omx/new-trip-recommendation-coverage-container-20260529T050350Z.log`.
+- [x] Diagnostic result: 31 travel areas checked, 6 PASS and 25 FAIL. Generated latest container-run trip IDs 204-234 were intentionally kept in the local DB.
+- [x] Added protected/non-local target guard via `--allow-persistent-diagnostics` and split fallback diagnostics into exact vs related catalog counts.
+- [x] Independent architecture review status: CLEAR. Independent code review final recommendation: APPROVE with 0 severity findings; LSP diagnostics were unavailable, so targeted pytest/py_compile/compose/diff/diagnostic evidence was used instead.
+- [ ] Remaining risk: the diagnostic proves current local Docker behavior only; it does not fix the 25 failing travel areas. Current container diagnostics show `KAKAO_LOCAL_ENABLED=false`, no Kakao Local REST key, and zero persisted recommendation results for failed trips.
+
+## 2026-05-29 - Policy detail screen feature status report
+
+- [x] Added `docs/screen-feature-status-report.md` policy detail page section covering route scope, button/function status, API connections, evidence, local validation notes, and remaining risks.
+- [x] Confirmed implementation evidence in `frontend/src/pages/PolicyPages.tsx`, `frontend/src/api/backendApi.ts`, `backend/app/api/routes/policies.py`, `backend/app/services/policies.py`, `backend/app/services/trips.py`, and `docs/mvp-api-contract.md` before writing the report.
+- [x] Validation passed: `git diff --check -- docs/screen-feature-status-report.md CHECKLIST.md`.
+- [ ] Remaining risk: this turn was documentation-only and did not run a fresh browser/API smoke test for `/policies/{policySlug}`.
+
+## 2026-05-29 - Trip detail screen feature status report
+
+- [x] Added `docs/screen-feature-status-report.md` trip detail page section covering `/trips/{tripId}` route scope, screen controls, API connections, evidence, validation notes, and remaining risks.
+- [x] Confirmed implementation evidence in `frontend/src/pages/itinerary/ItineraryDetailPage.tsx`, `frontend/src/api/backendApi.ts`, `backend/app/api/routes/trips.py`, `backend/app/services/trips.py`, and `docs/mvp-api-contract.md` before writing the report.
+- [x] Confirmed regression-test coverage exists in `frontend/src/App.test.tsx` for trip detail rendering, read-only viewer behavior, place add/edit/delete/move, draft restoration, map/recommendation entry points.
+- [x] Validation passed: `git diff --check -- docs/screen-feature-status-report.md CHECKLIST.md`.
+- [ ] Remaining risk: this turn was documentation-only and did not run a fresh browser/API smoke test for `/trips/{tripId}`.
+
+## 2026-05-29 - Itinerary place recommendation explainer report
+
+- [x] Added a teammate-facing section to `docs/screen-feature-status-report.md` explaining how trip-create initial places and `/ai-results` candidates are selected, displayed, and persisted.
+- [x] Framed catalog fallback as an MVP safety mechanism while documenting limitations and future improvement candidates per `.omx/specs/deep-interview-itinerary-recommendation-explainer.md`.
+- [x] Confirmed evidence in `backend/app/services/trips.py`, `backend/app/services/itinerary_recommendations.py`, `backend/app/data/itinerary_catalog.py`, `frontend/src/pages/itinerary/AiResultsPage.tsx`, and `frontend/src/pages/itinerary/ItineraryCreatePage.tsx`.
+- [x] Validation passed: `git diff --check -- docs/screen-feature-status-report.md CHECKLIST.md`.
+- [ ] Remaining risk: documentation is based on code-path inspection; no fresh Kakao Local live API smoke was run in this turn.
+
+## 2026-05-29 - Screen feature status report split
+
+- [x] Converted `docs/screen-feature-status-report.md` into a short index/entry-point document with links and classification rules.
+- [x] Moved screen/page-oriented sections into `docs/screen-feature-status-screens.md` and added a “새 섹션 추가 기준” section.
+- [x] Moved logic/API/recommendation-oriented sections into `docs/screen-feature-status-logic.md` and added a “새 섹션 추가 기준” section.
+- [x] Preserved the two-detail-document scope from `.omx/specs/deep-interview-screen-feature-status-report-split.md` and avoided screen-by-screen file decomposition.
+- [x] Validation passed: `git diff --check -- docs/screen-feature-status-report.md docs/screen-feature-status-screens.md docs/screen-feature-status-logic.md CHECKLIST.md`.
+- [x] Validation passed for untracked docs: `for f in docs/screen-feature-status-report.md docs/screen-feature-status-screens.md docs/screen-feature-status-logic.md; do git diff --no-index --check /dev/null "$f" >/tmp/screen-feature-doc-check.txt; status=$?; cat /tmp/screen-feature-doc-check.txt; test "$status" -eq 0 -o "$status" -eq 1 || exit "$status"; done`.
+- [ ] Remaining risk: this is a documentation restructure only; no browser/API smoke was rerun because no product code changed.
+- [x] Independent architecture review status: CLEAR. Independent code review final recommendation: APPROVE after resolving the Markdown table pipe and untracked-doc validation caveats.

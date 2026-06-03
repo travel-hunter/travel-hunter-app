@@ -37,6 +37,9 @@ services:
       EXTERNAL_COLLECTION_RUN_AT: "03:00"
       EXTERNAL_COLLECTION_POLL_SECONDS: "60"
       KAKAO_ALIMTALK_ENABLED: "false"
+      KAKAO_LOCAL_ENABLED: ${KAKAO_LOCAL_ENABLED:-false}
+      KAKAO_LOCAL_REST_API_KEY: ${KAKAO_LOCAL_REST_API_KEY:-}
+      KAKAO_LOCAL_TIMEOUT_SECONDS: ${KAKAO_LOCAL_TIMEOUT_SECONDS:-5}
       SOLAPI_BASE_URL: https://api.solapi.com
       SOLAPI_API_KEY: ""
       SOLAPI_API_SECRET: ""
@@ -79,6 +82,7 @@ services:
       context: ./frontend
       args:
         VITE_API_BASE_URL: http://127.0.0.1:8000
+        VITE_KAKAO_MAP_JS_KEY: ${VITE_KAKAO_MAP_JS_KEY:-}
     ports:
       - "4173:4173"
     depends_on:
