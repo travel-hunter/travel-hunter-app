@@ -231,3 +231,7 @@ __marimo__/
 .codex-runs/
 .superpowers/
 .worktrees/
+
+# OMC/OMX AI workflow artifacts (specs, interviews, plans, reviews, state)
+.omx/
+.omc/
