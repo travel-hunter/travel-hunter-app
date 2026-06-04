@@ -8,7 +8,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Link, MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   appDataApi,
   type ContactInfo,
@@ -17,481 +17,29 @@ import {
   type NotificationSettings,
   type Policy,
   type RegionRecommendation,
-  type TravelAreaRecommendationResponse,
   type Trip,
-  type User,
 } from "./api";
 import { App } from "./app/App";
 import { AppProviders, AppRoot } from "./app/AppRoot";
 import {
-  AuthFormShell,
-  HomeRail,
-  ProfilePanel,
-  ProfileSetupStep,
-} from "./components/patterns";
-import { StatusPanel, SurfaceCard, Tag } from "./components/ui";
-
-const testEmail = "test.user@example.com";
-const testPassword = "password123";
-const examplePolicySlug = "dgtour-\uC601\uAD11-8";
-const examplePolicyPath = `/policies/${encodeURIComponent(examplePolicySlug)}`;
-const examplePolicyTitle =
-  "\uC601\uAD11 \uB514\uC9C0\uD138\uAD00\uAD11\uC8FC\uBBFC\uC99D \uD61C\uD0DD";
-const examplePolicyDetail: Policy = {
-  id: examplePolicySlug,
-  slug: examplePolicySlug,
-  label: "MY",
-  tag: "지역할인",
-  title: examplePolicyTitle,
-  org: "한국관광공사",
-  region: "경남",
-  deadline: "2026-12-31",
-  amount: "디지털관광주민증 혜택",
-  summary: "디지털관광주민증 소지자 대상 영광 지역 방문 혜택을 제공합니다.",
-  match: 75,
-  category: "지역할인",
-  requirements: ["디지털관광주민증 발급자", "영광 방문"],
-  documents: ["디지털관광주민증"],
-  officialUrl: "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
-  applyUrl: null,
-  sourceType: "external",
-};
-
-beforeEach(() => {
-  window.localStorage.clear();
-});
-function getPreviewTrip(): Trip {
-  return {
-    id: "21",
-    title: "부산 여행 1",
-    status: "confirmed",
-    dates: "2026.06.12 - 06.13",
-    people: ["여행자"],
-    participantCount: 1,
-    expectedSaving: "0원",
-    linkedPolicies: [],
-    recommendedPolicies: [],
-    days: {
-      1: [{ id: "101", time: "09:00", label: "도착", meta: "오전" }],
-      2: [{ id: "102", time: "10:00", label: "일정", meta: "점심" }],
-    },
-    currentUserRole: "owner",
-  };
-}
-
-function getGangwonTravelAreaResponse(): TravelAreaRecommendationResponse {
-  return {
-    mode: "sido",
-    sido: "강원",
-    query: null,
-    emptyReason: null,
-    items: [
-      {
-        travelAreaId: "gangwon-sokcho-goseong-yangyang",
-        travelAreaName: "속초·고성·양양",
-        sido: "강원",
-        includedCities: ["속초", "고성", "양양"],
-        summary: "바다와 설악산, 감성 카페를 함께 즐기는 동해 북부 권역",
-        tags: ["바다", "산", "카페", "2박3일"],
-        reason: "강원 지역 혜택과 속초·고성·양양 여행 동선이 잘 맞아요.",
-        policyCount: 5,
-        localPolicyCount: 4,
-        nationwidePolicyCount: 1,
-        endingSoonCount: 1,
-        estimatedValueKrw: 120000,
-        score: 95,
-      },
-      {
-        travelAreaId: "gangwon-gangneung-donghae-samcheok",
-        travelAreaName: "강릉·동해·삼척",
-        sido: "강원",
-        includedCities: ["강릉", "동해", "삼척"],
-        summary: "해변과 커피, 드라이브를 함께 즐기는 동해 중부 권역",
-        tags: ["바다", "커피", "드라이브"],
-        reason: "강릉 중심 동해안 여행에 적합해요.",
-        policyCount: 3,
-        localPolicyCount: 2,
-        nationwidePolicyCount: 1,
-        endingSoonCount: 0,
-        estimatedValueKrw: 80000,
-        score: 88,
-      },
-    ],
-  };
-}
-
-function getSokchoTravelAreaResponse(): TravelAreaRecommendationResponse {
-  const response = getGangwonTravelAreaResponse();
-  return {
-    ...response,
-    mode: "search",
-    sido: null,
-    query: "속초",
-    items: [response.items[0]],
-  };
-}
-
-function getBusanTravelAreaResponse(): TravelAreaRecommendationResponse {
-  return {
-    mode: "sido",
-    sido: "부산",
-    query: null,
-    emptyReason: null,
-    items: [
-      {
-        travelAreaId: "busan-all",
-        travelAreaName: "부산 전체",
-        sido: "부산",
-        includedCities: ["부산"],
-        summary: "바다와 도시, 미식을 함께 즐기는 부산 대표 권역",
-        tags: ["바다", "도시", "맛집"],
-        reason: "부산 대표 여행권역으로 바로 일정을 만들 수 있어요.",
-        policyCount: 4,
-        localPolicyCount: 3,
-        nationwidePolicyCount: 1,
-        endingSoonCount: 0,
-        estimatedValueKrw: 90000,
-        score: 92,
-      },
-    ],
-  };
-}
-
-function getJejuTravelAreaResponse(): TravelAreaRecommendationResponse {
-  return {
-    mode: "sido",
-    sido: "제주",
-    query: null,
-    emptyReason: null,
-    items: [
-      {
-        travelAreaId: "jeju-all",
-        travelAreaName: "제주 전체",
-        sido: "제주",
-        includedCities: ["제주", "서귀포"],
-        summary: "제주 전역의 자연, 맛집, 체험을 함께 둘러보는 대표 여행권역",
-        tags: ["자연", "맛집", "체험"],
-        reason: "기본 프로필 지역에 맞춰 바로 일정을 만들 수 있어요.",
-        policyCount: 4,
-        localPolicyCount: 3,
-        nationwidePolicyCount: 1,
-        endingSoonCount: 1,
-        estimatedValueKrw: 110000,
-        score: 94,
-      },
-    ],
-  };
-}
-
-function getGyeongjuTravelAreaResponse(): TravelAreaRecommendationResponse {
-  return {
-    mode: "search",
-    sido: null,
-    query: "경주",
-    emptyReason: null,
-    items: [
-      {
-        travelAreaId: "gyeongbuk-gyeongju",
-        travelAreaName: "경주",
-        sido: "경북",
-        includedCities: ["경주"],
-        summary: "역사와 전통, 산책 코스를 함께 즐기는 경주 대표 권역",
-        tags: ["역사", "전통", "산책"],
-        reason: "경주 검색어와 정확히 맞는 여행권역이에요.",
-        policyCount: 3,
-        localPolicyCount: 2,
-        nationwidePolicyCount: 1,
-        endingSoonCount: 0,
-        estimatedValueKrw: 70000,
-        score: 90,
-      },
-    ],
-  };
-}
-
-function getGangneungTravelAreaResponse(): TravelAreaRecommendationResponse {
-  return {
-    mode: "search",
-    sido: null,
-    query: "강릉",
-    emptyReason: null,
-    items: [
-      {
-        travelAreaId: "gangwon-gangneung-donghae-samcheok",
-        travelAreaName: "강릉·동해·삼척",
-        sido: "강원",
-        includedCities: ["강릉", "동해", "삼척"],
-        summary: "해변과 커피, 드라이브를 함께 즐기는 동해 중부 권역",
-        tags: ["바다", "커피", "드라이브"],
-        reason: "강릉 검색어와 맞는 동해안 여행권역이에요.",
-        policyCount: 3,
-        localPolicyCount: 2,
-        nationwidePolicyCount: 1,
-        endingSoonCount: 0,
-        estimatedValueKrw: 80000,
-        score: 88,
-      },
-    ],
-  };
-}
-
-function getPreviewUser(): User {
-  return {
-    id: "preview-user-id",
-    nickname: "여행러",
-    email: "preview.user@example.com",
-    role: "user",
-    birthDate: null,
-    gender: "미지정",
-    region: "부산",
-    homeRegion: "부산",
-    residenceArea: "강서구",
-    preferredRegions: null,
-    persona: "family",
-    savedAmount: 0,
-    onboardingCompleted: true,
-    socialAccounts: [],
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
-  };
-}
-
-describe("design-system primitives", () => {
-  it("renders design-system tags with semantic tone classes", () => {
-    render(
-      <MemoryRouter>
-        <div>
-          <Tag tone="draft">작성 중</Tag>
-          <Tag tone="confirmed">확정됨</Tag>
-          <Tag tone="benefit">예상 혜택</Tag>
-        </div>
-      </MemoryRouter>,
-    );
-
-    expect(screen.getByText("작성 중")).toHaveClass("tag", "draft");
-    expect(screen.getByText("확정됨")).toHaveClass("tag", "confirmed");
-    expect(screen.getByText("예상 혜택")).toHaveClass("tag", "benefit");
-  });
-
-  it("renders surface cards and status panels with design-system classes", () => {
-    render(
-      <MemoryRouter>
-        <SurfaceCard tone="confirmed" className="test-card">
-          <span>카드 내용</span>
-        </SurfaceCard>
-        <StatusPanel
-          tone="draft"
-          badge="작성 중"
-          title="편집 가능"
-          body="확정 전까지 수정할 수 있습니다."
-        />
-      </MemoryRouter>,
-    );
-
-    expect(screen.getByText("카드 내용").closest(".ds-card")).toHaveClass(
-      "confirmed",
-      "test-card",
-    );
-    expect(
-      screen.getByText("편집 가능").closest(".ds-status-panel"),
-    ).toHaveClass("draft");
-  });
-});
-
-describe("design-system pattern contracts", () => {
-  it("renders mapped pattern components with stable classes", () => {
-    render(
-      <MemoryRouter>
-        <AuthFormShell title="로그인" body="계속하려면 로그인하세요">
-          <button type="button">계속</button>
-        </AuthFormShell>
-        <HomeRail title="이번 주 혜택">
-          <a href="/policies">정책 보기</a>
-        </HomeRail>
-        <ProfilePanel title="프로필" meta="test@example.com">
-          <span>프로필 내용</span>
-        </ProfilePanel>
-        <ProfileSetupStep
-          eyebrow="1/3"
-          title="관심 지역"
-          body="지역을 선택하세요"
-        >
-          <button type="button">제주</button>
-        </ProfileSetupStep>
-      </MemoryRouter>,
-    );
-
-    expect(
-      screen.getByText("로그인").closest(".ds-auth-form-shell"),
-    ).toBeTruthy();
-    expect(
-      screen.getByText("이번 주 혜택").closest(".ds-home-rail"),
-    ).toBeTruthy();
-    expect(
-      screen.getByText("프로필").closest(".ds-profile-panel"),
-    ).toBeTruthy();
-    expect(
-      screen.getByText("관심 지역").closest(".ds-profile-setup-step"),
-    ).toBeTruthy();
-  });
-});
-
-function renderRoute(route: string) {
-  return render(
-    <MemoryRouter initialEntries={[route]}>
-      <AppProviders>
-        <App />
-      </AppProviders>
-    </MemoryRouter>,
-  );
-}
-
-function installAppKakaoSdkMock({
-  resolvedLatitude = "35.096",
-  resolvedLongitude = "129.03",
-}: {
-  resolvedLatitude?: string;
-  resolvedLongitude?: string;
-} = {}) {
-  const addressQueries: string[] = [];
-  const keywordQueries: string[] = [];
-  const mapInstances: unknown[] = [];
-  const markerInstances: unknown[] = [];
-  const customOverlayInstances: Array<{
-    overlay: { setMap: ReturnType<typeof vi.fn> };
-    options: Record<string, unknown>;
-  }> = [];
-
-  function LatLng(
-    this: { lat: number; lng: number },
-    lat: number,
-    lng: number,
-  ) {
-    this.lat = lat;
-    this.lng = lng;
-  }
-
-  function LatLngBounds(this: { extend: ReturnType<typeof vi.fn> }) {
-    this.extend = vi.fn();
-  }
-
-  function Map(
-    this: {
-      setBounds: ReturnType<typeof vi.fn>;
-      setCenter: ReturnType<typeof vi.fn>;
-    },
-    container: HTMLElement,
-    options: Record<string, unknown>,
-  ) {
-    this.setBounds = vi.fn();
-    this.setCenter = vi.fn();
-    mapInstances.push({ container, options });
-  }
-
-  function Marker(
-    this: { setMap: ReturnType<typeof vi.fn> },
-    options: Record<string, unknown>,
-  ) {
-    this.setMap = vi.fn();
-    markerInstances.push({ marker: this, options });
-  }
-
-  function CustomOverlay(
-    this: { setMap: ReturnType<typeof vi.fn> },
-    options: Record<string, unknown>,
-  ) {
-    this.setMap = vi.fn();
-    customOverlayInstances.push({ overlay: this, options });
-  }
-
-  const addressSearch = vi.fn(
-    (
-      query: string,
-      callback: (
-        results: Array<{ x: string; y: string }>,
-        status: string,
-      ) => void,
-    ) => {
-      addressQueries.push(query);
-      callback([], "ZERO_RESULT");
-    },
-  );
-  const keywordSearch = vi.fn(
-    (
-      query: string,
-      callback: (
-        results: Array<{ x: string; y: string }>,
-        status: string,
-      ) => void,
-    ) => {
-      keywordQueries.push(query);
-      callback([{ x: resolvedLongitude, y: resolvedLatitude }], "OK");
-    },
-  );
-
-  window.kakao = {
-    maps: {
-      LatLng,
-      LatLngBounds,
-      Map,
-      Marker,
-      CustomOverlay,
-      event: { addListener: vi.fn() },
-      services: {
-        Status: { OK: "OK" },
-        Geocoder: function Geocoder(this: {
-          addressSearch: typeof addressSearch;
-        }) {
-          this.addressSearch = addressSearch;
-        },
-        Places: function Places(this: { keywordSearch: typeof keywordSearch }) {
-          this.keywordSearch = keywordSearch;
-        },
-      },
-      load: vi.fn((callback: () => void) => callback()),
-    },
-  } as unknown as Window["kakao"];
-
-  return {
-    addressQueries,
-    addressSearch,
-    customOverlayInstances,
-    keywordQueries,
-    keywordSearch,
-    mapInstances,
-    markerInstances,
-  };
-}
-
-function getLink(href: string) {
-  const expectedHref = decodeURIComponent(href);
-  const link = Array.from(document.querySelectorAll("a")).find((candidate) => {
-    const candidateHref = candidate.getAttribute("href") ?? "";
-    return (
-      candidateHref === href ||
-      decodeURIComponent(candidateHref) === expectedHref
-    );
-  });
-  expect(link).toBeTruthy();
-  return link as HTMLAnchorElement;
-}
-
-async function login() {
-  const user = userEvent.setup();
-  renderRoute("/login");
-  await user.type(
-    document.querySelector('input[name="email"]') as HTMLInputElement,
-    testEmail,
-  );
-  await user.type(
-    document.querySelector('input[name="password"]') as HTMLInputElement,
-    testPassword,
-  );
-  const submit = document.querySelector('button[type="submit"]');
-  expect(submit).toBeTruthy();
-  await user.click(submit as HTMLButtonElement);
-  await waitFor(() => expect(getLink("/policies")).toBeInTheDocument());
-}
+  examplePolicyDetail,
+  examplePolicyPath,
+  examplePolicySlug,
+  examplePolicyTitle,
+  getBusanTravelAreaResponse,
+  getGangneungTravelAreaResponse,
+  getGangwonTravelAreaResponse,
+  getGyeongjuTravelAreaResponse,
+  getJejuTravelAreaResponse,
+  getPreviewTrip,
+  getPreviewUser,
+  getSokchoTravelAreaResponse,
+  testEmail,
+  testIsoDateFromToday,
+  testPassword,
+} from "./test/fixtures";
+import { installAppKakaoSdkMock } from "./test/kakaoMock";
+import { getLink, login, renderAppRoute } from "./test/renderAppRoute";
 
 async function setPlaceTimeFromDefault(
   user: ReturnType<typeof userEvent.setup>,
@@ -534,7 +82,7 @@ describe("Travel Hunter app", () => {
   });
 
   it("renders the prototype login screen as the first entry page", () => {
-    renderRoute("/");
+    renderAppRoute("/");
 
     expect(
       screen.getByRole("heading", { name: "트래블헌터" }),
@@ -564,7 +112,7 @@ describe("Travel Hunter app", () => {
   });
 
   it("redirects the removed onboarding route to the login entry", () => {
-    renderRoute("/onboarding");
+    renderAppRoute("/onboarding");
 
     expect(
       screen.getByRole("heading", { name: "트래블헌터" }),
@@ -587,7 +135,7 @@ describe("Travel Hunter app", () => {
       .mockImplementation(() => new Promise(() => {}));
 
     try {
-      renderRoute("/home");
+      renderAppRoute("/home");
 
       expect(screen.getByText("세션을 확인하는 중입니다")).toBeInTheDocument();
       expect(document.querySelector('input[type="email"]')).toBeNull();
@@ -603,7 +151,7 @@ describe("Travel Hunter app", () => {
       .mockRejectedValue(new Error("missing refresh cookie"));
 
     try {
-      renderRoute("/home");
+      renderAppRoute("/home");
 
       await waitFor(() =>
         expect(document.querySelector('input[type="email"]')).toBeTruthy(),
@@ -615,7 +163,7 @@ describe("Travel Hunter app", () => {
   });
 
   it("protects authenticated app routes", async () => {
-    renderRoute("/home");
+    renderAppRoute("/home");
 
     await waitFor(() =>
       expect(document.querySelector('input[type="email"]')).toBeTruthy(),
@@ -642,7 +190,7 @@ describe("Travel Hunter app", () => {
 
     for (const route of routes) {
       cleanup();
-      renderRoute(route);
+      renderAppRoute(route);
       expect(document.body.textContent?.trim().length).toBeGreaterThan(0);
     }
   });
@@ -653,7 +201,7 @@ describe("Travel Hunter app", () => {
     const travelAreasSpy = vi
       .spyOn(appDataApi, "listTravelAreaRecommendations")
       .mockResolvedValue(getJejuTravelAreaResponse());
-    renderRoute(
+    renderAppRoute(
       `/trips/new?policySlug=${encodeURIComponent(examplePolicySlug)}`,
     );
     const user = userEvent.setup();
@@ -836,7 +384,7 @@ describe("Travel Hunter app", () => {
       ).toHaveAttribute("href", "/ai-results?tripId=44");
 
       cleanup();
-      renderRoute("/trips");
+      renderAppRoute("/trips");
       await waitFor(() =>
         expect(
           screen.getByRole("heading", { name: "부산 맛집 여행", level: 4 }),
@@ -861,7 +409,7 @@ describe("Travel Hunter app", () => {
       .mockResolvedValue(getJejuTravelAreaResponse());
 
     try {
-      renderRoute("/trips/new");
+      renderAppRoute("/trips/new");
       await waitFor(() =>
         expect(screen.getByRole("button", { name: /제주 전체/ })).toHaveClass(
           "active",
@@ -892,7 +440,7 @@ describe("Travel Hunter app", () => {
   it("uses the home recommendation region query when creating a trip", async () => {
     await login();
     cleanup();
-    renderRoute("/trips/new?region=%EB%B6%80%EC%82%B0");
+    renderAppRoute("/trips/new?region=%EB%B6%80%EC%82%B0");
     const user = userEvent.setup();
     const createdTrip: Trip = {
       ...getPreviewTrip(),
@@ -972,7 +520,7 @@ describe("Travel Hunter app", () => {
       .mockResolvedValue(createdTrip);
 
     try {
-      renderRoute("/trips/new?travelAreaId=gangwon-sokcho-goseong-yangyang");
+      renderAppRoute("/trips/new?travelAreaId=gangwon-sokcho-goseong-yangyang");
       expect(
         await screen.findByRole("button", { name: /속초·고성·양양/ }),
       ).toHaveClass("active");
@@ -1008,7 +556,7 @@ describe("Travel Hunter app", () => {
       .mockResolvedValue(getGangwonTravelAreaResponse());
 
     try {
-      renderRoute("/trips/new?region=%EA%B0%95%EC%9B%90");
+      renderAppRoute("/trips/new?region=%EA%B0%95%EC%9B%90");
       expect(
         await screen.findByRole("heading", { name: "강원 세부 지역 선택" }),
       ).toBeInTheDocument();
@@ -1030,7 +578,7 @@ describe("Travel Hunter app", () => {
     await login();
     cleanup();
 
-    renderRoute("/trips/new");
+    renderAppRoute("/trips/new");
 
     expect(await screen.findByText("여행 지역 선택")).toBeInTheDocument();
     expect(screen.queryByText("코스 취향 선택")).not.toBeInTheDocument();
@@ -1053,7 +601,7 @@ describe("Travel Hunter app", () => {
       .mockResolvedValue(getJejuTravelAreaResponse());
 
     try {
-      renderRoute("/trips/new");
+      renderAppRoute("/trips/new");
 
       expect(
         await screen.findByRole("button", { name: /제주 전체/ }),
@@ -1075,7 +623,7 @@ describe("Travel Hunter app", () => {
       .mockResolvedValue(getGyeongjuTravelAreaResponse());
 
     try {
-      renderRoute("/trips/new?region=%EA%B2%BD%EC%A3%BC");
+      renderAppRoute("/trips/new?region=%EA%B2%BD%EC%A3%BC");
 
       expect(await screen.findByRole("button", { name: /경주/ })).toHaveClass(
         "active",
@@ -1097,7 +645,7 @@ describe("Travel Hunter app", () => {
       .mockResolvedValue(getSokchoTravelAreaResponse());
 
     try {
-      renderRoute("/trips/new?region=%EC%86%8D%EC%B4%88");
+      renderAppRoute("/trips/new?region=%EC%86%8D%EC%B4%88");
 
       expect(
         await screen.findByRole("button", { name: /속초·고성·양양/ }),
@@ -1119,7 +667,7 @@ describe("Travel Hunter app", () => {
       .mockResolvedValue(getGangneungTravelAreaResponse());
 
     try {
-      renderRoute("/trips/new?region=%EA%B0%95%EB%A6%89");
+      renderAppRoute("/trips/new?region=%EA%B0%95%EB%A6%89");
 
       expect(
         await screen.findByRole("button", { name: /강릉·동해·삼척/ }),
@@ -1142,7 +690,7 @@ describe("Travel Hunter app", () => {
       .mockResolvedValue(getGangwonTravelAreaResponse());
 
     try {
-      renderRoute("/trips/new?region=%EA%B0%95%EC%9B%90");
+      renderAppRoute("/trips/new?region=%EA%B0%95%EC%9B%90");
 
       await user.click(
         await screen.findByRole("button", { name: /속초·고성·양양/ }),
@@ -1179,7 +727,7 @@ describe("Travel Hunter app", () => {
       .mockResolvedValue(createdTrip);
 
     try {
-      renderRoute("/trips/new?region=%EA%B0%95%EC%9B%90");
+      renderAppRoute("/trips/new?region=%EA%B0%95%EC%9B%90");
       await user.click(
         await screen.findByRole("button", { name: /속초·고성·양양/ }),
       );
@@ -1237,7 +785,7 @@ describe("Travel Hunter app", () => {
       .mockResolvedValue(createdTrip);
 
     try {
-      renderRoute("/trips/new?travelAreaId=gangwon-sokcho-goseong-yangyang");
+      renderAppRoute("/trips/new?travelAreaId=gangwon-sokcho-goseong-yangyang");
       expect(
         await screen.findByRole("button", { name: /속초·고성·양양/ }),
       ).toHaveClass("active");
@@ -1281,7 +829,7 @@ describe("Travel Hunter app", () => {
   it("links normalized TravelMonth policy slugs when creating a trip", async () => {
     await login();
     cleanup();
-    renderRoute(
+    renderAppRoute(
       "/trips/new?policySlug=travelmonth-58&region=%EB%B6%80%EC%82%B0",
     );
     const user = userEvent.setup();
@@ -1295,6 +843,9 @@ describe("Travel Hunter app", () => {
     const createTripSpy = vi
       .spyOn(appDataApi, "createTrip")
       .mockResolvedValue(createdTrip);
+    const travelAreasSpy = vi
+      .spyOn(appDataApi, "listTravelAreaRecommendations")
+      .mockResolvedValue(getBusanTravelAreaResponse());
     const addPolicySpy = vi
       .spyOn(appDataApi, "addPolicyToTrip")
       .mockResolvedValue({
@@ -1311,6 +862,11 @@ describe("Travel Hunter app", () => {
         screen.getByText("선택한 정책까지 일정에 연결할게요"),
       ).toBeInTheDocument();
       expect(document.body).not.toHaveTextContent("공식 수집 혜택");
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: /부산 전체/ })).toHaveClass(
+          "active",
+        ),
+      );
       await user.click(screen.getByRole("button", { name: "다음" }));
       await user.click(screen.getByRole("button", { name: "다음" }));
       await user.click(screen.getByRole("button", { name: "다음" }));
@@ -1327,6 +883,7 @@ describe("Travel Hunter app", () => {
       expect(addPolicySpy).toHaveBeenCalledWith("46", "travelmonth-58");
       await waitFor(() => expect(getTripSpy).toHaveBeenCalledWith("46"));
     } finally {
+      travelAreasSpy.mockRestore();
       createTripSpy.mockRestore();
       addPolicySpy.mockRestore();
       getTripSpy.mockRestore();
@@ -1339,7 +896,7 @@ describe("Travel Hunter app", () => {
     const travelAreasSpy = vi
       .spyOn(appDataApi, "listTravelAreaRecommendations")
       .mockResolvedValue(getJejuTravelAreaResponse());
-    renderRoute("/trips/new");
+    renderAppRoute("/trips/new");
     const user = userEvent.setup();
     const createTripSpy = vi
       .spyOn(appDataApi, "createTrip")
@@ -1382,7 +939,7 @@ describe("Travel Hunter app", () => {
       .mockReturnValue(new Promise(() => undefined));
 
     try {
-      renderRoute("/trips/new?travelAreaId=gangwon-sokcho-goseong-yangyang");
+      renderAppRoute("/trips/new?travelAreaId=gangwon-sokcho-goseong-yangyang");
 
       await waitFor(() =>
         expect(screen.getByRole("button", { name: "다음" })).toBeEnabled(),
@@ -1432,7 +989,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/trips/55");
+      renderAppRoute("/trips/55");
 
       await waitFor(() =>
         expect(screen.getByText("Day 4")).toBeInTheDocument(),
@@ -1495,7 +1052,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/trips/56");
+      renderAppRoute("/trips/56");
 
       await waitFor(() =>
         expect(screen.getByText("부산 워케이션 지원")).toBeInTheDocument(),
@@ -1543,7 +1100,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/trips/61");
+      renderAppRoute("/trips/61");
 
       const linkedRegion = await screen.findByRole("region", {
         name: "연결된 정책",
@@ -1689,7 +1246,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/trips/59");
+      renderAppRoute("/trips/59");
 
       const recommendedRegion = await screen.findByRole("region", {
         name: "이 일정에 어울리는 정책",
@@ -1730,7 +1287,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/trips/60");
+      renderAppRoute("/trips/60");
 
       const recommendedRegion = await screen.findByRole("region", {
         name: "이 일정에 어울리는 정책",
@@ -1889,7 +1446,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/trips/55?day=1&view=map&place=1");
+      renderAppRoute("/trips/55?day=1&view=map&place=1");
       const user = userEvent.setup();
 
       await waitFor(() =>
@@ -1971,7 +1528,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/trips/55?day=1&view=map");
+      renderAppRoute("/trips/55?day=1&view=map");
 
       await waitFor(() =>
         expect(kakao.addressSearch).toHaveBeenCalledWith(
@@ -2032,7 +1589,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/trips/55?day=1&view=map&place=1");
+      renderAppRoute("/trips/55?day=1&view=map&place=1");
 
       await waitFor(() =>
         expect(
@@ -2099,7 +1656,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/trips/55");
+      renderAppRoute("/trips/55");
       const user = userEvent.setup();
 
       await waitFor(() =>
@@ -2240,7 +1797,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/trips/55");
+      renderAppRoute("/trips/55");
       const user = userEvent.setup();
 
       await waitFor(() =>
@@ -2277,7 +1834,7 @@ describe("Travel Hunter app", () => {
       );
 
       cleanup();
-      renderRoute("/trips/55");
+      renderAppRoute("/trips/55");
       await waitFor(() =>
         expect(document.body).toHaveTextContent("Sunrise peak"),
       );
@@ -2330,7 +1887,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/trips/55");
+      renderAppRoute("/trips/55");
       const user = userEvent.setup();
 
       await waitFor(() =>
@@ -2370,7 +1927,7 @@ describe("Travel Hunter app", () => {
       );
 
       cleanup();
-      renderRoute("/trips/55");
+      renderAppRoute("/trips/55");
       await waitFor(() =>
         expect(
           document.querySelector(".prototype-trip-action-add"),
@@ -2460,7 +2017,7 @@ describe("Travel Hunter app", () => {
           },
         }),
       );
-      renderRoute("/trips/55");
+      renderAppRoute("/trips/55");
       const user = userEvent.setup();
 
       await waitFor(() =>
@@ -2525,7 +2082,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/trips/55");
+      renderAppRoute("/trips/55");
       const user = userEvent.setup();
       window.localStorage.setItem(
         "travel-hunter:draft:trip-place:55:add:1",
@@ -2585,7 +2142,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/trips/66");
+      renderAppRoute("/trips/66");
 
       await waitFor(() =>
         expect(document.body).toHaveTextContent("Sunrise peak"),
@@ -2654,7 +2211,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/trips/55");
+      renderAppRoute("/trips/55");
       const user = userEvent.setup();
 
       await waitFor(() => expect(document.body).toHaveTextContent("Cafe stop"));
@@ -2750,7 +2307,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/trips/55");
+      renderAppRoute("/trips/55");
 
       await waitFor(() => expect(document.body).toHaveTextContent("Cafe stop"));
       const secondTimelineItem = document.querySelectorAll(
@@ -2817,7 +2374,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/ai-results?tripId=55");
+      renderAppRoute("/ai-results?tripId=55");
 
       await waitFor(() =>
         expect(listRecommendationsSpy).toHaveBeenCalledWith("55"),
@@ -2914,7 +2471,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/ai-results?tripId=55");
+      renderAppRoute("/ai-results?tripId=55");
 
       const selectedSummary = await screen.findByRole("region", {
         name: "선택 후보 요약",
@@ -2984,7 +2541,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/ai-results?tripId=55");
+      renderAppRoute("/ai-results?tripId=55");
 
       await waitFor(() =>
         expect(listRecommendationsSpy).toHaveBeenCalledWith("55"),
@@ -3107,7 +2664,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/ai-results?tripId=55");
+      renderAppRoute("/ai-results?tripId=55");
 
       await waitFor(() =>
         expect(listRecommendationsSpy).toHaveBeenCalledWith("55"),
@@ -3179,7 +2736,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/ai-results?tripId=55");
+      renderAppRoute("/ai-results?tripId=55");
 
       await waitFor(() =>
         expect(listRecommendationsSpy).toHaveBeenCalledWith("55"),
@@ -3263,7 +2820,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/ai-results?tripId=55");
+      renderAppRoute("/ai-results?tripId=55");
 
       const user = userEvent.setup();
       const otherSection = await screen.findByRole("region", {
@@ -3323,7 +2880,7 @@ describe("Travel Hunter app", () => {
       ).not.toBeInTheDocument();
 
       cleanup();
-      renderRoute("/trips");
+      renderAppRoute("/trips");
       const tripHeader = document.querySelector(
         ".prototype-screen-head",
       ) as HTMLElement;
@@ -3403,7 +2960,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/trips");
+      renderAppRoute("/trips");
       const user = userEvent.setup();
       await user.click(await screen.findByRole("button", { name: "삭제" }));
       const deleteDialog = await screen.findByRole("dialog", {
@@ -3445,7 +3002,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/trips");
+      renderAppRoute("/trips");
       await screen.findByText("Draft trip");
       expect(
         document.querySelector(".trip-confirm-panel"),
@@ -3483,7 +3040,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/trips");
+      renderAppRoute("/trips");
       await screen.findByText("Draft trip without list action");
       expect(screen.queryByText("작성 중")).not.toBeInTheDocument();
       expect(screen.queryByText("확정됨")).not.toBeInTheDocument();
@@ -3515,7 +3072,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/trips");
+      renderAppRoute("/trips");
       await screen.findByText("Viewer trip");
       expect(
         document.querySelector(".trip-confirm-panel"),
@@ -3563,7 +3120,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/trips/94");
+      renderAppRoute("/trips/94");
 
       await waitFor(() =>
         expect(
@@ -3633,7 +3190,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/trips/96");
+      renderAppRoute("/trips/96");
 
       await waitFor(() =>
         expect(screen.getAllByText("Draft detail trip").length).toBeGreaterThan(
@@ -3690,7 +3247,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/trips/95");
+      renderAppRoute("/trips/95");
 
       await waitFor(() =>
         expect(
@@ -3743,7 +3300,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/policies");
+      renderAppRoute("/policies");
       const user = userEvent.setup();
 
       await waitFor(() =>
@@ -3866,7 +3423,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/policies");
+      renderAppRoute("/policies");
       const user = userEvent.setup();
 
       await waitFor(() =>
@@ -3930,7 +3487,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/policies");
+      renderAppRoute("/policies");
       const user = userEvent.setup();
 
       await waitFor(() =>
@@ -3974,7 +3531,7 @@ describe("Travel Hunter app", () => {
         title: "장기 지역 할인",
         org: "Travel Hunter",
         region: "전국",
-        deadline: "2026-12-31",
+        deadline: testIsoDateFromToday(120),
         amount: "혜택 제공",
         summary: "공식 안내 확인",
         match: 99,
@@ -3993,7 +3550,7 @@ describe("Travel Hunter app", () => {
         title: "강릉 KTX 할인",
         org: "Travel Hunter",
         region: "강원",
-        deadline: "2026-05-30",
+        deadline: testIsoDateFromToday(3),
         amount: "30% 할인",
         summary: "강릉 여행 교통 할인",
         match: 70,
@@ -4012,7 +3569,7 @@ describe("Travel Hunter app", () => {
         title: "부산 숙박 5만원 할인",
         org: "Travel Hunter",
         region: "부산",
-        deadline: "2026-06-30",
+        deadline: testIsoDateFromToday(30),
         amount: "최대 5만원",
         summary: "부산 숙박 할인",
         match: 80,
@@ -4031,7 +3588,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/policies");
+      renderAppRoute("/policies");
       const user = userEvent.setup();
 
       await waitFor(() =>
@@ -4103,7 +3660,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/policies");
+      renderAppRoute("/policies");
       const user = userEvent.setup();
 
       await waitFor(() =>
@@ -4175,7 +3732,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/policies?category=여행상품");
+      renderAppRoute("/policies?category=여행상품");
 
       await waitFor(() =>
         expect(document.body).toHaveTextContent(
@@ -4221,7 +3778,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/policies");
+      renderAppRoute("/policies");
 
       await waitFor(() =>
         expect(getLink("/policies/travelmonth-58")).toBeInTheDocument(),
@@ -4284,7 +3841,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/policies/travelmonth-58");
+      renderAppRoute("/policies/travelmonth-58");
       const user = userEvent.setup();
 
       expect(
@@ -4324,7 +3881,7 @@ describe("Travel Hunter app", () => {
   it("renders the prototype home rails with real policy links", async () => {
     await login();
     cleanup();
-    renderRoute("/home");
+    renderAppRoute("/home");
 
     await waitFor(() =>
       expect(document.body).toHaveTextContent("이번 주 혜택"),
@@ -4410,7 +3967,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/home");
+      renderAppRoute("/home");
 
       await waitFor(() =>
         expect(listRegionRecommendationsSpy).toHaveBeenCalledWith({
@@ -4466,7 +4023,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/home");
+      renderAppRoute("/home");
 
       await waitFor(() =>
         expect(listRegionRecommendationsSpy).toHaveBeenCalled(),
@@ -4498,7 +4055,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/home");
+      renderAppRoute("/home");
 
       const destinationRail =
         await screen.findByLabelText("인기 국내 여행지 목록");
@@ -4523,7 +4080,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/home");
+      renderAppRoute("/home");
 
       const destinationRail =
         await screen.findByLabelText("인기 국내 여행지 목록");
@@ -4565,7 +4122,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/trips");
+      renderAppRoute("/trips");
 
       await screen.findByText("부산 4일 여행");
       expect(screen.getByText("경주 3일 여행")).toBeInTheDocument();
@@ -4578,26 +4135,88 @@ describe("Travel Hunter app", () => {
     }
   });
 
-  it("opens the policy trip picker and attaches a policy to a selected trip", async () => {
-    await login();
-    cleanup();
-    renderRoute(examplePolicyPath);
+  it("opens the policy trip picker, attaches a policy, and links to the selected trip", async () => {
+    const previewTrip = getPreviewTrip();
+    const user = userEvent.setup();
+    const loginSpy = vi
+      .spyOn(appDataApi, "login")
+      .mockResolvedValue({ accessToken: "test-token", user: getPreviewUser() });
+    const refreshSpy = vi
+      .spyOn(appDataApi, "refreshSession")
+      .mockResolvedValue({ accessToken: "test-token", user: getPreviewUser() });
+    const profileSpy = vi
+      .spyOn(appDataApi, "getProfile")
+      .mockResolvedValue({ region: "부산", style: "휴식", budget: "20만원" });
+    const savedPolicySpy = vi
+      .spyOn(appDataApi, "listSavedPolicies")
+      .mockResolvedValue([]);
+    const getPolicySpy = vi
+      .spyOn(appDataApi, "getPolicy")
+      .mockResolvedValue(examplePolicyDetail);
+    const listTripsSpy = vi
+      .spyOn(appDataApi, "listTrips")
+      .mockResolvedValue([previewTrip]);
+    const addPolicyToTripSpy = vi
+      .spyOn(appDataApi, "addPolicyToTrip")
+      .mockResolvedValue({
+        tripId: previewTrip.id,
+        policyId: examplePolicySlug,
+        added: true,
+      });
+    const getTripSpy = vi
+      .spyOn(appDataApi, "getTrip")
+      .mockResolvedValue({ ...previewTrip, linkedPolicies: [] });
 
-    const addButton = await waitFor(() => {
-      const button = document.querySelector(".sticky-cta button");
-      expect(button).toBeTruthy();
-      return button as HTMLButtonElement;
-    });
-    await userEvent.setup().click(addButton);
+    try {
+      renderAppRoute("/login");
+      await user.type(
+        document.querySelector('input[name="email"]') as HTMLInputElement,
+        testEmail,
+      );
+      await user.type(
+        document.querySelector('input[name="password"]') as HTMLInputElement,
+        testPassword,
+      );
+      await user.click(document.querySelector('button[type="submit"]') as HTMLButtonElement);
 
-    const row = await waitFor(() => {
-      const tripRow = document.querySelector(".trip-select-row");
-      expect(tripRow).toBeTruthy();
-      return tripRow as HTMLButtonElement;
-    });
-    await userEvent.setup().click(row);
+      await waitFor(() => expect(getLink("/policies")).toBeInTheDocument());
+      cleanup();
+      renderAppRoute(examplePolicyPath);
 
-    await waitFor(() => expect(document.querySelector(".toast")).toBeTruthy());
+      const addButton = await waitFor(() => {
+        const button = document.querySelector(".sticky-cta button");
+        expect(button).toBeTruthy();
+        return button as HTMLButtonElement;
+      });
+      await user.click(addButton);
+
+      const row = await waitFor(() => {
+        const tripRow = document.querySelector(".trip-select-row");
+        expect(tripRow).toBeTruthy();
+        return tripRow as HTMLButtonElement;
+      });
+      await user.click(row);
+
+      await screen.findByText(`${examplePolicyTitle}을 부산 여행 1에 담았어요`);
+      expect(screen.getByText("부산 여행 1에서 연결된 정책을 확인할 수 있어요.")).toBeInTheDocument();
+      expect(addPolicyToTripSpy).toHaveBeenCalledWith(previewTrip.id, examplePolicySlug);
+
+      await user.click(screen.getByRole("button", { name: "일정에서 보기" }));
+
+      const linkedRegion = await screen.findByRole("region", {
+        name: "연결된 정책",
+      });
+      expect(within(linkedRegion).getByText(examplePolicyTitle)).toBeInTheDocument();
+    } finally {
+      loginSpy.mockRestore();
+      refreshSpy.mockRestore();
+      profileSpy.mockRestore();
+      savedPolicySpy.mockRestore();
+      getPolicySpy.mockRestore();
+      listTripsSpy.mockRestore();
+      addPolicyToTripSpy.mockRestore();
+      getTripSpy.mockRestore();
+    }
   });
 
   it("shows all saved trips in the policy trip picker", async () => {
@@ -4624,7 +4243,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute(examplePolicyPath);
+      renderAppRoute(examplePolicyPath);
 
       await userEvent.setup().click(
         await screen.findByRole("button", {
@@ -4757,11 +4376,73 @@ describe("Travel Hunter app", () => {
     );
   });
 
+  it("refreshes the my page favorite summary after policy detail save and unsave", async () => {
+    const user = userEvent.setup();
+    const listSavedPoliciesSpy = vi
+      .spyOn(appDataApi, "listSavedPolicies")
+      .mockResolvedValue([]);
+    const savePolicySpy = vi
+      .spyOn(appDataApi, "savePolicy")
+      .mockResolvedValue({ policyId: examplePolicySlug, saved: true });
+    const removeSavedPolicySpy = vi
+      .spyOn(appDataApi, "removeSavedPolicy")
+      .mockResolvedValue({ policyId: examplePolicySlug, saved: false });
+
+    try {
+      await login();
+      cleanup();
+      render(
+        <MemoryRouter initialEntries={[examplePolicyPath]}>
+          <AppProviders>
+            <App />
+            <Link to="/mypage">마이페이지 테스트 이동</Link>
+            <Link to={examplePolicyPath}>정책 상세 테스트 이동</Link>
+          </AppProviders>
+        </MemoryRouter>,
+      );
+
+      await user.click(await screen.findByRole("button", { name: "저장" }));
+      await waitFor(() =>
+        expect(savePolicySpy).toHaveBeenCalledWith(examplePolicySlug),
+      );
+      await screen.findByText("관심 정책으로 저장했어요.");
+      await user.click(screen.getByRole("link", { name: "마이페이지 테스트 이동" }));
+
+      const savedSummary = await screen.findByLabelText("나의 활동 요약");
+      const favoritePolicyStat = within(savedSummary)
+        .getByText("즐겨찾기")
+        .closest(".prototype-stat-card") as HTMLElement;
+      await waitFor(() =>
+        expect(within(favoritePolicyStat).getByText("1")).toBeInTheDocument(),
+      );
+
+      await user.click(screen.getByRole("link", { name: "정책 상세 테스트 이동" }));
+      await user.click(await screen.findByRole("button", { name: "저장" }));
+      await waitFor(() =>
+        expect(removeSavedPolicySpy).toHaveBeenCalledWith(examplePolicySlug),
+      );
+      await screen.findByText("관심 정책에서 해제했어요.");
+      await user.click(screen.getByRole("link", { name: "마이페이지 테스트 이동" }));
+
+      const updatedSummary = await screen.findByLabelText("나의 활동 요약");
+      const updatedFavoritePolicyStat = within(updatedSummary)
+        .getByText("즐겨찾기")
+        .closest(".prototype-stat-card") as HTMLElement;
+      await waitFor(() =>
+        expect(within(updatedFavoritePolicyStat).getByText("0")).toBeInTheDocument(),
+      );
+    } finally {
+      listSavedPoliciesSpy.mockRestore();
+      savePolicySpy.mockRestore();
+      removeSavedPolicySpy.mockRestore();
+    }
+  });
+
   it("shows saved policies on my page and removes them", async () => {
     await login();
     await appDataApi.savePolicy(examplePolicySlug);
     cleanup();
-    renderRoute("/mypage");
+    renderAppRoute("/mypage");
     await waitFor(() => expect(getLink(examplePolicyPath)).toBeInTheDocument());
     expect(screen.getAllByText("마이").length).toBeGreaterThan(0);
     expect(screen.queryByText("프로필")).not.toBeInTheDocument();
@@ -4826,7 +4507,7 @@ describe("Travel Hunter app", () => {
 
     try {
       cleanup();
-      renderRoute("/mypage");
+      renderAppRoute("/mypage");
 
       await waitFor(() =>
         expect(document.body).toHaveTextContent(
@@ -4855,7 +4536,7 @@ describe("Travel Hunter app", () => {
 
     try {
       cleanup();
-      renderRoute("/mypage");
+      renderAppRoute("/mypage");
 
       await waitFor(() =>
         expect(
@@ -4887,7 +4568,7 @@ describe("Travel Hunter app", () => {
 
     try {
       cleanup();
-      renderRoute("/mypage");
+      renderAppRoute("/mypage");
 
       await waitFor(() =>
         expect(document.querySelector(".ds-favorite-policy-card")).toBeTruthy(),
@@ -4901,10 +4582,153 @@ describe("Travel Hunter app", () => {
     }
   });
 
+  it("refreshes the my page applied policy summary after policy linking on another route", async () => {
+    const trip = getPreviewTrip();
+    const user = userEvent.setup();
+
+    await login();
+    cleanup();
+
+    const listSavedPoliciesSpy = vi
+      .spyOn(appDataApi, "listSavedPolicies")
+      .mockResolvedValue([]);
+    const listAppliedPoliciesSpy = vi
+      .spyOn(appDataApi, "listAppliedPolicies")
+      .mockResolvedValue([]);
+    const listTripsSpy = vi
+      .spyOn(appDataApi, "listTrips")
+      .mockResolvedValue([trip]);
+    const addPolicyToTripSpy = vi
+      .spyOn(appDataApi, "addPolicyToTrip")
+      .mockResolvedValue({
+        tripId: trip.id,
+        policyId: examplePolicySlug,
+        added: true,
+      });
+
+    try {
+      render(
+        <MemoryRouter initialEntries={[examplePolicyPath]}>
+          <AppProviders>
+            <App />
+            <Link to="/mypage">마이페이지 테스트 이동</Link>
+          </AppProviders>
+        </MemoryRouter>,
+      );
+
+      await user.click(await screen.findByRole("button", { name: /내 일정에 담기/ }));
+      await user.click(await screen.findByRole("button", { name: /부산 여행 1/ }));
+      await waitFor(() =>
+        expect(addPolicyToTripSpy).toHaveBeenCalledWith(
+          trip.id,
+          examplePolicySlug,
+        ),
+      );
+      await user.click(screen.getByRole("link", { name: "마이페이지 테스트 이동" }));
+
+      const summary = await screen.findByLabelText("나의 활동 요약");
+      const appliedPolicyStat = within(summary)
+        .getByText("신청 정책")
+        .closest(".prototype-stat-card") as HTMLElement;
+      await waitFor(() =>
+        expect(within(appliedPolicyStat).getByText("1")).toBeInTheDocument(),
+      );
+    } finally {
+      listSavedPoliciesSpy.mockRestore();
+      listAppliedPoliciesSpy.mockRestore();
+      listTripsSpy.mockRestore();
+      addPolicyToTripSpy.mockRestore();
+    }
+  });
+
+  it("removes trip detail unlinked policies from the my page applied summary", async () => {
+    const trip: Trip = {
+      ...getPreviewTrip(),
+      linkedPolicies: [],
+    };
+    const user = userEvent.setup();
+
+    await login();
+    cleanup();
+
+    const listAppliedPoliciesSpy = vi
+      .spyOn(appDataApi, "listAppliedPolicies")
+      .mockResolvedValue([]);
+    const listTripsSpy = vi
+      .spyOn(appDataApi, "listTrips")
+      .mockResolvedValue([trip]);
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(trip);
+    const addPolicyToTripSpy = vi
+      .spyOn(appDataApi, "addPolicyToTrip")
+      .mockResolvedValue({
+        policyId: examplePolicySlug,
+        tripId: trip.id,
+        added: true,
+      });
+    const removePolicyFromTripSpy = vi
+      .spyOn(appDataApi, "removePolicyFromTrip")
+      .mockResolvedValue({
+        policyId: examplePolicySlug,
+        tripId: trip.id,
+        added: false,
+      });
+
+    try {
+      render(
+        <MemoryRouter initialEntries={[examplePolicyPath]}>
+          <AppProviders>
+            <App />
+            <Link to="/mypage">마이페이지 테스트 이동</Link>
+          </AppProviders>
+        </MemoryRouter>,
+      );
+
+      await user.click(await screen.findByRole("button", { name: /내 일정에 담기/ }));
+      await user.click(await screen.findByRole("button", { name: /부산 여행 1/ }));
+      await user.click(await screen.findByRole("button", { name: "일정에서 보기" }));
+      const linkedRegion = await screen.findByRole("region", {
+        name: "연결된 정책",
+      });
+      await user.click(
+        within(linkedRegion).getByRole("button", {
+          name: `${examplePolicyTitle} 연결 삭제`,
+        }),
+      );
+      await waitFor(() =>
+        expect(removePolicyFromTripSpy).toHaveBeenCalledWith(
+          trip.id,
+          examplePolicySlug,
+        ),
+      );
+      await waitFor(() =>
+        expect(
+          within(linkedRegion).queryByRole("button", {
+            name: `${examplePolicyTitle} 연결 삭제`,
+          }),
+        ).not.toBeInTheDocument(),
+      );
+      await user.click(screen.getByRole("link", { name: "마이페이지 테스트 이동" }));
+
+      const summary = await screen.findByLabelText("나의 활동 요약");
+      const appliedPolicyStat = within(summary)
+        .getByText("신청 정책")
+        .closest(".prototype-stat-card") as HTMLElement;
+      await waitFor(() =>
+        expect(within(appliedPolicyStat).getByText("0")).toBeInTheDocument(),
+      );
+    } finally {
+      listAppliedPoliciesSpy.mockRestore();
+      listTripsSpy.mockRestore();
+      getTripSpy.mockRestore();
+      addPolicyToTripSpy.mockRestore();
+      removePolicyFromTripSpy.mockRestore();
+    }
+  });
+
   it("keeps notification controls inside the settings sheet on my page", async () => {
     await login();
     cleanup();
-    renderRoute("/mypage");
+    renderAppRoute("/mypage");
     const user = userEvent.setup();
 
     await waitFor(() =>
@@ -4930,7 +4754,7 @@ describe("Travel Hunter app", () => {
   it("opens FAQ, terms, and privacy content from my page settings", async () => {
     await login();
     cleanup();
-    renderRoute("/mypage");
+    renderAppRoute("/mypage");
     const user = userEvent.setup();
 
     await waitFor(() =>
@@ -4984,7 +4808,7 @@ describe("Travel Hunter app", () => {
         .spyOn(appDataApi, "updateNickname")
         .mockResolvedValue(nextUser);
       cleanup();
-      renderRoute("/mypage");
+      renderAppRoute("/mypage");
       const user = userEvent.setup();
 
       await user.click(await screen.findByRole("button", { name: "편집" }));
@@ -5045,7 +4869,7 @@ describe("Travel Hunter app", () => {
 
     try {
       cleanup();
-      renderRoute("/mypage");
+      renderAppRoute("/mypage");
       const user = userEvent.setup();
 
       await user.click(await screen.findByRole("button", { name: "편집" }));
@@ -5086,7 +4910,7 @@ describe("Travel Hunter app", () => {
 
     try {
       cleanup();
-      renderRoute("/mypage");
+      renderAppRoute("/mypage");
       const user = userEvent.setup();
 
       await user.click(await screen.findByRole("button", { name: "편집" }));
@@ -5124,7 +4948,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/mypage");
+      renderAppRoute("/mypage");
       const user = userEvent.setup();
 
       await user.click(
@@ -5169,7 +4993,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/mypage");
+      renderAppRoute("/mypage");
       const user = userEvent.setup();
 
       await user.click(
@@ -5224,7 +5048,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/mypage");
+      renderAppRoute("/mypage");
       const user = userEvent.setup();
 
       await user.click(
@@ -5279,7 +5103,7 @@ describe("Travel Hunter app", () => {
 
     try {
       cleanup();
-      renderRoute("/mypage");
+      renderAppRoute("/mypage");
 
       const summary = await screen.findByLabelText("나의 활동 요약");
       await waitFor(() =>
@@ -5313,7 +5137,7 @@ describe("Travel Hunter app", () => {
 
     try {
       cleanup();
-      renderRoute("/mypage");
+      renderAppRoute("/mypage");
 
       const summary = await screen.findByLabelText("나의 활동 요약");
       await waitFor(() =>
@@ -5380,7 +5204,7 @@ describe("Travel Hunter app", () => {
 
     try {
       cleanup();
-      renderRoute("/mypage");
+      renderAppRoute("/mypage");
 
       const summary = await screen.findByLabelText("나의 활동 요약");
       const appliedPolicyStat = within(summary)
@@ -5403,7 +5227,7 @@ describe("Travel Hunter app", () => {
 
     try {
       cleanup();
-      renderRoute("/mypage");
+      renderAppRoute("/mypage");
 
       const summary = await screen.findByLabelText("나의 활동 요약");
       await waitFor(() =>
@@ -5441,7 +5265,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/mypage");
+      renderAppRoute("/mypage");
       const user = userEvent.setup();
 
       await user.click(
@@ -5484,7 +5308,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/mypage");
+      renderAppRoute("/mypage");
       const user = userEvent.setup();
 
       await user.click(
@@ -5539,7 +5363,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/policies/official-only-policy");
+      renderAppRoute("/policies/official-only-policy");
 
       const applicationLink = await screen.findByRole("link", {
         name: "혜택 안내 보기",
@@ -5577,7 +5401,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/policies/apply-policy");
+      renderAppRoute("/policies/apply-policy");
 
       const applicationLink = await screen.findByRole("link", {
         name: "신청하러 가기",
@@ -5595,7 +5419,7 @@ describe("Travel Hunter app", () => {
   it("renders the prototype policy detail section order", async () => {
     await login();
     cleanup();
-    renderRoute(examplePolicyPath);
+    renderAppRoute(examplePolicyPath);
 
     await waitFor(() => expect(document.body).toHaveTextContent("지원 내용"));
     const bodyText = document.body.textContent ?? "";
@@ -5649,7 +5473,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/policies/card-benefit-policy");
+      renderAppRoute("/policies/card-benefit-policy");
 
       await screen.findByText("부산 결제 캐시백");
       const bodyText = document.body.textContent ?? "";
@@ -5705,7 +5529,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/policies/long-summary-policy");
+      renderAppRoute("/policies/long-summary-policy");
 
       const supportSection = await screen.findByRole("region", {
         name: "지원 내용",
@@ -5763,7 +5587,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/policies/dgtour-%EB%B0%80%EC%96%91-1");
+      renderAppRoute("/policies/dgtour-%EB%B0%80%EC%96%91-1");
 
       const supportSection = await screen.findByRole("region", {
         name: "지원 내용",
@@ -5811,7 +5635,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/policies/travelmonth-44");
+      renderAppRoute("/policies/travelmonth-44");
 
       const supportSection = await screen.findByRole("region", {
         name: "지원 내용",
@@ -5838,7 +5662,7 @@ describe("Travel Hunter app", () => {
   it("renders policy detail in prototype-only flow without FAQ accordion", async () => {
     await login();
     cleanup();
-    renderRoute(examplePolicyPath);
+    renderAppRoute(examplePolicyPath);
 
     await waitFor(() =>
       expect(document.body).toHaveTextContent(examplePolicyTitle),
@@ -5877,7 +5701,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/policies/no-link-policy");
+      renderAppRoute("/policies/no-link-policy");
       const fallbackButton = await screen.findByRole("button", {
         name: "신청 링크 준비 중",
       });
@@ -5886,15 +5710,90 @@ describe("Travel Hunter app", () => {
         "title",
         "공식 신청 연결은 준비 중입니다.",
       );
+      expect(document.body).toHaveTextContent("공식 신청 연결은 준비 중입니다.");
+      expect(fallbackButton).toHaveAccessibleDescription(
+        "공식 신청 연결은 준비 중입니다.",
+      );
     } finally {
       getPolicySpy.mockRestore();
+    }
+  });
+
+  it("blocks save and trip actions for info-only raw fallback policies", async () => {
+    const rawFallbackPolicy: Policy = {
+      id: "travelmonth-raw-58",
+      slug: "travelmonth-raw-58",
+      label: "RAW",
+      tag: "공식 안내",
+      title: "정규화 대기 중인 공식 혜택",
+      org: "한국관광공사",
+      region: "부산",
+      deadline: "2026-06-30",
+      amount: "최대 2만원",
+      summary: "원문 수집 상세만 임시로 확인할 수 있는 혜택입니다.",
+      match: 80,
+      category: "지역할인",
+      requirements: ["공식 안내 확인 필요"],
+      documents: ["혜택 안내 확인"],
+      officialUrl: "https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+      applyUrl: null,
+      sourceType: "external",
+      actionStatus: "infoOnly",
+    };
+    const getPolicySpy = vi
+      .spyOn(appDataApi, "getPolicy")
+      .mockResolvedValue(rawFallbackPolicy);
+    const loginSpy = vi
+      .spyOn(appDataApi, "login")
+      .mockResolvedValue({ accessToken: "test-token", user: getPreviewUser() });
+    const refreshSpy = vi
+      .spyOn(appDataApi, "refreshSession")
+      .mockResolvedValue({ accessToken: "test-token", user: getPreviewUser() });
+    const profileSpy = vi
+      .spyOn(appDataApi, "getProfile")
+      .mockResolvedValue({ region: "부산", style: "휴식", budget: "20만원" });
+    const savedPolicySpy = vi
+      .spyOn(appDataApi, "listSavedPolicies")
+      .mockResolvedValue([]);
+    const savePolicySpy = vi.spyOn(appDataApi, "savePolicy");
+    const listTripsSpy = vi.spyOn(appDataApi, "listTrips");
+
+    try {
+      await login();
+      cleanup();
+      renderAppRoute("/policies/travelmonth-raw-58");
+      const user = userEvent.setup();
+
+      await screen.findByText("정규화 대기 중인 공식 혜택");
+      expect(document.body).toHaveTextContent(
+        "이 혜택은 공식 원문 확인만 가능해요. 저장하거나 일정에 담으려면 정규화된 정책으로 승격되어야 합니다.",
+      );
+      const saveButton = screen.getByRole("button", { name: "저장" });
+      const tripButton = screen.getByRole("button", {
+        name: /내 일정에 담기/,
+      });
+      expect(saveButton).toBeDisabled();
+      expect(tripButton).toBeDisabled();
+
+      await user.click(saveButton);
+      await user.click(tripButton);
+      expect(savePolicySpy).not.toHaveBeenCalled();
+      expect(listTripsSpy).not.toHaveBeenCalled();
+    } finally {
+      getPolicySpy.mockRestore();
+      loginSpy.mockRestore();
+      refreshSpy.mockRestore();
+      profileSpy.mockRestore();
+      savedPolicySpy.mockRestore();
+      savePolicySpy.mockRestore();
+      listTripsSpy.mockRestore();
     }
   });
 
   it("saves profile setup choices before showing the personalized home", async () => {
     await login();
     cleanup();
-    renderRoute("/profile-setup");
+    renderAppRoute("/profile-setup");
     const user = userEvent.setup();
 
     await waitFor(() =>
@@ -5957,7 +5856,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/friend-invite?tripId=55");
+      renderAppRoute("/friend-invite?tripId=55");
       const user = userEvent.setup();
 
       await waitFor(() => expect(getInviteSpy).toHaveBeenCalledWith("55"));
@@ -5991,7 +5890,7 @@ describe("Travel Hunter app", () => {
       .mockResolvedValue({ requested: true });
 
     try {
-      renderRoute("/forgot-password");
+      renderAppRoute("/forgot-password");
       expect(document.querySelector("main")).toHaveClass(
         "prototype-login-layout",
       );
@@ -6010,11 +5909,11 @@ describe("Travel Hunter app", () => {
       await waitFor(() =>
         expect(requestSpy).toHaveBeenCalledWith({ email: testEmail }),
       );
-      await waitFor(() =>
-        expect(document.body).toHaveTextContent(
-          "비밀번호 재설정 링크를 보냈어요",
+      expect(
+        await screen.findByText(
+          "재설정 링크 요청을 접수했어요. 계정이 있는 이메일이면 메일이 도착합니다.",
         ),
-      );
+      ).toBeInTheDocument();
     } finally {
       requestSpy.mockRestore();
     }
@@ -6026,7 +5925,7 @@ describe("Travel Hunter app", () => {
       .mockResolvedValue({ reset: true });
 
     try {
-      renderRoute("/reset-password?token=abc123");
+      renderAppRoute("/reset-password?token=abc123");
       const user = userEvent.setup();
 
       await user.type(
@@ -6047,28 +5946,135 @@ describe("Travel Hunter app", () => {
     }
   });
 
-  it("links social login buttons to backend OAuth start routes", () => {
-    const kakaoUrl =
-      "http://127.0.0.1:8000/api/auth/oauth/kakao/start?redirect=%2Fhome";
-    const googleUrl =
-      "http://127.0.0.1:8000/api/auth/oauth/google/start?redirect=%2Fhome";
-    const oauthSpy = vi
-      .spyOn(appDataApi, "getOAuthStartUrl")
-      .mockImplementation((provider) =>
-        provider === "kakao" ? kakaoUrl : googleUrl,
-      );
+  it("shows missing email delivery configuration on the forgot password page", async () => {
+    const requestSpy = vi
+      .spyOn(appDataApi, "requestPasswordReset")
+      .mockRejectedValue(new Error("Email delivery is not configured"));
 
     try {
-      renderRoute("/login");
+      renderAppRoute("/forgot-password");
+      const user = userEvent.setup();
 
+      await user.type(
+        screen.getByRole("textbox", { name: "이메일" }),
+        testEmail,
+      );
+      await user.click(screen.getByRole("button", { name: "재설정 링크 받기" }));
+
+      await waitFor(() => expect(requestSpy).toHaveBeenCalledWith({ email: testEmail }));
       expect(
-        screen.getByRole("link", { name: "카카오로 시작하기" }),
-      ).toHaveAttribute("href", kakaoUrl);
+        await screen.findByText(
+          "현재 로컬 환경은 이메일 발송 설정이 없어 재설정 링크를 보낼 수 없어요. SMTP 설정 후 다시 시도해 주세요.",
+        ),
+      ).toBeInTheDocument();
+    } finally {
+      requestSpy.mockRestore();
+    }
+  });
+
+  it("shows a clear reset-password missing token state", () => {
+    renderAppRoute("/reset-password");
+
+    expect(screen.getByText("재설정 링크가 올바르지 않아요")).toBeInTheDocument();
+    expect(
+      screen.getByText("이메일에 있는 전체 링크를 다시 열거나 새 재설정 링크를 요청해 주세요."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "새 링크 요청하기" })).toBeInTheDocument();
+  });
+
+  it("offers a new reset link when a reset token is invalid or expired", async () => {
+    const confirmSpy = vi
+      .spyOn(appDataApi, "confirmPasswordReset")
+      .mockRejectedValue(new Error("Invalid or expired reset token"));
+
+    try {
+      renderAppRoute("/reset-password?token=expired-token");
+      const user = userEvent.setup();
+
+      await user.type(screen.getByLabelText("새 비밀번호"), "new-password123");
+      await user.click(screen.getByRole("button", { name: "비밀번호 변경" }));
+
+      await waitFor(() =>
+        expect(confirmSpy).toHaveBeenCalledWith({
+          token: "expired-token",
+          newPassword: "new-password123",
+        }),
+      );
       expect(
-        screen.getByRole("link", { name: "구글로 시작하기" }),
-      ).toHaveAttribute("href", googleUrl);
+        await screen.findByText("비밀번호를 재설정하지 못했어요. 링크가 만료되었거나 이미 사용되었을 수 있어요."),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "새 재설정 링크를 요청하기" }),
+      ).toBeInTheDocument();
+    } finally {
+      confirmSpy.mockRestore();
+    }
+  });
+
+  it("links social login buttons to backend OAuth start routes", () => {
+    renderAppRoute("/login");
+
+    expect(screen.getByRole("link", { name: "카카오로 시작하기" })).toHaveAttribute(
+      "href",
+      "/oauth/kakao/start?redirect=%2Fhome",
+    );
+    expect(screen.getByRole("link", { name: "구글로 시작하기" })).toHaveAttribute(
+      "href",
+      "/oauth/google/start?redirect=%2Fhome",
+    );
+  });
+
+  it("shows a local-friendly OAuth start error when a provider is not configured", async () => {
+    const oauthSpy = vi
+      .spyOn(appDataApi, "getOAuthStartUrl")
+      .mockReturnValue("http://127.0.0.1:8000/api/auth/oauth/kakao/start?redirect=%2Fhome");
+    const fetchSpy = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ detail: "OAuth provider is not configured" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+
+    try {
+      renderAppRoute("/oauth/kakao/start?redirect=/home");
+
+      await waitFor(() =>
+        expect(fetchSpy).toHaveBeenCalledWith(
+          "http://127.0.0.1:8000/api/auth/oauth/kakao/start?redirect=%2Fhome",
+          {
+            credentials: "include",
+            redirect: "manual",
+          },
+        ),
+      );
+      expect(await screen.findByText("카카오 로그인을 사용할 수 없어요")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "카카오 로그인을 사용할 수 없어요. OAuth provider is not configured",
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "이메일로 로그인하기" })).toBeInTheDocument();
     } finally {
       oauthSpy.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("shows a local-friendly OAuth callback error", async () => {
+    const refreshSpy = vi.spyOn(appDataApi, "refreshSession");
+
+    try {
+      renderAppRoute("/oauth/callback?error=access_denied&redirect=/home");
+
+      expect(await screen.findByText("소셜 로그인을 사용할 수 없어요")).toBeInTheDocument();
+      expect(screen.getByText("로그인을 완료하지 못했어요")).toBeInTheDocument();
+      expect(
+        screen.getByText("소셜 로그인 제공자가 로그인을 완료하지 못했어요. 이메일로 로그인해 주세요."),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "로그인으로 돌아가기" })).toBeInTheDocument();
+    } finally {
+      refreshSpy.mockRestore();
     }
   });
 
@@ -6089,7 +6095,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute(examplePolicyPath);
+      renderAppRoute(examplePolicyPath);
 
       await userEvent
         .setup()
@@ -6118,7 +6124,7 @@ describe("Travel Hunter app", () => {
   it("renders policy documents as static checklist rows", async () => {
     await login();
     cleanup();
-    renderRoute(examplePolicyPath);
+    renderAppRoute(examplePolicyPath);
 
     await waitFor(() => expect(document.body).toHaveTextContent("필요 서류"));
     expect(document.querySelectorAll(".check-item").length).toBeGreaterThan(0);
@@ -6128,7 +6134,7 @@ describe("Travel Hunter app", () => {
   it("opens an AI recommendation criteria sheet", async () => {
     await login();
     cleanup();
-    renderRoute("/ai-results?tripId=55");
+    renderAppRoute("/ai-results?tripId=55");
 
     await userEvent
       .setup()
@@ -6142,7 +6148,7 @@ describe("Travel Hunter app", () => {
   });
 
   it("preserves an invite redirect through login and signup navigation", async () => {
-    renderRoute("/invites/jeju-3d/accept");
+    renderAppRoute("/invites/jeju-3d/accept");
 
     await waitFor(() =>
       expect(document.querySelector('input[type="email"]')).toBeTruthy(),
@@ -6188,7 +6194,7 @@ describe("Travel Hunter app", () => {
     try {
       await login();
       cleanup();
-      renderRoute("/friend-invite?tripId=55");
+      renderAppRoute("/friend-invite?tripId=55");
 
       await waitFor(() => expect(getInviteSpy).toHaveBeenCalledWith("55"));
       await userEvent
@@ -6210,7 +6216,7 @@ describe("Travel Hunter app", () => {
   });
 
   it("accepts a valid invite after login and links to the joined trip", async () => {
-    renderRoute("/login?redirect=/invites/jeju-3d/accept");
+    renderAppRoute("/login?redirect=/invites/jeju-3d/accept");
 
     const user = userEvent.setup();
     await user.type(
@@ -6237,7 +6243,7 @@ describe("Travel Hunter app", () => {
   });
 
   it("accepts a valid invite after signup when a redirect is present", async () => {
-    renderRoute("/signup?redirect=/invites/jeju-3d/accept");
+    renderAppRoute("/signup?redirect=/invites/jeju-3d/accept");
     expect(document.querySelector("main")).toHaveClass(
       "prototype-login-layout",
     );
@@ -6291,348 +6297,10 @@ describe("Travel Hunter app", () => {
   it("shows an invite error state for an unknown invite token", async () => {
     await login();
     cleanup();
-    renderRoute("/invites/unknown-token/accept");
+    renderAppRoute("/invites/unknown-token/accept");
 
     await waitFor(() =>
       expect(document.body).toHaveTextContent("초대 링크를 찾을 수 없어요"),
     );
-  });
-});
-
-describe("admin pages", () => {
-  const NO_ACCESS = "\uC811\uADFC \uAD8C\uD55C\uC774 \uC5C6\uC2B5\uB2C8\uB2E4";
-  const ADMIN_ONLY =
-    "\uC774 \uD398\uC774\uC9C0\uB294 \uAD00\uB9AC\uC790\uB9CC \uC811\uADFC\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.";
-  const USER_MANAGEMENT = "\uD68C\uC6D0 \uAD00\uB9AC";
-  const POLICY_TITLE = "\uC815\uCC45 \uC81C\uBAA9";
-  const SAVE = "\uC800\uC7A5";
-
-  function installStoredUser(user: User & { role?: "user" | "admin" }) {
-    window.localStorage.setItem(
-      "travel-hunter-production-auth",
-      JSON.stringify({ accessToken: "test-token", user }),
-    );
-    vi.spyOn(appDataApi, "getCurrentUser").mockResolvedValue(user);
-    vi.spyOn(appDataApi, "getProfile").mockResolvedValue({
-      region: "Seoul",
-      style: "Food",
-      budget: "400000 KRW",
-    });
-    vi.spyOn(appDataApi, "listSavedPolicies").mockResolvedValue([]);
-  }
-
-  it("shows a dedicated 403 page for logged-in non-admin users", async () => {
-    installStoredUser({ ...getPreviewUser(), role: "user" });
-
-    renderRoute("/admin");
-
-    await waitFor(() => expect(document.body).toHaveTextContent(NO_ACCESS));
-    expect(document.body).toHaveTextContent(ADMIN_ONLY);
-  });
-
-  it("renders the admin user list for admin users", async () => {
-    installStoredUser({ ...getPreviewUser(), role: "admin" });
-    vi.spyOn(appDataApi as any, "listAdminUsers").mockResolvedValue({
-      items: [
-        {
-          id: "2",
-          email: "user@example.com",
-          nickname: "traveler",
-          role: "user",
-          onboardingCompleted: true,
-          createdAt: "2026-05-27T00:00:00",
-          updatedAt: "2026-05-27T00:00:00",
-        },
-      ],
-      total: 1,
-      limit: 30,
-      offset: 0,
-    });
-
-    renderRoute("/admin/users");
-
-    await waitFor(() =>
-      expect(document.body).toHaveTextContent(USER_MANAGEMENT),
-    );
-    expect(document.body).toHaveTextContent("user@example.com");
-  });
-
-  it("renders admin user counts and pagination controls", async () => {
-    installStoredUser({ ...getPreviewUser(), role: "admin" });
-    const listSpy = vi
-      .spyOn(appDataApi as any, "listAdminUsers")
-      .mockResolvedValueOnce({
-        items: Array.from({ length: 30 }, (_, index) => ({
-          id: String(index + 1),
-          email: `user-${index + 1}@example.com`,
-          nickname: `traveler-${index + 1}`,
-          role: "user",
-          onboardingCompleted: true,
-          createdAt: "2026-05-27T00:00:00",
-          updatedAt: "2026-05-27T00:00:00",
-        })),
-        total: 226,
-        limit: 30,
-        offset: 0,
-      })
-      .mockResolvedValueOnce({
-        items: [
-          {
-            id: "31",
-            email: "user-31@example.com",
-            nickname: "traveler-31",
-            role: "user",
-            onboardingCompleted: true,
-            createdAt: "2026-05-27T00:00:00",
-            updatedAt: "2026-05-27T00:00:00",
-          },
-        ],
-        total: 226,
-        limit: 30,
-        offset: 30,
-      });
-
-    renderRoute("/admin/users");
-
-    await waitFor(() =>
-      expect(document.body).toHaveTextContent("총 226명 중 1-30명 표시"),
-    );
-    expect(screen.getByRole("button", { name: "이전" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "다음" })).not.toBeDisabled();
-
-    await userEvent.click(screen.getByRole("button", { name: "다음" }));
-
-    await waitFor(() =>
-      expect(listSpy).toHaveBeenLastCalledWith({ limit: 30, offset: 30 }),
-    );
-  });
-
-  it("renders admin policy status tabs, counts, and pagination controls", async () => {
-    installStoredUser({ ...getPreviewUser(), role: "admin" });
-    const listSpy = vi
-      .spyOn(appDataApi as any, "listAdminPolicies")
-      .mockResolvedValueOnce({
-        items: Array.from({ length: 30 }, (_, index) => ({
-          id: String(index + 1),
-          slug: `policy-${index + 1}`,
-          title: `정책 ${index + 1}`,
-          organization: null,
-          policyType: "교통",
-          region: "충남",
-          status: "active",
-          sourceType: "external",
-          sourceCategory: "local_half_trip",
-          sourceLabel: "반값여행",
-          updatedAt: "2026-05-27T00:00:00",
-        })),
-        total: 71,
-        limit: 30,
-        offset: 0,
-      })
-      .mockResolvedValueOnce({
-        items: [],
-        total: 0,
-        limit: 30,
-        offset: 0,
-      });
-
-    renderRoute("/admin/policies");
-
-    await waitFor(() =>
-      expect(document.body).toHaveTextContent("총 71개 중 1-30개 표시"),
-    );
-    expect(document.body).toHaveTextContent("반값여행");
-    expect(screen.getByRole("button", { name: "전체" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(screen.getByRole("button", { name: "노출중" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "숨김" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "이전" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "다음" })).not.toBeDisabled();
-
-    await userEvent.click(screen.getByRole("button", { name: "숨김" }));
-
-    await waitFor(() =>
-      expect(listSpy).toHaveBeenLastCalledWith({
-        limit: 30,
-        offset: 0,
-        status: "hidden",
-      }),
-    );
-  });
-
-  it("renders admin audit log counts and pagination controls", async () => {
-    installStoredUser({ ...getPreviewUser(), role: "admin" });
-    const listSpy = vi
-      .spyOn(appDataApi as any, "listAdminAuditLogs")
-      .mockResolvedValueOnce({
-        items: Array.from({ length: 30 }, (_, index) => ({
-          id: String(index + 1),
-          adminUserId: "1",
-          adminEmail: "admin@example.com",
-          action: "policy.update",
-          targetType: "policy",
-          targetId: String(index + 1),
-          summary: "Updated policy",
-          beforeJson: null,
-          afterJson: null,
-          createdAt: "2026-05-27T00:00:00",
-        })),
-        total: 45,
-        limit: 30,
-        offset: 0,
-      })
-      .mockResolvedValueOnce({
-        items: [],
-        total: 45,
-        limit: 30,
-        offset: 30,
-      });
-
-    renderRoute("/admin/audit-logs");
-
-    await waitFor(() =>
-      expect(document.body).toHaveTextContent("총 45개 중 1-30개 표시"),
-    );
-    expect(screen.getByRole("button", { name: "이전" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "다음" })).not.toBeDisabled();
-
-    await userEvent.click(screen.getByRole("button", { name: "다음" }));
-
-    await waitFor(() =>
-      expect(listSpy).toHaveBeenLastCalledWith({ limit: 30, offset: 30 }),
-    );
-  });
-
-  it("shows the admin entry in desktop and mobile service navigation", async () => {
-    installStoredUser({ ...getPreviewUser(), role: "admin" });
-
-    renderRoute("/home");
-
-    await waitFor(() => expect(screen.getAllByText("관리자").length).toBe(2));
-    expect(
-      document.querySelector(".top-tabs a[href='/admin'] span")?.textContent,
-    ).toBe("관리자");
-    expect(
-      document.querySelector(".bottom-tabs a[href='/admin'] span")?.textContent,
-    ).toBe("관리자");
-    expect(
-      document.querySelector(".bottom-tabs")?.classList.contains("admin-tabs"),
-    ).toBe(true);
-  });
-
-  it("submits admin policy edits without slug or sourceType", async () => {
-    installStoredUser({ ...getPreviewUser(), role: "admin" });
-    vi.spyOn(appDataApi as any, "getAdminPolicy").mockResolvedValue({
-      id: "10",
-      slug: "fixed-slug",
-      title: "Original policy",
-      organization: "Travel Hunter",
-      policyType: "region-discount",
-      region: "Nationwide",
-      startDate: null,
-      endDate: "2026-12-31",
-      benefitAmount: 10000,
-      benefitDetail: "10000 KRW discount",
-      description: "Policy description",
-      requirements: ["Domestic traveler"],
-      documents: ["ID card"],
-      officialUrl: "https://example.com/official",
-      applyUrl: null,
-      policyComment: "Comment",
-      policyPeriod: null,
-      status: "active",
-      sourceType: "internal",
-      sourceCategory: null,
-      sourceLabel: "내부",
-      adminOverrideEnabled: false,
-      updatedAt: "2026-05-27T00:00:00",
-      createdAt: "2026-05-27T00:00:00",
-    });
-    const updateSpy = vi
-      .spyOn(appDataApi as any, "updateAdminPolicy")
-      .mockResolvedValue({
-        id: "10",
-        slug: "fixed-slug",
-        title: "Edited policy",
-        organization: "Travel Hunter",
-        policyType: "region-discount",
-        region: "Nationwide",
-        startDate: null,
-        endDate: "2026-12-31",
-        benefitAmount: 10000,
-        benefitDetail: "10000 KRW discount",
-        description: "Policy description",
-        requirements: ["Domestic traveler"],
-        documents: ["ID card"],
-        officialUrl: "https://example.com/official",
-        applyUrl: null,
-        policyComment: "Comment",
-        policyPeriod: null,
-        status: "active",
-        sourceType: "internal",
-        sourceCategory: null,
-        sourceLabel: "내부",
-        adminOverrideEnabled: false,
-        updatedAt: "2026-05-27T00:00:00",
-        createdAt: "2026-05-27T00:00:00",
-      });
-
-    renderRoute("/admin/policies/10");
-
-    const titleInput = await screen.findByRole("textbox", {
-      name: POLICY_TITLE,
-    });
-    await userEvent.clear(titleInput);
-    await userEvent.type(titleInput, "Edited policy");
-    await userEvent.click(screen.getByRole("button", { name: SAVE }));
-
-    await waitFor(() => expect(updateSpy).toHaveBeenCalled());
-    const payload = updateSpy.mock.calls[0][1] as Record<string, unknown>;
-    expect(payload.title).toBe("Edited policy");
-    expect(payload.slug).toBeUndefined();
-    expect(payload.sourceType).toBeUndefined();
-  });
-
-  it("renders external policy source status on the admin dashboard", async () => {
-    installStoredUser({ ...getPreviewUser(), role: "admin" });
-    vi.spyOn(
-      appDataApi as any,
-      "getAdminExternalSourceSummary",
-    ).mockResolvedValue({
-      items: [
-        {
-          sourceCategory: "local_half_trip",
-          label: "반값여행",
-          sourceName: "대한민국 반값여행",
-          totalRecords: 16,
-          activeRecords: 5,
-          scheduledRecords: 7,
-          endedRecords: 4,
-          unknownRecords: 0,
-          freshRecords: 5,
-          promotedPolicyCount: 5,
-          activePromotedPolicyCount: 5,
-          latestFetchedAt: "2026-05-27T09:00:00",
-          latestVerifiedAt: "2026-05-27T09:00:00",
-        },
-      ],
-      totalRecords: 16,
-      activeRecords: 5,
-      freshRecords: 5,
-      promotedPolicyCount: 5,
-      latestFetchedAt: "2026-05-27T09:00:00",
-    });
-
-    renderRoute("/admin");
-
-    await waitFor(() =>
-      expect(document.body).toHaveTextContent("외부 정책 수집 상태"),
-    );
-    expect(document.body).toHaveTextContent("대한민국 반값여행");
-    expect(
-      screen.queryByRole("button", { name: /수집/ }),
-    ).not.toBeInTheDocument();
   });
 });

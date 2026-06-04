@@ -46,6 +46,8 @@ At the start of non-trivial work:
 - Never commit secrets. Keep `.env.example` documented and safe.
 - Any API shape change must update the API contract, frontend types, backend schemas/routes/services, tests, and `.agent/evals` together.
 - Documentation changes must preserve UTF-8 Korean text.
+- Source, docs, tests, and config files are UTF-8. Do not rewrite Korean-bearing text files through PowerShell `Set-Content`, `Out-File`, or shell redirection; prefer `apply_patch`, or a UTF-8-explicit tool such as Node `fs.readFileSync(path, "utf8")` / `fs.writeFileSync(path, text, "utf8")` for mechanical rewrites.
+- Treat garbled Korean in PowerShell `Get-Content` output as display-only until verified with a UTF-8-aware diff or parser; do not use mojibake terminal output as source text for edits.
 - Schema creation must use Alembic. Do not use SQLAlchemy `create_all()` for app schema.
 - Before merging to main, all HIGH items in `docs/security-review/` checklists must be resolved (`- [x]`). Run each verification command and record pass/fail in `CHECKLIST.md`.
 
@@ -83,4 +85,7 @@ A task is done only when:
 - Relevant frontend/backend tests and evals have been updated.
 - The required validation commands were run, or a clear blocker is recorded.
 - README, env examples, `PLANS.md`, or `CHECKLIST.md` were updated when the task changes usage, setup, API, or workflow.
+- Before finishing a task that touches project state, keep `CHECKLIST.md` slim: update only current status, recent validation evidence, and active remaining risks; remove stale historical task logs instead of appending long chronology.
+- Validate checklist cleanup with `git diff --check -- CHECKLIST.md` when `CHECKLIST.md` changes.
+- When Korean text files are edited, verify changed diffs remain readable UTF-8 and contain no mojibake markers such as `鍮`, `援`, `移`, or `�`.
 - Remaining risks are explicit.

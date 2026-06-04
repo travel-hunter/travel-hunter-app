@@ -65,6 +65,7 @@ export type Policy = {
   officialUrl: string | null;
   applyUrl: string | null;
   sourceType?: "internal" | "external";
+  actionStatus?: "infoOnly";
 };
 
 export type AppliedPolicyLinkedTrip = {

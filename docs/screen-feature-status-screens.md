@@ -1,5 +1,8 @@
 # 화면 기준 기능 개발 현황
 
+> Status: reference.
+> This document remains the screen-by-screen status ledger. For current local UX completion specs, use `docs/specs/spec-index.md` and the three `docs/specs/local-ux-*.md` documents.
+
 이 문서는 Travel Hunter에서 사용자가 직접 보는 화면(route/page) 단위의 기능 개발 현황을 누적 기록한다. 각 화면은 "완료", "부분 완료", "코드 구현/환경 미설정", "미구현" 상태로 구분하고, 확인 근거와 현재 환경에서의 제약을 함께 남긴다.
 
 ## 새 섹션 추가 기준

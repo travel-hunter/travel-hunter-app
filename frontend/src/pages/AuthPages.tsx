@@ -1,6 +1,6 @@
 ﻿import { FormEvent, useEffect, useState } from "react";
 import { ChevronLeft, Dice5 } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { appDataApi } from "../api";
 import { useSession } from "../app/session";
 import { AuthFormShell, BrandMark } from "../components/patterns";
@@ -15,6 +15,39 @@ function getSafeRedirect(searchParams: URLSearchParams) {
 function withRedirect(path: string, redirect: string | null) {
   if (!redirect) return path;
   return `${path}?redirect=${encodeURIComponent(redirect)}`;
+}
+
+function getOAuthStartPath(provider: "kakao" | "google", redirect: string) {
+  return `/oauth/${provider}/start?redirect=${encodeURIComponent(redirect)}`;
+}
+
+function friendlyPasswordResetRequestError(detail: string) {
+  if (detail === "Email delivery is not configured") {
+    return "현재 로컬 환경은 이메일 발송 설정이 없어 재설정 링크를 보낼 수 없어요. SMTP 설정 후 다시 시도해 주세요.";
+  }
+  if (detail === "Email delivery failed") {
+    return "이메일 발송 중 문제가 발생했어요. 잠시 후 다시 시도하거나 관리자에게 문의해 주세요.";
+  }
+  return detail || "비밀번호 재설정 요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.";
+}
+
+const oauthProviderLabels = {
+  kakao: "카카오",
+  google: "구글",
+} as const;
+
+function isOAuthProvider(provider: string | undefined): provider is keyof typeof oauthProviderLabels {
+  return provider === "kakao" || provider === "google";
+}
+
+async function readOAuthStartError(response: Response) {
+  try {
+    const payload = (await response.clone().json()) as { detail?: unknown };
+    if (typeof payload.detail === "string" && payload.detail.trim()) return payload.detail;
+  } catch {
+    // Keep the local-friendly fallback when the backend did not return JSON.
+  }
+  return "";
 }
 
 export function LoginPage() {
@@ -104,13 +137,13 @@ export function LoginPage() {
         </div>
 
         <div className="prototype-login-socials">
-          <a className="prototype-social kakao" href={appDataApi.getOAuthStartUrl("kakao", oauthRedirect)}>
+          <a className="prototype-social kakao" href={getOAuthStartPath("kakao", oauthRedirect)}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="#3C1E1E" aria-hidden="true">
               <path d="M12 3C7.03 3 3 6.36 3 10.5c0 2.6 1.69 4.9 4.26 6.27-.19.7-.67 2.54-.77 2.94-.12.49.18.48.38.35.16-.1 2.5-1.69 3.51-2.37.53.08 1.08.12 1.62.12 4.97 0 9-3.36 9-7.5S16.97 3 12 3z" />
             </svg>
             카카오로 시작하기
           </a>
-          <a className="prototype-social google" href={appDataApi.getOAuthStartUrl("google", oauthRedirect)}>
+          <a className="prototype-social google" href={getOAuthStartPath("google", oauthRedirect)}>
             <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
               <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
@@ -350,11 +383,11 @@ export function ForgotPasswordPage() {
     try {
       await appDataApi.requestPasswordReset({ email });
       setStatus("success");
-      setMessage("비밀번호 재설정 링크를 보냈어요");
+      setMessage("재설정 링크 요청을 접수했어요. 계정이 있는 이메일이면 메일이 도착합니다.");
     } catch (error) {
       const detail = error instanceof Error ? error.message : "";
       setStatus("error");
-      setMessage(detail || "비밀번호 재설정 이메일을 보낼 수 없어요. 관리자에게 SMTP 설정을 확인해 주세요.");
+      setMessage(friendlyPasswordResetRequestError(detail));
     }
   };
 
@@ -444,7 +477,17 @@ export function ResetPasswordPage() {
         <span />
       </div>
       <AuthFormShell title="새 비밀번호를 설정하세요" body="설정이 완료되면 기존 로그인 세션은 모두 만료돼요." showBrandMark={false}>
-      {success ? (
+      {!token ? (
+        <div className="content stack padded prototype-auth-content">
+          <div className="state-panel">
+            <strong>재설정 링크가 올바르지 않아요</strong>
+            <p>이메일에 있는 전체 링크를 다시 열거나 새 재설정 링크를 요청해 주세요.</p>
+          </div>
+          <Button full onClick={() => navigate("/forgot-password")}>
+            새 링크 요청하기
+          </Button>
+        </div>
+      ) : success ? (
         <div className="content stack padded prototype-auth-content">
           <div className="state-panel">
             <strong>비밀번호를 변경했어요</strong>
@@ -461,14 +504,92 @@ export function ResetPasswordPage() {
             <input name="password" type="password" placeholder="8자 이상 입력" autoComplete="new-password" />
           </label>
           {error && (
-            <p className="form-error" role="alert">
-              {error}
-            </p>
+            <div className="content stack">
+              <p className="form-error" role="alert">
+                {error}
+              </p>
+              <button type="button" onClick={() => navigate("/forgot-password")}>
+                새 재설정 링크를 요청하기
+              </button>
+            </div>
           )}
           <Button full type="submit" disabled={isSubmitting}>
             {isSubmitting ? "변경 중입니다" : "비밀번호 변경"}
           </Button>
         </form>
+      )}
+      </AuthFormShell>
+    </section>
+  );
+}
+
+export function OAuthStartPage() {
+  const navigate = useNavigate();
+  const { provider: providerParam } = useParams();
+  const [searchParams] = useSearchParams();
+  const [error, setError] = useState("");
+  const redirect = getSafeRedirect(searchParams) ?? "/home";
+  const provider = isOAuthProvider(providerParam) ? providerParam : null;
+  const providerLabel = provider ? oauthProviderLabels[provider] : "소셜";
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function startOAuth() {
+      if (!provider) {
+        setError("지원하지 않는 소셜 로그인입니다. 이메일로 로그인해 주세요.");
+        return;
+      }
+
+      const startUrl = appDataApi.getOAuthStartUrl(provider, redirect);
+      try {
+        const response = await fetch(startUrl, {
+          credentials: "include",
+          redirect: "manual",
+        });
+
+        if (cancelled) return;
+        if (response.type === "opaqueredirect" || response.status === 0 || (response.status >= 300 && response.status < 400)) {
+          window.location.assign(startUrl);
+          return;
+        }
+        if (!response.ok) {
+          const detail = await readOAuthStartError(response);
+          setError(
+            detail
+              ? `${providerLabel} 로그인을 사용할 수 없어요. ${detail}`
+              : `${providerLabel} 로그인이 아직 로컬 환경에 설정되지 않았어요. 이메일로 로그인해 주세요.`,
+          );
+          return;
+        }
+        window.location.assign(startUrl);
+      } catch {
+        if (!cancelled) {
+          setError(`${providerLabel} 로그인 설정을 확인하지 못했어요. 이메일로 로그인해 주세요.`);
+        }
+      }
+    }
+
+    void startOAuth();
+    return () => {
+      cancelled = true;
+    };
+  }, [provider, providerLabel, redirect]);
+
+  return (
+    <section className="screen white prototype-auth-screen">
+      <div className="prototype-status-bar" aria-hidden="true" />
+      <AuthFormShell title={`${providerLabel} 로그인을 확인하는 중입니다`} body="로컬 환경 설정을 확인하고 있어요.">
+      {error && (
+        <div className="content stack padded prototype-auth-content">
+          <div className="state-panel">
+            <strong>{providerLabel} 로그인을 사용할 수 없어요</strong>
+            <p>{error}</p>
+          </div>
+          <Button full onClick={() => navigate(withRedirect("/login", redirect))}>
+            이메일로 로그인하기
+          </Button>
+        </div>
       )}
       </AuthFormShell>
     </section>
@@ -481,10 +602,15 @@ export function OAuthCallbackPage() {
   const { completeOAuthSession } = useSession();
   const [error, setError] = useState("");
   const redirect = getSafeRedirect(searchParams) ?? "/home";
+  const providerError = searchParams.get("error");
 
   useEffect(() => {
     let cancelled = false;
     async function complete() {
+      if (providerError) {
+        setError("소셜 로그인 제공자가 로그인을 완료하지 못했어요. 이메일로 로그인해 주세요.");
+        return;
+      }
       try {
         await completeOAuthSession();
         if (!cancelled) navigate(redirect, { replace: true });
@@ -496,17 +622,20 @@ export function OAuthCallbackPage() {
     return () => {
       cancelled = true;
     };
-  }, [completeOAuthSession, navigate, redirect]);
+  }, [completeOAuthSession, navigate, providerError, redirect]);
 
   return (
     <section className="screen white prototype-auth-screen">
       <div className="prototype-status-bar" aria-hidden="true" />
-      <AuthFormShell title="트래블헌터 로그인을 완료하는 중입니다" body="잠시만 기다려 주세요.">
+      <AuthFormShell title={error ? "소셜 로그인을 사용할 수 없어요" : "트래블헌터 로그인을 완료하는 중입니다"} body={error ? "로컬 환경에서는 이메일 로그인을 사용해 주세요." : "잠시만 기다려 주세요."}>
       {error && (
         <div className="content stack padded prototype-auth-content">
-          <p className="form-error" role="alert">
-            {error}
-          </p>
+          <div className="state-panel">
+            <strong>로그인을 완료하지 못했어요</strong>
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          </div>
           <Button full onClick={() => navigate("/login")}>
             로그인으로 돌아가기
           </Button>

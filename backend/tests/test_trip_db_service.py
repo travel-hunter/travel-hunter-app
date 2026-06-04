@@ -1328,14 +1328,15 @@ def test_recommendation_mapper_ignores_invalid_items() -> None:
 def test_invite_to_api_computes_display_flags() -> None:
     from app.models import TripInvite
 
+    now = trip_service.security.utc_now_naive()
     invite = TripInvite(
         id=9,
         trip_id=7,
         invite_token="abc",
         created_by=1,
         role="viewer",
-        created_at=datetime(2026, 5, 4, 0, 0, 0),
-        expires_at=datetime(2026, 5, 4, 0, 0, 0) + timedelta(days=30),
+        created_at=now - timedelta(days=1),
+        expires_at=now + timedelta(days=30),
     )
 
     payload = trip_service.invite_to_api(invite, trip_id=7)

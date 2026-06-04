@@ -1,5 +1,8 @@
 # Travel Hunter ?꾩옱 ?묒뾽 紐낆꽭
 
+> Status: active.
+> Current local UX completion priorities are split into `docs/specs/local-ux-auth-account.md`, `docs/specs/local-ux-policy-trip-linking.md`, and `docs/specs/local-ux-place-discovery.md`. Use `docs/specs/spec-index.md` for document status and cleanup rules.
+
 ## 湲곗?
 
 - 湲곗??? 2026-05-23

@@ -1,0 +1,48 @@
+{
+  "active": true,
+  "current_phase": "deep-interview",
+  "state": {
+    "interview_id": "di-md-cleanup-20260604",
+    "type": "brownfield",
+    "initial_idea": "프로젝트 전반(docs/, .omx/, .omc/, docs/superpowers/ 등)에 흩어진 다수의 .md 작업명세 문서를 깔끔하게 정리하고, 삭제 가능한 것은 최대한 삭제하고 싶다.",
+    "initial_context_summary": null,
+    "rounds": [
+      {"round": 1, "component": "omx-cleanup", "dimension": "constraints", "q": "삭제 안전장치", "a": "커밋 후 삭제 (git 이력 보존 → 복구 가능)", "ambiguity": 0.47},
+      {"round": 2, "component": "docs-curation", "dimension": "goal", "q": "유지/삭제 판별 규칙", "a": "AGENTS.md/README 참조 기준 — 참조되는 문서만 유지, 고아 문서 삭제", "ambiguity": 0.32},
+      {"round": 3, "component": "root-functional-docs", "dimension": "goal", "q": "참조의 조작적 정의", "a": "직접 참조만 유지 + 진입점/SKILL 예외 유지, 전이참조는 삭제", "ambiguity": 0.19},
+      {"round": 4, "component": "omx-cleanup", "dimension": "goal", "q": "[Contrarian] disk삭제 vs gitignore", "a": "disk에서도 완전 삭제 (커밋후삭제로 git 복구는 가능)", "ambiguity": 0.145},
+      {"round": 5, "component": "recurrence-prevention", "dimension": "goal", "q": "재발 방지 정책", "a": ".omx/ .omc/ 를 .gitignore에 등록", "ambiguity": 0.114},
+      {"round": 6, "component": "all", "dimension": "criteria", "q": "[Simplifier] 검증 방식", "a": "dry-run keep/delete 목록 1회 승인 후 실행", "ambiguity": 0.0795}
+    ],
+    "current_ambiguity": 0.0795,
+    "spec_path": ".omc/specs/deep-interview-md-doc-cleanup.md",
+    "status": "PASSED_HELD_NO_EXECUTION",
+    "challenge_modes_used": ["contrarian", "simplifier"],
+    "threshold": 0.08,
+    "threshold_source": "./.claude/settings.json",
+    "codebase_context": {
+      "total_md_excl_thirdparty": "approx 60 (excl .venv/.github/node_modules)",
+      "omx_md_total": 76,
+      "omx_tracked": 5,
+      "omx_untracked_permanent_delete": 71,
+      "omc_md": 0,
+      "docs_tracked": 21,
+      "superpowers_gitignored_line": 232,
+      "functional_docs": ["AGENTS.md x4", ".agent/skills/*/SKILL.md x5", "README.md", "CONTRIBUTING.md"]
+    },
+    "topology": {
+      "status": "confirmed",
+      "confirmed_at": "2026-06-04T00:00:00Z",
+      "components": [
+        {"id": "omx-cleanup", "name": "AI 워크플로우 산출물 정리 (.omx/.omc)", "description": "과거 세션 스크래치 76개 대량 정리", "status": "active", "evidence": [".omx 76 md files, 71 untracked"], "clarity_scores": {"goal": null, "constraints": null, "criteria": null, "context": null}, "weakest_dimension": null},
+        {"id": "docs-curation", "name": "프로젝트 문서 큐레이션 (docs/)", "description": "현행 권위 문서 유지, 낡은/대체 문서 삭제", "status": "active", "evidence": ["docs 21 tracked, several already M/D in worktree"], "clarity_scores": {"goal": null, "constraints": null, "criteria": null, "context": null}, "weakest_dimension": null},
+        {"id": "root-functional-docs", "name": "루트·기능성 문서 정리", "description": "README/CONTRIBUTING/PLANS/CHECKLIST/AGENTS.md/.agent/skills 통합·삭제 검토 (사용자가 공격적 스코프 선택)", "status": "active", "evidence": ["user chose '기능문서도 정리 대상'"], "clarity_scores": {"goal": null, "constraints": null, "criteria": null, "context": null}, "weakest_dimension": null},
+        {"id": "recurrence-prevention", "name": "재발 방지 (.gitignore 정책)", "description": "AI 산출물이 다시 쌓이지 않도록 정책 추가", "status": "active", "evidence": ["initial idea: 깔끔하게 정리"], "clarity_scores": {"goal": null, "constraints": null, "criteria": null, "context": null}, "weakest_dimension": null}
+      ],
+      "deferrals": [],
+      "last_targeted_component_id": null
+    },
+    "challenge_modes_used": [],
+    "ontology_snapshots": []
+  }
+}

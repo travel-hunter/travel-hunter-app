@@ -1,5 +1,8 @@
 # 로직/API/추천 기능 설명
 
+> Status: reference.
+> This document remains the logic and fallback status ledger. For current local UX completion specs, use `docs/specs/spec-index.md` and the three `docs/specs/local-ux-*.md` documents.
+
 이 문서는 Travel Hunter 화면 뒤에서 동작하는 수집, 외부 API, 추천/자동생성, fallback, 저장/선정 기준을 누적 기록한다. 화면별 버튼/상태 나열보다 팀원이 내부 동작과 한계, 향후 개선 방향을 판단하는 데 필요한 설명을 우선한다.
 
 ## 새 섹션 추가 기준

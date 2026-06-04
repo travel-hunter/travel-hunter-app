@@ -1,134 +1,52 @@
-# Travel Hunter ?ㅼ쓬 ?묒뾽 ?곗꽑?쒖쐞
+# Travel Hunter Next Work Plan
 
-## 湲곗?
+> Status: reference.
+> Use `docs/specs/spec-index.md` as the active source of truth for current local UX priorities. Deployment and CI/CD work remains deferred under `docs/deployment-cicd/` unless explicitly reprioritized.
 
-- 湲곗??? 2026-05-23
-- 湲곗? 寃利?湲곗?: `9bdcb73` 諛??꾩옱 臾몄꽌 ?묒뾽?몃━
-- 釉뚮옖移? `develop`
-- ?먭꺽 ?곹깭: `develop` 蹂묓빀 ?댄썑 濡쒖뺄?먯꽌 怨듭떇 ?쒗깮 ?섏쭛/?밴꺽, ?붾? ?뺤콉 ??젣, ?뺤콉 UI/?뚯뒪??臾몄꽌 ?뺥빀??蹂듦뎄瑜??댁뼱媛??湲곗??대떎.
-- 湲곗? ?곹깭: DB-backed-only MVP, numeric trip id 怨꾩빟, 臾몄꽌/怨꾩빟/eval ?숆린?? frontend/backend 寃利앹씠 ?꾨즺???곹깭??
+## Current Priority
 
-## Current Local Priority
+The current priority is local functional completion that can be verified without public DNS, Cloudflare, real SMTP sender-domain authentication, OAuth provider redirect registration, or staging infrastructure.
 
-Cloudflare???ㅻ줈 誘몃（怨? ?꾩옱 1?쒖쐞??濡쒖뺄 Docker Compose?먯꽌 怨듭떇 ?곗씠???섏쭛怨??쇱젙 ?먮룞 ?앹꽦 異붿쿇 ?먮쫫???앷퉴吏 諛섎났 寃利?媛?ν븯寃?留뚮뱶??寃껋씠??
+Recently completed local UX work:
 
-?묒뾽紐낆꽭:
+- Domain-independent Auth and Account Recovery UX.
+- Policy detail no-link CTA clarity.
+- Policy detail info-only action blocking and policy-to-trip success feedback.
+- MyPage saved/applied policy summary consistency after policy save, remove, link, and unlink actions.
 
+Immediate sequence:
+
+1. Keep the frontend validation baseline green as the entry gate for further UI work.
+2. Complete the remaining Policy To Trip Linking local runtime smoke for a normalized policy across save, unsave, link, trip-detail display, unlink, and MyPage refresh.
+3. Complete Place Detail and Search local UX.
+4. Revisit domain-dependent SMTP, OAuth, Cloudflare, deployment, and CI/CD smoke work after local UX completion.
+
+## Active Planning Sources
+
+- `docs/specs/spec-index.md`
+- `docs/specs/local-ux-auth-account.md`
+- `docs/specs/local-ux-policy-trip-linking.md`
+- `docs/specs/local-ux-place-discovery.md`
 - `docs/current-work-spec.md`
+- `docs/mvp-api-contract.md`
+- `docs/db-schema-current.md`
+- `docs/db-schema-current.sql`
 
-?깃났 湲곗?:
+## Deferred Work
 
-- TravelMonth 怨듭떇 ?섏씠吏 ?섏쭛???섎룞 紐낅졊?쇰줈 ?ㅽ뻾?쒕떎.
-- ?섏쭛 寃곌낵媛 `external_source_records`????λ맂??
-- `/api/policies`? `/policies` 紐⑸줉??`policies`濡??뺢퇋???밴꺽??TravelMonth 怨듭떇 ?쒗깮???몄텧?쒕떎.
-- `/api/ops/external-collection/quality`媛 ????덉쭏怨?recommendation preview瑜?蹂댁뿬以??
-- `/api/recommendations/regions`媛 ????곗씠??湲곕컲 吏??異붿쿇??諛섑솚?쒕떎.
-- `/home` 異붿쿇 UI媛 ?대떦 API瑜??ъ슜?쒕떎.
-- `/trips/new`?먯꽌 ???쇱젙??留뚮뱾硫?`trip_days`, `trip_places`, `recommendations`媛 ?먮룞 ??λ맂??
-- `/trips/{id}`? `/ai-results?tripId={id}`?먯꽌 ?앹꽦 寃곌낵瑜??뺤씤?????덈떎.
+The following work is intentionally lower priority for now:
 
-2026-05-22 蹂닿컯 湲곗?:
-
-- `/trips/new?region=...`????異붿쿇 吏??쓣 ???쇱젙 ?앹꽦 吏??쑝濡??좎??쒕떎.
-- `travelmonth-{id}` TravelMonth ?쒗깮 slug???뺢퇋?붾맂 `policies` ?덉퐫?쒕줈 ????쇱젙 ?곌껐 ?붿껌???ъ슜?????덈떎. raw ?섏쭛 ?덉퐫?쒕뒗 ?먮Ц 洹쇨굅? ?덉쭏 ?뺤씤?⑹쑝濡??좎??섍퀬 ?ъ슜??action 寃쎈줈?먮뒗 吏곸젒 ?욎? ?딅뒗??
-- `/trips/{id}` 異붿쿇 ?뺤콉 移대뱶??hardcoded article ???backend `recommendedPolicies`瑜??뚮뜑留곹븯怨??뺢퇋?붾맂 ?뺤콉 諛?`travelmonth-{id}` TravelMonth ?쒗깮 ?곸꽭??`/policies/{slug}`濡??대룞?쒕떎.
-- `/ai-results?tripId=...`???꾩옱 ?쇱젙???대? ?덈뒗 異붿쿇 ?μ냼瑜?以묐났 異붽??섏? ?딅뒗??
-
-## 理쒓렐 ?꾨즺
-
-- 臾몄꽌 ?곗텧臾쇱쓣 ?듭떖 臾몄꽌? `docs/deployment-cicd/` 湲곗??쇰줈 ?뺣━?덈떎.
-- DB schema 湲곗???`docs/db-schema-current.md`, `docs/db-schema-current.sql`濡?援먯껜?덈떎.
-- frontend itinerary page瑜?媛쒕퀎 page ?뚯씪濡?遺꾨━?섍퀬 湲곗〈 route import瑜??좎??덈떎.
-- ?뺤콉 ?곸꽭 CTA媛 `?좎껌?섎윭 媛湲?, `?쒗깮 ?덈궡 蹂닿린`, `?좎껌 留곹겕 以鍮?以??쇰줈 遺꾨━?먮떎.
-- ?뺤콉 JSON URL validation??`localhost`, `127.0.0.1`, `example.*`, 鍮?臾몄옄?? ?섎せ??scheme???〓룄濡?媛뺥솕?먮떎.
-- `/home` ?멸린 援?궡 ?ы뻾吏 rail???뺤콉 ?곗씠??湲곕컲?쇰줈 ?앹꽦?섍퀬 媛吏?蹂꾩젏 臾멸뎄瑜??쒓굅?덈떎.
-- `/mypage` ?좎껌 ?뺤콉 移댁슫?멸? `GET /api/me/applied-policies`???곌껐?먮떎.
-- `/mypage`? ?뺤콉 紐⑸줉/?곸꽭??利먭꺼李얘린 ?곹깭媛 `SessionProvider.savedSlugs` 湲곗??쇰줈 ?숆린?붾릱??
-- 誘몄궗??untracked ?꾨낫???`TripCreateModal.tsx`, `TripItinerary.tsx`???꾩옱 route/import? ?곌껐?섏? ?딅뒗 ?꾩떆 ?뚯씪濡??먮떒???뺣━?덈떎.
-- `/mypage` 怨듭??ы빆/FAQ, ?댁슜?쎄?, 媛쒖씤?뺣낫泥섎━諛⑹묠 sheet 肄섑뀗痢좊? ?ㅼ젣 ?쒕퉬???덈궡 ?섏??쇰줈 蹂닿컯?덈떎.
-- legacy dummy policy(`local-vacation`, `sokcho-stay`, `busan-cashback`)??runtime seed?먯꽌 ?쒓굅?먭퀬, ?꾩옱 ?덉떆 ?뺤콉? ?섏쭛 ?곗씠?곗뿉 議댁옱?섎뒗 `dgtour-諛??1`???ъ슜?쒕떎.
-- 湲곗〈 non-numeric ?쒖＜ 3??trip handle 吏?먯쓣 ?쒓굅?섍퀬 `trip_id`??numeric string `Trip.id`留?吏?먰븯?꾨줉 怨꾩빟, backend, frontend, tests, `.agent/evals`瑜??숆린?뷀뻽??
-- Frontend `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build`, backend `python -m pytest`, compose config, stale alias search, API eval JSON validation, `git diff --check`媛 ?듦낵?덈떎.
-- 배포 검증은 `docs/deployment-cicd/09-release-checklist.md`를 기준으로 한다.
-- `/policies` 紐⑸줉怨??섏쭛 ?뺤콉 ?곸꽭??TravelMonth `external_source_records`?먯꽌 ?뺢퇋???밴꺽??`policies`瑜??몄텧?쒕떎. ?ъ슜???붾㈃?먮뒗 `internal/external` 媛숈? 援ы쁽 援щ텇 ?쇰꺼???쒖떆?섏? ?딄퀬, 紐⑤뱺 ?몄텧 ?뺤콉? 怨듭떇 ?쒗깮?쇰줈 ?숈씪?섍쾶 ????쇱젙 ?곌껐 action???쒓났?쒕떎.
-
-## ?ㅼ쓬 ?곗꽑?쒖쐞
-
-| ?곗꽑?쒖쐞 | ?묒뾽 | ?깃났 湲곗? |
-|---:|---|---|
-| 1 | Cloudflare Tunnel staging env 以鍮?| ?ㅼ젣 domain, tunnel token, DB, auth, CORS, public base URL 媛믪씠 以鍮꾨릱?붿? ?뺤씤?섍퀬 ?꾨씫媛믪쓣 紐낆떆?쒕떎. |
-| 2 | Cloudflare Tunnel actual env full-up | ?ㅼ젣 `deploy/.env.tunnel` 媛믪쑝濡?migration, seed, compose up, `/api/health` smoke媛 ?듦낵?쒕떎. |
-| 3 | public HTTPS route smoke | public HTTPS 湲곗? `/login`, `/policies`, `/trips`, `/mypage`媛 blank root ?놁씠 ?숈옉?쒕떎. |
-| 4 | SMTP password reset staging smoke | ?ㅼ젣 SMTP provider? HTTPS staging URL濡?reset email ?섏떊, token confirm, ??鍮꾨?踰덊샇 濡쒓렇?몄씠 ?듦낵?쒕떎. |
-| 5 | Kakao/Google OAuth provider smoke | provider console redirect URI? runtime env瑜?留욎텣 ???ㅼ젣 social login callback怨?session 蹂듦뎄媛 ?듦낵?쒕떎. |
-| 6 | SOLAPI Kakao AlimTalk staging smoke | ?ㅼ젣 SOLAPI/Kakao channel/template/env濡?諛쒖넚 ?붿껌, retry, webhook ?섏떊???뺤씤?쒕떎. |
-| 7 | Jenkins CD staging ?먮룞??| ?섎룞 Compose 諛고룷 ?먮쫫??Jenkins job?쇰줈 ?ы쁽?섍퀬 secret? credentials濡쒕쭔 愿由ы븳?? |
-| 8 | ??異붿쿇 紐⑹쟻吏 ranking ?댁쁺 寃利?| ?뺤콉 ?? 留덇컧 ?꾨컯, ?쒗깮 湲덉븸, 痍⑦뼢 蹂댁젙, ?꾨줈??吏??理쒖쥌 tie-breaker 湲곗???live data?먯꽌 湲곕??濡??묐룞?섎뒗吏 ?뺤씤?쒕떎. |
-| 9 | ?꾪솕踰덊샇 OTP ?ㅼ젣 諛쒖넚 smoke | env-gated SOLAPI SMS provider瑜??ㅼ젣 ?댁쁺 env濡?耳쒓퀬, 鍮꾩슜 ?쒗븳怨??ㅽ뙣 泥섎━ 湲곗???留욎떠 staging smoke瑜??꾨즺?쒕떎. |
-| 10 | ?ы뻾媛????live collector ?댁쁺 紐⑤땲?곕쭅 | 怨듭떇 ?ы뻾媛????吏???ы뻾?좎씤 紐⑥븘蹂닿린 live HTML 58嫄??섏쭛 湲곗????좎??섍퀬, `EXTERNAL_COLLECTION_MIN_PARSED_COUNT` 誘몃떖 ?섏쭛???ㅽ뙣濡?泥섎━?쒕떎. |
-| 11 | external collection scheduler cadence ?댁쁺 寃利?| ?몃? ?섏쭛 二쇨린, ?ш?利?湲곗?, freshness ?곹깭 ?꾪솚, ?ㅽ뙣 ?ъ떆???뺤콉??live ?댁쁺 ?곗씠?곗뿉??湲곕??濡??숈옉?섎뒗吏 ?뺤씤?쒕떎. scheduler??留덉?留??쒕룄/?깃났/parsed count/outcome/error ?대? ?곹깭瑜?`GET /api/ops/external-collection`?먯꽌 ?뺤씤?섍퀬, ????덉쭏怨?異붿쿇 諛섏쁺 preview??`GET /api/ops/external-collection/quality`?먯꽌 ?뺤씤?쒕떎. |
-| 12 | external source records 湲곕컲 ??吏??異붿쿇 API | `external_source_records`??吏???곹깭/?쒗깮/?좏샇???뚯깮 ?꾨뱶瑜??ъ슜????吏??異붿쿇 API ?꾨낫? ?뺣젹 湲곗???援ы쁽?쒕떎. |
-| 13 | AppDataApi 寃쎌쑀 ??異붿쿇 UI | frontend ??異붿쿇 UI媛 backend 異붿쿇 API瑜?`AppDataApi` 寃쎄퀎濡??몄텧?섍퀬 loading/error/empty ?곹깭瑜?泥섎━?쒕떎. |
-
-## 湲곕뒫 媛쒕컻 ?꾨낫
-
-- ??異붿쿇 紐⑹쟻吏 ranking ?댁쁺 寃利?
-- ?ы뻾媛????live collector ?댁쁺 紐⑤땲?곕쭅.
-- external collection scheduler cadence ?댁쁺 寃利?
-- external source records 湲곕컲 ??吏??異붿쿇 API.
-- AppDataApi 寃쎌쑀 ??異붿쿇 UI.
-- ?뺤콉 ?좎껌 URL ?곗씠???덉쭏 蹂닿컯.
-- ?뺤콉 ?좎껌 ?곹깭 紐⑤뜽 ?뺤옣.
-- ?꾪솕踰덊샇 OTP ?ㅼ젣 諛쒖넚 staging smoke.
-- PWA service worker 1李??곸슜 ?щ? 寃곗젙.
-
-## 2026-05-23 吏꾪뻾 硫붾え
-
-- Cloudflare Tunnel staging env 준비 상태는 `deploy/.env.tunnel.example`와 `compose.tunnel.yaml` 기준으로 기록한다.
-- 濡쒖뺄 `deploy/.env.tunnel`? Git ignore ??곸씠怨?Compose config shape???듦낵?섏?留? ?ㅼ젣 domain, DB password, auth secret, public URLs, Cloudflare tunnel token??placeholder??OPS-02 actual full-up? ?꾩쭅 blocked ?곹깭??
-- ?ㅼ쓬 ?ㅽ뻾 媛???묒뾽? staging host?먯꽌 ?ㅼ젣 env 媛믪쓣 梨꾩슫 ??`docker compose --env-file deploy/.env.tunnel -f compose.tunnel.yaml config --quiet`瑜??ъ떎?됲븯??寃껋씠??
-
-## ?댁쁺 寃利??꾨낫
-
-- Cloudflare Tunnel named tunnel full-up.
-- public HTTPS 湲곗? `/login`, `/policies`, `/trips`, `/mypage` smoke.
-- SMTP password reset staging smoke.
-- Kakao/Google OAuth staging smoke.
-- SOLAPI Kakao AlimTalk ?ㅼ젣 諛쒖넚 smoke.
-- Jenkins CD staging ?먮룞??
-
-## Fast Lane
-
-```powershell
-cd frontend
-npm run typecheck
-npm test
-npm run build
-npm run test:e2e
-
-cd ..\backend
-python -m pytest
-```
-
-Migration??諛붾뚮㈃ 異붽?濡??ㅽ뻾?쒕떎.
-
-```powershell
-cd backend
-alembic upgrade head --sql
-```
-
-臾몄꽌留?蹂寃쏀븳 寃쎌슦?먮뒗 ?꾨옒瑜?湲곕낯 寃利앹쑝濡??붾떎.
-
-```powershell
-git diff --check
-git status --short --branch
-rg -n "<stale-reference-pattern>" docs README.md PLANS.md CHECKLIST.md .agent
-```
+- Cloudflare Tunnel staging full-up.
+- Public HTTPS route smoke.
+- Brevo sender-domain authentication and real password reset email smoke.
+- Kakao and Google OAuth provider smoke with public redirect URIs.
+- SOLAPI SMS or Kakao AlimTalk real-provider smoke.
+- Jenkins or other CI/CD automation.
 
 ## Guardrails
 
-- Runtime mock mode瑜??ㅼ떆 異붽??섏? ?딅뒗??
-- ?ㅼ젣 secret/env 媛믪? repo??湲곕줉?섏? ?딅뒗??
-- API DTO??`camelCase`, DB column? `snake_case`瑜??좎??쒕떎.
-- trip route handle? numeric string `Trip.id`留?吏?먰븯怨?`trips.slug`??異붽??섏? ?딅뒗??
-- ?꾩옱 route URL怨?DB-backed source of truth瑜??좎??쒕떎.
+- Do not reintroduce runtime mock mode.
+- Keep frontend pages behind the `AppDataApi` boundary.
+- Keep API DTO fields in `camelCase` and database fields in `snake_case`.
+- Keep trip route handles as numeric string `Trip.id`; do not add `trips.slug`.
+- Do not commit secrets, real `.env` files, tunnel tokens, DB passwords, OAuth secrets, SMTP passwords, or auth secrets.

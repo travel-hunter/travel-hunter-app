@@ -20,7 +20,7 @@ function uniquePoliciesBySlug(policies: Policy[]) {
 
 export function MyPage() {
   const navigate = useNavigate();
-  const { currentUser, likedPolicy, logout, profile, removeSavedSlug, saveNickname, saveProfile, savedSlugs } = useSession();
+  const { addedPolicySlugs, currentUser, likedPolicy, logout, profile, removeSavedSlug, saveNickname, saveProfile, savedSlugs } = useSession();
   const { data: profileOptions } = useAsyncResource(() => appDataApi.getProfileOptions(), []);
   const { regions, travelStyles, budgets } = profileOptions ?? { regions: [], travelStyles: [], budgets: [] };
   const name = currentUser?.nickname ?? "여행자";
@@ -247,7 +247,8 @@ export function MyPage() {
   };
 
   const visibleSavedPolicies = uniquePoliciesBySlug(savedPolicies);
-  const savedPolicyCount = visibleSavedPolicies.length;
+  const savedPolicyCount = Math.max(visibleSavedPolicies.length, savedSlugs.size);
+  const appliedPolicySummaryCount = Math.max(appliedPolicyCount, addedPolicySlugs.size);
   const tripCount = tripError ? 0 : trips.length;
   const deadlineEnabled = notificationSettings?.deadlineEnabled ?? true;
   const deadlineLeadDays = notificationSettings?.deadlineLeadDays ?? [7, 1];
@@ -278,7 +279,7 @@ export function MyPage() {
         <section className="prototype-stat-grid" aria-label="나의 활동 요약">
           <ProfileStat label="내 일정" value={isLoadingTrips ? "..." : String(tripCount)} tone="primary" to="/trips" />
           <ProfileStat label="즐겨찾기" value={isLoadingSavedPolicies ? "..." : String(savedPolicyCount)} tone="secondary" to="/policies?saved=1" />
-          <ProfileStat label="신청 정책" value={isLoadingAppliedPolicies ? "..." : String(appliedPolicyCount)} tone="accent" to="/applied-policies" />
+          <ProfileStat label="신청 정책" value={isLoadingAppliedPolicies ? "..." : String(appliedPolicySummaryCount)} tone="accent" to="/applied-policies" />
         </section>
 
         <section className="prototype-favorite-section" aria-label="즐겨찾기 정책">

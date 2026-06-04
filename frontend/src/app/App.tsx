@@ -1,7 +1,7 @@
 import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { PublicLayout, ServiceLayout } from "../components/AppLayout";
 import { AiResultsPage, FriendInvitePage, ItineraryCreatePage, ItineraryDetailPage, ItineraryListPage } from "../pages/ItineraryPages";
-import { ForgotPasswordPage, LoginPage, NicknameSetupPage, OAuthCallbackPage, ResetPasswordPage, SignupPage } from "../pages/AuthPages";
+import { ForgotPasswordPage, LoginPage, NicknameSetupPage, OAuthCallbackPage, OAuthStartPage, ResetPasswordPage, SignupPage } from "../pages/AuthPages";
 import { AppliedPolicyLinksPage } from "../pages/AppliedPolicyLinksPage";
 import { HomePage } from "../pages/HomePage";
 import { InviteAcceptPage } from "../pages/InviteAcceptPage";
@@ -22,6 +22,7 @@ export function App() {
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/oauth/:provider/start" element={<OAuthStartPage />} />
         <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
       </Route>
       <Route element={<ProtectedRoute />}>
