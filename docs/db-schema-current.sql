@@ -403,7 +403,7 @@ CREATE TABLE public.social_accounts (
     id bigint NOT NULL,
     user_id bigint NOT NULL,
     provider character varying(20) NOT NULL,
-    provider_id character varying(100) NOT NULL,
+    provider_id character varying(255) NOT NULL,
     provider_nickname character varying(100),
     created_at timestamp without time zone DEFAULT now() NOT NULL
 );
@@ -1521,4 +1521,3 @@ ALTER TABLE ONLY public.user_saved_policies
 --
 
 \unrestrict lGCJanNJjdBZ57bZVh200f7oU4bCsmimtFKs6VfpOJQ08dTGVHb54tqsmMIZBFq
-

@@ -19,7 +19,7 @@
 | 로그인 | `/`와 `/login`에서 프로토타입과 같은 모바일 앱형 로그인 화면을 보여주고 email/password로 로그인한다. 실패 시 사용자용 오류를 표시한다. | `POST /api/auth/login`, `auth_refresh_tokens` |
 | 세션 유지/로그아웃 | refresh cookie로 access token을 갱신하고, 로그아웃 시 refresh token을 revoke한다. | `POST /api/auth/refresh`, `POST /api/auth/logout` |
 | 비밀번호 재설정 | `/forgot-password` 요청 후 email link로 `/reset-password?token=...`에서 새 비밀번호를 설정한다. | `password_reset_tokens`, SMTP 설정 필요 |
-| Kakao/Google OAuth | 로그인 버튼에서 provider authorization flow를 시작하고 callback에서 세션을 복구한다. | `social_accounts`, provider env 필요 |
+| Kakao/Google OAuth | 로그인 버튼에서 provider authorization flow를 시작하고 callback에서 세션을 복구한다. 동일 이메일 자동 연결은 검증된 provider email만 허용하고, callback 실패는 닫힌 error code로 사용자용 메시지를 표시한다. 로컬 credential이 있으면 `scripts/oauth_local_smoke.py`로 start route smoke를 확인할 수 있다. | `social_accounts`, provider env 필요 |
 
 ## 사용자와 마이페이지
 
@@ -99,6 +99,6 @@
 ## 조건부 기능과 미구현 범위
 
 - SMTP env와 public base URL이 있어야 password reset email smoke를 완료할 수 있다.
-- Kakao/Google provider secret과 redirect URI가 있어야 실제 OAuth smoke를 완료할 수 있다.
+- Kakao/Google provider secret과 localhost redirect URI가 있어야 실제 브라우저 OAuth smoke를 완료할 수 있다.
 - SOLAPI key, Kakao channel, 승인 템플릿이 있어야 실제 알림톡 발송을 확인할 수 있다.
 - 전화번호 OTP 실제 발송 smoke, 실제 AI 엔진, 지도/장소 검색, 친구 초대 외부 발송, 운영 관리자 화면, 정책 실시간 수집은 후속 범위다.

@@ -2,13 +2,13 @@
 
 ## 기준
 
-- 기준일: 2026-05-21
-- 기준 Alembic head: `0011_phone_verification_codes`
+- 기준일: 2026-06-05
+- 기준 Alembic head: `0017_widen_social_provider_id`
 - PostgreSQL: 16.13
 - SQL 산출물: `docs/db-schema-current.sql`
 - 생성 방식: fresh PostgreSQL DB에 `alembic upgrade head`를 적용한 뒤 `pg_dump --schema-only --no-owner --no-privileges`로 추출했다.
 
-이 문서는 현재 앱이 사용하는 PostgreSQL schema의 기준 문서다. 초기 SQL 기준본 이후 Alembic migration `0002`~`0010`이 적용된 현재 구조를 설명한다.
+이 문서는 현재 앱이 사용하는 PostgreSQL schema의 기준 문서다. 초기 SQL 기준본 이후 Alembic migration `0002`~`0017`이 적용된 현재 구조를 설명한다.
 
 ## 테이블 그룹
 
@@ -19,6 +19,8 @@ Auth/User:
 - `social_accounts`
 - `password_reset_tokens`
 - `user_notification_settings`
+
+`social_accounts.provider_id`는 Google OIDC `sub` 등 긴 provider subject를 보관할 수 있도록 `varchar(255)`로 유지한다.
 
 Policy:
 

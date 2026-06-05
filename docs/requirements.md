@@ -45,7 +45,7 @@ Travel Hunter는 국내 여행자가 여행 혜택 정책을 찾고, 여행 일�
 | FR-AUTH-004 | 보호 경로는 인증을 요구한다. | 비로그인 사용자가 보호 경로에 접근하면 `/login?redirect=...`로 이동하고 로그인 후 원래 경로로 복귀한다. |
 | FR-AUTH-005 | 사용자는 비밀번호 재설정 이메일을 요청할 수 있다. | 계정 존재 여부를 노출하지 않고 요청 응답을 제공한다. 실제 email 발송은 SMTP 설정이 필요하다. |
 | FR-AUTH-006 | 사용자는 reset token으로 새 비밀번호를 설정할 수 있다. | 유효 token이면 password hash가 갱신되고 기존 refresh token이 revoke된다. 만료/사용됨/invalid token은 실패한다. |
-| FR-AUTH-007 | 사용자는 Kakao/Google OAuth로 로그인할 수 있다. | provider authorization code flow를 시작하고 callback에서 state를 검증한 뒤 social account를 연결/생성한다. 실제 로그인은 provider env가 필요하다. |
+| FR-AUTH-007 | 사용자는 Kakao/Google OAuth로 로그인할 수 있다. | provider authorization code flow를 시작하고 callback에서 state를 검증한 뒤 social account를 연결/생성한다. 동일 이메일 자동 연결은 검증된 provider email에만 허용하며, Google은 `email_verified=true`가 필수이고 Kakao는 email이 없거나 미검증이면 내부 `oauth.local` email 계정을 만들 수 있다. 실제 로그인은 provider env가 필요하다. |
 
 ### 3.2 사용자 프로필과 설정
 

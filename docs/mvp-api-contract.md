@@ -253,7 +253,8 @@ OAuth 인증 시작. `provider`는 `kakao` 또는 `google`.
 **Response**: 302 → provider 인증 URL로 리디렉션. State cookie set.
 
 **Errors**
-- 400: 지원하지 않는 provider
+- 404: 지원하지 않는 provider
+- 503: provider client id/secret/redirect URI 미설정
 
 ---
 
@@ -261,13 +262,27 @@ OAuth 인증 시작. `provider`는 `kakao` 또는 `google`.
 
 OAuth provider callback 처리.
 
-**Query params**: `code`, `state`
+**Query params**: `code`, `state`, `error` (provider cancellation/error)
 
-**Response**: 302 → 프론트엔드로 리디렉션. Refresh token cookie set.
+**Success response**: 302 → 프론트엔드 `/oauth/callback?redirect={safePath}`로 리디렉션. Refresh token cookie set, OAuth state cookie clear.
 
-**Errors**
-- 400: state 불일치, code 없음
-- 401: provider 인증 실패
+**Failure response**: 302 → 프론트엔드 `/oauth/callback?error={code}&redirect={safePath}`로 리디렉션. Refresh token cookie는 설정하지 않고 OAuth state cookie는 clear한다. Provider `error_description` 원문은 프론트엔드에 전달하지 않는다.
+
+Closed failure codes:
+
+- `access_denied`: provider 동의 취소 또는 `error=access_denied`
+- `invalid_state`: state 누락/불일치, code 누락, 사용할 수 없는 state cookie
+- `provider_unavailable`: provider 설정 누락, token exchange 실패, provider-side non-cancellation error
+- `profile_unavailable`: userinfo/profile fetch 실패 또는 durable provider id 누락
+- `email_policy`: Google verified email 누락, 기타 verified-email 자동 연결 정책 위반
+
+Account linking policy:
+
+- 기존 `social_accounts(provider, provider_id)` 연결이 있으면 provider email 변경 여부와 무관하게 해당 사용자를 사용한다.
+- 동일 이메일 자동 연결은 provider가 검증 이메일을 제공한 경우에만 허용한다.
+- Google은 `email_verified=true`인 email이 필수다.
+- Kakao는 `kakao_account.is_email_verified=true`이고 `is_email_valid`가 false가 아닌 email만 동일 이메일 연결에 사용한다.
+- Kakao email이 없거나 검증되지 않았으면 기존 이메일 계정에 연결하지 않고 `kakao_{providerId}@oauth.local` 내부 이메일로 새 계정을 만들 수 있다.
 
 ---
 
