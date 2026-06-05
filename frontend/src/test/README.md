@@ -14,41 +14,30 @@ runtime behavior out of this layer.
 - Keep component-only tests self-contained unless they genuinely need shared
   typed fixtures.
 
-## App.test Second-Stage Split Candidates
+## Route Test Organization
 
-Do not move these yet. The next natural split should be chosen by route
-ownership and fixture overlap:
+The former monolithic `App.test.tsx` has been split by route ownership into
+`src/app/__tests__/`. Add new route/app-shell tests to the file that matches
+the feature under test:
 
-- Trip creation and travel-area recommendation flows:
-  `/trips/new`, itinerary generation, selected dates, and travel-area query
-  setup.
-- Trip detail and itinerary editing flows:
-  `/trips/:tripId`, day/view/place query params, map candidates, place
-  add/edit/delete, invite state, and trip policy recommendations.
-- AI results flows:
-  `/ai-results?tripId=...`, candidate selection, day filtering, and map-first
-  recommendation behavior.
-- Policy list/detail flows:
-  `/policies`, `/policies/:policySlug`, official/apply link behavior,
-  policy-trip attachment, and info-only policy states.
-- My page/account flows:
-  `/mypage`, saved/applied policies, profile preferences, contact verification,
-  and notification settings.
-- Auth and invite edge flows:
-  forgot/reset password, OAuth callback/start routes, invite acceptance, and
-  redirect preservation.
+- `auth.test.tsx` — app-shell bootstrap, login, session, protected routes.
+- `trip-create.test.tsx` — `/trips/new`, travel-area recommendations, itinerary
+  generation, selected dates.
+- `trip-detail.test.tsx` — `/trips/:tripId`, day/view/place params, map
+  candidates, linked/recommended policies.
+- `place-edit.test.tsx` — place add/edit/delete, drafts, drag ordering,
+  viewer read-only.
+- `ai-results.test.tsx` — `/ai-results?tripId=...`, candidate selection, map-first
+  behavior.
+- `trips-list.test.tsx` — `/trips`, deletion, confirmation control visibility.
+- `policies.test.tsx` — `/policies`, filters/tabs, policy-trip picker.
+- `policy-detail.test.tsx` — `/policies/:policySlug`, official/apply links,
+  section formatting, info-only states.
+- `home.test.tsx` — home rails and region-recommendation fallbacks.
+- `mypage.test.tsx` — `/mypage`, saved/applied policies, profile, contact
+  verification, notifications.
+- `invite-oauth.test.tsx` — profile setup, invites, password reset, OAuth
+  callback/start, sharing.
 
-Keep `App.test.tsx` as the app-shell smoke and cross-route regression surface
-until one of these groups is split with equivalent targeted coverage.
-
-## Worktree Cleanup Grouping
-
-Keep this test cleanup separate from unrelated UX, docs, backend, and API
-contract work already present in the worktree. A clean review or commit group
-for this cleanup should include only:
-
-- `frontend/src/App.test.tsx`
-- `frontend/src/components/patterns.test.tsx`
-- `frontend/src/pages/admin/AdminPages.test.tsx`
-- `frontend/src/test/*`
-- `CHECKLIST.md`
+These files drive a shared, stateful dev backend, so vitest runs test files
+serially (`fileParallelism: false` in `vite.config.ts`).
