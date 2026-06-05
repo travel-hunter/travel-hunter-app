@@ -31,7 +31,7 @@ The next implementation pass should prioritize domain-independent local UX first
 | [../screen-feature-status-screens.md](../screen-feature-status-screens.md) | reference | Screen-by-screen status ledger. |
 | [../screen-feature-status-logic.md](../screen-feature-status-logic.md) | reference | Internal logic, collection, fallback, and recommendation status ledger. |
 | [../local-dev-runtime.md](../local-dev-runtime.md) | reference | Local runtime commands and environment setup. |
-| [../brevo-cloudflare-email-guide.md](../brevo-cloudflare-email-guide.md) | reference | Cloudflare DNS/email routing and Brevo SMTP setup guide for password reset smoke tests. |
+| [../brevo-cloudflare-email-guide.md](../brevo-cloudflare-email-guide.md) | reference | Brevo/Cloudflare password reset email delivery specification. |
 | [../next-work-plan.md](../next-work-plan.md) | reference | Historical next-work planning notes; use active specs for current local UX execution. |
 
 ## Removed Archive Candidates

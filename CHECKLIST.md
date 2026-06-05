@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- Latest validated scope: local UX specification split, legacy document cleanup, archive-candidate document removal, `CHECKLIST.md` slimming, Brevo/Cloudflare email setup guide, domain-dependent work reprioritization, Auth Account domain-independent local UX implementation, frontend test baseline recovery, `docs/next-work-plan.md` cleanup, Policy To Trip Linking no-link CTA UX improvement, Policy To Trip Linking success/info-only action clarity, policy-trip residual priority cleanup, MyPage saved/applied policy summary consistency, agent/spec rule-wording and stale-reference doc cleanup, `docs/current-work-spec.md` mojibake recovery, and the `Policy.actionStatus` response-schema fix.
+- Latest validated scope: local UX specification split, legacy document cleanup, archive-candidate document removal, `CHECKLIST.md` slimming, Brevo/Cloudflare email delivery specification, domain-dependent work reprioritization, Auth Account domain-independent local UX implementation, frontend test baseline recovery, `docs/next-work-plan.md` cleanup, Policy To Trip Linking no-link CTA UX improvement, Policy To Trip Linking success/info-only action clarity, policy-trip residual priority cleanup, MyPage saved/applied policy summary consistency, agent/spec rule-wording and stale-reference doc cleanup, `docs/current-work-spec.md` mojibake recovery, and the `Policy.actionStatus` response-schema fix.
 - Last validation date: 2026-06-05.
 - This file intentionally keeps only current status, recent validation evidence, and remaining risks. Older detailed work logs are left to git history and source-specific documents.
 
@@ -13,7 +13,7 @@
 - Local UX auth/account spec: `docs/specs/local-ux-auth-account.md`.
 - Local UX policy-trip linking spec: `docs/specs/local-ux-policy-trip-linking.md`.
 - Local UX place discovery spec: `docs/specs/local-ux-place-discovery.md`.
-- Password reset email setup guide: `docs/brevo-cloudflare-email-guide.md`.
+- Password reset email delivery specification: `docs/brevo-cloudflare-email-guide.md`.
 - Screen/page status reference: `docs/screen-feature-status-screens.md`.
 - Logic/API/recommendation status reference: `docs/screen-feature-status-logic.md`.
 
@@ -33,8 +33,8 @@
 - 2026-06-04 document cleanup validation: `git diff --check -- docs CHECKLIST.md` passed.
 - 2026-06-04 checklist slimming validation: `CHECKLIST.md` has no `2026-05` entries or removed-document filename references, and `git diff --check -- CHECKLIST.md` passed.
 - 2026-06-04 checklist routine: `AGENTS.md` Done Criteria now requires keeping `CHECKLIST.md` slim and validating it with `git diff --check -- CHECKLIST.md` whenever it changes.
-- 2026-06-04 Brevo/Cloudflare email guide: added `docs/brevo-cloudflare-email-guide.md` and linked it from `docs/specs/spec-index.md`.
-- 2026-06-04 Brevo/Cloudflare email guide validation: `git diff --check -- docs\brevo-cloudflare-email-guide.md docs\specs\spec-index.md CHECKLIST.md` passed.
+- 2026-06-04 Brevo/Cloudflare email delivery specification: added `docs/brevo-cloudflare-email-guide.md` and linked it from `docs/specs/spec-index.md`.
+- 2026-06-04 Brevo/Cloudflare email delivery specification validation: `git diff --check -- docs\brevo-cloudflare-email-guide.md docs\specs\spec-index.md CHECKLIST.md` passed.
 - 2026-06-04 priority update: domain-dependent SMTP/OAuth/public DNS smoke work moved behind domain-independent local UX completion in `docs/specs/spec-index.md` and `docs/specs/local-ux-auth-account.md`.
 - 2026-06-04 priority update validation: `git diff --check -- docs\specs\spec-index.md docs\specs\local-ux-auth-account.md CHECKLIST.md` passed.
 - 2026-06-04 Auth Account local UX deep-interview: scope fixed to password reset + OAuth missing-env UX, with tests plus local screen smoke as completion evidence.
