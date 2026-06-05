@@ -249,7 +249,6 @@ Kakao Local provider가 없거나 외부 후보가 충분하지 않으면 내장
 ### 2026-05-29 로컬 검증 결과
 
 - 코드 근거 확인: `backend/app/services/trips.py`, `backend/app/services/itinerary_recommendations.py`, `backend/app/data/itinerary_catalog.py`, `frontend/src/pages/itinerary/AiResultsPage.tsx`, `frontend/src/pages/itinerary/ItineraryCreatePage.tsx`
-- Deep-interview 산출물 확인: `.omx/specs/deep-interview-itinerary-recommendation-explainer.md`
 - 이번 문서 작성 턴에서는 기능 코드를 변경하지 않았고, Kakao Local live API smoke는 추가 수행하지 않았다.
 
 ### 남은 작업/리스크

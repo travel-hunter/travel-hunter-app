@@ -33,7 +33,6 @@ The next implementation pass should prioritize domain-independent local UX first
 | [../local-dev-runtime.md](../local-dev-runtime.md) | reference | Local runtime commands and environment setup. |
 | [../brevo-cloudflare-email-guide.md](../brevo-cloudflare-email-guide.md) | reference | Cloudflare DNS/email routing and Brevo SMTP setup guide for password reset smoke tests. |
 | [../next-work-plan.md](../next-work-plan.md) | reference | Historical next-work planning notes; use active specs for current local UX execution. |
-| [../repo-slimming-work-spec.md](../repo-slimming-work-spec.md) | reference | Repository slimming work spec. |
 
 ## Removed Archive Candidates
 
@@ -42,6 +41,7 @@ These files were removed after confirming their current guidance role is covered
 | Removed file | Replacement source |
 | --- | --- |
 | `docs/screen-feature-status-report.md` | `docs/screen-feature-status-screens.md`, `docs/screen-feature-status-logic.md`, and this index. |
+| `docs/repo-slimming-work-spec.md` | Completed; repository slimming is reflected in the current repo state and git history. |
 | `docs/superpowers/plans/2026-05-28-ai-results-inline-day-selector-compact-copy.md` | `docs/specs/local-ux-place-discovery.md` and current implementation/tests. |
 | `docs/superpowers/plans/2026-05-28-ai-results-map-first-redesign.md` | `docs/specs/local-ux-place-discovery.md` and current implementation/tests. |
 | `docs/superpowers/plans/2026-05-28-ai-results-preview-day-selector-v3.md` | `docs/specs/local-ux-place-discovery.md` and current implementation/tests. |

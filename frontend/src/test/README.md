@@ -52,4 +52,3 @@ for this cleanup should include only:
 - `frontend/src/pages/admin/AdminPages.test.tsx`
 - `frontend/src/test/*`
 - `CHECKLIST.md`
-- `.omx/ultragoal/*` artifacts for this run, when preserving workflow evidence

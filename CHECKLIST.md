@@ -26,7 +26,7 @@
 - 2026-06-03 frontend UI CSS cleanup: `cd frontend && npm test` passed with 6 files and 144 tests.
 - 2026-06-03 frontend UI CSS cleanup: `cd frontend && npm run build` passed.
 - 2026-06-03 frontend UI CSS cleanup visual smoke: local dev server rendered authenticated `/home`, `/policies`, `/trips`, `/mypage`, `/trips/1`, and `/ai-results?tripId=1` at 390, 1024, and 1440 widths with nonblank roots and no horizontal overflow. Known API gaps were limited to missing seeded trip id 1.
-- 2026-06-04 local UX spec split: added `.omx/plans/prd-local-ux-spec-docs.md`, `.omx/plans/test-spec-local-ux-spec-docs.md`, and the three local UX spec documents under `docs/specs/`.
+- 2026-06-04 local UX spec split: added the three local UX spec documents under `docs/specs/`.
 - 2026-06-04 document cleanup: updated legacy/status document notes and converted the spec index from archive-candidate tracking to removed-document replacement tracking.
 - 2026-06-04 document cleanup validation: docs/specs relative Markdown link existence check passed.
 - 2026-06-04 document cleanup validation: no Markdown links remain in active docs to removed archive-candidate documents.
@@ -38,7 +38,7 @@
 - 2026-06-04 priority update: domain-dependent SMTP/OAuth/public DNS smoke work moved behind domain-independent local UX completion in `docs/specs/spec-index.md` and `docs/specs/local-ux-auth-account.md`.
 - 2026-06-04 priority update validation: `git diff --check -- docs\specs\spec-index.md docs\specs\local-ux-auth-account.md CHECKLIST.md` passed.
 - 2026-06-04 Auth Account local UX deep-interview: scope fixed to password reset + OAuth missing-env UX, with tests plus local screen smoke as completion evidence.
-- 2026-06-04 Auth Account local UX deep-interview validation: `git diff --check -- .omx\context\auth-account-local-ux-20260604T053328Z.md .omx\interviews\auth-account-local-ux-20260604T054031Z.md .omx\specs\deep-interview-auth-account-local-ux.md CHECKLIST.md` passed.
+- 2026-06-04 Auth Account local UX deep-interview validation: `git diff --check -- CHECKLIST.md` passed.
 - 2026-06-04 Auth Account local UX implementation validation: `cd frontend && npm run typecheck` passed.
 - 2026-06-04 Auth Account local UX implementation validation: `cd frontend && npx vitest run src/App.test.tsx -t "forgot password|reset-password|OAuth"` passed with 6 tests.
 - 2026-06-04 Auth Account local UX implementation smoke: local Vite `http://127.0.0.1:5173` rendered `/forgot-password`, `/reset-password`, `/reset-password?token=invalid`, `/oauth/callback?error=access_denied&redirect=/home`, and `/oauth/kakao/start?redirect=/home` at 390px width with expected selectors and no horizontal overflow.
