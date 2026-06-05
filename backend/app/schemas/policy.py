@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 PolicyCategory = Literal["교통", "숙박", "여행상품", "지역할인", "이벤트", "기타"]
 PolicySourceType = Literal["internal", "external"]
+PolicyActionStatus = Literal["infoOnly"]
 
 
 class Policy(BaseModel):
@@ -25,6 +26,7 @@ class Policy(BaseModel):
     officialUrl: str | None = None
     applyUrl: str | None = None
     sourceType: PolicySourceType = "internal"
+    actionStatus: PolicyActionStatus | None = None
 
 
 class AppliedPolicyLinkedTrip(BaseModel):

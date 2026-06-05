@@ -2,8 +2,8 @@
 
 ## Current Status
 
-- Latest validated scope: local UX specification split, legacy document cleanup, archive-candidate document removal, `CHECKLIST.md` slimming, Brevo/Cloudflare email setup guide, domain-dependent work reprioritization, Auth Account domain-independent local UX implementation, frontend test baseline recovery, `docs/next-work-plan.md` cleanup, Policy To Trip Linking no-link CTA UX improvement, Policy To Trip Linking success/info-only action clarity, policy-trip residual priority cleanup, and MyPage saved/applied policy summary consistency.
-- Last validation date: 2026-06-04.
+- Latest validated scope: local UX specification split, legacy document cleanup, archive-candidate document removal, `CHECKLIST.md` slimming, Brevo/Cloudflare email setup guide, domain-dependent work reprioritization, Auth Account domain-independent local UX implementation, frontend test baseline recovery, `docs/next-work-plan.md` cleanup, Policy To Trip Linking no-link CTA UX improvement, Policy To Trip Linking success/info-only action clarity, policy-trip residual priority cleanup, MyPage saved/applied policy summary consistency, agent/spec rule-wording and stale-reference doc cleanup, `docs/current-work-spec.md` mojibake recovery, and the `Policy.actionStatus` response-schema fix.
+- Last validation date: 2026-06-05.
 - This file intentionally keeps only current status, recent validation evidence, and remaining risks. Older detailed work logs are left to git history and source-specific documents.
 
 ## Current Source Documents
@@ -66,6 +66,9 @@
 - 2026-06-04 App test split follow-up: renamed the full-app route helper to `renderAppRoute`, added `frontend/src/test/README.md` with helper boundaries, second-stage split candidates, and worktree grouping guidance.
 - 2026-06-04 App test split follow-up validation: `cd frontend && npm run typecheck` passed.
 - 2026-06-04 App test split follow-up validation: `cd frontend && npm test -- --run src/App.test.tsx src/components/patterns.test.tsx src/pages/admin/AdminPages.test.tsx` passed with 3 files and 135 tests.
+- 2026-06-05 doc cleanup: audited agent/spec rule wording (encoding guardrail, redundant rules, stale `docs/security-review/` gate), cleared stale references to deleted `.omx`/`docs/superpowers` artifacts, and recovered `docs/current-work-spec.md` from UTF-8/CP949 mojibake via the pre-corruption commit `dc7ddc8`.
+- 2026-06-05 backend baseline fix: `actionStatus="infoOnly"` was emitted by the policy service raw-fallback path but missing from the `Policy` response schema, so the real endpoint stripped it; added the schema field. `cd backend && .venv/bin/python -m pytest` passed with 409 tests (previously 1 failed).
+- 2026-06-05 baseline note: `cd frontend && npm run typecheck` passed and the frontend mojibake guard passed; the full `npm test` vitest suite could not run because Docker Desktop WSL integration is inactive (backend compose PostgreSQL unavailable).
 
 ## Remaining Risks
 

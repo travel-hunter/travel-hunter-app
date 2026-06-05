@@ -128,6 +128,7 @@ def external_source_record_to_policy_api(
         "officialUrl": record.detail_url or record.collected_page_url,
         "applyUrl": None,
         "sourceType": "external",
+        "actionStatus": "infoOnly",
     }
 
 
