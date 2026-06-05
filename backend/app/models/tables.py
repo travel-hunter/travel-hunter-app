@@ -146,7 +146,7 @@ class SocialAccount(Base):
         BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     provider: Mapped[str] = mapped_column(String(20), nullable=False)
-    provider_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    provider_id: Mapped[str] = mapped_column(String(255), nullable=False)
     provider_nickname: Mapped[str | None] = mapped_column(String(100))
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()

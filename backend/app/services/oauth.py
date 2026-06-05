@@ -46,6 +46,14 @@ class OAuthProviderConfig:
     scope: str
 
 
+@dataclass(frozen=True)
+class OAuthProfile:
+    provider_id: str
+    email: str | None
+    email_verified: bool
+    nickname: str | None
+
+
 def safe_redirect_path(redirect: str | None) -> str:
     if not redirect or not redirect.startswith("/") or redirect.startswith("//"):
         return "/home"
@@ -85,6 +93,55 @@ def _provider_config(provider: str) -> OAuthProviderConfig:
 def _require_config(config: OAuthProviderConfig) -> None:
     if not config.client_id or not config.client_secret or not config.redirect_uri:
         raise OAuthServiceError(503, "OAuth provider is not configured")
+
+
+def callback_error_redirect_url(error_code: str, redirect: str | None = None) -> str:
+    query = urlencode(
+        {
+            "error": error_code,
+            "redirect": safe_redirect_path(redirect),
+        }
+    )
+    return f"{_frontend_base_url()}/oauth/callback?{query}"
+
+
+def callback_error_code(error: OAuthServiceError) -> str:
+    if error.detail == "invalid_state" or (
+        error.status_code == 400 and "state" in error.detail.lower()
+    ):
+        return "invalid_state"
+    if error.status_code == 404:
+        return "provider_unavailable"
+    if error.status_code == 503 or "token exchange" in error.detail.lower():
+        return "provider_unavailable"
+    if "profile" in error.detail.lower():
+        return "profile_unavailable"
+    if "email policy" in error.detail.lower():
+        return "email_policy"
+    return "provider_unavailable"
+
+
+def provider_callback_error_code(provider_error: str, state_is_valid: bool) -> str:
+    if not state_is_valid:
+        return "invalid_state"
+    if provider_error == "access_denied":
+        return "access_denied"
+    return "provider_unavailable"
+
+
+def callback_success_redirect_url(redirect: str | None) -> str:
+    return f"{_frontend_base_url()}/oauth/callback?redirect={quote(safe_redirect_path(redirect), safe='')}"
+
+
+def state_matches_cookie(state: str | None, state_cookie: str | None) -> bool:
+    return bool(state and state_cookie and state == state_cookie)
+
+
+def redirect_from_state(state: str | None) -> str:
+    if not state or ":" not in state:
+        return "/home"
+    _, redirect = state.split(":", 1)
+    return safe_redirect_path(redirect)
 
 
 def build_authorization_redirect(provider: str, redirect: str | None) -> OAuthStartResult:
@@ -144,46 +201,61 @@ def _fetch_userinfo(config: OAuthProviderConfig, access_token: str) -> dict[str,
         raise OAuthServiceError(502, "OAuth user profile fetch failed") from error
 
 
-def _extract_profile(provider: str, payload: dict[str, Any]) -> tuple[str, str | None, str | None]:
+def _extract_profile(provider: str, payload: dict[str, Any]) -> OAuthProfile:
     if provider == "kakao":
         provider_id = str(payload.get("id") or "")
         account = payload.get("kakao_account") if isinstance(payload.get("kakao_account"), dict) else {}
         profile = account.get("profile") if isinstance(account.get("profile"), dict) else {}
         email = account.get("email") if isinstance(account.get("email"), str) else None
+        email_verified = account.get("is_email_verified") is True and account.get("is_email_valid") is not False
         nickname = profile.get("nickname") if isinstance(profile.get("nickname"), str) else None
     else:
         provider_id = str(payload.get("sub") or "")
         email = payload.get("email") if isinstance(payload.get("email"), str) else None
+        email_verified = payload.get("email_verified") is True
         nickname = payload.get("name") if isinstance(payload.get("name"), str) else None
 
     if not provider_id:
         raise OAuthServiceError(502, "OAuth user profile is missing provider id")
-    return provider_id, email, nickname
+    return OAuthProfile(
+        provider_id=provider_id,
+        email=email,
+        email_verified=email_verified,
+        nickname=nickname,
+    )
 
 
 def _find_or_create_user(
     db: Session,
     *,
     provider: str,
-    provider_id: str,
-    email: str | None,
-    nickname: str | None,
+    profile: OAuthProfile,
 ) -> UserModel:
     social_account = user_repository.get_social_account(
         db,
         provider=provider,
-        provider_id=provider_id,
+        provider_id=profile.provider_id,
     )
     if social_account is not None:
         return social_account.user
 
-    normalized_email = auth_service.normalize_email(email) if email else f"{provider}_{provider_id}@oauth.local"
-    user = user_repository.get_user_by_email(db, normalized_email)
+    if provider == "google" and (not profile.email or not profile.email_verified):
+        raise OAuthServiceError(400, "OAuth email policy requires a verified Google email")
+
+    if profile.email and profile.email_verified:
+        normalized_email = auth_service.normalize_email(profile.email)
+        user = user_repository.get_user_by_email(db, normalized_email)
+    elif provider == "kakao":
+        normalized_email = f"kakao_{profile.provider_id}@oauth.local"
+        user = None
+    else:
+        raise OAuthServiceError(400, "OAuth email policy requires a verified email")
+
     if user is None:
         user = user_repository.create_user(
             db,
             email=normalized_email,
-            nickname=nickname or f"{provider} 사용자",
+            nickname=profile.nickname or f"{provider} 사용자",
             password_hash=None,
         )
 
@@ -191,8 +263,8 @@ def _find_or_create_user(
         db,
         user=user,
         provider=provider,
-        provider_id=provider_id,
-        provider_nickname=nickname,
+        provider_id=profile.provider_id,
+        provider_nickname=profile.nickname,
     )
     return user
 
@@ -206,23 +278,20 @@ def complete_oauth_callback(
     state_cookie: str | None,
 ) -> OAuthCallbackResult:
     if not code or not state or not state_cookie or state != state_cookie:
-        raise OAuthServiceError(400, "Invalid OAuth state")
+        raise OAuthServiceError(400, "invalid_state")
 
     config = _provider_config(provider)
     _require_config(config)
     access_token = _exchange_code(config, code)
     profile_payload = _fetch_userinfo(config, access_token)
-    provider_id, email, nickname = _extract_profile(provider, profile_payload)
+    profile = _extract_profile(provider, profile_payload)
     user = _find_or_create_user(
         db,
         provider=provider,
-        provider_id=provider_id,
-        email=email,
-        nickname=nickname,
+        profile=profile,
     )
     result = auth_service._issue_tokens(db, user)
     db.commit()
 
-    _, redirect = state.split(":", 1)
-    frontend_redirect_url = f"{_frontend_base_url()}/oauth/callback?redirect={quote(safe_redirect_path(redirect), safe='')}"
+    frontend_redirect_url = callback_success_redirect_url(redirect_from_state(state))
     return OAuthCallbackResult(auth=result, frontend_redirect_url=frontend_redirect_url)

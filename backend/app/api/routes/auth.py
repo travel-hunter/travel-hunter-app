@@ -156,8 +156,30 @@ def complete_oauth(
     request: Request,
     code: str | None = Query(default=None),
     state: str | None = Query(default=None),
+    error: str | None = Query(default=None),
     db: Session | None = Depends(get_optional_db),
 ) -> RedirectResponse:
+    if error is not None:
+        state_is_valid = oauth_service.state_matches_cookie(
+            state,
+            request.cookies.get(settings.oauth_state_cookie_name),
+        )
+        response = RedirectResponse(
+            oauth_service.callback_error_redirect_url(
+                oauth_service.provider_callback_error_code(error, state_is_valid),
+                oauth_service.redirect_from_state(state) if state_is_valid else "/home",
+            ),
+            status_code=302,
+        )
+        response.delete_cookie(
+            key=settings.oauth_state_cookie_name,
+            httponly=True,
+            secure=settings.refresh_cookie_secure,
+            samesite="lax",
+            path="/api/auth/oauth",
+        )
+        return response
+
     try:
         result = oauth_service.complete_oauth_callback(
             _require_db(db),
@@ -167,7 +189,23 @@ def complete_oauth(
             state_cookie=request.cookies.get(settings.oauth_state_cookie_name),
         )
     except oauth_service.OAuthServiceError as error:
-        _raise_oauth_error(error)
+        error_code = oauth_service.callback_error_code(error)
+        error_redirect = "/home" if error_code == "invalid_state" else oauth_service.redirect_from_state(state)
+        response = RedirectResponse(
+            oauth_service.callback_error_redirect_url(
+                error_code,
+                error_redirect,
+            ),
+            status_code=302,
+        )
+        response.delete_cookie(
+            key=settings.oauth_state_cookie_name,
+            httponly=True,
+            secure=settings.refresh_cookie_secure,
+            samesite="lax",
+            path="/api/auth/oauth",
+        )
+        return response
 
     response = RedirectResponse(result.frontend_redirect_url, status_code=302)
     security.set_refresh_cookie(response, result.auth.refresh_token)
