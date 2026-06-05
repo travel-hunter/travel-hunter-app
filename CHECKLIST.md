@@ -81,4 +81,4 @@
 - Keep only current status, recent validation evidence, and active remaining risks in this file.
 - Do not append long historical task logs. Prefer updating source-specific docs or leaving obsolete detail in git history.
 - When removing or archiving documents, record the replacement source in `docs/specs/spec-index.md`.
-- Encoding check for Korean-bearing files: avoid PowerShell `Set-Content`/`Out-File` rewrites, keep UTF-8 diffs readable, and run `git diff --check` before claiming completion.
+- Encoding check for Korean-bearing files: follow the canonical UTF-8 Encoding rule in `AGENTS.md` ("Non-Negotiable Rules") and run `git diff --check` before claiming completion.
