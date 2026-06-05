@@ -34,6 +34,9 @@ export default defineConfig(({ mode }) => {
       environment: "jsdom",
       include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
       setupFiles: "./src/test/setup.ts",
+      // The app route tests drive a shared, stateful dev backend (login/session),
+      // so test files must run serially to avoid cross-file contention.
+      fileParallelism: false,
     },
   };
 });
