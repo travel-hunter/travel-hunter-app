@@ -6,11 +6,12 @@ The MVP is DB-backed-only and runtime mock mode has been removed. The current pr
 
 ## Source Of Truth
 
-- Current implementation spec: `docs/current-work-spec.md`
-- Implemented feature spec: `docs/implemented-feature-spec.md`
+- Product requirements: `docs/requirements.md`
+- Implemented feature/status inventory: `docs/implemented-feature-spec.md`
 - API contract: `docs/mvp-api-contract.md`
 - Current DB schema: `docs/db-schema-current.md`, `docs/db-schema-current.sql`
-- Next priority: `docs/next-work-plan.md`
+- Next priority and execution queue: `docs/next-work-plan.md`
+- Spec navigation index: `docs/specs/spec-index.md`
 - Deployment/CICD: `docs/deployment-cicd/README.md`
 
 ## Guardrails

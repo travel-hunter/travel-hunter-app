@@ -8,7 +8,7 @@
 - 실행 모드: DB-backed-only
 - 대상 독자: PM, 개발자, QA, 디자이너
 
-이 문서는 Travel Hunter가 제품 관점에서 제공해야 하는 기능과 acceptance 기준을 정의한다. API wire shape는 `docs/mvp-api-contract.md`, 현재 구현 요약은 `docs/current-work-spec.md`를 따른다.
+이 문서는 Travel Hunter가 제품 관점에서 제공해야 하는 기능과 acceptance 기준을 정의한다. API wire shape는 `docs/mvp-api-contract.md`, 현재 구현/상태 인벤토리는 `docs/implemented-feature-spec.md`, 다음 작업 실행 큐는 `docs/next-work-plan.md`를 따른다.
 
 ## 1. 시스템 개요
 
@@ -156,5 +156,5 @@ Travel Hunter는 국내 여행자가 여행 혜택 정책을 찾고, 여행 일�
 
 - 요구사항이 바뀌면 이 문서를 먼저 갱신한다.
 - API shape가 바뀌면 `docs/mvp-api-contract.md`, frontend type, backend schema/test를 함께 갱신한다.
-- 구현 완료/조건부/미구현 상태가 바뀌면 `docs/current-work-spec.md`와 필요한 계약 문서를 갱신한다.
+- 구현 완료/조건부/미구현 상태가 바뀌면 `docs/implemented-feature-spec.md`와 필요한 계약 문서를 갱신한다.
 - 다음 우선순위는 `docs/next-work-plan.md`에만 짧게 유지한다.

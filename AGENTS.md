@@ -10,7 +10,7 @@ Travel Hunter is an MVP that helps users find domestic travel support policies a
 - The frontend always calls the FastAPI backend through `AppDataApi`; mock mode has been removed.
 - The backend always uses PostgreSQL-backed behavior for user-facing data. Static profile options and seed constants live under `app/data`, but there is no runtime mock API mode.
 - Policy, auth, profile, saved policy, trip list/detail/create, trip policy attachment, recommendations, invite state, invite acceptance, and policy official links are implemented.
-- The active product and API source of truth is `docs/current-work-spec.md` and `docs/mvp-api-contract.md`.
+- The active product, implementation/status, execution-priority, and API sources of truth are `docs/requirements.md`, `docs/implemented-feature-spec.md`, `docs/next-work-plan.md`, and `docs/mvp-api-contract.md`.
 - ERD source material lives outside this repo at `../files`; the current repo schema reference is `docs/db-schema-current.md` and `docs/db-schema-current.sql`.
 
 ## Source Priority
@@ -21,9 +21,11 @@ When instructions conflict, use this order:
 2. This `AGENTS.md`.
 3. The nearest nested `AGENTS.md` for the files being changed.
 4. `PLANS.md`.
-5. `docs/current-work-spec.md`.
-6. `docs/mvp-api-contract.md`.
-7. ERD and requirement source files under `../files`.
+5. `docs/requirements.md`.
+6. `docs/implemented-feature-spec.md`.
+7. `docs/next-work-plan.md`.
+8. `docs/mvp-api-contract.md`.
+9. ERD and requirement source files under `../files`.
 
 ## Required Orientation Loop
 
