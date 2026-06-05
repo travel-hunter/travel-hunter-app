@@ -361,6 +361,20 @@ def test_generate_course_supports_travel_area_display_region() -> None:
     assert course.recommendations[0]["title"] == course.places[0].title
 
 
+def test_generate_course_falls_back_to_travel_area_sido_catalog() -> None:
+    course = recommendations.generate_auto_course(
+        region="부산 전체",
+        style="휴식",
+        start_date=date(2026, 7, 12),
+        day_count=2,
+        travel_area_id="busan-all",
+    )
+
+    assert len(course.places) == 6
+    assert all(place.region == "부산 전체" for place in course.places)
+    assert course.places[0].title == "부평깡통시장"
+
+
 def test_generate_course_falls_back_to_same_region_other_styles(monkeypatch) -> None:
     catalog = [
         recommendations.CatalogPlace("제주", "자연", "NA", "제주 자연 1", "자연 · 제주", "자연 취향에 맞습니다."),

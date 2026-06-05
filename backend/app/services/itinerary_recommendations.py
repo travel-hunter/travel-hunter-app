@@ -235,6 +235,61 @@ def _catalog_course(
     return GeneratedCourse(places=places, recommendations=_recommendations_for_places(places))
 
 
+def _catalog_course_for_area(
+    *,
+    region: str,
+    style: str,
+    start_date: date,
+    day_count: int,
+    travel_area_id: str | None,
+) -> GeneratedCourse:
+    candidate_regions = [region]
+    area = get_travel_area(travel_area_id)
+    if area is not None:
+        candidate_regions.extend([area.sido, *area.included_cities])
+
+    seen: set[str] = set()
+    for candidate_region in candidate_regions:
+        normalized = _normalize_text(candidate_region)
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        course = _catalog_course(
+            region=candidate_region,
+            style=style,
+            start_date=start_date,
+            day_count=day_count,
+        )
+        if course.places:
+            return GeneratedCourse(
+                places=[
+                    GeneratedPlace(
+                        day_number=place.day_number,
+                        date=place.date,
+                        time=place.time,
+                        order_num=place.order_num,
+                        region=region,
+                        style=place.style,
+                        label=place.label,
+                        title=place.title,
+                        meta=place.meta,
+                        reason=place.reason,
+                    )
+                    for place in course.places
+                ],
+                recommendations=[
+                    {
+                        "label": item["label"],
+                        "title": item["title"],
+                        "meta": item["meta"],
+                        "reason": item["reason"],
+                    }
+                    for item in course.recommendations
+                ],
+            )
+    return GeneratedCourse(places=[], recommendations=[])
+
+
 def _normalize_text(value: object) -> str:
     return "".join(str(value or "").lower().split())
 
@@ -664,9 +719,10 @@ def generate_auto_course(
         )
         if external_course is not None:
             return external_course
-    return _catalog_course(
+    return _catalog_course_for_area(
         region=region,
         style=style,
         start_date=start_date,
         day_count=day_count,
+        travel_area_id=travel_area_id,
     )

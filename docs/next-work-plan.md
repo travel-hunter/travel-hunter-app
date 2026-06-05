@@ -17,11 +17,12 @@ Recently completed local UX work:
 - Policy To Trip Linking local runtime smoke for a normalized policy across save, unsave, link, trip-detail display, unlink, and MyPage refresh.
 - Map bottom-sheet place detail opens an inspectable local detail dialog with day context, address, memo, coordinates, category, and Kakao Maps link.
 - Place Search/Add local UX from the itinerary editing flow uses recommendation candidates through `AppDataApi` and preserves Kakao place metadata when saving.
+- Kakao Local candidate smoke returns non-empty representative candidates with configured env, and catalog fallback remains non-empty for the same representative areas without Kakao Local credentials.
 
 Immediate sequence:
 
 1. Keep the frontend validation baseline green as the entry gate for further UI work.
-2. Smoke Kakao Local candidate fetching locally with configured env and record candidate/fallback behavior.
+2. Review `/ai-results` fallback-source communication so users can tell fresh Kakao-backed candidates from saved recommendation-summary fallback.
 3. Prepare policy list server search/pagination only when local policy volume makes client filtering uncomfortable.
 4. Revisit domain-dependent SMTP, OAuth, Cloudflare, deployment, and CI/CD smoke work after local UX completion.
 

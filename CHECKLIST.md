@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- Latest validated scope: Kakao/Google OAuth local completion hardening, frontend validation baseline, Policy To Trip Linking local runtime smoke, map bottom-sheet place detail dialog, itinerary edit-flow Place Search/Add, documentation authority simplification, local UX specification split, domain-dependent work reprioritization, Auth Account domain-independent local UX, Policy To Trip Linking action clarity, MyPage saved/applied policy summary consistency, agent/spec rule-wording cleanup, and the `Policy.actionStatus` response-schema fix.
+- Latest validated scope: Kakao Local candidate and catalog fallback smoke, Kakao/Google OAuth local completion hardening, frontend validation baseline, Policy To Trip Linking local runtime smoke, map bottom-sheet place detail dialog, itinerary edit-flow Place Search/Add, documentation authority simplification, local UX specification split, domain-dependent work reprioritization, Auth Account domain-independent local UX, Policy To Trip Linking action clarity, MyPage saved/applied policy summary consistency, agent/spec rule-wording cleanup, and the `Policy.actionStatus` response-schema fix.
 - Last validation date: 2026-06-05.
 - This file intentionally keeps only current status, recent validation evidence, and remaining risks. Older detailed work logs are left to git history and source-specific documents.
 
@@ -40,6 +40,9 @@
 - 2026-06-05 compose validation: `docker compose -f compose.yaml config` passed.
 - 2026-06-05 OAuth smoke script empty-env check: `scripts/oauth_local_smoke.py kakao` exited with missing credential names only and printed no secret values.
 - 2026-06-05 hygiene: `git diff --check` passed; changed text files decoded as UTF-8 without U+FFFD.
+- 2026-06-05 Kakao Local candidate tests: `cd backend && .venv/bin/python -m pytest -s tests/test_kakao_local_candidate_smoke.py tests/test_kakao_local.py tests/test_itinerary_recommendations.py` passed with 26 tests.
+- 2026-06-05 Kakao Local live candidate smoke: `cd backend && .venv/bin/python -m app.scripts.smoke_kakao_local_candidates --min-candidates 6` passed with 5 representative areas, each returning 11 Kakao Local candidates with address, coordinates, external ids, and Kakao place URLs.
+- 2026-06-05 Kakao Local fallback smoke: `cd backend && KAKAO_LOCAL_ENABLED=false KAKAO_LOCAL_REST_API_KEY= .venv/bin/python -m app.scripts.smoke_kakao_local_candidates --min-candidates 6` passed with 5 representative areas using catalog fallback.
 - 2026-06-05 documentation/spec cleanup: `docs/next-work-plan.md`, `docs/specs/local-ux-policy-trip-linking.md`, `docs/specs/local-ux-place-discovery.md`, `docs/specs/spec-index.md`, and `CHECKLIST.md` were updated to move validated Policy To Trip Linking and Place Detail work out of remaining gaps.
 - 2026-06-05 documentation authority simplification: the mixed-role work summary document was retired; root/docs stale-reference, index priority-owner wording, file absence, UTF-8 replacement-character, and `git diff --check` validations passed.
 
@@ -49,7 +52,8 @@
 - OAuth live browser smoke is credential-gated until Kakao/Google provider apps and localhost secrets are supplied; local start-route smoke is implemented.
 - Deployment and CI/CD work remain lower priority than local feature completion.
 - Kakao Maps SDK rendering still depends on configured JavaScript key and allowed web domains.
-- Kakao Local candidate smoke and fallback candidate quality remain the next place discovery priorities in `docs/next-work-plan.md`.
+- `/ai-results` still needs clearer source messaging when it shows saved recommendation-summary fallback instead of fresh Kakao-backed candidates.
+- Catalog fallback quality beyond the representative smoked areas can still be sparse and should be expanded as local demo targets broaden.
 - Policy list server search/pagination remains a follow-up only if local policy volume outgrows client-side filtering.
 
 ## Cleanup Policy

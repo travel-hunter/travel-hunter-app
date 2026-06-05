@@ -29,6 +29,8 @@ Implemented or partially implemented:
 - The itinerary add-place sheet loads recommendation candidates through `AppDataApi.listRecommendations`, filters them locally, and can add a selected candidate while preserving address, coordinates, category, Kakao URL, provider, and external place id fields.
 - `/ai-results` lists additional recommendation candidates and supports adding a candidate to a selected day.
 - Kakao Local is used when enabled; built-in catalog fallback keeps local trip creation from producing an empty experience.
+- Kakao Local candidate smoke is available through `backend/app/scripts/smoke_kakao_local_candidates.py` and passed for five representative areas with configured env.
+- Catalog fallback now retries travel-area display names through the area's `sido` and included cities, so `부산 전체` can use the existing `부산` catalog entries.
 
 Known gaps:
 
@@ -39,11 +41,10 @@ Known gaps:
 
 ## Missing UX To Complete Locally
 
-1. Kakao Local candidate fetching should be stable enough for local smoke with configured env.
-2. Catalog fallback should cover enough regions to avoid sparse or empty trip days in local demos.
-3. `/ai-results` should distinguish fresh additional candidates from fallback recommendation summaries.
-4. Recommendation basis copy should match the actual local ranking inputs.
-5. Route-time optimization and ratings/reviews should remain explicitly future scope unless implemented.
+1. Catalog fallback should cover enough regions to avoid sparse or empty trip days beyond the currently smoked representative areas.
+2. `/ai-results` should distinguish fresh additional candidates from fallback recommendation summaries.
+3. Recommendation basis copy should match the actual local ranking inputs.
+4. Route-time optimization and ratings/reviews should remain explicitly future scope unless implemented.
 
 ## Current Validation Evidence
 
@@ -54,13 +55,16 @@ Known gaps:
 - 2026-06-05 place search/add RED: `cd frontend && npm test -- --run src/App.test.tsx -t "searches recommendation candidates from the add-place sheet"` failed because the add-place sheet did not call `listRecommendations`.
 - 2026-06-05 place search/add GREEN: `cd frontend && npm test -- --run src/App.test.tsx -t "searches recommendation candidates from the add-place sheet"` passed with 1 selected test.
 - 2026-06-05 adjacent place edit coverage: `cd frontend && npm test -- --run src/App.test.tsx -t "adds, edits, and deletes places from the itinerary detail|searches recommendation candidates from the add-place sheet|restores and clears add-place drafts"` passed with 3 selected tests.
+- 2026-06-05 Kakao Local candidate smoke: `cd backend && .venv/bin/python -m app.scripts.smoke_kakao_local_candidates --min-candidates 6` passed with 5 configured Kakao Local areas, each returning 11 candidates with address, coordinates, external ids, and Kakao place URLs.
+- 2026-06-05 catalog fallback smoke: `cd backend && KAKAO_LOCAL_ENABLED=false KAKAO_LOCAL_REST_API_KEY= .venv/bin/python -m app.scripts.smoke_kakao_local_candidates --min-candidates 6` passed with 5 representative fallback areas.
+- 2026-06-05 backend candidate tests: `cd backend && .venv/bin/python -m pytest -s tests/test_kakao_local_candidate_smoke.py tests/test_kakao_local.py tests/test_itinerary_recommendations.py` passed with 26 tests.
 
 ## Local Completion Criteria
 
 - Clicking map bottom-sheet place detail opens an inspectable local detail UI. Completed locally on 2026-06-05.
 - A user can search for a place and add it to a trip day. Completed locally on 2026-06-05 with recommendation candidates through the existing AppDataApi boundary.
-- Local runtime with Kakao Local enabled returns usable candidates for representative regions.
-- Local runtime without Kakao Local still produces non-empty, clearly labeled fallback candidates for supported regions.
+- Local runtime with Kakao Local enabled returns usable candidates for representative regions. Completed locally on 2026-06-05 for 제주 전체, 부산 전체, 속초·고성·양양, 여수·순천, and 경주.
+- Local runtime without Kakao Local still produces non-empty, clearly labeled fallback candidates for supported regions. Completed locally on 2026-06-05 for the same representative areas.
 - `/ai-results` communicates when candidates are fallback-derived.
 - Recommendation explanation does not overclaim unimplemented route-time, rating, or review scoring.
 
@@ -83,6 +87,7 @@ Backend:
 - `backend/app/services/itinerary_recommendations.py`
 - `backend/app/services/kakao_local.py`
 - `backend/app/data/itinerary_catalog.py`
+- `backend/app/scripts/smoke_kakao_local_candidates.py`
 
 Contracts and references:
 
