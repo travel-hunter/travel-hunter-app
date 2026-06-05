@@ -1,4 +1,5 @@
 const { spawn, spawnSync } = require("node:child_process");
+const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
 
@@ -6,7 +7,19 @@ const repoRoot = path.resolve(__dirname, "..", "..");
 const backendDir = path.join(repoRoot, "backend");
 const frontendDir = path.join(repoRoot, "frontend");
 
-const pythonCommand = process.env.PYTHON || "python";
+function resolvePythonCommand() {
+  if (process.env.PYTHON) return process.env.PYTHON;
+
+  const venvPython =
+    process.platform === "win32"
+      ? path.join(backendDir, ".venv", "Scripts", "python.exe")
+      : path.join(backendDir, ".venv", "bin", "python");
+
+  if (fs.existsSync(venvPython)) return venvPython;
+  return process.platform === "win32" ? "python" : "python3";
+}
+
+const pythonCommand = resolvePythonCommand();
 const dockerCommand = process.platform === "win32" ? "docker.exe" : "docker";
 const playwrightCli = path.join(frontendDir, "node_modules", "@playwright", "test", "cli.js");
 const playwrightArgs = process.argv.slice(2);
