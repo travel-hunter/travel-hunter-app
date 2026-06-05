@@ -4,7 +4,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Car, ChevronLeft, GripVertical, Info, List, Map as MapIcon, X } from "lucide-react";
 import { useEffect, useState, type KeyboardEvent } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { appDataApi, type ItineraryPlace, type LinkedTripPolicy, type Trip, type TripPlaceRequest } from "../../api";
+import { appDataApi, type ItineraryPlace, type LinkedTripPolicy, type Recommendation, type Trip, type TripPlaceRequest } from "../../api";
 import { useSession } from "../../app/session";
 import { useAsyncResource } from "../../api/useAsyncResource";
 import { KakaoMapView, type KakaoMapMarker } from "../../components/map/KakaoMapView";
@@ -172,6 +172,42 @@ function placeTimeBase(value: string | null | undefined): { hour: number; minute
   return parsePlaceTime(defaultPlaceTime) ?? { hour: 9, minute: 0 };
 }
 
+function recommendationPlaceDescription(item: Recommendation): string {
+  const parts = [item.categoryName, item.address].filter((part): part is string => Boolean(part?.trim()));
+  if (parts.length > 0) return parts.join(" · ");
+  return item.meta || item.reason || "장소 정보 확인";
+}
+
+function recommendationPlacePayload(item: Recommendation, time: string | undefined): TripPlaceRequest {
+  return {
+    time: time ?? "",
+    label: item.title,
+    meta: recommendationPlaceDescription(item),
+    address: item.address ?? null,
+    latitude: item.latitude ?? null,
+    longitude: item.longitude ?? null,
+    category: item.categoryName ?? item.categoryGroup ?? null,
+    categoryCode: item.categoryCode ?? null,
+    placeUrl: item.placeUrl ?? null,
+    sourceProvider: item.sourceProvider ?? null,
+    externalPlaceId: item.externalPlaceId ?? null,
+  };
+}
+
+function recommendationSearchText(item: Recommendation): string {
+  return [
+    item.title,
+    item.meta,
+    item.reason,
+    item.categoryName,
+    item.categoryGroup,
+    item.address,
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(" ")
+    .toLocaleLowerCase("ko-KR");
+}
+
 export function ItineraryDetailPage() {
   const { tripId } = useParams();
   const navigate = useNavigate();
@@ -191,10 +227,15 @@ export function ItineraryDetailPage() {
   const [placeError, setPlaceError] = useState("");
   const [placeDeleteError, setPlaceDeleteError] = useState("");
   const [isSavingPlace, setIsSavingPlace] = useState(false);
+  const [placeSearchQuery, setPlaceSearchQuery] = useState("");
+  const [placeSearchCandidates, setPlaceSearchCandidates] = useState<Recommendation[]>([]);
+  const [isLoadingPlaceSearch, setIsLoadingPlaceSearch] = useState(false);
+  const [placeSearchError, setPlaceSearchError] = useState("");
   const [movingPlaceId, setMovingPlaceId] = useState<string | null>(null);
   const [draggingPlaceId, setDraggingPlaceId] = useState<string | null>(null);
   const [moveError, setMoveError] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
+  const [placeDetail, setPlaceDetail] = useState<{ dayNumber: number; place: ItineraryPlace } | null>(null);
   const [deleteCandidatePlace, setDeleteCandidatePlace] = useState<ItineraryPlace | null>(null);
   const [removingPolicySlug, setRemovingPolicySlug] = useState<string | null>(null);
   const [policyRemoveError, setPolicyRemoveError] = useState("");
@@ -283,10 +324,14 @@ export function ItineraryDetailPage() {
       return;
     }
     const draft = trip ? readDraft<TripPlaceAddDraft>(tripPlaceAddDraftKey(trip.id, visibleDay)) : null;
+    setPlaceSearchQuery("");
+    setPlaceSearchCandidates([]);
+    setPlaceSearchError("");
     setPlaceEditor({ mode: "add", dayNumber: visibleDay });
     setPlaceForm(draft ? { time: draft.time ?? "", label: draft.label, meta: draft.meta ?? "" } : { time: "", label: "", meta: "" });
     setPlaceDraftNotice(draft ? "작성 중이던 장소 내용을 불러왔어요." : "");
     setPlaceError("");
+    if (trip) void loadPlaceSearchCandidates(trip.id);
   };
 
   const openEditPlace = (place: ItineraryPlace) => {
@@ -295,9 +340,30 @@ export function ItineraryDetailPage() {
       return;
     }
     const draft = trip && place.id ? readDraft<TripPlaceEditDraft>(tripPlaceEditDraftKey(trip.id, place.id)) : null;
+    setPlaceSearchQuery("");
+    setPlaceSearchError("");
     setPlaceEditor({ mode: "edit", dayNumber: visibleDay, place });
-    setPlaceForm(draft ? { time: draft.time ?? "", label: draft.label, meta: draft.meta ?? "" } : { time: place.time, label: place.label, meta: place.meta });
+    setPlaceForm(draft ? { time: draft.time ?? "", label: draft.label, meta: draft.meta ?? "" } : { ...place, time: place.time, label: place.label, meta: place.meta });
     setPlaceDraftNotice(draft ? "수정 중이던 장소 내용을 불러왔어요." : "");
+    setPlaceError("");
+  };
+
+  const loadPlaceSearchCandidates = async (nextTripId: string) => {
+    setIsLoadingPlaceSearch(true);
+    setPlaceSearchError("");
+    try {
+      setPlaceSearchCandidates(await appDataApi.listRecommendations(nextTripId));
+    } catch {
+      setPlaceSearchCandidates([]);
+      setPlaceSearchError("추천 장소를 불러오지 못했어요. 직접 입력할 수 있어요.");
+    } finally {
+      setIsLoadingPlaceSearch(false);
+    }
+  };
+
+  const selectPlaceSearchCandidate = (candidate: Recommendation) => {
+    updatePlaceForm(recommendationPlacePayload(candidate, placeForm.time));
+    setPlaceSearchQuery(candidate.title);
     setPlaceError("");
   };
 
@@ -320,11 +386,19 @@ export function ItineraryDetailPage() {
     setIsSavingPlace(true);
     setPlaceError("");
     try {
-      const payload = {
+      const payload: TripPlaceRequest = {
         time,
         label,
         meta: placeForm.meta?.trim() || undefined,
       };
+      if (placeForm.address !== undefined) payload.address = placeForm.address;
+      if (placeForm.latitude !== undefined) payload.latitude = placeForm.latitude;
+      if (placeForm.longitude !== undefined) payload.longitude = placeForm.longitude;
+      if (placeForm.category !== undefined) payload.category = placeForm.category;
+      if (placeForm.categoryCode !== undefined) payload.categoryCode = placeForm.categoryCode;
+      if (placeForm.placeUrl !== undefined) payload.placeUrl = placeForm.placeUrl;
+      if (placeForm.sourceProvider !== undefined) payload.sourceProvider = placeForm.sourceProvider;
+      if (placeForm.externalPlaceId !== undefined) payload.externalPlaceId = placeForm.externalPlaceId;
       const nextTrip =
         placeEditor.mode === "add"
           ? await appDataApi.addTripPlace(trip.id, placeEditor.dayNumber, payload)
@@ -498,6 +572,14 @@ export function ItineraryDetailPage() {
     }
     setPlaceDraftNotice("");
   };
+
+  const normalizedPlaceSearchQuery = placeSearchQuery.trim().toLocaleLowerCase("ko-KR");
+  const placeSearchResults = placeSearchCandidates
+    .filter((candidate) => {
+      if (!normalizedPlaceSearchQuery) return true;
+      return recommendationSearchText(candidate).includes(normalizedPlaceSearchQuery);
+    })
+    .slice(0, 6);
 
   if (isLoading) {
     return (
@@ -713,9 +795,9 @@ export function ItineraryDetailPage() {
           <PrototypeTripMap
             dayNumber={visibleDay}
             onSelectPlace={selectMapPlace}
-            onShowPlaceDetail={() => {
-              setNotice("장소 상세 보기는 준비 중이에요.");
-              window.setTimeout(() => setNotice(null), 1800);
+            onShowPlaceDetail={(place) => {
+              setNotice(null);
+              setPlaceDetail({ dayNumber: visibleDay, place });
             }}
             places={dayPlaces}
             selectedPlaceId={selectedMapPlaceId}
@@ -729,13 +811,26 @@ export function ItineraryDetailPage() {
         <PlaceEditorSheet
           error={placeError}
           form={placeForm}
+          isLoadingSearch={isLoadingPlaceSearch}
           isSaving={isSavingPlace}
           mode={placeEditor.mode}
           onChange={updatePlaceForm}
           onClose={closePlaceEditor}
           onDiscardDraft={discardPlaceDraft}
+          onSearchChange={setPlaceSearchQuery}
+          onSelectSearchCandidate={selectPlaceSearchCandidate}
           onSubmit={submitPlaceEditor}
+          searchCandidates={placeSearchResults}
+          searchError={placeSearchError}
+          searchQuery={placeSearchQuery}
           restoredDraftMessage={placeDraftNotice}
+        />
+      )}
+      {placeDetail && (
+        <PlaceDetailDialog
+          dayNumber={placeDetail.dayNumber}
+          onClose={() => setPlaceDetail(null)}
+          place={placeDetail.place}
         />
       )}
       <ConfirmDialog
@@ -776,7 +871,7 @@ function PrototypeTripMap({
 }: {
   dayNumber: number;
   onSelectPlace: (placeId: string | null) => void;
-  onShowPlaceDetail: () => void;
+  onShowPlaceDetail: (place: ItineraryPlace) => void;
   places: ItineraryPlace[];
   selectedPlaceId: string | null;
 }) {
@@ -875,7 +970,7 @@ function PlaceMapBottomSheet({
   place,
 }: {
   onClose: () => void;
-  onShowPlaceDetail: () => void;
+  onShowPlaceDetail: (place: ItineraryPlace) => void;
   place: ItineraryPlace;
 }) {
   const kakaoSearchUrl = place.placeUrl || `https://map.kakao.com/link/search/${encodeURIComponent(place.label)}`;
@@ -902,12 +997,75 @@ function PlaceMapBottomSheet({
           <Car size={14} />
           길찾기
         </a>
-        <button onClick={onShowPlaceDetail} type="button">
+        <button onClick={() => onShowPlaceDetail(place)} type="button">
           <Info size={14} />
           상세 보기
         </button>
       </div>
     </section>
+  );
+}
+
+function PlaceDetailDialog({
+  dayNumber,
+  onClose,
+  place,
+}: {
+  dayNumber: number;
+  onClose: () => void;
+  place: ItineraryPlace;
+}) {
+  const titleId = "place-detail-title";
+  const detailText = place.meta || "메모가 아직 없어요.";
+  const addressText = place.address || "주소 정보 없음";
+  const categoryText = place.category || place.categoryCode || "장소";
+  const coordinateText = Number.isFinite(place.latitude) && Number.isFinite(place.longitude)
+    ? `${place.latitude}, ${place.longitude}`
+    : "좌표 정보 없음";
+  const kakaoPlaceUrl = place.placeUrl || `https://map.kakao.com/link/search/${encodeURIComponent(place.address || place.label)}`;
+
+  return (
+    <div className="sheet-backdrop place-detail-backdrop" role="presentation" onMouseDown={onClose}>
+      <section
+        aria-labelledby={titleId}
+        aria-modal="true"
+        className="trip-select-sheet place-detail-dialog"
+        role="dialog"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="sheet-head">
+          <div>
+            <h2 id={titleId}>{place.label} 장소 상세</h2>
+            <p className="meta">Day {dayNumber} 지도에서 선택한 장소</p>
+          </div>
+          <button className="btn sm ghost" type="button" onClick={onClose}>
+            닫기
+          </button>
+        </div>
+        <div className="place-detail-summary" aria-label="장소 요약">
+          <span>Day {dayNumber}</span>
+          {place.time && <span>{place.time}</span>}
+          <span>{categoryText}</span>
+        </div>
+        <div className="place-detail-fields">
+          <section>
+            <strong>주소</strong>
+            <p>{addressText}</p>
+          </section>
+          <section>
+            <strong>메모</strong>
+            <p>{detailText}</p>
+          </section>
+          <section>
+            <strong>좌표</strong>
+            <p>{coordinateText}</p>
+          </section>
+        </div>
+        <a className="btn primary" href={kakaoPlaceUrl} rel="noreferrer" target="_blank">
+          카카오맵에서 보기
+        </a>
+      </section>
+    </div>
   );
 }
 
@@ -1128,24 +1286,37 @@ function PlaceTimePicker({
 function PlaceEditorSheet({
   error,
   form,
+  isLoadingSearch,
   isSaving,
   mode,
   onChange,
   onClose,
   onDiscardDraft,
+  onSearchChange,
+  onSelectSearchCandidate,
   onSubmit,
+  searchCandidates,
+  searchError,
+  searchQuery,
   restoredDraftMessage,
 }: {
   error: string;
   form: TripPlaceRequest;
+  isLoadingSearch: boolean;
   isSaving: boolean;
   mode: "add" | "edit";
   onChange: (form: TripPlaceRequest) => void;
   onClose: () => void;
   onDiscardDraft: () => void;
+  onSearchChange: (query: string) => void;
+  onSelectSearchCandidate: (candidate: Recommendation) => void;
   onSubmit: () => void;
+  searchCandidates: Recommendation[];
+  searchError: string;
+  searchQuery: string;
   restoredDraftMessage: string;
 }) {
+  const showEmptySearch = mode === "add" && searchQuery.trim() && !isLoadingSearch && searchCandidates.length === 0;
   return (
     <div className="sheet-backdrop" role="presentation" onMouseDown={onClose}>
       <section className="trip-select-sheet" role="dialog" aria-modal="true" aria-labelledby="place-editor-title" onMouseDown={(event) => event.stopPropagation()}>
@@ -1160,6 +1331,41 @@ function PlaceEditorSheet({
         </div>
         <div className="form place-editor-form">
           {restoredDraftMessage && <DraftRestoreNotice message={restoredDraftMessage} onDiscard={onDiscardDraft} />}
+          {mode === "add" && (
+            <div className="place-search-panel">
+              <label className="field">
+                장소 검색
+                <input
+                  name="place-search"
+                  placeholder="추천 후보에서 검색"
+                  value={searchQuery}
+                  onChange={(event) => onSearchChange(event.target.value)}
+                />
+              </label>
+              {isLoadingSearch && <p className="place-search-status">추천 장소를 불러오는 중입니다.</p>}
+              {searchError && <p className="place-search-status error">{searchError}</p>}
+              {searchCandidates.length > 0 && (
+                <div className="place-search-results" role="list" aria-label="장소 검색 결과">
+                  {searchCandidates.map((candidate, index) => (
+                    <button
+                      aria-label={`${candidate.title} 선택`}
+                      className="place-search-result"
+                      key={candidate.id ?? candidate.externalPlaceId ?? `${candidate.title}:${index}`}
+                      type="button"
+                      onClick={() => onSelectSearchCandidate(candidate)}
+                    >
+                      <span>
+                        <strong>{candidate.title}</strong>
+                        <em>{candidate.categoryName ?? candidate.categoryGroup ?? "장소"}</em>
+                      </span>
+                      <small>{candidate.address ?? candidate.meta}</small>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {showEmptySearch && <p className="place-search-status">검색 결과가 없어요. 직접 장소명을 입력해 주세요.</p>}
+            </div>
+          )}
           <PlaceTimePicker disabled={isSaving} value={form.time ?? ""} onChange={(time) => onChange({ ...form, time })} />
           <input type="hidden" name="place-time" value={form.time ?? ""} readOnly />
           <label className="field">

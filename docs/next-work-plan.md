@@ -1,7 +1,7 @@
 # Travel Hunter Next Work Plan
 
-> Status: reference.
-> Use `docs/specs/spec-index.md` as the active source of truth for current local UX priorities. Deployment and CI/CD work remains deferred under `docs/deployment-cicd/` unless explicitly reprioritized.
+> Status: active execution queue.
+> Use this document as the source of truth for current next-work priority. `docs/specs/spec-index.md` is a local UX spec index. Deployment and CI/CD work remains deferred under `docs/deployment-cicd/` unless explicitly reprioritized.
 
 ## Current Priority
 
@@ -9,16 +9,20 @@ The current priority is local functional completion that can be verified without
 
 Recently completed local UX work:
 
+- Frontend validation baseline is green in the current WSL/local environment.
 - Domain-independent Auth and Account Recovery UX.
 - Policy detail no-link CTA clarity.
 - Policy detail info-only action blocking and policy-to-trip success feedback.
 - MyPage saved/applied policy summary consistency after policy save, remove, link, and unlink actions.
+- Policy To Trip Linking local runtime smoke for a normalized policy across save, unsave, link, trip-detail display, unlink, and MyPage refresh.
+- Map bottom-sheet place detail opens an inspectable local detail dialog with day context, address, memo, coordinates, category, and Kakao Maps link.
+- Place Search/Add local UX from the itinerary editing flow uses recommendation candidates through `AppDataApi` and preserves Kakao place metadata when saving.
 
 Immediate sequence:
 
 1. Keep the frontend validation baseline green as the entry gate for further UI work.
-2. Complete the remaining Policy To Trip Linking local runtime smoke for a normalized policy across save, unsave, link, trip-detail display, unlink, and MyPage refresh.
-3. Complete Place Detail and Search local UX.
+2. Smoke Kakao Local candidate fetching locally with configured env and record candidate/fallback behavior.
+3. Prepare policy list server search/pagination only when local policy volume makes client filtering uncomfortable.
 4. Revisit domain-dependent SMTP, OAuth, Cloudflare, deployment, and CI/CD smoke work after local UX completion.
 
 ## Active Planning Sources
@@ -27,7 +31,7 @@ Immediate sequence:
 - `docs/specs/local-ux-auth-account.md`
 - `docs/specs/local-ux-policy-trip-linking.md`
 - `docs/specs/local-ux-place-discovery.md`
-- `docs/current-work-spec.md`
+- `docs/implemented-feature-spec.md`
 - `docs/mvp-api-contract.md`
 - `docs/db-schema-current.md`
 - `docs/db-schema-current.sql`

@@ -2706,6 +2706,82 @@
   padding: 0;
 }
 
+.place-search-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  background: var(--gray-50);
+}
+
+.place-search-results {
+  display: grid;
+  gap: 8px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.place-search-result {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 12px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+}
+
+.place-search-result:hover,
+.place-search-result:focus-visible {
+  border-color: var(--primary-500);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 94, 91, 0.12);
+}
+
+.place-search-result span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.place-search-result strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+
+.place-search-result em {
+  flex: 0 0 auto;
+  color: var(--gray-500);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.place-search-result small {
+  color: var(--gray-600);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.place-search-status {
+  margin: 0;
+  color: var(--gray-600);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.place-search-status.error {
+  color: var(--primary-600);
+}
+
 .place-time-picker {
   gap: 8px;
 }
@@ -5752,6 +5828,61 @@
   border: 0;
   color: #fff;
   background: #ff5e5b;
+}
+
+.place-detail-backdrop {
+  align-items: center;
+  padding: 18px;
+}
+
+.place-detail-dialog {
+  width: min(100%, 460px);
+  justify-self: center;
+  border-radius: var(--radius-xl);
+}
+
+.place-detail-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.place-detail-summary span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  color: #4a4a5c;
+  background: #f2f2f5;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.place-detail-fields {
+  display: grid;
+  gap: 10px;
+}
+
+.place-detail-fields section {
+  padding: 12px;
+  border: 1px solid #ececf2;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.place-detail-fields strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #1a1a2e;
+  font-size: 12px;
+}
+
+.place-detail-fields p {
+  margin: 0;
+  color: #4a4a5c;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .prototype-map-caption {

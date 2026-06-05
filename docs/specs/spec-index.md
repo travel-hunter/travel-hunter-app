@@ -2,13 +2,11 @@
 
 ## Purpose
 
-This index defines which specification documents should be treated as active sources of truth for the current local UX completion work. It also separates deferred deployment/CI/CD work from local product completion work.
+This index lists the local UX specification documents and separates deferred deployment/CI/CD references from local product completion references. It is a navigation document, not the execution-priority owner.
 
-## Current Priority Boundary
+## Scope Boundary
 
-Local functional completion is the current priority. Work that requires a purchased domain, DNS propagation, public HTTPS, Cloudflare, external SMTP sender authentication, OAuth provider redirect registration, or staging smoke is deferred unless a later task explicitly changes that priority.
-
-The next implementation pass should prioritize domain-independent local UX first: clear missing-env states, token validation flows, dev-provider OTP clarity, and backend/frontend behavior that can be verified without public DNS.
+Local functional completion specs are listed here. Work that requires a purchased domain, DNS propagation, public HTTPS, Cloudflare, external SMTP sender authentication, OAuth provider redirect registration, or staging smoke remains deployment-deferred unless `docs/next-work-plan.md` explicitly reprioritizes it.
 
 ## Active Specs
 
@@ -17,7 +15,9 @@ The next implementation pass should prioritize domain-independent local UX first
 | [local-ux-auth-account.md](local-ux-auth-account.md) | active | Local auth, account recovery, OAuth, and contact verification UX completion spec. |
 | [local-ux-policy-trip-linking.md](local-ux-policy-trip-linking.md) | active | Local policy discovery, saved policy, official link, and trip linking UX completion spec. |
 | [local-ux-place-discovery.md](local-ux-place-discovery.md) | active | Local place detail, map/search, recommendation candidate, and fallback quality UX completion spec. |
-| [../current-work-spec.md](../current-work-spec.md) | active | Current project work summary and source priority bridge. |
+| [../requirements.md](../requirements.md) | active | Product requirements and acceptance baseline. |
+| [../implemented-feature-spec.md](../implemented-feature-spec.md) | active | Implemented feature and conditional-scope inventory. |
+| [../next-work-plan.md](../next-work-plan.md) | active | Current next-work execution queue. |
 | [../mvp-api-contract.md](../mvp-api-contract.md) | active | API wire contract. |
 | [../db-schema-current.md](../db-schema-current.md) | active | Human-readable current DB schema reference. |
 | [../db-schema-current.sql](../db-schema-current.sql) | active | SQL schema snapshot. |
@@ -26,13 +26,10 @@ The next implementation pass should prioritize domain-independent local UX first
 
 | Document | Status | Role |
 | --- | --- | --- |
-| [../requirements.md](../requirements.md) | reference | Product requirements history and acceptance baseline. |
-| [../implemented-feature-spec.md](../implemented-feature-spec.md) | reference | Implemented feature inventory and conditional scope summary. |
 | [../screen-feature-status-screens.md](../screen-feature-status-screens.md) | reference | Screen-by-screen status ledger. |
 | [../screen-feature-status-logic.md](../screen-feature-status-logic.md) | reference | Internal logic, collection, fallback, and recommendation status ledger. |
 | [../local-dev-runtime.md](../local-dev-runtime.md) | reference | Local runtime commands and environment setup. |
 | [../brevo-cloudflare-email-guide.md](../brevo-cloudflare-email-guide.md) | reference | Brevo/Cloudflare password reset email delivery specification. |
-| [../next-work-plan.md](../next-work-plan.md) | reference | Historical next-work planning notes; use active specs for current local UX execution. |
 
 ## Removed Archive Candidates
 
@@ -45,6 +42,7 @@ These files were removed after confirming their current guidance role is covered
 | `docs/superpowers/plans/2026-05-28-ai-results-inline-day-selector-compact-copy.md` | `docs/specs/local-ux-place-discovery.md` and current implementation/tests. |
 | `docs/superpowers/plans/2026-05-28-ai-results-map-first-redesign.md` | `docs/specs/local-ux-place-discovery.md` and current implementation/tests. |
 | `docs/superpowers/plans/2026-05-28-ai-results-preview-day-selector-v3.md` | `docs/specs/local-ux-place-discovery.md` and current implementation/tests. |
+| Retired mixed current-work summary document | `docs/implemented-feature-spec.md` for implementation/status inventory, `docs/next-work-plan.md` for execution queue, and this index for document navigation. |
 
 ## Deployment Deferred
 
@@ -62,4 +60,4 @@ Domain-dependent deferred work includes Brevo domain authentication, real SMTP p
 2. Record removed legacy documents in this index with their replacement source.
 3. Keep API shape authority in `docs/mvp-api-contract.md`.
 4. Keep DB authority in `docs/db-schema-current.md` and `docs/db-schema-current.sql`.
-5. Keep deployment and CI/CD work in `docs/deployment-cicd/` until it becomes the active priority.
+5. Keep deployment and CI/CD work in `docs/deployment-cicd/` until a later task explicitly reprioritizes it.

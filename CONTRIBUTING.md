@@ -141,12 +141,12 @@ DB schema는 Alembic migration으로만 변경한다. SQLAlchemy `create_all()`�
 
 1. `README.md`
 2. `docs/requirements.md`
-3. `docs/current-work-spec.md`
-4. `docs/implemented-feature-spec.md`
-5. `docs/mvp-api-contract.md`
-6. `docs/db-schema-current.md`
-7. `docs/deployment-cicd/README.md`
-8. `docs/next-work-plan.md`
+3. `docs/implemented-feature-spec.md`
+4. `docs/next-work-plan.md`
+5. `docs/specs/spec-index.md`
+6. `docs/mvp-api-contract.md`
+7. `docs/db-schema-current.md`
+8. `docs/deployment-cicd/README.md`
 
 현재 MVP는 FastAPI + PostgreSQL DB-backed-only 기준이다. runtime mock mode는 제거됐다.
 

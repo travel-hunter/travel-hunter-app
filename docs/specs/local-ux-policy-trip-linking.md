@@ -31,16 +31,15 @@ Implemented or partially implemented:
 - Policy details without `applyUrl` or `officialUrl` show an explicit unavailable-link explanation and an accessible disabled CTA.
 - Policy-to-trip linking success feedback names the selected policy and trip, and the success path can route to the trip detail with linked policy context.
 - MyPage saved/applied policy summaries stay consistent after policy detail save/unsave, MyPage saved-policy removal, policy-to-trip linking, and trip-detail unlinking.
+- A normalized policy passes local backend-mode e2e smoke across save, unsave, link, trip-detail display, unlink, and MyPage refresh.
 
-Remaining local gaps:
+Remaining local follow-up:
 
-- The full normalized-policy local runtime path still needs fresh end-to-end validation across policy detail, trip detail, and MyPage.
 - The policy list uses client-side filtering; large policy volume may require server search/pagination.
 
 ## Missing UX To Complete Locally
 
-1. A normalized policy should pass a local runtime save, unsave, link, trip-detail display, unlink, and MyPage refresh smoke without manual state repair.
-2. Policy list filtering should be prepared for server search/pagination when local datasets grow beyond client filtering comfort.
+1. Policy list filtering should be prepared for server search/pagination when local datasets grow beyond client filtering comfort.
 
 ## Local Completion Criteria
 
@@ -49,6 +48,12 @@ Remaining local gaps:
 - A policy without official/apply URL has clear user-facing messaging and does not look like a broken CTA.
 - After linking a policy, `/trips/{tripId}` shows the linked policy without requiring a manual refresh.
 - MyPage saved/applied policy summaries stay consistent after save/link/delete actions.
+
+## Current Validation Evidence
+
+- 2026-06-05: `cd frontend && npm run typecheck` passed.
+- 2026-06-05: `cd frontend && npm test` passed with 8 files and 153 tests after starting compose PostgreSQL, applying Alembic migrations, seeding data, and running FastAPI backend-mode tests.
+- 2026-06-05: `cd frontend && npm run test:e2e -- -g "normalized policy save, unsave, trip link, and unlink"` passed with 1 Playwright backend-mode test.
 
 ## Relevant Files And APIs
 

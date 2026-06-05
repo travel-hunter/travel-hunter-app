@@ -16,6 +16,7 @@ import {
   type LinkedTripPolicy,
   type NotificationSettings,
   type Policy,
+  type Recommendation,
   type RegionRecommendation,
   type Trip,
 } from "./api";
@@ -1500,6 +1501,68 @@ describe("Travel Hunter app", () => {
     }
   });
 
+  it("opens an inspectable place detail dialog from the map bottom sheet", async () => {
+    const trip: Trip = {
+      ...getPreviewTrip(),
+      id: "55",
+      title: "제주 지도 여행",
+      dates: "2026.06.15 - 06.17",
+      days: {
+        1: [
+          {
+            id: "1",
+            time: "09:00",
+            label: "성산 일출봉",
+            meta: "일출 보기 좋은 자연 명소",
+            address: "제주 서귀포시 성산읍 성산리 1",
+            latitude: 33.458,
+            longitude: 126.942,
+            category: "관광명소",
+            categoryCode: "AT4",
+            placeUrl: "https://place.map.kakao.com/123",
+          },
+        ],
+      },
+    };
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(trip);
+
+    try {
+      await login();
+      cleanup();
+      renderAppRoute("/trips/55?day=1&view=map&place=1");
+      const user = userEvent.setup();
+
+      await screen.findByRole("dialog", { name: "성산 일출봉 지도 상세" });
+      await user.click(screen.getByRole("button", { name: "상세 보기" }));
+
+      const detailDialog = await screen.findByRole("dialog", {
+        name: "성산 일출봉 장소 상세",
+      });
+      expect(within(detailDialog).getByText("Day 1")).toBeInTheDocument();
+      expect(within(detailDialog).getByText("09:00")).toBeInTheDocument();
+      expect(within(detailDialog).getByText("관광명소")).toBeInTheDocument();
+      expect(
+        within(detailDialog).getByText("제주 서귀포시 성산읍 성산리 1"),
+      ).toBeInTheDocument();
+      expect(
+        within(detailDialog).getByText("일출 보기 좋은 자연 명소"),
+      ).toBeInTheDocument();
+      expect(within(detailDialog).getByText("33.458, 126.942")).toBeInTheDocument();
+      expect(within(detailDialog).getByRole("link", { name: "카카오맵에서 보기" })).toHaveAttribute(
+        "href",
+        "https://place.map.kakao.com/123",
+      );
+      expect(screen.queryByText("장소 상세 보기는 준비 중이에요.")).not.toBeInTheDocument();
+
+      await user.click(within(detailDialog).getByRole("button", { name: "닫기" }));
+      expect(
+        screen.queryByRole("dialog", { name: "성산 일출봉 장소 상세" }),
+      ).not.toBeInTheDocument();
+    } finally {
+      getTripSpy.mockRestore();
+    }
+  });
+
   it("renders a trip detail coordinate-less Kakao map through the shared query fallback", async () => {
     vi.stubEnv("VITE_KAKAO_MAP_JS_KEY", "test-js-key");
     const kakao = installAppKakaoSdkMock();
@@ -1776,6 +1839,125 @@ describe("Travel Hunter app", () => {
       updatePlaceSpy.mockRestore();
       deletePlaceSpy.mockRestore();
       confirmSpy.mockRestore();
+    }
+  });
+
+  it("searches recommendation candidates from the add-place sheet and adds the selected place", async () => {
+    const recommendation: Recommendation = {
+      id: "kakao_local:jeju-food-1",
+      label: "food",
+      title: "동백 식당",
+      meta: "향토 음식",
+      reason: "Day 1 점심 동선에 맞는 음식점입니다.",
+      categoryGroup: "food",
+      categoryCode: "FD6",
+      categoryName: "음식점",
+      address: "제주 서귀포시 중문관광로 10",
+      latitude: 33.251,
+      longitude: 126.412,
+      placeUrl: "https://place.map.kakao.com/jeju-food-1",
+      suggestedDay: 1,
+      sourceProvider: "kakao_local",
+      externalPlaceId: "jeju-food-1",
+    };
+    const initialTrip: Trip = {
+      ...getPreviewTrip(),
+      id: "57",
+      status: "draft",
+      currentUserRole: "owner",
+      title: "Jeju place search trip",
+      days: { 1: [] },
+    };
+    const addedTrip: Trip = {
+      ...initialTrip,
+      days: {
+        1: [
+          {
+            id: "selected-place",
+            time: "",
+            label: recommendation.title,
+            meta: "음식점 · 제주 서귀포시 중문관광로 10",
+            address: recommendation.address,
+            latitude: recommendation.latitude,
+            longitude: recommendation.longitude,
+            category: recommendation.categoryName,
+            categoryCode: recommendation.categoryCode,
+            placeUrl: recommendation.placeUrl,
+            sourceProvider: recommendation.sourceProvider,
+            externalPlaceId: recommendation.externalPlaceId,
+          },
+        ],
+      },
+    };
+    const getTripSpy = vi
+      .spyOn(appDataApi, "getTrip")
+      .mockResolvedValue(initialTrip);
+    const listRecommendationsSpy = vi
+      .spyOn(appDataApi, "listRecommendations")
+      .mockResolvedValue([recommendation]);
+    const addPlaceSpy = vi
+      .spyOn(appDataApi, "addTripPlace")
+      .mockResolvedValue(addedTrip);
+
+    try {
+      await login();
+      cleanup();
+      renderAppRoute("/trips/57?day=1");
+      const user = userEvent.setup();
+
+      await waitFor(() =>
+        expect(document.body).toHaveTextContent("Jeju place search trip"),
+      );
+      await user.click(
+        document.querySelector(
+          ".prototype-trip-action-add",
+        ) as HTMLButtonElement,
+      );
+
+      const dialog = await screen.findByRole("dialog", { name: "장소 추가" });
+      await waitFor(() =>
+        expect(listRecommendationsSpy).toHaveBeenCalledWith("57"),
+      );
+      await user.type(
+        within(dialog).getByRole("textbox", { name: "장소 검색" }),
+        "동백",
+      );
+      await user.click(
+        within(dialog).getByRole("button", { name: "동백 식당 선택" }),
+      );
+
+      expect(
+        within(dialog).getByRole("textbox", { name: "장소명" }),
+      ).toHaveValue("동백 식당");
+      expect(
+        within(dialog).getByRole("textbox", { name: "메모" }),
+      ).toHaveValue("음식점 · 제주 서귀포시 중문관광로 10");
+
+      await user.click(within(dialog).getByRole("button", { name: "저장하기" }));
+
+      await waitFor(() =>
+        expect(addPlaceSpy).toHaveBeenCalledWith(
+          "57",
+          1,
+          expect.objectContaining({
+            label: "동백 식당",
+            meta: "음식점 · 제주 서귀포시 중문관광로 10",
+            address: "제주 서귀포시 중문관광로 10",
+            latitude: 33.251,
+            longitude: 126.412,
+            category: "음식점",
+            categoryCode: "FD6",
+            placeUrl: "https://place.map.kakao.com/jeju-food-1",
+            sourceProvider: "kakao_local",
+            externalPlaceId: "jeju-food-1",
+          }),
+        ),
+      );
+      await waitFor(() => expect(document.body).toHaveTextContent("동백 식당"));
+    } finally {
+      getTripSpy.mockRestore();
+      listRecommendationsSpy.mockRestore();
+      addPlaceSpy.mockRestore();
     }
   });
 
@@ -4825,7 +5007,7 @@ describe("Travel Hunter app", () => {
       expect(nicknameInput).toHaveValue(nextUser.nickname);
 
       await user.click(
-        within(dialog).getByRole("button", { name: nextProfile.region }),
+        await within(dialog).findByRole("button", { name: nextProfile.region }),
       );
       await user.click(
         within(dialog).getByRole("button", { name: nextProfile.style }),

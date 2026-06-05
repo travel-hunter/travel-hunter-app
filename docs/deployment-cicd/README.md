@@ -10,4 +10,4 @@
 ## 현재 기준
 
 - 과거 handoff, staging 운영 메모, 개별 개발 가이드는 정리했다.
-- 배포 실행과 현재 구현 기준은 `docs/current-work-spec.md`, `docs/mvp-api-contract.md`, `docs/db-schema-current.md`, `deploy/.env.staging.example`, `deploy/.env.tunnel.example`를 따른다.
+- 배포 실행과 현재 구현 기준은 `docs/implemented-feature-spec.md`, `docs/mvp-api-contract.md`, `docs/db-schema-current.md`, `deploy/.env.staging.example`, `deploy/.env.tunnel.example`를 따른다.

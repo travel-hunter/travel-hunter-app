@@ -1,14 +1,14 @@
 # Travel Hunter 구현 기능명세서
 
-> Status: reference.
-> Use this document as the implemented-feature inventory. For current local UX completion priorities, use `docs/specs/spec-index.md` and the three `docs/specs/local-ux-*.md` documents.
+> Status: active implementation/status inventory.
+> Use this document as the implemented-feature and conditional-scope inventory. For the current execution queue, use `docs/next-work-plan.md`; `docs/specs/spec-index.md` is only the local UX spec index.
 
 ## 기준
 
 - 실행 모드: DB-backed-only.
 - Runtime mock mode는 제거됐다.
 - 이 문서는 현재 구현된 사용자 동작과 API/DB 연결을 기능명세 관점으로 정리한다.
-- 제품 요구사항은 `docs/requirements.md`, 현재 구현 요약은 `docs/current-work-spec.md`, API wire shape는 `docs/mvp-api-contract.md`를 따른다.
+- 제품 요구사항은 `docs/requirements.md`, 다음 작업 실행 큐는 `docs/next-work-plan.md`, API wire shape는 `docs/mvp-api-contract.md`를 따른다.
 
 ## 인증과 계정
 
