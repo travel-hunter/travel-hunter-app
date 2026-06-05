@@ -60,7 +60,9 @@ describe("admin pages", () => {
     await waitFor(() =>
       expect(document.body).toHaveTextContent(USER_MANAGEMENT),
     );
-    expect(document.body).toHaveTextContent("user@example.com");
+    await waitFor(() =>
+      expect(document.body).toHaveTextContent("user@example.com"),
+    );
   });
 
   it("renders admin user counts and pagination controls", async () => {
