@@ -241,3 +241,94 @@ def test_oauth_callback_sets_refresh_cookie_and_redirects(monkeypatch) -> None:
     assert response.status_code == 302
     assert response.headers["location"] == "http://127.0.0.1:5173/oauth/callback?redirect=%2Fhome"
     assert "travel_hunter_refresh=refresh-token" in response.headers["set-cookie"]
+
+
+def test_oauth_callback_provider_access_denied_redirects_without_refresh_cookie() -> None:
+    try:
+        client.cookies.set("travel_hunter_oauth_state", "state-token:/trips")
+        response = client.get(
+            "/api/auth/oauth/google/callback?error=access_denied&state=state-token:/trips&error_description=raw-provider-message",
+            follow_redirects=False,
+        )
+    finally:
+        client.cookies.clear()
+
+    assert response.status_code == 302
+    assert response.headers["location"] == (
+        "http://127.0.0.1:5173/oauth/callback?error=access_denied&redirect=%2Ftrips"
+    )
+    assert "raw-provider-message" not in response.headers["location"]
+    assert "travel_hunter_refresh=" not in response.headers.get("set-cookie", "")
+    assert "travel_hunter_oauth_state=" in response.headers["set-cookie"]
+
+
+def test_oauth_callback_provider_error_with_invalid_state_redirects_invalid_state() -> None:
+    try:
+        client.cookies.set("travel_hunter_oauth_state", "state-token:/trips")
+        response = client.get(
+            "/api/auth/oauth/google/callback?error=access_denied&state=other-state:/trips",
+            follow_redirects=False,
+        )
+    finally:
+        client.cookies.clear()
+
+    assert response.status_code == 302
+    assert response.headers["location"] == (
+        "http://127.0.0.1:5173/oauth/callback?error=invalid_state&redirect=%2Fhome"
+    )
+    assert "travel_hunter_refresh=" not in response.headers.get("set-cookie", "")
+    assert "travel_hunter_oauth_state=" in response.headers["set-cookie"]
+
+
+def test_oauth_callback_service_error_redirects_without_refresh_cookie(monkeypatch) -> None:
+    fake_db = object()
+
+    def fail_callback(*args, **kwargs):
+        raise oauth_service.OAuthServiceError(400, "OAuth email policy requires a verified Google email")
+
+    monkeypatch.setattr(auth_routes.oauth_service, "complete_oauth_callback", fail_callback)
+    app.dependency_overrides[auth_routes.get_optional_db] = lambda: fake_db
+
+    try:
+        client.cookies.set("travel_hunter_oauth_state", "state-token:/home")
+        response = client.get(
+            "/api/auth/oauth/google/callback?code=abc&state=state-token:/home",
+            follow_redirects=False,
+        )
+    finally:
+        client.cookies.clear()
+        clear_overrides()
+
+    assert response.status_code == 302
+    assert response.headers["location"] == (
+        "http://127.0.0.1:5173/oauth/callback?error=email_policy&redirect=%2Fhome"
+    )
+    assert "travel_hunter_refresh=" not in response.headers.get("set-cookie", "")
+    assert "travel_hunter_oauth_state=" in response.headers["set-cookie"]
+
+
+def test_oauth_callback_service_invalid_state_redirects_home_without_refresh_cookie(monkeypatch) -> None:
+    fake_db = object()
+
+    def fail_callback(*args, **kwargs):
+        raise oauth_service.OAuthServiceError(400, "invalid_state")
+
+    monkeypatch.setattr(auth_routes.oauth_service, "complete_oauth_callback", fail_callback)
+    app.dependency_overrides[auth_routes.get_optional_db] = lambda: fake_db
+
+    try:
+        client.cookies.set("travel_hunter_oauth_state", "state-token:/trips")
+        response = client.get(
+            "/api/auth/oauth/google/callback?code=abc&state=state-token:/trips",
+            follow_redirects=False,
+        )
+    finally:
+        client.cookies.clear()
+        clear_overrides()
+
+    assert response.status_code == 302
+    assert response.headers["location"] == (
+        "http://127.0.0.1:5173/oauth/callback?error=invalid_state&redirect=%2Fhome"
+    )
+    assert "travel_hunter_refresh=" not in response.headers.get("set-cookie", "")
+    assert "travel_hunter_oauth_state=" in response.headers["set-cookie"]

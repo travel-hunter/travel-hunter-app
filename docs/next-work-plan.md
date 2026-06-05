@@ -5,7 +5,7 @@
 
 ## Current Priority
 
-The current priority is local functional completion that can be verified without public DNS, Cloudflare, real SMTP sender-domain authentication, OAuth provider redirect registration, or staging infrastructure.
+The current priority is local functional completion that can be verified without public DNS, Cloudflare, real SMTP sender-domain authentication, public OAuth redirect registration, or staging infrastructure.
 
 Recently completed local UX work:
 
@@ -44,6 +44,7 @@ The following work is intentionally lower priority for now:
 - Public HTTPS route smoke.
 - Brevo sender-domain authentication and real password reset email smoke.
 - Kakao and Google OAuth provider smoke with public redirect URIs.
+- Live browser OAuth smoke remains credential-gated; local localhost start-route smoke is available through `scripts/oauth_local_smoke.py`.
 - SOLAPI SMS or Kakao AlimTalk real-provider smoke.
 - Jenkins or other CI/CD automation.
 

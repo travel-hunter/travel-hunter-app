@@ -11,6 +11,7 @@ Covers:
 import pytest
 from pydantic import ValidationError
 
+from app.models import User as UserModel
 from app.schemas.user import LoginRequest, NicknameUpdate, SignupRequest
 from app.services import auth as auth_service
 from app.services import oauth as oauth_service
@@ -147,7 +148,7 @@ def test_oauth_callback_rejects_state_mismatch() -> None:
         )
 
     assert exc_info.value.status_code == 400
-    assert exc_info.value.detail == "Invalid OAuth state"
+    assert exc_info.value.detail == "invalid_state"
 
 
 def test_oauth_callback_rejects_missing_code() -> None:
@@ -161,6 +162,103 @@ def test_oauth_callback_rejects_missing_code() -> None:
         )
 
     assert exc_info.value.status_code == 400
+
+
+def test_google_profile_requires_verified_email(monkeypatch) -> None:
+    profile = oauth_service._extract_profile(
+        "google",
+        {
+            "sub": "google-user-1",
+            "email": "owner@example.com",
+            "email_verified": False,
+            "name": "Google User",
+        },
+    )
+
+    monkeypatch.setattr(oauth_service.user_repository, "get_social_account", lambda *args, **kwargs: None)
+
+    with pytest.raises(oauth_service.OAuthServiceError) as exc_info:
+        oauth_service._find_or_create_user(FakeDb(), provider="google", profile=profile)
+
+    assert exc_info.value.status_code == 400
+    assert "email policy" in exc_info.value.detail
+
+
+def test_google_verified_email_links_existing_user(monkeypatch) -> None:
+    existing_user = UserModel(email="owner@example.com", nickname="Owner", password_hash="hash")
+    captured: dict[str, object] = {}
+    profile = oauth_service.OAuthProfile(
+        provider_id="google-user-1",
+        email="Owner@Example.com",
+        email_verified=True,
+        nickname="Google User",
+    )
+
+    monkeypatch.setattr(oauth_service.user_repository, "get_social_account", lambda *args, **kwargs: None)
+    monkeypatch.setattr(oauth_service.user_repository, "get_user_by_email", lambda _db, email: existing_user)
+    monkeypatch.setattr(
+        oauth_service.user_repository,
+        "create_social_account",
+        lambda _db, **kwargs: captured.update(kwargs),
+    )
+
+    user = oauth_service._find_or_create_user(FakeDb(), provider="google", profile=profile)
+
+    assert user is existing_user
+    assert captured["user"] is existing_user
+    assert captured["provider"] == "google"
+    assert captured["provider_id"] == "google-user-1"
+
+
+def test_kakao_unverified_email_does_not_link_existing_email_user(monkeypatch) -> None:
+    existing_user = UserModel(email="owner@example.com", nickname="Owner", password_hash="hash")
+    created_user = UserModel(email="kakao_12345@oauth.local", nickname="Kakao User", password_hash=None)
+    calls: dict[str, list[str] | object] = {"lookups": []}
+    profile = oauth_service.OAuthProfile(
+        provider_id="12345",
+        email="owner@example.com",
+        email_verified=False,
+        nickname="Kakao User",
+    )
+
+    monkeypatch.setattr(oauth_service.user_repository, "get_social_account", lambda *args, **kwargs: None)
+
+    def get_user_by_email(_db, email):
+        calls["lookups"].append(email)
+        return existing_user if email == "owner@example.com" else None
+
+    def create_user(_db, **kwargs):
+        calls["created"] = kwargs
+        return created_user
+
+    monkeypatch.setattr(oauth_service.user_repository, "get_user_by_email", get_user_by_email)
+    monkeypatch.setattr(oauth_service.user_repository, "create_user", create_user)
+    monkeypatch.setattr(oauth_service.user_repository, "create_social_account", lambda *args, **kwargs: None)
+
+    user = oauth_service._find_or_create_user(FakeDb(), provider="kakao", profile=profile)
+
+    assert user is created_user
+    assert calls["lookups"] == []
+    assert calls["created"]["email"] == "kakao_12345@oauth.local"
+
+
+def test_existing_social_account_wins_even_when_email_unverified(monkeypatch) -> None:
+    linked_user = UserModel(email="linked@example.com", nickname="Linked", password_hash=None)
+    social_account = type("SocialAccountStub", (), {"user": linked_user})()
+    profile = oauth_service.OAuthProfile(
+        provider_id="google-user-1",
+        email="changed@example.com",
+        email_verified=False,
+        nickname="Google User",
+    )
+
+    monkeypatch.setattr(
+        oauth_service.user_repository,
+        "get_social_account",
+        lambda *args, **kwargs: social_account,
+    )
+
+    assert oauth_service._find_or_create_user(FakeDb(), provider="google", profile=profile) is linked_user
 
 
 def test_oauth_callback_rejects_missing_state() -> None:

@@ -190,7 +190,7 @@
       "query": {
         "redirect": "/home"
       },
-      "requiredBehavior": "Sets OAuth state HttpOnly cookie and redirects to the Kakao authorization URL."
+      "requiredBehavior": "Sets OAuth state HttpOnly cookie and redirects to the Kakao authorization URL. Unsupported providers return 404 and missing provider config returns 503."
     },
     {
       "method": "GET",
@@ -199,13 +199,13 @@
       "query": {
         "redirect": "/home"
       },
-      "requiredBehavior": "Sets OAuth state HttpOnly cookie and redirects to the Google OpenID Connect authorization URL."
+      "requiredBehavior": "Sets OAuth state HttpOnly cookie and redirects to the Google OpenID Connect authorization URL. Unsupported providers return 404 and missing provider config returns 503."
     },
     {
       "method": "GET",
       "path": "/api/auth/oauth/{provider}/callback",
       "status": 302,
-      "requiredBehavior": "Validates code/state, links or creates the user through social_accounts, sets the refresh cookie, clears the OAuth state cookie, and redirects to frontend /oauth/callback."
+      "requiredBehavior": "On success, validates code/state, links or creates the user through social_accounts, sets the refresh cookie, clears the OAuth state cookie, and redirects to frontend /oauth/callback?redirect={safePath}. Same-email auto-link requires verified provider email; Google requires email_verified=true, while Kakao without usable verified email may create kakao_{providerId}@oauth.local. On terminal failure, does not set a refresh cookie, clears the OAuth state cookie where possible, and redirects to frontend /oauth/callback?error={access_denied|invalid_state|provider_unavailable|profile_unavailable|email_policy}&redirect={safePath} without exposing provider error_description."
     },
     {
       "method": "GET",
