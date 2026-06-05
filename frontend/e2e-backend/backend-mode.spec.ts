@@ -332,3 +332,90 @@ test("backend data source creates a trip with selected profile values and policy
   await page.goto(`/friend-invite?tripId=${createdTripId}`);
   await expect(page.locator(".invite-link")).toBeVisible();
 });
+
+test("normalized policy save, unsave, trip link, and unlink stay consistent on my page", async ({ page }) => {
+  const auth = await seedStoredAuth(page);
+  const authHeaders = { Authorization: `Bearer ${auth.accessToken}` };
+
+  // Normalize to a known-unsaved baseline so this test is independent of serial order.
+  await page.request.delete(
+    `${apiBaseUrl}/api/me/saved-policies/${encodeURIComponent(examplePolicySlug)}`,
+    { headers: authHeaders },
+  );
+
+  // A dedicated, uniquely-named trip isolates the link/unlink legs from other
+  // serial tests and from leftover trips in a reused database across runs.
+  const tripTitle = `정책 연결 스모크 ${Date.now()}`;
+  const tripResponse = await page.request.post(`${apiBaseUrl}/api/trips`, {
+    headers: authHeaders,
+    data: {
+      title: tripTitle,
+      region: "부산",
+      style: "맛집",
+      startDate: "2026-08-01",
+      endDate: "2026-08-03",
+    },
+  });
+  expect(tripResponse.ok()).toBeTruthy();
+  const tripId = String((await tripResponse.json()).id);
+  expect(tripId).toMatch(numericTripId);
+
+  // Capture the live policy title to drive title-based selectors below.
+  await page.goto(examplePolicyPath);
+  await expect(page.locator(".prototype-policy-detail-screen")).toBeVisible();
+  const saveToggle = page.getByRole("button", { name: "저장" });
+  const heartIcon = saveToggle.locator("svg").first();
+  const policyTitle = (
+    await page.locator(".prototype-policy-detail-screen h1").first().textContent()
+  )?.trim();
+  expect(policyTitle).toBeTruthy();
+  const linkedTitle = policyTitle as string;
+
+  // Save toggles only once the session has loaded the unsaved baseline.
+  await expect(heartIcon).toHaveAttribute("fill", "none");
+  await saveToggle.click();
+  await expect(page.locator(".toast")).toContainText("관심 정책");
+
+  // My page favorite list reflects the saved policy.
+  await page.goto("/mypage");
+  await expect(
+    page
+      .getByRole("region", { name: "즐겨찾기 정책" })
+      .locator("article.ds-favorite-policy-card", { hasText: linkedTitle }),
+  ).toBeVisible();
+
+  // Unsave toggles only once the session has loaded the saved state.
+  await page.goto(examplePolicyPath);
+  await expect(heartIcon).toHaveAttribute("fill", "currentColor");
+  await saveToggle.click();
+  await expect(page.locator(".toast")).toContainText("해제");
+
+  // My page favorite list drops the unsaved policy.
+  await page.goto("/mypage");
+  await expect(
+    page
+      .getByRole("region", { name: "즐겨찾기 정책" })
+      .locator("article.ds-favorite-policy-card", { hasText: linkedTitle }),
+  ).toHaveCount(0);
+
+  // Link the normalized policy to the dedicated trip from the policy detail CTA.
+  await page.goto(examplePolicyPath);
+  await page.locator(".sticky-cta button").first().click();
+  const tripSheet = page.locator(".trip-select-sheet");
+  await expect(tripSheet).toBeVisible();
+  await tripSheet.locator(".trip-select-row", { hasText: tripTitle }).click();
+  const viewTripButton = tripSheet.locator("button", { hasText: "일정에서 보기" });
+  await expect(viewTripButton).toBeVisible();
+  await viewTripButton.click();
+  await expect(page).toHaveURL(new RegExp(`/trips/${tripId}$`));
+
+  // Trip detail shows the linked policy.
+  const linkedRegion = page.getByRole("region", { name: "연결된 정책" });
+  await expect(linkedRegion.getByText(linkedTitle)).toBeVisible();
+
+  // Unlink removes it from the trip detail linked-policy region.
+  await linkedRegion.getByRole("button", { name: `${linkedTitle} 연결 삭제` }).click();
+  await expect(
+    page.getByRole("region", { name: "연결된 정책" }).getByText(linkedTitle),
+  ).toHaveCount(0);
+});
