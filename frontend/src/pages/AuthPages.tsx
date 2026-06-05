@@ -50,6 +50,23 @@ async function readOAuthStartError(response: Response) {
   return "";
 }
 
+function friendlyOAuthCallbackError(errorCode: string) {
+  switch (errorCode) {
+    case "access_denied":
+      return "소셜 로그인 동의가 완료되지 않았어요. 다시 시도하거나 이메일로 로그인해 주세요.";
+    case "invalid_state":
+      return "로그인 요청이 만료되었어요. 처음부터 다시 시도해 주세요.";
+    case "provider_unavailable":
+      return "소셜 로그인 제공자 연결을 완료하지 못했어요. 잠시 후 다시 시도하거나 이메일로 로그인해 주세요.";
+    case "profile_unavailable":
+      return "소셜 계정 정보를 확인하지 못했어요. 이메일로 로그인해 주세요.";
+    case "email_policy":
+      return "검증된 이메일이 확인된 소셜 계정만 연결할 수 있어요. 이메일로 로그인해 주세요.";
+    default:
+      return "소셜 로그인을 완료하지 못했어요. 이메일로 로그인해 주세요.";
+  }
+}
+
 export function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -608,7 +625,7 @@ export function OAuthCallbackPage() {
     let cancelled = false;
     async function complete() {
       if (providerError) {
-        setError("소셜 로그인 제공자가 로그인을 완료하지 못했어요. 이메일로 로그인해 주세요.");
+        setError(friendlyOAuthCallbackError(providerError));
         return;
       }
       try {

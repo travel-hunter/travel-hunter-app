@@ -6212,7 +6212,7 @@ describe("Travel Hunter app", () => {
       .mockReturnValue("http://127.0.0.1:8000/api/auth/oauth/kakao/start?redirect=%2Fhome");
     const fetchSpy = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ detail: "OAuth provider is not configured" }), {
-        status: 400,
+        status: 503,
         headers: { "Content-Type": "application/json" },
       }),
     );
@@ -6247,17 +6247,26 @@ describe("Travel Hunter app", () => {
     const refreshSpy = vi.spyOn(appDataApi, "refreshSession");
 
     try {
-      renderAppRoute("/oauth/callback?error=access_denied&redirect=/home");
+      renderAppRoute("/oauth/callback?error=email_policy&redirect=/home");
 
       expect(await screen.findByText("소셜 로그인을 사용할 수 없어요")).toBeInTheDocument();
       expect(screen.getByText("로그인을 완료하지 못했어요")).toBeInTheDocument();
       expect(
-        screen.getByText("소셜 로그인 제공자가 로그인을 완료하지 못했어요. 이메일로 로그인해 주세요."),
+        screen.getByText("검증된 이메일이 확인된 소셜 계정만 연결할 수 있어요. 이메일로 로그인해 주세요."),
       ).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "로그인으로 돌아가기" })).toBeInTheDocument();
     } finally {
       refreshSpy.mockRestore();
     }
+  });
+
+  it("shows an OAuth cancellation message", async () => {
+    renderAppRoute("/oauth/callback?error=access_denied&redirect=/home");
+
+    expect(await screen.findByText("소셜 로그인을 사용할 수 없어요")).toBeInTheDocument();
+    expect(
+      screen.getByText("소셜 로그인 동의가 완료되지 않았어요. 다시 시도하거나 이메일로 로그인해 주세요."),
+    ).toBeInTheDocument();
   });
 
   it("shares the current policy URL through Web Share API", async () => {
