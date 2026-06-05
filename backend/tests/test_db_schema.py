@@ -36,6 +36,7 @@ def test_current_schema_decision_columns_are_registered() -> None:
     password_reset_tokens = Base.metadata.tables["password_reset_tokens"]
     phone_verification_codes = Base.metadata.tables["phone_verification_codes"]
     external_source_records = Base.metadata.tables["external_source_records"]
+    social_accounts = Base.metadata.tables["social_accounts"]
 
     assert "preferred_regions" in users.c
     assert "gender" in users.c
@@ -70,6 +71,7 @@ def test_current_schema_decision_columns_are_registered() -> None:
     assert "token_hash" in password_reset_tokens.c
     assert "expires_at" in password_reset_tokens.c
     assert "used_at" in password_reset_tokens.c
+    assert social_accounts.c["provider_id"].type.length == 255
     assert "user_id" in phone_verification_codes.c
     assert "phone_number" in phone_verification_codes.c
     assert "code_hash" in phone_verification_codes.c
