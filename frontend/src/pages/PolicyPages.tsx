@@ -381,6 +381,13 @@ function getPolicyApplicationCta(policy: Policy): PolicyApplicationCta {
   };
 }
 
+function getPolicyControlsHelpText(policy: Policy) {
+  if (policy.actionStatus === "infoOnly") {
+    return "이 혜택은 공식 원문 확인만 가능해요. 저장하거나 일정에 담으려면 정규화된 정책으로 승격되어야 합니다.";
+  }
+  return "이 혜택은 안내 페이지에서 확인한 뒤 일정에 반영해 주세요.";
+}
+
 export function PolicyListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedRegion, setSelectedRegion] = useState<string>(allFilter);
@@ -770,6 +777,8 @@ export function PolicyDetailPage() {
   const requirementSections = getPolicyRequirementSections(policy);
   const canUsePolicyControls = canUsePolicyActions(policy);
   const policyControlsHelpId = "policy-detail-controls-help";
+  const policyApplicationHelpId = "policy-detail-application-help";
+  const policyControlsHelpText = getPolicyControlsHelpText(policy);
   const isPolicySaved = savedSlugs.has(policy.slug);
   const isPolicyInTrip = isPolicyAdded(policy.slug);
   const savePrototypePolicy = async () => {
@@ -911,7 +920,12 @@ export function PolicyDetailPage() {
       <div className="sticky-cta">
         {!canUsePolicyControls && (
           <p className="helper-text" id={policyControlsHelpId}>
-            이 혜택은 안내 페이지에서 확인한 뒤 일정에 반영해 주세요.
+            {policyControlsHelpText}
+          </p>
+        )}
+        {applicationCta.kind === "unavailable" && (
+          <p className="helper-text" id={policyApplicationHelpId}>
+            {applicationCta.disabledNotice}
           </p>
         )}
         <button
@@ -928,7 +942,13 @@ export function PolicyDetailPage() {
             {applicationCta.label}
           </a>
         ) : (
-          <button className="btn secondary" disabled title={applicationCta.disabledNotice} type="button">
+          <button
+            aria-describedby={policyApplicationHelpId}
+            className="btn secondary"
+            disabled
+            title={applicationCta.disabledNotice}
+            type="button"
+          >
             {applicationCta.label}
           </button>
         )}
@@ -940,6 +960,7 @@ export function PolicyDetailPage() {
         onSelectTrip={attachPolicyToTrip}
         onViewTrip={viewSelectedTrip}
         policySlug={policy.slug}
+        policyTitle={policy.title}
         selectedTrip={selectedTrip}
         status={sheetStatus}
         trips={trips}
@@ -955,6 +976,7 @@ function TripSelectSheet({
   onSelectTrip,
   onViewTrip,
   policySlug,
+  policyTitle,
   selectedTrip,
   status,
   trips,
@@ -964,6 +986,7 @@ function TripSelectSheet({
   onSelectTrip: (trip: Trip) => void;
   onViewTrip: () => void;
   policySlug: string;
+  policyTitle: string;
   selectedTrip: Trip | null;
   status: TripSheetStatus;
   trips: Trip[];
@@ -1036,7 +1059,7 @@ function TripSelectSheet({
         {status === "success" && (
           <div className="sheet-actions">
             <div className="state-panel">
-              <strong>선택한 일정에 혜택을 담았어요</strong>
+              <strong>{policyTitle}을 {selectedTrip?.title ?? "선택한 일정"}에 담았어요</strong>
               <p>{selectedTrip?.title ?? "선택한 일정"}에서 연결된 정책을 확인할 수 있어요.</p>
             </div>
             <Button full onClick={onViewTrip}>

@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-The MVP is DB-backed-only and runtime mock mode has been removed. Cloudflare Tunnel is the current deployment baseline, while Jenkins CD is still planned. The current priority is to keep the `develop` branch contract clean, then move to staging smoke work when real SMTP, OAuth, Cloudflare, and production env values are ready.
+The MVP is DB-backed-only and runtime mock mode has been removed. The current priority is domain-independent local UX completion. Cloudflare Tunnel, SMTP/OAuth provider smoke, public HTTPS checks, and Jenkins CD remain deferred until local UX completion is done and real provider/env values are ready.
 
 ## Source Of Truth
 

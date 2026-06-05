@@ -453,7 +453,8 @@
         "documents": "array",
         "officialUrl": "string|null",
         "applyUrl": "string|null",
-        "sourceType": "string"
+        "sourceType": "string",
+        "actionStatus": "string|null"
       },
       "allowedPolicyCategories": [
         "교통",
@@ -464,7 +465,7 @@
         "기타"
       ],
       "exampleSlug": "dgtour-밀양-1",
-      "dbModeBehavior": "Returns official-benefit Policy DTOs from DB policies only. Active/fresh TravelMonth regional_benefit, traffic_benefit, and local_half_trip external_source_records are promoted into policies by the collection normalization service and keep backward-compatible travelmonth-{externalSourceRecordId} slugs. local_half_trip records that are scheduled, ended, unknown, or non-fresh are hidden from public policy lists by setting policies.status to hidden when a promoted policy exists. sourceType remains in the DTO for compatibility/internal diagnostics, but user-facing UI must not expose internal/external wording and all exposed policies share save/trip behavior. Policy category is a benefit/source type; TravelMonth records derive category from source URL/sourceCategory and do not use travelStyles for category filtering. Hidden policies are excluded by backend query and public Policy.status is not exposed in v1."
+      "dbModeBehavior": "Returns official-benefit Policy DTOs from DB policies only. Active/fresh TravelMonth regional_benefit, traffic_benefit, and local_half_trip external_source_records are promoted into policies by the collection normalization service and keep backward-compatible travelmonth-{externalSourceRecordId} slugs. local_half_trip records that are scheduled, ended, unknown, or non-fresh are hidden from public policy lists by setting policies.status to hidden when a promoted policy exists. sourceType remains in the DTO for compatibility/internal diagnostics, but user-facing UI must not expose internal/external wording and all exposed normalized policies share save/trip behavior. actionStatus is omitted or null for normal policies; temporary raw detail fallback records may return actionStatus=infoOnly so save/trip actions stay blocked. Policy category is a benefit/source type; TravelMonth records derive category from source URL/sourceCategory and do not use travelStyles for category filtering. Hidden policies are excluded by backend query and public Policy.status is not exposed in v1."
     },
     {
       "method": "GET",
@@ -479,7 +480,8 @@
         "amount": "string",
         "officialUrl": "string|null",
         "applyUrl": "string|null",
-        "sourceType": "string"
+        "sourceType": "string",
+        "actionStatus": "string|null"
       },
       "dbModeBehavior": "Also accepts travelmonth-{externalSourceRecordId} slugs for normalized TravelMonth and local_half_trip policies. A temporary raw external_source_records fallback may resolve active/fresh regional_benefit and local_half_trip detail during migration gaps, but traffic_benefit and non-active/non-fresh records do not resolve through the public fallback. Hidden policies return 404 from the public detail route."
     },

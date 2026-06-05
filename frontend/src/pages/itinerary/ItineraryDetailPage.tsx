@@ -5,6 +5,7 @@ import { Car, ChevronLeft, GripVertical, Info, List, Map as MapIcon, X } from "l
 import { useEffect, useState, type KeyboardEvent } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { appDataApi, type ItineraryPlace, type LinkedTripPolicy, type Trip, type TripPlaceRequest } from "../../api";
+import { useSession } from "../../app/session";
 import { useAsyncResource } from "../../api/useAsyncResource";
 import { KakaoMapView, type KakaoMapMarker } from "../../components/map/KakaoMapView";
 import { Button, ConfirmDialog, EmptyState, ErrorState, IconButton, LinkButton, LoadingState, Toast, TopBar } from "../../components/ui";
@@ -175,6 +176,7 @@ export function ItineraryDetailPage() {
   const { tripId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { removeAddedPolicy } = useSession();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeDay, setActiveDay] = useState(1);
   const [viewMode, setViewMode] = useState<TripDetailViewMode>(() => parseTripDetailViewMode(searchParams.get("view")));
@@ -439,6 +441,7 @@ export function ItineraryDetailPage() {
       if (routeLinkedPolicy?.slug === policy.slug) {
         setHiddenRoutePolicySlugs((current) => new Set(current).add(policy.slug));
       }
+      removeAddedPolicy(policy.slug);
       const nextLinkedPolicies = trip.linkedPolicies.filter((linkedPolicy) => linkedPolicy.slug !== policy.slug);
       setTrip({
         ...trip,

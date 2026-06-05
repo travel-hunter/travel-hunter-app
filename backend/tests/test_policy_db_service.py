@@ -170,6 +170,7 @@ def test_db_policy_detail_resolves_collected_external_benefit_slug(monkeypatch) 
     assert detail is not None
     assert detail["slug"] == "travelmonth-58"
     assert detail["sourceType"] == "external"
+    assert detail["actionStatus"] == "infoOnly"
 
 
 def test_external_policy_category_uses_official_source_not_travel_styles() -> None:

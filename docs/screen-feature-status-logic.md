@@ -1,5 +1,8 @@
 # 로직/API/추천 기능 설명
 
+> Status: reference.
+> This document remains the logic and fallback status ledger. For current local UX completion specs, use `docs/specs/spec-index.md` and the three `docs/specs/local-ux-*.md` documents.
+
 이 문서는 Travel Hunter 화면 뒤에서 동작하는 수집, 외부 API, 추천/자동생성, fallback, 저장/선정 기준을 누적 기록한다. 화면별 버튼/상태 나열보다 팀원이 내부 동작과 한계, 향후 개선 방향을 판단하는 데 필요한 설명을 우선한다.
 
 ## 새 섹션 추가 기준
@@ -246,7 +249,6 @@ Kakao Local provider가 없거나 외부 후보가 충분하지 않으면 내장
 ### 2026-05-29 로컬 검증 결과
 
 - 코드 근거 확인: `backend/app/services/trips.py`, `backend/app/services/itinerary_recommendations.py`, `backend/app/data/itinerary_catalog.py`, `frontend/src/pages/itinerary/AiResultsPage.tsx`, `frontend/src/pages/itinerary/ItineraryCreatePage.tsx`
-- Deep-interview 산출물 확인: `.omx/specs/deep-interview-itinerary-recommendation-explainer.md`
 - 이번 문서 작성 턴에서는 기능 코드를 변경하지 않았고, Kakao Local live API smoke는 추가 수행하지 않았다.
 
 ### 남은 작업/리스크

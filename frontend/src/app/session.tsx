@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   appDataApi,
   AuthResponse,
@@ -25,6 +25,7 @@ type SessionContextValue = {
   updateProfile: (key: keyof Profile, value: string) => void;
   saveProfile: (profile?: Partial<Profile>) => Promise<Profile>;
   addPolicy: (slug?: string) => void;
+  removeAddedPolicy: (slug: string) => void;
   isPolicyAdded: (slug: string) => boolean;
   togglePolicyLike: () => void;
   sendInvite: () => void;
@@ -80,13 +81,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [likedPolicy, setLikedPolicy] = useState(false);
   const [invited, setInvited] = useState(false);
   const [savedSlugs, setSavedSlugs] = useState<Set<string>>(new Set());
+  const savedSlugAdditionsRef = useRef<Set<string>>(new Set());
+  const savedSlugRemovalsRef = useRef<Set<string>>(new Set());
+
+  function refreshSavedSlugsFromRemote(isCancelled?: () => boolean) {
+    appDataApi
+      .listSavedPolicies()
+      .then((policies) => {
+        if (isCancelled?.()) return;
+        const next = new Set(policies.map((policy) => policy.slug));
+        savedSlugRemovalsRef.current.forEach((slug) => next.delete(slug));
+        savedSlugAdditionsRef.current.forEach((slug) => next.add(slug));
+        setSavedSlugs(next);
+      })
+      .catch(() => {});
+  }
 
   useEffect(() => {
     let cancelled = false;
-
-    function loadSavedPolicies() {
-      appDataApi.listSavedPolicies().then((p) => { if (!cancelled) setSavedSlugs(new Set(p.map((s) => s.slug))); }).catch(() => {});
-    }
 
     async function applyAuth(auth: AuthResponse) {
       if (cancelled) return;
@@ -95,7 +107,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const nextProfile = await readRemoteProfile();
       if (cancelled) return;
       setProfile(nextProfile);
-      loadSavedPolicies();
+      refreshSavedSlugsFromRemote(() => cancelled);
     }
 
     async function verifyStoredSession() {
@@ -151,13 +163,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         persistAuth(auth);
         setCurrentUser(auth.user);
         setProfile(await readRemoteProfile());
-        appDataApi.listSavedPolicies().then((p) => setSavedSlugs(new Set(p.map((s) => s.slug)))).catch(() => {});
+        refreshSavedSlugsFromRemote();
       },
       signup: async (request) => {
         const auth = await appDataApi.signup(request);
         persistAuth(auth);
         setCurrentUser(auth.user);
         setProfile(await readRemoteProfile());
+        savedSlugAdditionsRef.current.clear();
+        savedSlugRemovalsRef.current.clear();
         setSavedSlugs(new Set());
       },
       completeOAuthSession: async () => {
@@ -165,7 +179,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         persistAuth(auth);
         setCurrentUser(auth.user);
         setProfile(await readRemoteProfile());
-        appDataApi.listSavedPolicies().then((p) => setSavedSlugs(new Set(p.map((s) => s.slug)))).catch(() => {});
+        refreshSavedSlugsFromRemote();
       },
       saveNickname: async (nickname) => {
         const user = await appDataApi.updateNickname({ nickname });
@@ -180,6 +194,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         } finally {
           clearAuth();
           setCurrentUser(null);
+          savedSlugAdditionsRef.current.clear();
+          savedSlugRemovalsRef.current.clear();
           setSavedSlugs(new Set());
           setAddedPolicy(false);
           setAddedPolicySlugs(new Set());
@@ -207,17 +223,31 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           setAddedPolicySlugs((prev) => new Set(prev).add(slug));
         }
       },
+      removeAddedPolicy: (slug: string) =>
+        setAddedPolicySlugs((prev) => {
+          const next = new Set(prev);
+          next.delete(slug);
+          setAddedPolicy(next.size > 0);
+          return next;
+        }),
       isPolicyAdded: (slug: string) => addedPolicySlugs.has(slug),
       togglePolicyLike: () => setLikedPolicy((current) => !current),
       sendInvite: () => setInvited(true),
       savedSlugs,
-      addSavedSlug: (slug: string) => setSavedSlugs((prev) => new Set(prev).add(slug)),
-      removeSavedSlug: (slug: string) =>
+      addSavedSlug: (slug: string) => {
+        savedSlugRemovalsRef.current.delete(slug);
+        savedSlugAdditionsRef.current.add(slug);
+        setSavedSlugs((prev) => new Set(prev).add(slug));
+      },
+      removeSavedSlug: (slug: string) => {
+        savedSlugAdditionsRef.current.delete(slug);
+        savedSlugRemovalsRef.current.add(slug);
         setSavedSlugs((prev) => {
           const next = new Set(prev);
           next.delete(slug);
           return next;
-        }),
+        });
+      },
     }),
     [addedPolicy, addedPolicySlugs, currentUser, invited, isSessionBootstrapping, likedPolicy, profile, savedSlugs],
   );

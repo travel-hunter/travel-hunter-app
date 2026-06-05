@@ -1,5 +1,8 @@
 # Travel Hunter 구현 기능명세서
 
+> Status: reference.
+> Use this document as the implemented-feature inventory. For current local UX completion priorities, use `docs/specs/spec-index.md` and the three `docs/specs/local-ux-*.md` documents.
+
 ## 기준
 
 - 실행 모드: DB-backed-only.
