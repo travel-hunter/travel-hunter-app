@@ -41,11 +41,9 @@ Domain-dependent blockers deferred to later:
 
 ## Immediate Missing UX To Complete Locally
 
-1. `/reset-password?token=...` should clearly handle valid, invalid, expired, and already-used token states without relying on email delivery.
-2. Password reset request should show a clear success state for account-existence-hidden responses and a clear service-unavailable state when email delivery is not configured.
-3. Kakao and Google OAuth entry points should show user-safe missing-provider-env messaging instead of looking like broken login buttons.
-4. Phone OTP UI should clearly distinguish dev OTP mode from real provider OTP mode.
-5. Auth forms should keep loading, error, retry, and navigation states clear across login, signup, forgot password, reset password, and OAuth callback screens.
+No immediate local UX gap is currently tracked for this spec. The latest implementation/status inventory records domain-independent auth/account recovery UX, OAuth missing-env/callback failure messaging, and dev/provider-boundary contact verification UX as implemented locally.
+
+Keep future updates focused on local UX regressions or newly discovered local gaps; do not pull domain-dependent provider smoke into this immediate section.
 
 ## Deferred Domain-Dependent UX
 
@@ -57,13 +55,10 @@ Domain-dependent blockers deferred to later:
 
 ## Immediate Local Completion Criteria
 
-- `/reset-password?token=...` accepts a valid token and rejects invalid or expired tokens.
-- `POST /api/auth/password-reset/request` keeps account existence hidden and reports configured/unconfigured email delivery states clearly.
-- Kakao and Google login buttons do not leave the user on a blank or stuck screen when provider env is missing.
-- OAuth callback failures show provider/email-policy-specific user-safe messages.
-- `scripts/oauth_local_smoke.py {kakao|google}` validates configured start-route readiness without printing secrets.
-- Contact verification can request and confirm an OTP through dev provider mode, or clearly explains that real provider mode is not configured.
-- Missing provider env produces user-safe messaging and no blank or stuck screen.
+- Local password reset request/reset-token screens handle configured and unconfigured local states without depending on real email delivery. Completed locally per `docs/implemented-feature-spec.md`.
+- Kakao and Google login entry/callback failures show user-safe missing-provider or email-policy messages instead of blank or stuck screens. Completed locally per `docs/implemented-feature-spec.md`.
+- `scripts/oauth_local_smoke.py {kakao|google}` validates configured start-route readiness without printing secrets when localhost provider credentials are supplied.
+- Contact verification can request and confirm an OTP through dev provider mode, or clearly explains that real provider mode is not configured. Completed locally per `docs/implemented-feature-spec.md`.
 
 ## Deferred Completion Criteria
 

@@ -2,7 +2,7 @@
 
 ## 문서 기준
 
-- 문서 버전: 2.1
+- 문서 버전: 2.2
 - 기준 브랜치: `develop`
 - 기준 검증 기준: `9bdcb73` 및 현재 문서 작업트리
 - 실행 모드: DB-backed-only
@@ -45,7 +45,7 @@ Travel Hunter는 국내 여행자가 여행 혜택 정책을 찾고, 여행 일�
 | FR-AUTH-004 | 보호 경로는 인증을 요구한다. | 비로그인 사용자가 보호 경로에 접근하면 `/login?redirect=...`로 이동하고 로그인 후 원래 경로로 복귀한다. |
 | FR-AUTH-005 | 사용자는 비밀번호 재설정 이메일을 요청할 수 있다. | 계정 존재 여부를 노출하지 않고 요청 응답을 제공한다. 실제 email 발송은 SMTP 설정이 필요하다. |
 | FR-AUTH-006 | 사용자는 reset token으로 새 비밀번호를 설정할 수 있다. | 유효 token이면 password hash가 갱신되고 기존 refresh token이 revoke된다. 만료/사용됨/invalid token은 실패한다. |
-| FR-AUTH-007 | 사용자는 Kakao/Google OAuth로 로그인할 수 있다. | provider authorization code flow를 시작하고 callback에서 state를 검증한 뒤 social account를 연결/생성한다. 동일 이메일 자동 연결은 검증된 provider email에만 허용하며, Google은 `email_verified=true`가 필수이고 Kakao는 email이 없거나 미검증이면 내부 `oauth.local` email 계정을 만들 수 있다. 실제 로그인은 provider env가 필요하다. |
+| FR-AUTH-007 | 사용자는 Kakao/Google OAuth로 로그인할 수 있다. | provider authorization code flow를 시작하고 callback에서 state를 검증한 뒤 social account를 연결/생성한다. 동일 이메일 자동 연결은 검증된 provider email에만 허용하며, Google은 `email_verified=true`가 필수이고 Kakao는 `account_email` scope의 verified email만 서비스 email로 사용한다. Kakao email이 없거나 미검증이면 내부 `oauth.local` email 계정을 만들 수 있고, 이후 verified Kakao email을 받으면 충돌이 없을 때 실제 email로 자동 교체한다. 실제 로그인은 provider env와 등록된 redirect URI가 필요하다. |
 
 ### 3.2 사용자 프로필과 설정
 
@@ -115,6 +115,7 @@ Travel Hunter는 국내 여행자가 여행 혜택 정책을 찾고, 여행 일�
 | 접근성 | 주요 버튼/입력은 키보드 접근 가능해야 하며 모바일 touch target은 44px 이상을 목표로 한다. |
 | 배포 | local compose와 Cloudflare Tunnel 중심 배포 방식을 문서화한다. |
 | 검증 | 기능 변경 시 backend pytest, frontend typecheck/Vitest, 필요한 migration offline SQL을 실행한다. |
+| Release grading | Weekend Public v1/Release Candidate 판정은 OAuth 2종, 정책 수집/정규화/노출, 공개 도메인 배포, 핵심 앱 flow, 최소 로그 가시성의 pass/fail 증거를 기준으로 한다. |
 
 ## 5. 데이터 요구사항
 
@@ -137,22 +138,40 @@ Travel Hunter는 국내 여행자가 여행 혜택 정책을 찾고, 여행 일�
 | 기능 | 조건 |
 |---|---|
 | Password reset email | SMTP host/account/from address와 public base URL 필요 |
-| Kakao OAuth | Kakao app key/secret/redirect URI 필요 |
+| Kakao OAuth | Kakao REST API key/client secret/redirect URI, Kakao Login ON, `account_email` 동의항목, public redirect URI 필요 |
 | Google OAuth | Google OAuth client id/secret/redirect URI 필요 |
 | SOLAPI AlimTalk | SOLAPI key/secret, Kakao channel `pfId`, D-7/D-1 승인 템플릿 필요 |
 | Cloudflare Tunnel staging | domain, tunnel token, 실제 runtime env 필요 |
+
+## 7. Weekend Public v1 release addendum
+
+2026-06-14 주말 공개 v1 목표는 일반 MVP 기능 완료와 별도로 다음 release grade 규칙을 따른다.
+
+| 등급 | 필수 조건 |
+|---|---|
+| Public v1 | Google OAuth, Kakao OAuth, SMTP 비밀번호 재설정, 공개 도메인 `travel-hunter.co.kr`, Cloudflare/Tunnel 또는 동등 public HTTPS route, 정책 수집/정규화/노출, 핵심 auth/profile/policy/trip/invite flow, Kakao Maps public-domain rendering, backend/proxy/tunnel 로그 확인이 모두 증거로 통과한다. |
+| Release Candidate | Google OAuth, Kakao OAuth, 정책 수집/정규화/노출, public deployment, 핵심 flow, 최소 로그 가시성은 통과하고, invite email 발송처럼 SMTP 이후 단계 polish만 남는다. |
+| Internal Beta | Google OAuth, Kakao OAuth, 정책 수집, 정책 정규화, 정책 공개 노출 중 하나라도 실패하면 RC/Public v1로 부르지 않는다. |
+| No Release | 로그인, 데이터 안전성, trip/invite/policy core flow, migration, seed safety, 배포 안정성 중 하나라도 실패한다. |
+
+추가 release 요구:
+
+- 초대 링크는 공개 도메인의 `/invites/{token}/accept`로 열려야 한다. 비로그인 수신자는 로그인/가입 후 원래 초대 링크로 돌아와 수락하고, 로그인 사용자는 바로 수락한다. 만료/오류 링크는 재초대 요청 안내를 표시한다.
+- 정책 수집은 seed/static 정책만으로 대체할 수 없다. 최소 한 개 이상의 수집 external record가 정규화되어 `/api/policies`와 `/api/policies/{policySlug}`에 노출되고, stale/hidden/raw-only record는 공개 정책으로 잘못 노출되지 않아야 한다.
+- Kakao 장소 별점은 공식 API에서 제공되지 않으면 만들거나 추론하지 않는다. 별점은 v1 차단조건이 아니며, fallback 사용 시 UI는 live Kakao 후보처럼 주장하지 않는다.
+- 공개 release 주장은 명령, smoke, 로그, owner 확인 등 증거와 함께 남겨야 하며 secret/env 값은 출력하거나 commit하지 않는다.
 
 ### 후속 범위
 
 - 실제 AI 추천 엔진.
 - 지도/장소 검색 API와 이동 시간 계산.
 - 전화번호 OTP 실제 발송 staging smoke.
-- 친구 초대 email/SMS/Kakao 외부 발송.
+- SMTP readiness 이후 친구 초대 email 발송, 그리고 email 외 SMS/Kakao 외부 발송.
 - 운영 관리자 화면.
-- 정책 실시간 수집/동기화.
+- 정책 수집 source 확대, full automation, 운영 관리자 수동 제어.
 - 공개 사용자용 약관, 개인정보, 운영 모니터링, 백업 체계.
 
-## 7. 문서 관리 규칙
+## 8. 문서 관리 규칙
 
 - 요구사항이 바뀌면 이 문서를 먼저 갱신한다.
 - API shape가 바뀌면 `docs/mvp-api-contract.md`, frontend type, backend schema/test를 함께 갱신한다.

@@ -35,7 +35,6 @@ except ModuleNotFoundError:
         return ()
 
 
-INVITE_BASE_URL = "travelhunter.app/i"
 NUMERIC_TRIP_ID_PATTERN = re.compile(r"^[1-9][0-9]*$")
 TRIP_EDIT_ROLES = {"owner", "editor"}
 NATIONWIDE_REGION = "\uc804\uad6d"
@@ -808,7 +807,7 @@ def delete_trip_place(
     return _refresh_trip_payload(db, trip.id, user)
 
 
-def _recommendation_items(value: Any) -> list[dict[str, object]]:
+def _recommendation_items(value: Any, *, source_type: str = "savedSummary") -> list[dict[str, object]]:
     if isinstance(value, list):
         raw_items = value
     elif isinstance(value, dict):
@@ -831,6 +830,7 @@ def _recommendation_items(value: Any) -> list[dict[str, object]]:
         "aiReview",
         "sourceProvider",
         "externalPlaceId",
+        "sourceType",
     )
     items: list[dict[str, object]] = []
     for item in raw_items:
@@ -845,6 +845,7 @@ def _recommendation_items(value: Any) -> list[dict[str, object]]:
         for key in optional_keys:
             if key in item:
                 mapped[key] = item.get(key)
+        mapped.setdefault("sourceType", source_type)
         items.append(mapped)
     return items
 
@@ -943,6 +944,10 @@ def _new_invite_token() -> str:
     return secrets.token_urlsafe(12)
 
 
+def _invite_accept_url(invite_token: str) -> str:
+    return f"{settings.frontend_base_url()}/invites/{invite_token}/accept"
+
+
 def _ensure_invite(db: Session, trip: Trip, user: User, role: str | None = None) -> TripInvite:
     now = security.utc_now_naive()
     invite = trip_repository.get_latest_active_invite(db, trip_id=trip.id, now=now)
@@ -966,7 +971,7 @@ def invite_to_api(invite: TripInvite, *, trip_id: int, invited: bool = False) ->
         "id": str(invite.id),
         "tripId": str(trip_id),
         "inviteToken": invite.invite_token,
-        "inviteUrl": f"{INVITE_BASE_URL}/{invite.invite_token}",
+        "inviteUrl": _invite_accept_url(invite.invite_token),
         "expiresAt": _iso(invite.expires_at) or "",
         "createdAt": _iso(invite.created_at) or "",
         "acceptedAt": _iso(invite.accepted_at),

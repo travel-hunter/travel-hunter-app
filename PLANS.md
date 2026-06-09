@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-The MVP is DB-backed-only and runtime mock mode has been removed. The current priority is domain-independent local UX completion. Cloudflare Tunnel, SMTP/OAuth provider smoke, public HTTPS checks, and Jenkins CD remain deferred until local UX completion is done and real provider/env values are ready.
+The MVP is DB-backed-only and runtime mock mode has been removed. The current priority is Weekend Public v1 release execution. The development domain `dev.travel-hunter.co.kr` now has Cloudflare Tunnel, Brevo SMTP, Google OAuth, Kakao OAuth, Kakao email scope, and Kakao Local/Maps runtime configuration smoke evidence. The next priority is production-server readiness and `travel-hunter.co.kr` public release evidence.
 
 ## Source Of Truth
 

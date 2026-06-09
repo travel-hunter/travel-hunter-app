@@ -42,13 +42,16 @@ docker compose --env-file deploy/.env.prod -f compose.tunnel.yaml logs --tail=10
 docker compose --env-file deploy/.env.prod -f compose.tunnel.yaml logs --tail=100 caddy
 docker compose --env-file deploy/.env.prod -f compose.tunnel.yaml logs --tail=100 cloudflared
 curl -fsS https://<domain>/api/health
+APPROVED_BEARER_TOKEN=<approved-bearer-token>
+curl -fsS -H "Authorization: Bearer $APPROVED_BEARER_TOKEN" https://<domain>/api/ops/external-collection
+curl -fsS -H "Authorization: Bearer $APPROVED_BEARER_TOKEN" "https://<domain>/api/ops/external-collection/quality?style=맛집&region=부산&limit=3"
 ```
 
 ## Smoke Test
 
 - [ ] `https://<domain>/api/health` returns ok.
-- [ ] `https://<domain>/api/ops/external-collection` returns scheduler cadence and last collection status without changing `/api/health`.
-- [ ] `https://<domain>/api/ops/external-collection/quality?style=맛집&region=부산&limit=3` returns DB-backed collection quality counts and recommendation preview without live fetch.
+- [ ] Bearer-authenticated `https://<domain>/api/ops/external-collection` returns scheduler cadence and last collection status without changing `/api/health`.
+- [ ] Bearer-authenticated `https://<domain>/api/ops/external-collection/quality?style=맛집&region=부산&limit=3` returns DB-backed collection quality counts and recommendation preview without live fetch.
 - [ ] `https://<domain>/login` renders.
 - [ ] 로그인 성공.
 - [ ] 로그인 실패 메시지 확인.
@@ -62,6 +65,8 @@ curl -fsS https://<domain>/api/health
 - [ ] AI 추천 항목을 일정에 추가.
 - [ ] 초대 링크 생성/진입.
 - [ ] 로그아웃.
+
+운영 smoke용 bearer token은 담당자가 런타임에서만 주입하고, 출력/commit/log 기록을 금지한다.
 
 테스트 계정은 seed 실행 환경에서만 사용한다.
 
@@ -83,10 +88,13 @@ Release candidate handoff는 아래 기준을 모두 설명할 수 있을 때만
 
 ## Provider Smoke
 
-실제 provider env가 준비된 staging/production 후보에서만 수행한다.
+실제 provider env가 준비된 staging/production 후보에서만 수행한다. 비밀값은 출력/commit/log 기록을 금지한다.
 
 - [ ] SMTP: 비밀번호 재설정 email 수신, reset token confirm, 새 비밀번호 로그인.
-- [ ] OAuth: Kakao/Google redirect URI, callback, session 복구.
+- [ ] Google OAuth: redirect URI, callback, refresh/profile session 복구.
+- [ ] Kakao OAuth: Kakao Login ON, `account_email` 동의항목, redirect URI, callback, session 복구, 기존 `kakao_{providerId}@oauth.local` email의 verified Kakao email 자동 교체 확인.
+- [ ] Kakao Maps: JavaScript SDK domain 등록 후 public 화면에서 지도 rendering 확인.
+- [ ] Kakao Local REST: runtime key가 backend에 전달되고 대표 추천 후보 smoke가 통과하는지 확인.
 - [ ] SOLAPI: D-7/D-1 승인 템플릿 기준 AlimTalk test 발송과 webhook 상태 반영.
 - [ ] Cloudflare: public HTTPS domain에서 `/api/health`, `/login`, `/policies`, `/trips`, `/mypage` 확인.
 

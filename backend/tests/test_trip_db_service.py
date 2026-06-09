@@ -873,6 +873,49 @@ def test_list_recommendations_excludes_existing_trip_places(monkeypatch) -> None
     assert [item["externalPlaceId"] for item in items] == ["new-food"]
     assert items[0]["categoryGroup"] == "food"
     assert items[0]["suggestedDay"] == 1
+    assert items[0]["sourceType"] == "freshCandidate"
+
+
+def test_list_recommendations_marks_saved_summary_fallback(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    stored_recommendation = Recommendation(
+        id=1,
+        user_id=user.id,
+        trip_id=trip.id,
+        query="trip_create",
+        result=[
+            {
+                "label": "attraction",
+                "title": "Saved summary spot",
+                "meta": "Day 1",
+                "reason": "일정 생성 시 저장된 추천 요약입니다.",
+            }
+        ],
+    )
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip
+        if db is fake_db and trip_id == 7 and user_id == 1
+        else None,
+    )
+    monkeypatch.setattr(trip_service, "_build_external_place_provider", lambda: None)
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "list_recommendations",
+        lambda db, trip_id, user_id: [stored_recommendation]
+        if db is fake_db and trip_id == 7 and user_id == 1
+        else [],
+    )
+
+    items = trip_service.list_recommendations(fake_db, user, "7")
+
+    assert items is not None
+    assert items[0]["title"] == "Saved summary spot"
+    assert items[0]["sourceType"] == "savedSummary"
 
 
 def test_list_recommendations_backfills_to_ten_after_duplicate_filtering(monkeypatch) -> None:
@@ -1322,7 +1365,15 @@ def test_recommendation_mapper_ignores_invalid_items() -> None:
         ]
     )
 
-    assert items == [{"label": "CA", "title": "Cafe", "meta": "Day 2", "reason": "Good route"}]
+    assert items == [
+        {
+            "label": "CA",
+            "title": "Cafe",
+            "meta": "Day 2",
+            "reason": "Good route",
+            "sourceType": "savedSummary",
+        }
+    ]
 
 
 def test_invite_to_api_computes_display_flags() -> None:
@@ -1343,10 +1394,34 @@ def test_invite_to_api_computes_display_flags() -> None:
 
     assert payload["id"] == "9"
     assert payload["tripId"] == "7"
-    assert payload["inviteUrl"] == "travelhunter.app/i/abc"
+    assert payload["inviteUrl"] == "http://127.0.0.1:5173/invites/abc/accept"
     assert payload["invited"] is True
     assert payload["copied"] is False
     assert payload["role"] == "viewer"
+
+
+def test_invite_to_api_uses_public_frontend_base_url(monkeypatch) -> None:
+    from app.models import TripInvite
+
+    class PublicSettings:
+        def frontend_base_url(self) -> str:
+            return "https://travel-hunter.co.kr"
+
+    monkeypatch.setattr(trip_service, "settings", PublicSettings())
+    now = trip_service.security.utc_now_naive()
+    invite = TripInvite(
+        id=9,
+        trip_id=7,
+        invite_token="abc",
+        created_by=1,
+        role="viewer",
+        created_at=now - timedelta(days=1),
+        expires_at=now + timedelta(days=30),
+    )
+
+    payload = trip_service.invite_to_api(invite, trip_id=7)
+
+    assert payload["inviteUrl"] == "https://travel-hunter.co.kr/invites/abc/accept"
 
 
 def test_confirm_invite_sent_updates_active_invite_role(monkeypatch) -> None:
@@ -1754,6 +1829,7 @@ def test_create_trip_persists_generated_days_places_and_recommendations_in_db(sq
     recommendations = trip_service.list_recommendations(sqlite_db_session, user, created["id"])
     assert recommendations is not None
     assert len(recommendations) >= 3
+    assert all(item["sourceType"] == "savedSummary" for item in recommendations)
 
 
 def test_create_trip_persists_empty_recommendations_when_catalog_has_no_region(monkeypatch) -> None:

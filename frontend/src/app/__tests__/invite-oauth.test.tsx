@@ -61,7 +61,7 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
       id: "9",
       tripId: "55",
       inviteToken: "abc",
-      inviteUrl: "travelhunter.app/i/abc",
+      inviteUrl: "http://127.0.0.1:5173/invites/abc/accept",
       expiresAt: "2026-06-30T00:00:00Z",
       createdAt: "2026-05-04T00:00:00Z",
       acceptedAt: null,
@@ -416,7 +416,7 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
       id: "9",
       tripId: "55",
       inviteToken: "abc",
-      inviteUrl: "travelhunter.app/i/abc",
+      inviteUrl: "http://127.0.0.1:5173/invites/abc/accept",
       expiresAt: "2026-06-30T00:00:00Z",
       createdAt: "2026-05-04T00:00:00Z",
       acceptedAt: null,
@@ -540,5 +540,6 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
     await waitFor(() =>
       expect(document.body).toHaveTextContent("초대 링크를 찾을 수 없어요"),
     );
+    expect(document.body).toHaveTextContent("초대한 친구에게 새 초대 링크를 요청해 주세요.");
   });
 });

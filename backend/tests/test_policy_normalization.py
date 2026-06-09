@@ -2,14 +2,20 @@ from __future__ import annotations
 
 import app.models  # noqa: F401
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import Integer, create_engine
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
+from app.api.routes import policies as policy_routes
 from app.db.base import Base
+from app.main import app
 from app.models import ExternalSourceRecord, Policy
 from app.repositories.external_sources import upsert_external_source_records
 from app.repositories.policies import get_policy_by_slug
 from app.schemas.external_sources import ExternalBenefitSource
+
+client = TestClient(app)
 
 
 def make_source(**overrides) -> ExternalBenefitSource:
@@ -55,7 +61,11 @@ def make_source(**overrides) -> ExternalBenefitSource:
 
 @pytest.fixture
 def db() -> Session:
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     patched_columns = [
         ExternalSourceRecord.__table__.c.id,
         Policy.__table__.c.id,
@@ -469,3 +479,47 @@ def test_promoting_local_half_trip_hides_legacy_dgtour_seed_policies(
     assert result.promoted_count == 1
     assert legacy_policy.status == "hidden"
     assert db.query(Policy).filter(Policy.slug.like("travelmonth-%")).one().status == "active"
+
+
+def test_promoted_policy_is_exposed_by_list_and_detail_then_hidden_when_source_stales(
+    db: Session,
+) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                canonical_key="route-visible",
+                external_id="route-visible",
+                title="Route visible collected support",
+                region="Busan",
+            )
+        ],
+    )
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+
+    promote_external_benefits_to_policies(db)
+    slug = f"travelmonth-{rows[0].id}"
+    app.dependency_overrides[policy_routes.get_optional_db] = lambda: db
+    try:
+        list_response = client.get("/api/policies")
+        detail_response = client.get(f"/api/policies/{slug}")
+
+        assert list_response.status_code == 200
+        listed = {policy["slug"]: policy for policy in list_response.json()}
+        assert listed[slug]["title"] == "Route visible collected support"
+        assert listed[slug]["sourceType"] == "external"
+        assert detail_response.status_code == 200
+        assert detail_response.json()["slug"] == slug
+
+        rows[0].freshness_status = "stale"
+        promote_external_benefits_to_policies(db)
+
+        stale_list_response = client.get("/api/policies")
+        stale_detail_response = client.get(f"/api/policies/{slug}")
+    finally:
+        app.dependency_overrides.pop(policy_routes.get_optional_db, None)
+
+    assert stale_list_response.status_code == 200
+    assert slug not in {policy["slug"] for policy in stale_list_response.json()}
+    assert stale_detail_response.status_code == 404

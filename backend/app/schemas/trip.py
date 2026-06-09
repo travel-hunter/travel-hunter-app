@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, model_validator
 InviteRole = Literal["viewer", "editor"]
 TripRole = Literal["owner", "editor", "viewer"]
 TripStatus = Literal["draft", "confirmed"]
+RecommendationSourceType = Literal["freshCandidate", "savedSummary"]
 
 
 class ItineraryPlace(BaseModel):
@@ -90,6 +91,7 @@ class Recommendation(BaseModel):
     aiReview: str | None = None
     sourceProvider: str | None = None
     externalPlaceId: str | None = None
+    sourceType: RecommendationSourceType | None = None
 
 
 class InviteState(BaseModel):

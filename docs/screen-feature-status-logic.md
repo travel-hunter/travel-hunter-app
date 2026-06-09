@@ -182,8 +182,8 @@ Kakao Local provider가 없거나 외부 후보가 충분하지 않으면 내장
 | 3-B. 기존 장소 중복 제외 | `_existing_place_keys()`, `_is_duplicate_candidate()` | 이미 일정에 들어간 장소는 provider id, external id, 정규화 제목 기준으로 제외한다. |
 | 3-C. 카테고리 균형 선택 | `additional_place_candidates()` | 명소, 맛집, 숙소 등 카테고리 목표치를 우선 채우고 남는 후보를 순서대로 보완한다. 기본 후보 limit은 18개다. |
 | 3-D. 추천 Day 부여 | `suggestedDay` | 후보 순서대로 현재 일정의 Day 번호에 round-robin 방식으로 제안 Day를 부여한다. |
-| 4. fallback 추천 반환 | 저장된 `trip_recommendations` | Kakao 추가 후보가 없으면 일정 생성 시 저장해 둔 추천 설명 목록을 반환한다. |
-| 5. 프론트 표시 | `AiResultsPage` | 후보를 `숙소`, `맛집`, `명소`, `기타` 그룹으로 나누고 지도/후보 목록/추천 기준 sheet를 보여준다. |
+| 4. fallback 추천 반환 | 저장된 `trip_recommendations` | Kakao 추가 후보가 없으면 일정 생성 시 저장해 둔 추천 설명 목록을 `sourceType="savedSummary"`로 반환한다. |
+| 5. 프론트 표시 | `AiResultsPage` | 후보를 `숙소`, `맛집`, `명소`, `기타` 그룹으로 나누고 지도/후보 목록/추천 기준 sheet를 보여준다. 출처 안내 banner와 candidate badge로 fresh candidate와 saved summary fallback을 구분한다. |
 | 6. 사용자가 추가 | `POST /api/trips/{tripId}/days/{dayNumber}/places` | 후보는 보기만 할 때 저장되지 않는다. 사용자가 후보의 `추가`를 누르고 Day를 선택하면 장소 payload가 `trip_places`에 저장된다. |
 
 `/ai-results`는 “현재 일정에 바로 추가할 수 있는 후보” 화면이다. Kakao Local이 활성화된 경우에는 현재 일정에 이미 들어간 장소를 제외한 새 후보를 우선 보여주고, Kakao 추가 후보가 없으면 일정 생성 시 저장해 둔 추천 결과를 보여준다.
@@ -194,6 +194,7 @@ Kakao Local provider가 없거나 외부 후보가 충분하지 않으면 내장
 | --- | --- |
 | 후보 지도 | 선택된 후보 1개를 `KakaoMapView` marker로 표시한다. 좌표가 없거나 SDK가 실패하면 fallback map을 보여준다. |
 | 후보 목록 | 추천 응답의 `categoryGroup`을 기준으로 `숙소`, `맛집`, `명소`, `기타`로 묶는다. |
+| 출처 안내 | 추천 응답의 `sourceType`을 기준으로 새 Kakao 후보, 혼합 결과, 저장된 추천 요약 fallback을 banner와 badge로 표시한다. |
 | 이미 추가됨 표시 | 현재 trip의 기존 장소명과 후보 제목을 정규화해 비교하고, 이미 있으면 `이미 추가됨`으로 표시한다. |
 | Day 선택 | 후보의 `suggestedDay`가 있으면 해당 Day를 기본값으로 쓰고, 없으면 Day 1 또는 현재 일정의 첫 Day를 사용한다. 사용자는 inline Day selector에서 추가할 Day를 바꿀 수 있다. |
 | 저장 payload | 후보 제목, 설명, 주소, 좌표, category code, place URL, source provider, external place id를 장소 추가 API로 전달한다. |
@@ -216,7 +217,7 @@ Kakao Local provider가 없거나 외부 후보가 충분하지 않으면 내장
 | 실제 이동시간 최적화 미완료 | 현재 후보 점수에는 좌표/지역 단서가 반영되지만, Kakao Mobility 같은 경로 API로 Day별 이동시간을 최적화하는 단계는 아니다. |
 | 후보 품질은 Kakao 검색/환경에 의존 | `KAKAO_LOCAL_ENABLED`, REST API 키, 검색 결과 품질, travel area term 매칭에 영향을 받는다. |
 | catalog coverage 제한 | fallback catalog에 충분한 장소가 없는 지역은 장소 수가 부족할 수 있다. 이 경우에도 Day 자체는 생성된다. |
-| `/ai-results` fallback은 생성 당시 추천 설명 기반 | Kakao 추가 후보가 없으면 새 후보라기보다 생성 시 저장된 recommendation 결과를 보여줄 수 있다. |
+| `/ai-results` fallback은 생성 당시 추천 설명 기반 | Kakao 추가 후보가 없으면 새 후보라기보다 생성 시 저장된 recommendation 결과를 보여준다. 이 경우 UI는 저장 요약 fallback임을 명시한다. |
 | 추천 기준 UI와 실제 정량 로직 차이 | 화면의 추천 기준 sheet는 정책/거리/예산/style을 함께 본다는 제품 방향을 설명하지만, 모든 항목이 현재 정량 최적화로 구현된 것은 아니다. |
 
 ### 향후 추천 품질 개선 후보

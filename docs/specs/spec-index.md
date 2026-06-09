@@ -22,6 +22,14 @@ Local functional completion specs are listed here. Work that requires a purchase
 | [../db-schema-current.md](../db-schema-current.md) | active | Human-readable current DB schema reference. |
 | [../db-schema-current.sql](../db-schema-current.sql) | active | SQL schema snapshot. |
 
+## Supporting Gap Scan Docs
+
+These documents are scan-friendly supporting views, not execution-priority owners or second queues. `docs/next-work-plan.md` remains the current execution queue.
+
+| Document | Status | Role |
+| --- | --- | --- |
+| [local-ux-incomplete-backlog.md](local-ux-incomplete-backlog.md) | supporting | Non-authoritative local UX/screen gap scan; mirrors current queue items, summarizes conditional local UX gaps, and records reference mismatches without owning priority. |
+
 ## Reference Docs
 
 | Document | Status | Role |

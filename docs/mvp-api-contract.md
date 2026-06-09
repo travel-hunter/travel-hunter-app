@@ -278,11 +278,12 @@ Closed failure codes:
 
 Account linking policy:
 
-- 기존 `social_accounts(provider, provider_id)` 연결이 있으면 provider email 변경 여부와 무관하게 해당 사용자를 사용한다.
+- 기존 `social_accounts(provider, provider_id)` 연결이 있으면 provider email 변경 여부와 무관하게 해당 사용자를 우선 사용한다.
 - 동일 이메일 자동 연결은 provider가 검증 이메일을 제공한 경우에만 허용한다.
 - Google은 `email_verified=true`인 email이 필수다.
-- Kakao는 `kakao_account.is_email_verified=true`이고 `is_email_valid`가 false가 아닌 email만 동일 이메일 연결에 사용한다.
+- Kakao는 `account_email` scope만 요청하고, `kakao_account.is_email_verified=true`이며 `is_email_valid`가 false가 아닌 email만 동일 이메일 연결과 서비스 이메일 표시/연락처 기준에 사용한다.
 - Kakao email이 없거나 검증되지 않았으면 기존 이메일 계정에 연결하지 않고 `kakao_{providerId}@oauth.local` 내부 이메일로 새 계정을 만들 수 있다.
+- 기존 Kakao social account의 email이 `kakao_{providerId}@oauth.local`인 상태에서 이후 verified Kakao email을 받으면, 같은 email을 가진 다른 user가 없을 때만 `users.email`을 실제 Kakao email로 자동 교체한다. 다른 user가 이미 소유한 email은 자동 병합하지 않는다.
 
 ---
 
@@ -921,7 +922,7 @@ Optional request fields:
 
 ### GET /trips/{trip_id}/recommendations
 
-Returns additional AI place candidates for the trip. The backend treats `(sourceProvider, externalPlaceId)` as the durable external identity, then applies a conservative same-provider `externalPlaceId` and normalized-title duplicate exclusion for existing MVP data. Kakao-backed candidates include official Kakao Local API map metadata when available; ratings/reviews are not exposed because the official API response does not provide those fields. When official Kakao data can supply enough non-duplicate places, the response targets at least 10 candidates with a useful mix of attractions, food, and stays; sparse categories are backfilled from other official candidates instead of creating synthetic places.
+Returns additional AI place candidates for the trip. The backend treats `(sourceProvider, externalPlaceId)` as the durable external identity, then applies a conservative same-provider `externalPlaceId` and normalized-title duplicate exclusion for existing MVP data. Kakao-backed candidates include official Kakao Local API map metadata when available; ratings/reviews are not exposed because the official API response does not provide those fields. When official Kakao data can supply enough non-duplicate places, the response targets at least 10 candidates with a useful mix of attractions, food, and stays; sparse categories are backfilled from other official candidates instead of creating synthetic places. If fresh candidates are unavailable, the endpoint returns recommendation summaries saved at trip creation with `sourceType="savedSummary"` so the UI can avoid presenting them as newly fetched places.
 
 Additional `Recommendation` fields:
 - `id`: string | null
@@ -937,6 +938,7 @@ Additional `Recommendation` fields:
 - `aiReview`: string | null
 - `sourceProvider`: string | null
 - `externalPlaceId`: string | null
+- `sourceType`: `freshCandidate` | `savedSummary` | null
 
 AI 추천 장소 목록 조회.
 
@@ -949,7 +951,8 @@ AI 추천 장소 목록 조회.
     "meta": "제주시 조천읍",
     "reason": "제주 북동부 대표 해수욕장으로 물이 맑습니다.",
     "categoryName": "관광명소 > 해수욕장",
-    "phone": "064-000-0000"
+    "phone": "064-000-0000",
+    "sourceType": "freshCandidate"
   }
 ]
 ```

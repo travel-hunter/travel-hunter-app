@@ -342,3 +342,34 @@ def test_external_collection_quality_report_summarizes_saved_records() -> None:
     }
     assert payload["recommendationPreview"][0]["region"] == "Busan"
     assert payload["recommendationPreview"][0]["policyCount"] == 2
+
+
+def test_external_collection_quality_meets_release_candidate_gate_for_fresh_active_records() -> None:
+    session, engine, id_column, original_type = with_test_db(
+        [
+            make_source(
+                "busan-release-gate",
+                region="Busan",
+                title="Busan release gate support",
+                amount=50000,
+                styles=[STYLE_FOOD],
+            )
+        ]
+    )
+    authenticate_ops_user()
+    try:
+        health_response = client.get("/api/ops/external-collection")
+        quality_response = client.get("/api/ops/external-collection/quality")
+    finally:
+        clear_ops_user()
+        cleanup_test_db(session, engine, id_column, original_type)
+
+    assert health_response.status_code == 200
+    assert quality_response.status_code == 200
+    min_parsed_count = health_response.json()["minParsedCount"]
+    payload = quality_response.json()
+    assert payload["totalRecords"] >= min_parsed_count
+    assert payload["freshRecords"] > 0
+    assert payload["activeRecords"] > 0
+    assert payload["latestFetchedAt"] is not None
+    assert payload["latestVerifiedAt"] is not None

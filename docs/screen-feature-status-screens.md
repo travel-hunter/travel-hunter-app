@@ -300,7 +300,7 @@
 | 지도 모드 | 완료 | `KakaoMapView` + fallback 지도 | 장소 좌표/주소/검색어를 marker로 전달해 Kakao 지도를 시도한다. 장소가 없으면 지도 빈 상태를 보여주고, SDK/좌표 제약이 있으면 SVG fallback 지도를 표시한다. |
 | 지도 marker 선택 | 완료 | URL query `place={placeId}` | 선택한 장소의 bottom sheet를 표시하고 닫기/선택 해제를 지원한다. |
 | 지도 bottom sheet `길찾기` | 완료 | Kakao Map 외부 링크 | `placeUrl`이 있으면 해당 URL, 없으면 Kakao 지도 검색 URL을 새 탭으로 연다. |
-| 지도 bottom sheet `상세 보기` | 부분 완료 | 토스트 안내 | 현재는 장소 상세 전용 화면/모달이 아니라 `장소 상세 보기는 준비 중이에요.` 토스트를 표시한다. |
+| 지도 bottom sheet `상세 보기` | 완료 | 로컬 장소 상세 dialog | 선택한 장소의 day context, 시간, 카테고리, 주소, 메모, 좌표, Kakao Maps 링크를 inspectable dialog로 표시한다. |
 | 로딩/오류 상태 | 완료 | `useAsyncResource()` 상태 UI | 상세 로딩 중 `일정 상세를 불러오는 중입니다`, 오류/404 시 `일정 목록으로` 액션을 제공한다. |
 
 ### 데이터/API 연결 현황
@@ -324,7 +324,7 @@
 
 ### 확인 근거
 
-- `frontend/src/pages/itinerary/ItineraryDetailPage.tsx`: 일정 상세 조회, 연결 정책, Day 탭, 리스트/지도 전환, 장소 CRUD/move, draft, viewer read-only, Kakao 지도/fallback 구현
+- `frontend/src/pages/itinerary/ItineraryDetailPage.tsx`: 일정 상세 조회, 연결 정책, Day 탭, 리스트/지도 전환, 장소 CRUD/move, draft, viewer read-only, Kakao 지도/fallback, 지도 bottom sheet 장소 상세 dialog 구현
 - `frontend/src/pages/ItineraryPages.tsx`: `ItineraryDetailPage` route export
 - `frontend/src/app/App.tsx`: `/trips/:tripId` protected route 구성
 - `frontend/src/api/backendApi.ts`: 일정 상세, 장소 추가/수정/이동/삭제, 정책 연결 해제 API 연결
@@ -338,13 +338,13 @@
 ### 2026-05-29 로컬 검증 결과
 
 - 코드 근거 확인: `frontend/src/pages/itinerary/ItineraryDetailPage.tsx`, `frontend/src/api/backendApi.ts`, `backend/app/api/routes/trips.py`, `backend/app/services/trips.py`, `docs/mvp-api-contract.md`
-- 테스트 근거 확인: `frontend/src/App.test.tsx`에 `/trips/{tripId}` 상세 표시, viewer read-only, 장소 추가/수정/삭제/이동, draft, AI 추천 진입 관련 회귀 테스트가 존재한다.
+- 테스트 근거 확인: `frontend/src/App.test.tsx`에 `/trips/{tripId}` 상세 표시, viewer read-only, 장소 추가/수정/삭제/이동, draft, AI 추천 진입, 지도 장소 상세 dialog 관련 회귀 테스트가 존재한다.
 - 이번 문서 작성 턴에서는 기능 코드를 변경하지 않았고, 실행 중인 브라우저/API 신규 smoke는 추가 수행하지 않았다.
 
 ### 남은 작업/리스크
 
 - `tripId`는 내부 numeric string id 기준이다. 정책처럼 public slug를 쓰지 않으므로 보고/시연 자료에서도 `/trips/{id}`로 표현해야 한다.
 - 지도 모드는 Kakao Maps JavaScript key, 도메인 등록, 장소 좌표/주소 품질에 영향을 받는다. 좌표가 없거나 SDK 로드가 실패하면 fallback 지도/검색 기반 표시가 사용된다.
-- 지도 bottom sheet의 `상세 보기`는 아직 실제 장소 상세 화면이 아니라 준비 중 토스트만 표시한다.
+- 지도 bottom sheet의 `상세 보기`는 로컬 장소 상세 dialog로 동작한다. 별도 full-page 장소 상세 화면은 현재 범위가 아니다.
 - AI 추천 후보 생성/조회 품질은 `/ai-results` 및 `GET /api/trips/{tripId}/recommendations`의 별도 동작에 의존한다. 일정 상세 화면 자체는 추천 후보 화면으로 이동시키는 진입점이다.
 - viewer 권한 사용자는 확인만 가능하며 장소 편집과 정책 연결 삭제는 제한된다.

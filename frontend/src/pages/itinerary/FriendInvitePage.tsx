@@ -68,7 +68,7 @@ export function FriendInvitePage() {
   };
 
   const title = trip?.title ?? "제주 3일 여행";
-  const inviteUrl = effectiveInviteState?.inviteUrl ?? "travelhunter.app/i/jeju-3d";
+  const inviteUrl = effectiveInviteState?.inviteUrl ?? `${window.location.origin}/invites/jeju-3d/accept`;
 
   return (
     <section className="screen">

@@ -81,6 +81,17 @@ Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5173/
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/api/health
 ```
 
+## Kakao Local Candidate Smoke
+
+With `KAKAO_LOCAL_ENABLED=true` and `KAKAO_LOCAL_REST_API_KEY` configured, this checks representative travel areas against Kakao Local and prints only counts/metadata/sample titles:
+
+```powershell
+cd C:\Users\HP\Documents\프로젝트\진행중\travel-hunter-app\backend
+python -m app.scripts.smoke_kakao_local_candidates --min-candidates 6
+```
+
+Without Kakao Local credentials, the same command runs catalog fallback smoke. To require live Kakao Local credentials, add `--require-kakao`.
+
 Before committing frontend work:
 
 ```powershell

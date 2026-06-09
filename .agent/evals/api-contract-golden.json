@@ -695,9 +695,10 @@
         "sourceProvider": "string|null",
         "externalPlaceId": "string|null",
         "categoryName": "string|null",
-        "phone": "string|null"
+        "phone": "string|null",
+        "sourceType": "string enum(freshCandidate|savedSummary)|null"
       },
-      "dbModeBehavior": "Returns additional place candidates for the trip, excluding places already in the itinerary. Kakao-backed candidates include official Local API map metadata such as categoryName, phone, address, coordinates, and placeUrl when available."
+      "dbModeBehavior": "Returns additional place candidates for the trip, excluding places already in the itinerary. Kakao-backed candidates include official Local API map metadata such as categoryName, phone, address, coordinates, and placeUrl when available, and use sourceType=freshCandidate. If fresh candidates are unavailable, returns saved trip-creation recommendation summaries with sourceType=savedSummary."
     },
     {
       "method": "GET",

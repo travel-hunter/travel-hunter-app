@@ -8,14 +8,49 @@ Covers:
 - OAuth redirect path safety (open redirect guard)
 - Unknown OAuth provider -> OAuthServiceError(404)
 """
+from types import SimpleNamespace
+from urllib.parse import parse_qs, urlparse
+
 import pytest
 from pydantic import ValidationError
 
+from app.core.config import Settings
 from app.models import User as UserModel
 from app.schemas.user import LoginRequest, NicknameUpdate, SignupRequest
 from app.services import auth as auth_service
 from app.services import oauth as oauth_service
 from app.services.auth import AuthServiceError
+
+
+KAKAO_PROVIDER_ID = "12345"
+KAKAO_PLACEHOLDER_EMAIL = f"kakao_{KAKAO_PROVIDER_ID}@oauth.local"
+KAKAO_VERIFIED_EMAIL = "real.user@example.com"
+
+
+def _kakao_profile(
+    *,
+    email: str | None = KAKAO_VERIFIED_EMAIL,
+    email_verified: bool = True,
+    provider_id: str = KAKAO_PROVIDER_ID,
+) -> oauth_service.OAuthProfile:
+    return oauth_service.OAuthProfile(
+        provider_id=provider_id,
+        email=email,
+        email_verified=email_verified,
+        nickname="Kakao User",
+    )
+
+
+def _user(
+    *,
+    user_id: int,
+    email: str,
+    nickname: str = "Kakao User",
+    password_hash: str | None = None,
+) -> UserModel:
+    user = UserModel(email=email, nickname=nickname, password_hash=password_hash)
+    user.id = user_id
+    return user
 
 
 # ---------------------------------------------------------------------------
@@ -212,13 +247,11 @@ def test_google_verified_email_links_existing_user(monkeypatch) -> None:
 
 def test_kakao_unverified_email_does_not_link_existing_email_user(monkeypatch) -> None:
     existing_user = UserModel(email="owner@example.com", nickname="Owner", password_hash="hash")
-    created_user = UserModel(email="kakao_12345@oauth.local", nickname="Kakao User", password_hash=None)
+    created_user = _user(user_id=10, email=KAKAO_PLACEHOLDER_EMAIL)
     calls: dict[str, list[str] | object] = {"lookups": []}
-    profile = oauth_service.OAuthProfile(
-        provider_id="12345",
+    profile = _kakao_profile(
         email="owner@example.com",
         email_verified=False,
-        nickname="Kakao User",
     )
 
     monkeypatch.setattr(oauth_service.user_repository, "get_social_account", lambda *args, **kwargs: None)
@@ -239,7 +272,65 @@ def test_kakao_unverified_email_does_not_link_existing_email_user(monkeypatch) -
 
     assert user is created_user
     assert calls["lookups"] == []
-    assert calls["created"]["email"] == "kakao_12345@oauth.local"
+    assert calls["created"]["email"] == KAKAO_PLACEHOLDER_EMAIL
+
+
+def test_existing_kakao_placeholder_email_upgrades_to_verified_email(monkeypatch) -> None:
+    linked_user = _user(user_id=10, email=KAKAO_PLACEHOLDER_EMAIL)
+    social_account = SimpleNamespace(user=linked_user)
+    profile = _kakao_profile(
+        email="Real.User@Example.com",
+    )
+    calls: dict[str, object] = {}
+
+    monkeypatch.setattr(
+        oauth_service.user_repository,
+        "get_social_account",
+        lambda *args, **kwargs: social_account,
+    )
+    monkeypatch.setattr(oauth_service.user_repository, "get_user_by_email", lambda _db, email: None)
+
+    def update_user_email(_db, user, *, email):
+        calls["email"] = email
+        user.email = email
+        return user
+
+    monkeypatch.setattr(oauth_service.user_repository, "update_user_email", update_user_email)
+
+    user = oauth_service._find_or_create_user(FakeDb(), provider="kakao", profile=profile)
+
+    assert user is linked_user
+    assert user.email == KAKAO_VERIFIED_EMAIL
+    assert calls["email"] == KAKAO_VERIFIED_EMAIL
+
+
+def test_existing_kakao_placeholder_email_does_not_upgrade_when_email_belongs_to_other_user(monkeypatch) -> None:
+    linked_user = _user(user_id=10, email=KAKAO_PLACEHOLDER_EMAIL)
+    other_user = _user(
+        user_id=20,
+        email=KAKAO_VERIFIED_EMAIL,
+        nickname="Email Owner",
+        password_hash="hash",
+    )
+    social_account = SimpleNamespace(user=linked_user)
+    profile = _kakao_profile()
+
+    monkeypatch.setattr(
+        oauth_service.user_repository,
+        "get_social_account",
+        lambda *args, **kwargs: social_account,
+    )
+    monkeypatch.setattr(oauth_service.user_repository, "get_user_by_email", lambda _db, email: other_user)
+
+    def fail_update(*args, **kwargs):
+        raise AssertionError("conflicting email must not be updated automatically")
+
+    monkeypatch.setattr(oauth_service.user_repository, "update_user_email", fail_update)
+
+    user = oauth_service._find_or_create_user(FakeDb(), provider="kakao", profile=profile)
+
+    assert user is linked_user
+    assert user.email == KAKAO_PLACEHOLDER_EMAIL
 
 
 def test_existing_social_account_wins_even_when_email_unverified(monkeypatch) -> None:
@@ -309,6 +400,36 @@ def test_safe_redirect_path_rejects_protocol_relative_urls() -> None:
 def test_safe_redirect_path_falls_back_for_empty_or_none() -> None:
     assert oauth_service.safe_redirect_path(None) == "/home"
     assert oauth_service.safe_redirect_path("") == "/home"
+
+
+# ---------------------------------------------------------------------------
+# Service: OAuth provider authorization parameters
+# ---------------------------------------------------------------------------
+
+
+def test_kakao_authorization_redirect_requests_configured_email_scope(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        oauth_service,
+        "settings",
+        Settings(
+            kakao_client_id="kakao-rest-key",
+            kakao_client_secret="kakao-client-secret",
+            kakao_redirect_uri=(
+                "https://dev.travel-hunter.co.kr/api/auth/oauth/kakao/callback"
+            ),
+        ),
+    )
+
+    result = oauth_service.build_authorization_redirect("kakao", redirect="/home")
+    query = parse_qs(urlparse(result.authorization_url).query)
+
+    assert query["client_id"] == ["kakao-rest-key"]
+    assert query["redirect_uri"] == [
+        "https://dev.travel-hunter.co.kr/api/auth/oauth/kakao/callback"
+    ]
+    assert query["scope"] == ["account_email"]
 
 
 # ---------------------------------------------------------------------------

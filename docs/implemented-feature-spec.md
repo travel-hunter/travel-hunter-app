@@ -19,7 +19,7 @@
 | 로그인 | `/`와 `/login`에서 프로토타입과 같은 모바일 앱형 로그인 화면을 보여주고 email/password로 로그인한다. 실패 시 사용자용 오류를 표시한다. | `POST /api/auth/login`, `auth_refresh_tokens` |
 | 세션 유지/로그아웃 | refresh cookie로 access token을 갱신하고, 로그아웃 시 refresh token을 revoke한다. | `POST /api/auth/refresh`, `POST /api/auth/logout` |
 | 비밀번호 재설정 | `/forgot-password` 요청 후 email link로 `/reset-password?token=...`에서 새 비밀번호를 설정한다. | `password_reset_tokens`, SMTP 설정 필요 |
-| Kakao/Google OAuth | 로그인 버튼에서 provider authorization flow를 시작하고 callback에서 세션을 복구한다. 동일 이메일 자동 연결은 검증된 provider email만 허용하고, callback 실패는 닫힌 error code로 사용자용 메시지를 표시한다. 로컬 credential이 있으면 `scripts/oauth_local_smoke.py`로 start route smoke를 확인할 수 있다. | `social_accounts`, provider env 필요 |
+| Kakao/Google OAuth | 로그인 버튼에서 provider authorization flow를 시작하고 callback에서 세션을 복구한다. 동일 이메일 자동 연결은 검증된 provider email만 허용하고, callback 실패는 닫힌 error code로 사용자용 메시지를 표시한다. Kakao는 `account_email`만 요청하며, 기존 `kakao_{providerId}@oauth.local` 내부 이메일 계정은 verified Kakao email을 받는 다음 로그인 때 충돌이 없으면 실제 email로 자동 교체한다. dev 도메인에서는 Google/Kakao 브라우저 로그인이 검증됐다. | `social_accounts`, provider env 필요 |
 
 ## 사용자와 마이페이지
 
@@ -64,7 +64,7 @@
 
 | 기능 | 사용자 동작 | 연결 |
 |---|---|---|
-| 추천 조회 | `/ai-results?tripId=...`에서 추천 목록을 본다. | `GET /api/trips/{tripId}/recommendations` |
+| 추천 조회 | `/ai-results?tripId=...`에서 추천 목록을 본다. 새 후보는 `sourceType="freshCandidate"`, 일정 생성 시 저장된 추천 요약 fallback은 `sourceType="savedSummary"`로 구분하고 화면 banner/badge로 출처를 표시한다. | `GET /api/trips/{tripId}/recommendations` |
 | 추천 항목 추가 | 추천 항목을 일정 장소로 추가한다. 이미 현재 일정 timeline에 같은 장소명이 있으면 `/ai-results?tripId=...`에서 `이미 일정에 있음`으로 표시하고 중복 추가를 막는다. | `GET /api/trips/{tripId}`, `POST /api/trips/{tripId}/days/{dayNumber}/places` |
 | 추천 기준 설명 | 추천 기준 아이콘으로 설명 sheet를 연다. | frontend sheet |
 
@@ -72,8 +72,8 @@
 
 | 기능 | 사용자 동작 | 연결 |
 |---|---|---|
-| 초대 링크 생성 | `/friend-invite?tripId=...`에서 viewer/editor 권한을 골라 링크를 활성화한다. | `trip_invites.role` |
-| 초대 수락 | `/invites/:token/accept`로 진입해 로그인 후 초대를 수락한다. | `trip_invites.accepted_at`, `trip_members` |
+| 초대 링크 생성 | `/friend-invite?tripId=...`에서 viewer/editor 권한을 골라 링크를 활성화한다. 백엔드가 반환하는 `inviteUrl`은 `TRAVEL_HUNTER_PUBLIC_BASE_URL` 기준 `/invites/{token}/accept` 공개 수락 경로를 사용한다. | `trip_invites.role`, `TRAVEL_HUNTER_PUBLIC_BASE_URL` |
+| 초대 수락 | `/invites/:token/accept`로 진입해 로그인 후 초대를 수락한다. 비로그인 사용자는 로그인/가입 후 redirect로 원래 초대 링크에 복귀하고, 만료/오류 상태는 새 초대 링크 요청 안내를 표시한다. | `trip_invites.accepted_at`, `trip_members` |
 | 권한 적용 | owner/editor만 장소를 편집하고 viewer는 읽기 전용으로 본다. | trip service authorization |
 
 ## 알림
@@ -95,10 +95,13 @@
 | Production sourcemap | Vite production sourcemap은 명시적으로 비활성화되어 있다. |
 | 로컬 개발 런타임 | Docker `db/backend`와 Vite dev server 기준 실행 절차를 문서화했다. |
 | Cloudflare Tunnel 배포 | `docs/deployment-cicd/`에 GitHub, Docker, Jenkins 계획, release checklist 기준을 모았다. |
+| 정책 수집 운영 상태 | bearer 인증된 `/api/ops/external-collection`과 `/api/ops/external-collection/quality`가 scheduler 상태, 수집 품질 count, 추천 preview를 read-only로 제공한다. RC gate는 `totalRecords >= minParsedCount`, `freshRecords > 0`, `activeRecords > 0`, 최신 수집/검증 timestamp 존재, 정규화 정책의 list/detail 노출, stale 숨김으로 검증한다. | `GET /api/ops/external-collection`, `GET /api/ops/external-collection/quality` |
 
 ## 조건부 기능과 미구현 범위
 
 - SMTP env와 public base URL이 있어야 password reset email smoke를 완료할 수 있다.
-- Kakao/Google provider secret과 localhost redirect URI가 있어야 실제 브라우저 OAuth smoke를 완료할 수 있다.
+- dev 도메인 `dev.travel-hunter.co.kr`에서는 Kakao/Google provider secret과 public redirect URI 기반 브라우저 OAuth smoke가 완료됐다. 운영 도메인 `travel-hunter.co.kr`에서는 별도 provider redirect URI, runtime env, public smoke 증거가 필요하다.
 - SOLAPI key, Kakao channel, 승인 템플릿이 있어야 실제 알림톡 발송을 확인할 수 있다.
-- 전화번호 OTP 실제 발송 smoke, 실제 AI 엔진, 지도/장소 검색, 친구 초대 외부 발송, 운영 관리자 화면, 정책 실시간 수집은 후속 범위다.
+- 정책 수집/정규화/노출의 local code path와 release-gate test는 존재하지만, Public v1/RC 판정에는 public domain/runtime smoke 증거가 추가로 필요하다.
+- 전화번호 OTP 실제 발송 smoke, 실제 AI 엔진, SMTP readiness 이후 친구 초대 email 발송, email 외 SMS/Kakao 초대 발송, 운영 관리자 화면, 정책 수집 source 확대와 full automation은 후속 범위다.
+- 지도/장소 검색의 로컬 기본 UX는 일정 상세 지도, 장소 상세 dialog, 장소 추가 sheet 후보 검색, Kakao Local 후보, catalog fallback 기준으로 구현되어 있다. Public map-domain 검증과 추천 품질 고도화는 별도 개선 범위다.

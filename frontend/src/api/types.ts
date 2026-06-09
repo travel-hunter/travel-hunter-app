@@ -97,6 +97,7 @@ export type ItineraryPlace = {
 };
 
 export type RecommendationCategoryGroup = "stay" | "food" | "attraction" | "other";
+export type RecommendationSourceType = "freshCandidate" | "savedSummary";
 
 export type LinkedTripPolicy = {
   slug: string;
@@ -249,6 +250,7 @@ export type Recommendation = {
   aiReview?: string | null;
   sourceProvider?: string | null;
   externalPlaceId?: string | null;
+  sourceType?: RecommendationSourceType | null;
 };
 
 export type RegionRecommendation = {

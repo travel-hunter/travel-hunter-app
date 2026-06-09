@@ -39,7 +39,11 @@ Remaining local follow-up:
 
 ## Missing UX To Complete Locally
 
-1. Policy list filtering should be prepared for server search/pagination when local datasets grow beyond client filtering comfort.
+No immediate local UX gap is currently tracked for this spec.
+
+Conditional follow-up:
+
+1. Policy list filtering should be prepared for server search/pagination when local datasets grow beyond client filtering comfort. Track this as conditional local UX, not as the current immediate sequence.
 
 ## Local Completion Criteria
 

@@ -1,4 +1,4 @@
-﻿import { FormEvent, useEffect, useState } from "react";
+﻿import { FormEvent, useEffect, useRef, useState } from "react";
 import { ChevronLeft, Dice5 } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { appDataApi } from "../api";
@@ -616,7 +616,8 @@ export function OAuthStartPage() {
 export function OAuthCallbackPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { completeOAuthSession } = useSession();
+  const { completeOAuthSession, currentUser, isSessionBootstrapping } = useSession();
+  const hasCompletedRef = useRef(false);
   const [error, setError] = useState("");
   const redirect = getSafeRedirect(searchParams) ?? "/home";
   const providerError = searchParams.get("error");
@@ -628,10 +629,17 @@ export function OAuthCallbackPage() {
         setError(friendlyOAuthCallbackError(providerError));
         return;
       }
+      if (isSessionBootstrapping || hasCompletedRef.current) return;
+      if (currentUser) {
+        navigate(redirect, { replace: true });
+        return;
+      }
+      hasCompletedRef.current = true;
       try {
         await completeOAuthSession();
         if (!cancelled) navigate(redirect, { replace: true });
       } catch {
+        hasCompletedRef.current = false;
         if (!cancelled) setError("트래블헌터 로그인 처리를 완료하지 못했어요. 다시 시도해 주세요.");
       }
     }
@@ -639,7 +647,7 @@ export function OAuthCallbackPage() {
     return () => {
       cancelled = true;
     };
-  }, [completeOAuthSession, navigate, providerError, redirect]);
+  }, [completeOAuthSession, currentUser, isSessionBootstrapping, navigate, providerError, redirect]);
 
   return (
     <section className="screen white prototype-auth-screen">
