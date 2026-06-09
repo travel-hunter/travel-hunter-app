@@ -35,6 +35,7 @@ describe("Travel Hunter app — AI results", () => {
       aiReview: "Day 1 오후 동선에 부담이 적은 후보입니다.",
       sourceProvider: "kakao_local",
       externalPlaceId: "spot-1",
+      sourceType: "freshCandidate" as const,
     };
     const initialTrip: Trip = {
       ...getPreviewTrip(),
@@ -80,6 +81,9 @@ describe("Travel Hunter app — AI results", () => {
         screen.getByRole("region", { name: "선택 후보 요약" }),
       ).toBeInTheDocument();
       expect(
+        screen.getByRole("region", { name: "추천 후보 출처 안내" }),
+      ).toHaveTextContent("새 장소 후보를 불러왔어요");
+      expect(
         screen.getByRole("region", { name: "명소 후보" }),
       ).toBeInTheDocument();
       expect(document.body).toHaveTextContent("속초 전망대");
@@ -103,6 +107,7 @@ describe("Travel Hunter app — AI results", () => {
         "ai-candidate-card-kakao_local:spot-1",
       );
       expect(within(candidateCard).getByText("전망대")).toBeInTheDocument();
+      expect(within(candidateCard).getByText("Kakao Local")).toBeInTheDocument();
       expect(
         within(candidateCard).queryByText("강원 속초시 해안로 1"),
       ).not.toBeInTheDocument();
@@ -118,6 +123,49 @@ describe("Travel Hunter app — AI results", () => {
       expect(document.body).not.toHaveTextContent("추천 근거");
       expect(document.body).not.toHaveTextContent("추가 가능");
       expect(document.body).not.toHaveTextContent("장소 정보");
+    } finally {
+      listRecommendationsSpy.mockRestore();
+      getTripSpy.mockRestore();
+    }
+  });
+
+  it("explains when AI results are saved recommendation-summary fallback", async () => {
+    const recommendation = {
+      id: "saved-summary-1",
+      label: "attraction",
+      title: "저장된 추천 명소",
+      meta: "Day 1 · 생성 당시 추천",
+      reason: "일정 생성 시 저장된 추천 요약입니다.",
+      categoryGroup: "attraction" as const,
+      suggestedDay: 1,
+      sourceType: "savedSummary" as const,
+    };
+    const listRecommendationsSpy = vi
+      .spyOn(appDataApi, "listRecommendations")
+      .mockResolvedValue([recommendation]);
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue({
+      ...getPreviewTrip(),
+      id: "55",
+      days: { 1: [], 2: [] },
+    });
+
+    try {
+      await login();
+      cleanup();
+      renderAppRoute("/ai-results?tripId=55");
+
+      const sourceNotice = await screen.findByRole("region", {
+        name: "추천 후보 출처 안내",
+      });
+      expect(sourceNotice).toHaveTextContent("저장된 추천 요약을 보여드려요");
+      expect(sourceNotice).toHaveTextContent("새 Kakao 후보가 부족해");
+      const candidateCard = await screen.findByTestId(
+        "ai-candidate-card-saved-summary-1",
+      );
+      expect(within(candidateCard).getByText("저장 요약")).toBeInTheDocument();
+      expect(
+        screen.getByRole("region", { name: "선택 후보 요약" }),
+      ).toHaveTextContent("저장 요약");
     } finally {
       listRecommendationsSpy.mockRestore();
       getTripSpy.mockRestore();

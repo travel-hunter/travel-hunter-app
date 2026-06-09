@@ -1,11 +1,18 @@
 # Travel Hunter Next Work Plan
 
 > Status: active execution queue.
-> Use this document as the source of truth for current next-work priority. `docs/specs/spec-index.md` is a local UX spec index. Deployment and CI/CD work remains deferred under `docs/deployment-cicd/` unless explicitly reprioritized.
+> Use this document as the source of truth for current next-work priority. `docs/specs/spec-index.md` is a local UX spec index. Weekend Public v1 work has explicitly reprioritized external dependency, deployment, and release-gate evidence ahead of lower-priority local polish.
 
 ## Current Priority
 
-The current priority is local functional completion that can be verified without public DNS, Cloudflare, real SMTP sender-domain authentication, public OAuth redirect registration, or staging infrastructure.
+The current priority is Weekend Public v1 release execution for `travel-hunter.co.kr`. External dependency verification comes first because Public v1/Release Candidate cannot be claimed without public DNS/Cloudflare or equivalent HTTPS routing, SMTP/Brevo sender evidence, Google/Kakao OAuth public redirect smoke, policy collection/normalization/exposure evidence, and minimum log visibility.
+
+Current release-grade evidence:
+
+- Development domain evidence has improved on 2026-06-09: `dev.travel-hunter.co.kr` routes through Cloudflare Tunnel to Caddy, `/api/health` returns DB connected, Brevo SMTP password-reset smoke passed after credential rotation, Google OAuth browser login passed, Kakao OAuth browser login passed, Kakao OAuth now requests only `account_email`, and existing Kakao placeholder email accounts upgrade to verified Kakao email on the next successful login when no conflict exists.
+- Public v1 is still not proven for the production domain. Earlier 2026-06-09 public smoke for `travel-hunter.co.kr` failed because DNS did not resolve from the local environment; `/` and `/api/health` could not be reached.
+- Release Candidate is not currently proven for production. The dev environment has provider smoke evidence, but production-server access, production runtime env, production Cloudflare route, production OAuth redirect URI evidence, production policy collection/quality smoke, and production logs are still missing.
+- Local invite URL alignment and policy collection release-gate tests have been implemented and targeted validations passed, but those local/dev checks do not replace production-domain/provider evidence.
 
 Recently completed local UX work:
 
@@ -18,13 +25,16 @@ Recently completed local UX work:
 - Map bottom-sheet place detail opens an inspectable local detail dialog with day context, address, memo, coordinates, category, and Kakao Maps link.
 - Place Search/Add local UX from the itinerary editing flow uses recommendation candidates through `AppDataApi` and preserves Kakao place metadata when saving.
 - Kakao Local candidate smoke returns non-empty representative candidates with configured env, and catalog fallback remains non-empty for the same representative areas without Kakao Local credentials.
+- `/ai-results` distinguishes fresh Kakao-backed candidates from saved recommendation-summary fallback with API `sourceType`, source copy, and candidate badges.
 
-Immediate sequence:
+Immediate sequence for tomorrow:
 
-1. Keep the frontend validation baseline green as the entry gate for further UI work.
-2. Review `/ai-results` fallback-source communication so users can tell fresh Kakao-backed candidates from saved recommendation-summary fallback.
-3. Prepare policy list server search/pagination only when local policy volume makes client filtering uncomfortable.
-4. Revisit domain-dependent SMTP, OAuth, Cloudflare, deployment, and CI/CD smoke work after local UX completion.
+1. Production/development server split: confirm which machine is the development server and which is the production server, then clone/update the repo on the development server instead of continuing from a personal WSL environment.
+2. Move dev runtime evidence to the development server: create runtime-only `deploy/.env.prod` from the safe example, verify Cloudflare Tunnel token, Brevo SMTP, Google OAuth, Kakao OAuth `account_email`, Kakao Maps JS key/domain, Kakao Local REST key, CORS, secure refresh cookie, and public base URL without printing secrets.
+3. Reproduce dev smoke on the development server: `docker compose --env-file deploy/.env.prod -f compose.tunnel.yaml config`, build/up, Alembic upgrade, `/api/health`, Google browser login, Kakao browser login, Kakao placeholder-email upgrade, SMTP password-reset smoke, and Kakao Maps screen smoke.
+4. Run authenticated `/api/ops/external-collection` and `/api/ops/external-collection/quality` smoke on the deployed runtime with an approved bearer token, then record pass/fail without exposing the token.
+5. Only after the development server is stable, prepare production `travel-hunter.co.kr`: DNS/Tunnel public hostname, production OAuth redirect URIs, production env, production smoke, and logs.
+6. Keep local regression gates green while making release fixes: targeted backend pytest, backend-harness Vitest, `git diff --check`, UTF-8 scan, and then full frontend/backend gates before final release-grade claim.
 
 ## Active Planning Sources
 
@@ -39,15 +49,12 @@ Immediate sequence:
 
 ## Deferred Work
 
-The following work is intentionally lower priority for now:
+The following work remains lower priority than release blockers:
 
-- Cloudflare Tunnel staging full-up.
-- Public HTTPS route smoke.
-- Brevo sender-domain authentication and real password reset email smoke.
-- Kakao and Google OAuth provider smoke with public redirect URIs.
-- Live browser OAuth smoke remains credential-gated; local localhost start-route smoke is available through `scripts/oauth_local_smoke.py`.
 - SOLAPI SMS or Kakao AlimTalk real-provider smoke.
 - Jenkins or other CI/CD automation.
+- Policy list server search/pagination until local policy volume outgrows client filtering.
+- 친구 초대 email 발송은 SMTP가 dev에서 검증됐으므로 개발서버 smoke 이후 구현/검증 후보로 승격한다. email 외 SMS/Kakao 초대 발송은 후속 범위다.
 
 ## Guardrails
 

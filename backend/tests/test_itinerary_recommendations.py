@@ -102,6 +102,7 @@ def test_recommendation_from_candidate_includes_map_metadata() -> None:
     assert item["suggestedDay"] == 2
     assert item["sourceProvider"] == "kakao_local"
     assert item["externalPlaceId"] == "food-1"
+    assert item["sourceType"] == "freshCandidate"
 
 
 def _category_counts(candidates):

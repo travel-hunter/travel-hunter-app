@@ -74,7 +74,7 @@ def _provider_config(provider: str) -> OAuthProviderConfig:
             authorize_url="https://kauth.kakao.com/oauth/authorize",
             token_url="https://kauth.kakao.com/oauth/token",
             userinfo_url="https://kapi.kakao.com/v2/user/me",
-            scope="account_email profile_nickname",
+            scope="account_email",
         )
     if provider == "google":
         return OAuthProviderConfig(
@@ -154,9 +154,10 @@ def build_authorization_redirect(provider: str, redirect: str | None) -> OAuthSt
         "response_type": "code",
         "client_id": config.client_id,
         "redirect_uri": config.redirect_uri,
-        "scope": config.scope,
         "state": state_payload,
     }
+    if config.scope:
+        query["scope"] = config.scope
     if provider == "google":
         query["access_type"] = "offline"
         query["prompt"] = "consent"
@@ -225,6 +226,35 @@ def _extract_profile(provider: str, payload: dict[str, Any]) -> OAuthProfile:
     )
 
 
+def _kakao_placeholder_email(provider_id: str) -> str:
+    return f"kakao_{provider_id}@oauth.local"
+
+
+def _maybe_upgrade_kakao_placeholder_email(
+    db: Session,
+    user: UserModel,
+    *,
+    profile: OAuthProfile,
+) -> UserModel:
+    if not profile.email or not profile.email_verified:
+        return user
+
+    current_email = auth_service.normalize_email(user.email)
+    placeholder_email = _kakao_placeholder_email(profile.provider_id)
+    if current_email != placeholder_email:
+        return user
+
+    target_email = auth_service.normalize_email(profile.email)
+    if target_email == current_email:
+        return user
+
+    existing_user = user_repository.get_user_by_email(db, target_email)
+    if existing_user is not None and existing_user.id != user.id:
+        return user
+
+    return user_repository.update_user_email(db, user, email=target_email)
+
+
 def _find_or_create_user(
     db: Session,
     *,
@@ -237,7 +267,10 @@ def _find_or_create_user(
         provider_id=profile.provider_id,
     )
     if social_account is not None:
-        return social_account.user
+        user = social_account.user
+        if provider == "kakao":
+            user = _maybe_upgrade_kakao_placeholder_email(db, user, profile=profile)
+        return user
 
     if provider == "google" and (not profile.email or not profile.email_verified):
         raise OAuthServiceError(400, "OAuth email policy requires a verified Google email")
@@ -246,7 +279,7 @@ def _find_or_create_user(
         normalized_email = auth_service.normalize_email(profile.email)
         user = user_repository.get_user_by_email(db, normalized_email)
     elif provider == "kakao":
-        normalized_email = f"kakao_{profile.provider_id}@oauth.local"
+        normalized_email = _kakao_placeholder_email(profile.provider_id)
         user = None
     else:
         raise OAuthServiceError(400, "OAuth email policy requires a verified email")

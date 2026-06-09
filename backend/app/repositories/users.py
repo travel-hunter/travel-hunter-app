@@ -54,6 +54,19 @@ def update_user_password(
     return user
 
 
+def update_user_email(
+    db: Session,
+    user: User,
+    *,
+    email: str,
+) -> User:
+    user.email = email
+    user.updated_at = security.utc_now_naive()
+    db.add(user)
+    db.flush()
+    return user
+
+
 def get_social_account(
     db: Session,
     *,

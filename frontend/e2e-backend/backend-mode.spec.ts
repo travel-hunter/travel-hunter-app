@@ -123,7 +123,8 @@ test("backend data source drives policy, trip, recommendation, invite, and logou
 
   await page.goto(`/friend-invite?tripId=${tripId}`);
   await expect(page.locator(".invite-link")).toBeVisible();
-  await expect(page.locator(".invite-link span")).toContainText("travelhunter.app/i/");
+  await expect(page.locator(".invite-link span")).toContainText(`/invites/`);
+  await expect(page.locator(".invite-link span")).toContainText(`/accept`);
   await expect(page.getByRole("button", { name: "링크 복사" })).toBeVisible();
   await page.getByRole("button", { name: /초대 링크/ }).click();
   await expect(page.getByRole("button", { name: "초대 링크 준비 완료" })).toBeVisible();

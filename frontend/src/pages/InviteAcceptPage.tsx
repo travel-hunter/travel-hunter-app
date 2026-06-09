@@ -72,7 +72,7 @@ export function InviteAcceptPage() {
 
         {status === "error" && (
           <>
-            <ErrorState message="초대 링크를 찾을 수 없어요. 링크가 만료되었거나 다시 발급이 필요해요." />
+            <ErrorState message="초대 링크를 찾을 수 없어요. 링크가 만료되었거나 다시 발급이 필요해요. 초대한 친구에게 새 초대 링크를 요청해 주세요." />
             <div className="sheet-actions">
               <LinkButton to="/trips" full>
                 내 일정 보기

@@ -49,7 +49,7 @@ def invite_payload(trip_id: str = "7") -> dict[str, object]:
         "id": "9",
         "tripId": trip_id,
         "inviteToken": "abc",
-        "inviteUrl": "travelhunter.app/i/abc",
+        "inviteUrl": "http://127.0.0.1:5173/invites/abc/accept",
         "expiresAt": "2026-06-30T00:00:00Z",
         "createdAt": "2026-05-04T00:00:00Z",
         "acceptedAt": None,
@@ -545,6 +545,7 @@ def test_db_recommendation_and_invite_routes(monkeypatch) -> None:
 
     assert recommendations.status_code == 200
     assert recommendations.json()[0]["title"] == "Cafe"
+    assert "sourceType" in recommendations.json()[0]
     assert invite.status_code == 200
     assert invite.json()["tripId"] == "7"
     assert confirm.status_code == 200

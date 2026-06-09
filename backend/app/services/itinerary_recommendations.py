@@ -200,6 +200,7 @@ def recommendation_from_candidate(
         "aiReview": f"Day {suggested_day} 동선에 추가해도 부담이 적은 후보로 검토했습니다.",
         "sourceProvider": source_provider,
         "externalPlaceId": external_place_id,
+        "sourceType": "freshCandidate",
     }
 
 

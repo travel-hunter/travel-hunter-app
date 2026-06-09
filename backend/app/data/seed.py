@@ -62,7 +62,7 @@ TRIP = {
     "days": {
         1: [
             {"time": "09:00", "label": "성산 일출봉", "meta": "자연 · 관광지"},
-            {"time": "12:30", "label": "해녀의 집", "meta": "해산물 · 별점 4.7"},
+            {"time": "12:30", "label": "해녀의 집", "meta": "해산물 · 로컬 맛집"},
             {"time": "15:00", "label": "우도 코스", "meta": "반나절 동선 · 사진 명소"},
         ],
         2: [
@@ -99,7 +99,7 @@ RECOMMENDATIONS = [
     },
 ]
 
-INVITE_URL = "travelhunter.app/i/jeju-3d"
+INVITE_URL = "http://127.0.0.1:5173/invites/jeju-3d/accept"
 INVITE_TOKEN = "jeju-3d"
 INVITE_CREATED_AT = "2026-05-04T00:00:00Z"
 INVITE_EXPIRES_AT = "2026-06-30T23:59:59Z"

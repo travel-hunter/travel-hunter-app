@@ -5,6 +5,7 @@ import {
   appDataApi,
   type Recommendation,
   type RecommendationCategoryGroup,
+  type RecommendationSourceType,
   type Trip,
   type TripPlaceRequest,
 } from "../../api";
@@ -38,6 +39,49 @@ const categoryIcons: Record<RecommendationCategoryGroup | "other", string> = {
   attraction: "📍",
   other: "✨",
 };
+
+function recommendationSourceType(item: Recommendation): RecommendationSourceType {
+  if (item.sourceType === "freshCandidate" || item.sourceType === "savedSummary") {
+    return item.sourceType;
+  }
+  if (item.sourceProvider || item.externalPlaceId || item.placeUrl) return "freshCandidate";
+  return "savedSummary";
+}
+
+function recommendationSourceLabel(item: Recommendation): string {
+  if (recommendationSourceType(item) === "savedSummary") return "저장 요약";
+  if (item.sourceProvider === "kakao_local") return "Kakao Local";
+  return "새 후보";
+}
+
+function recommendationSourceNotice(recommendations: Recommendation[]): {
+  tone: "fresh" | "mixed" | "fallback";
+  title: string;
+  body: string;
+} {
+  const savedCount = recommendations.filter(
+    (item) => recommendationSourceType(item) === "savedSummary",
+  ).length;
+  if (savedCount === recommendations.length) {
+    return {
+      tone: "fallback",
+      title: "저장된 추천 요약을 보여드려요",
+      body: "새 Kakao 후보가 부족해 일정 생성 시 저장된 추천 설명을 표시합니다. 추가 전 실제 장소 정보와 위치를 한 번 더 확인해 주세요.",
+    };
+  }
+  if (savedCount > 0) {
+    return {
+      tone: "mixed",
+      title: "새 후보와 저장 요약이 함께 있어요",
+      body: "Kakao 기반 새 후보가 우선이며, 일부 카드는 일정 생성 때 저장된 추천 요약입니다.",
+    };
+  }
+  return {
+    tone: "fresh",
+    title: "새 장소 후보를 불러왔어요",
+    body: "현재 일정에 이미 있는 장소를 제외하고 Kakao 기반 후보를 다시 검토했습니다.",
+  };
+}
 
 function recommendationCategory(
   item: Recommendation,
@@ -239,6 +283,10 @@ export function AiResultsPage() {
     });
     return groups;
   }, [recommendations]);
+  const sourceNotice = useMemo(
+    () => recommendationSourceNotice(recommendations),
+    [recommendations],
+  );
 
   const selectCandidate = (itemKey: string) => {
     const item = recommendations.find(
@@ -347,168 +395,183 @@ export function AiResultsPage() {
           />
         )}
         {!isLoading && !error && recommendations.length > 0 && (
-          <div className="ai-results-layout ai-results-workspace ai-results-map-first">
+          <>
             <section
-              className="ai-map-column ai-map-column-primary"
-              aria-label="후보 지도 확인"
+              className={`ai-source-notice ai-source-notice-${sourceNotice.tone}`}
+              aria-label="추천 후보 출처 안내"
             >
-              <div className="ai-map-card">
-                <CandidateMap
-                  candidate={selectedMapCandidate}
-                  onSelect={(itemKey) => {
-                    if (itemKey) selectCandidate(itemKey);
-                    else {
-                      setSelectedCandidateKey(null);
-                      setDayPickerCandidateKey(null);
-                    }
-                  }}
-                  selectedKey={selectedCandidateKey}
-                />
-                <section
-                  className="ai-map-selected-summary"
-                  aria-label="선택 후보 요약"
-                  aria-live="polite"
-                >
-                  {selectedSummaryCandidate ? (
-                    <>
-                      <h2>{selectedSummaryCandidate.title}</h2>
-                      <p className="meta">
-                        {recommendationLocationLabel(selectedSummaryCandidate)}
-                      </p>
-                      <p className="meta">
-                        {recommendationPlaceDescription(
-                          selectedSummaryCandidate,
-                        )}
-                      </p>
-                      {selectedSummaryCandidate.placeUrl && (
-                        <a
-                          className="ai-map-selected-link"
-                          href={selectedSummaryCandidate.placeUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          카카오맵 보기
-                        </a>
-                      )}
-                    </>
-                  ) : (
-                    <strong>후보를 선택해 주세요</strong>
-                  )}
-                </section>
-              </div>
+              <strong>{sourceNotice.title}</strong>
+              <p>{sourceNotice.body}</p>
             </section>
-
-            <div className="ai-candidate-panel ai-planning-rail ai-candidate-list-compact">
-              {(
-                Object.keys(groupedRecommendations) as Array<
-                  RecommendationCategoryGroup | "other"
-                >
-              ).map((category) => {
-                const items = groupedRecommendations[category];
-                if (items.length === 0) return null;
-                return (
+            <div className="ai-results-layout ai-results-workspace ai-results-map-first">
+              <section
+                className="ai-map-column ai-map-column-primary"
+                aria-label="후보 지도 확인"
+              >
+                <div className="ai-map-card">
+                  <CandidateMap
+                    candidate={selectedMapCandidate}
+                    onSelect={(itemKey) => {
+                      if (itemKey) selectCandidate(itemKey);
+                      else {
+                        setSelectedCandidateKey(null);
+                        setDayPickerCandidateKey(null);
+                      }
+                    }}
+                    selectedKey={selectedCandidateKey}
+                  />
                   <section
-                    className="ai-category-section"
-                    aria-label={`${categoryLabels[category]} 후보`}
-                    key={category}
+                    className="ai-map-selected-summary"
+                    aria-label="선택 후보 요약"
+                    aria-live="polite"
                   >
-                    <div className="ai-category-head">
-                      <h3>{categoryLabels[category]}</h3>
-                      <Tag tone="gray">{items.length}곳</Tag>
-                    </div>
-                    {items.map(({ item, itemKey }) => {
-                      const alreadyAdded = tripHasRecommendation(
-                        activeTrip,
-                        item,
-                      );
-                      const isSelected = selectedCandidateKey === itemKey;
-                      const isDayPickerOpen =
-                        dayPickerCandidateKey === itemKey && !alreadyAdded;
-                      const isSaving = addingRecommendationKey === itemKey;
-                      const pickerDays =
-                        dayNumbers.length > 0
-                          ? dayNumbers
-                          : [recommendationDayNumber(item)];
-                      const className = [
-                        "ai-candidate-card",
-                        isSelected ? "active" : "",
-                        alreadyAdded ? "ai-candidate-card-added" : "",
-                        isDayPickerOpen ? "ai-candidate-card-picker-open" : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" ");
-                      return (
-                        <Fragment key={itemKey}>
-                          <div
-                            className={className}
-                            data-testid={`ai-candidate-card-${itemKey}`}
-                          >
-                            <button
-                              aria-label={`${item.title} 선택`}
-                              aria-pressed={isSelected}
-                              className="ai-candidate-select"
-                              disabled={isSaving}
-                              onClick={() => selectCandidate(itemKey)}
-                              type="button"
-                            >
-                              <span
-                                className="ai-candidate-icon"
-                                aria-hidden="true"
-                              >
-                                {categoryIcons[recommendationCategory(item)]}
-                              </span>
-                              <span className="ai-candidate-copy">
-                                <strong>{item.title}</strong>
-                                <span className="ai-candidate-review">
-                                  {recommendationCompactCategoryLabel(item)}
-                                </span>
-                              </span>
-                            </button>
-                            <span className="ai-candidate-actions">
-                              {alreadyAdded ? (
-                                <span className="ai-candidate-cta">
-                                  이미 추가됨
-                                </span>
-                              ) : (
-                                <button
-                                  aria-label={`${item.title} 추가`}
-                                  aria-controls={
-                                    isDayPickerOpen
-                                      ? "ai-inline-day-selector"
-                                      : undefined
-                                  }
-                                  aria-expanded={isDayPickerOpen}
-                                  className="ai-candidate-add-button"
-                                  disabled={isSaving}
-                                  onClick={() => openDayPicker(itemKey)}
-                                  type="button"
-                                >
-                                  {isSaving ? "추가 중" : "추가"}
-                                </button>
-                              )}
-                            </span>
-                          </div>
-                          {isDayPickerOpen && (
-                            <CandidateInlineDaySelector
-                              activeDay={pendingAddDay}
-                              candidate={item}
-                              dayNumbers={pickerDays}
-                              isSaving={isSaving}
-                              onAdd={() =>
-                                void addRecommendationToTrip(pendingAddDay)
-                              }
-                              onClose={() => setDayPickerCandidateKey(null)}
-                              onSelectDay={setPendingAddDay}
-                            />
+                    {selectedSummaryCandidate ? (
+                      <>
+                        <h2>{selectedSummaryCandidate.title}</h2>
+                        <span className="ai-source-chip">
+                          {recommendationSourceLabel(selectedSummaryCandidate)}
+                        </span>
+                        <p className="meta">
+                          {recommendationLocationLabel(selectedSummaryCandidate)}
+                        </p>
+                        <p className="meta">
+                          {recommendationPlaceDescription(
+                            selectedSummaryCandidate,
                           )}
-                        </Fragment>
-                      );
-                    })}
+                        </p>
+                        {selectedSummaryCandidate.placeUrl && (
+                          <a
+                            className="ai-map-selected-link"
+                            href={selectedSummaryCandidate.placeUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            카카오맵 보기
+                          </a>
+                        )}
+                      </>
+                    ) : (
+                      <strong>후보를 선택해 주세요</strong>
+                    )}
                   </section>
-                );
-              })}
+                </div>
+              </section>
+
+              <div className="ai-candidate-panel ai-planning-rail ai-candidate-list-compact">
+                {(
+                  Object.keys(groupedRecommendations) as Array<
+                    RecommendationCategoryGroup | "other"
+                  >
+                ).map((category) => {
+                  const items = groupedRecommendations[category];
+                  if (items.length === 0) return null;
+                  return (
+                    <section
+                      className="ai-category-section"
+                      aria-label={`${categoryLabels[category]} 후보`}
+                      key={category}
+                    >
+                      <div className="ai-category-head">
+                        <h3>{categoryLabels[category]}</h3>
+                        <Tag tone="gray">{items.length}곳</Tag>
+                      </div>
+                      {items.map(({ item, itemKey }) => {
+                        const alreadyAdded = tripHasRecommendation(
+                          activeTrip,
+                          item,
+                        );
+                        const isSelected = selectedCandidateKey === itemKey;
+                        const isDayPickerOpen =
+                          dayPickerCandidateKey === itemKey && !alreadyAdded;
+                        const isSaving = addingRecommendationKey === itemKey;
+                        const pickerDays =
+                          dayNumbers.length > 0
+                            ? dayNumbers
+                            : [recommendationDayNumber(item)];
+                        const className = [
+                          "ai-candidate-card",
+                          isSelected ? "active" : "",
+                          alreadyAdded ? "ai-candidate-card-added" : "",
+                          isDayPickerOpen ? "ai-candidate-card-picker-open" : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ");
+                        return (
+                          <Fragment key={itemKey}>
+                            <div
+                              className={className}
+                              data-testid={`ai-candidate-card-${itemKey}`}
+                            >
+                              <button
+                                aria-label={`${item.title} 선택`}
+                                aria-pressed={isSelected}
+                                className="ai-candidate-select"
+                                disabled={isSaving}
+                                onClick={() => selectCandidate(itemKey)}
+                                type="button"
+                              >
+                                <span
+                                  className="ai-candidate-icon"
+                                  aria-hidden="true"
+                                >
+                                  {categoryIcons[recommendationCategory(item)]}
+                                </span>
+                                <span className="ai-candidate-copy">
+                                  <strong>{item.title}</strong>
+                                  <span className="ai-candidate-review">
+                                    {recommendationCompactCategoryLabel(item)}
+                                  </span>
+                                  <span className="ai-source-chip">
+                                    {recommendationSourceLabel(item)}
+                                  </span>
+                                </span>
+                              </button>
+                              <span className="ai-candidate-actions">
+                                {alreadyAdded ? (
+                                  <span className="ai-candidate-cta">
+                                    이미 추가됨
+                                  </span>
+                                ) : (
+                                  <button
+                                    aria-label={`${item.title} 추가`}
+                                    aria-controls={
+                                      isDayPickerOpen
+                                        ? "ai-inline-day-selector"
+                                        : undefined
+                                    }
+                                    aria-expanded={isDayPickerOpen}
+                                    className="ai-candidate-add-button"
+                                    disabled={isSaving}
+                                    onClick={() => openDayPicker(itemKey)}
+                                    type="button"
+                                  >
+                                    {isSaving ? "추가 중" : "추가"}
+                                  </button>
+                                )}
+                              </span>
+                            </div>
+                            {isDayPickerOpen && (
+                              <CandidateInlineDaySelector
+                                activeDay={pendingAddDay}
+                                candidate={item}
+                                dayNumbers={pickerDays}
+                                isSaving={isSaving}
+                                onAdd={() =>
+                                  void addRecommendationToTrip(pendingAddDay)
+                                }
+                                onClose={() => setDayPickerCandidateKey(null)}
+                                onSelectDay={setPendingAddDay}
+                              />
+                            )}
+                          </Fragment>
+                        );
+                      })}
+                    </section>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          </>
         )}
         {notice && <Toast>{notice}</Toast>}
       </div>

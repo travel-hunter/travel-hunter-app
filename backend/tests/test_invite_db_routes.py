@@ -26,7 +26,7 @@ def invite_payload() -> dict[str, object]:
         "id": "9",
         "tripId": "7",
         "inviteToken": "abc",
-        "inviteUrl": "travelhunter.app/i/abc",
+        "inviteUrl": "http://127.0.0.1:5173/invites/abc/accept",
         "expiresAt": "2026-06-30T00:00:00Z",
         "createdAt": "2026-05-04T00:00:00Z",
         "acceptedAt": "2026-05-05T00:00:00Z",
