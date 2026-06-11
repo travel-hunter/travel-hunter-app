@@ -10,7 +10,7 @@ def make_record(
     tags: list[str] | None = None,
     source_category: str = "regional_benefit",
     detail_url: str | None = None,
-    collected_page_url: str = "https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+    collected_page_url: str = "https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
 ) -> ExternalSourceRecord:
     return ExternalSourceRecord(
         source_name="여행가는 달",
@@ -69,3 +69,4 @@ def test_source_category_boosts_do_not_override_stronger_title_signal() -> None:
     assert classify("남도 기차둘레길 할인", source_category="regional_benefit") == "교통"
     assert classify("합천 반값여행 지원", source_category="local_half_trip") == "지역할인"
     assert classify("테마열차 할인", source_category="traffic_benefit") == "교통"
+    assert classify("여행가는 달 할인권", source_category="stay_discount") == "숙박"

@@ -6,12 +6,15 @@ import traceback
 from collections.abc import Sequence
 
 from app.db.session import get_session_factory
-from app.services.travelmonth_live_collector import collect_regional_benefits_from_live_source
+from app.services.external_benefit_collection import collect_external_benefits_from_live_sources
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Fetch the official TravelMonth regional benefit page once and upsert parsed records.",
+        description=(
+            "Fetch official external policy benefit sources once, upsert parsed records, "
+            "and promote active/fresh records into public policies."
+        ),
     )
     parser.add_argument(
         "--timeout",
@@ -32,7 +35,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     session_factory = get_session_factory()
     try:
         with session_factory() as db:
-            result = collect_regional_benefits_from_live_source(db, timeout=args.timeout)
+            result = collect_external_benefits_from_live_sources(db, timeout=args.timeout)
     except Exception as error:
         payload = {"error": str(error)}
         if args.verbose:
@@ -47,6 +50,17 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "sourceCategory": result.source_category,
                 "parsedCount": result.parsed_count,
                 "createdOrUpdatedCount": result.created_or_updated_count,
+                "outcome": result.outcome,
+                "sources": [
+                    {
+                        "sourceCategory": source.source_category,
+                        "parsedCount": source.parsed_count,
+                        "createdOrUpdatedCount": source.created_or_updated_count,
+                        "outcome": source.outcome,
+                        "error": source.error,
+                    }
+                    for source in result.sources
+                ],
             },
             ensure_ascii=False,
             sort_keys=True,

@@ -10,7 +10,7 @@ from app.services import policy_normalization
 from app.services.travelmonth_parser import parse_regional_benefits
 
 
-TRAVELMONTH_REGIONAL_BENEFIT_URL = "https://korean.visitkorea.or.kr/travelmonth/benefit.do"
+TRAVELMONTH_REGIONAL_BENEFIT_URL = "https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do"
 
 
 @dataclass(frozen=True)

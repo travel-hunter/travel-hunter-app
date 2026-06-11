@@ -1,6 +1,6 @@
 ﻿import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate, useParams } from "react-router-dom";
-import { appDataApi, type AdminAuditLogListItem, type AdminExternalSourceSummaryResponse, type AdminPolicyDetail, type AdminPolicyListItem, type AdminPolicyStatus, type AdminUserDetail, type AdminUserListItem } from "../../api";
+import { appDataApi, type AdminAuditLogListItem, type AdminExternalSourceSummaryResponse, type AdminPolicyDetail, type AdminPolicyListItem, type AdminPolicyStatus, type AdminUserDetail, type AdminUserListItem, type ExternalCollectionOpsHealth, type ExternalCollectionRunResponse } from "../../api";
 
 function adminNavClass({ isActive }: { isActive: boolean }) {
   return isActive ? "admin-nav-link active" : "admin-nav-link";
@@ -64,20 +64,48 @@ export function AdminForbiddenPage() {
 
 export function AdminDashboardPage() {
   const [summary, setSummary] = useState<AdminExternalSourceSummaryResponse | null>(null);
+  const [opsHealth, setOpsHealth] = useState<ExternalCollectionOpsHealth | null>(null);
+  const [runResult, setRunResult] = useState<ExternalCollectionRunResponse | null>(null);
   const [summaryError, setSummaryError] = useState("");
+  const [isRunningCollection, setIsRunningCollection] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setSummaryError("");
-    appDataApi.getAdminExternalSourceSummary()
-      .then((response) => {
-        if (!cancelled) setSummary(response);
+    Promise.all([
+      appDataApi.getAdminExternalSourceSummary(),
+      appDataApi.getExternalCollectionOpsHealth(),
+    ])
+      .then(([summaryResponse, healthResponse]) => {
+        if (cancelled) return;
+        setSummary(summaryResponse);
+        setOpsHealth(healthResponse);
       })
       .catch(() => {
         if (!cancelled) setSummaryError("외부 정책 수집 상태를 불러오지 못했습니다.");
       });
     return () => { cancelled = true; };
   }, []);
+
+  const runCollection = async () => {
+    setIsRunningCollection(true);
+    setSummaryError("");
+    setRunResult(null);
+    try {
+      const result = await appDataApi.runExternalCollection();
+      const [summaryResponse, healthResponse] = await Promise.all([
+        appDataApi.getAdminExternalSourceSummary(),
+        appDataApi.getExternalCollectionOpsHealth(),
+      ]);
+      setRunResult(result);
+      setSummary(summaryResponse);
+      setOpsHealth(healthResponse);
+    } catch {
+      setSummaryError("외부 정책 수집 실행에 실패했습니다. 공식 사이트 연결과 서버 로그를 확인하세요.");
+    } finally {
+      setIsRunningCollection(false);
+    }
+  };
 
   return (
     <section className="admin-page">
@@ -110,9 +138,24 @@ export function AdminDashboardPage() {
             <p>External sources</p>
             <h2>외부 정책 수집 상태</h2>
           </div>
-          <span>최근 확인 {formatAdminDateTime(summary?.latestFetchedAt ?? null)}</span>
+          <div className="admin-section-actions">
+            <span>최근 확인 {formatAdminDateTime(summary?.latestFetchedAt ?? null)}</span>
+            <button className="btn secondary" type="button" onClick={runCollection} disabled={isRunningCollection}>
+              {isRunningCollection ? "수집 중" : "지금 수집 실행"}
+            </button>
+          </div>
         </div>
         {summaryError && <p className="form-error">{summaryError}</p>}
+        {opsHealth && (
+          <p className="admin-muted">
+            자동 수집 {opsHealth.schedulerEnabled ? "켜짐" : "꺼짐"} · 실행 시각 {opsHealth.runAt} · 마지막 결과 {opsHealth.lastOutcome ?? "기록 없음"}
+          </p>
+        )}
+        {runResult && (
+          <p className="admin-notice">
+            수집 결과 {runResult.outcome} · 파싱 {runResult.parsedCount}건 · 반영 {runResult.createdOrUpdatedCount}건
+          </p>
+        )}
         {summary && (
           <>
             <div className="admin-source-overview">

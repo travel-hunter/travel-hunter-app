@@ -1,6 +1,9 @@
 from datetime import date, datetime
 
-from app.services.travelmonth_collection import collect_regional_benefits_from_html
+from app.services.travelmonth_collection import (
+    TRAVELMONTH_REGIONAL_BENEFIT_URL,
+    collect_regional_benefits_from_html,
+)
 
 
 class FakeDb:
@@ -9,6 +12,13 @@ class FakeDb:
 
     def commit(self) -> None:
         self.commits += 1
+
+
+def test_regional_benefit_source_url_uses_vacation_benefit_page() -> None:
+    assert (
+        TRAVELMONTH_REGIONAL_BENEFIT_URL
+        == "https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do"
+    )
 
 
 def test_collect_regional_benefits_from_html_parses_and_upserts(monkeypatch) -> None:

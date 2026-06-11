@@ -337,7 +337,10 @@ export function AiResultsPage() {
       const nextTrip = await appDataApi.addTripPlace(
         activeTripId,
         dayNumber,
-        recommendationPlacePayload(dayPickerCandidate),
+        {
+          ...recommendationPlacePayload(dayPickerCandidate),
+          expectedRevision: activeTrip?.revision ?? 1,
+        },
       );
       const refreshedTrip = await appDataApi
         .getTrip(activeTripId)

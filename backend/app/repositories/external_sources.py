@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.models import ExternalSourceRecord
@@ -12,12 +12,17 @@ from app.schemas.external_sources import ExternalBenefitSource
 EXTERNAL_POLICY_SLUG_PREFIX = "travelmonth-"
 POLICY_PROMOTION_SOURCE_CATEGORIES = (
     "regional_benefit",
-    "traffic_benefit",
     "local_half_trip",
+    "stay_discount",
+)
+POLICY_DEACTIVATION_SOURCE_CATEGORIES = (
+    *POLICY_PROMOTION_SOURCE_CATEGORIES,
+    "traffic_benefit",
 )
 RECOMMENDATION_SOURCE_CATEGORIES = (
     "regional_benefit",
     "local_half_trip",
+    "stay_discount",
 )
 
 
@@ -116,10 +121,13 @@ def list_policy_deactivation_records(
 ) -> list[ExternalSourceRecord]:
     statement = (
         select(ExternalSourceRecord)
-        .where(ExternalSourceRecord.source_category.in_(POLICY_PROMOTION_SOURCE_CATEGORIES))
+        .where(ExternalSourceRecord.source_category.in_(POLICY_DEACTIVATION_SOURCE_CATEGORIES))
         .where(
-            (ExternalSourceRecord.status != "active")
-            | (ExternalSourceRecord.freshness_status != "fresh")
+            or_(
+                ExternalSourceRecord.source_category.not_in(POLICY_PROMOTION_SOURCE_CATEGORIES),
+                ExternalSourceRecord.status != "active",
+                ExternalSourceRecord.freshness_status != "fresh",
+            )
         )
         .order_by(ExternalSourceRecord.id)
     )
@@ -143,6 +151,7 @@ def get_external_source_record_by_policy_slug(
                 (
                     "regional_benefit",
                     "local_half_trip",
+                    "stay_discount",
                 )
             )
         )

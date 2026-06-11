@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from collections import defaultdict
 from datetime import date, datetime
@@ -53,6 +53,7 @@ SOURCE_CATEGORY_LABELS = {
     "regional_benefit": "여행가는 달",
     "traffic_benefit": "교통혜택",
     "local_half_trip": "반값여행",
+    "stay_discount": "숙박세일 페스타",
 }
 
 def _source_label(source_category: str | None) -> str:

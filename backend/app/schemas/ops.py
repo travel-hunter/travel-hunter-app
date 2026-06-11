@@ -17,6 +17,23 @@ class ExternalCollectionOpsHealth(BaseModel):
     lastError: str | None
 
 
+class ExternalCollectionSourceRunResult(BaseModel):
+    sourceCategory: str
+    parsedCount: int
+    createdOrUpdatedCount: int
+    outcome: str
+    error: str | None = None
+
+
+class ExternalCollectionRunResponse(BaseModel):
+    sourceName: str
+    sourceCategory: str
+    parsedCount: int
+    createdOrUpdatedCount: int
+    outcome: str
+    sources: list[ExternalCollectionSourceRunResult]
+
+
 class ExternalCollectionRegionQuality(BaseModel):
     region: str
     totalRecords: int

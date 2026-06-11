@@ -78,6 +78,7 @@ SOURCE_CATEGORY_BOOSTS: dict[str, tuple[tuple[str, int, str], ...]] = {
         ("여행상품", 1, "source_category:local_half_trip"),
     ),
     "regional_benefit": (("지역할인", 1, "source_category:regional_benefit"),),
+    "stay_discount": (("숙박", 15, "source_category:stay_discount"),),
 }
 
 URL_CATEGORY_BOOSTS: dict[str, tuple[str, int]] = {
