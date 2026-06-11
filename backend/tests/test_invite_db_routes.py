@@ -33,6 +33,7 @@ def invite_payload() -> dict[str, object]:
         "invited": True,
         "copied": False,
         "role": "viewer",
+        "alreadyMember": False,
     }
 
 

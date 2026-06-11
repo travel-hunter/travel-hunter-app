@@ -24,6 +24,7 @@ export function App() {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/oauth/:provider/start" element={<OAuthStartPage />} />
         <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
+        <Route path="/invites/:inviteToken/accept" element={<InviteAcceptPage />} />
       </Route>
       <Route element={<ProtectedRoute />}>
         <Route element={<AdminRoute />}>
@@ -50,7 +51,6 @@ export function App() {
           <Route path="/trips/:tripId" element={<ItineraryDetailPage />} />
           <Route path="/ai-results" element={<AiResultsPage />} />
           <Route path="/friend-invite" element={<FriendInvitePage />} />
-          <Route path="/invites/:inviteToken/accept" element={<InviteAcceptPage />} />
           <Route path="/applied-policies" element={<AppliedPolicyLinksPage />} />
           <Route path="/mypage" element={<MyPage />} />
         </Route>

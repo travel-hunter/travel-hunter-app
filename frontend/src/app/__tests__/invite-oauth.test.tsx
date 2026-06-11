@@ -18,6 +18,23 @@ import {
 } from "../../test/fixtures";
 import { login, renderAppRoute } from "../../test/renderAppRoute";
 
+function makeInviteState(overrides: Partial<InviteState> = {}): InviteState {
+  return {
+    id: "9",
+    tripId: "55",
+    inviteToken: "abc",
+    inviteUrl: "http://127.0.0.1:5173/invites/abc/accept",
+    expiresAt: "2026-06-30T00:00:00Z",
+    createdAt: "2026-05-04T00:00:00Z",
+    acceptedAt: null,
+    invited: false,
+    copied: false,
+    role: "editor",
+    alreadyMember: false,
+    ...overrides,
+  };
+}
+
 describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
   it("saves profile setup choices before showing the personalized home", async () => {
     await login();
@@ -57,18 +74,7 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
       id: "55",
       title: "Invite role trip",
     };
-    const inviteState: InviteState = {
-      id: "9",
-      tripId: "55",
-      inviteToken: "abc",
-      inviteUrl: "http://127.0.0.1:5173/invites/abc/accept",
-      expiresAt: "2026-06-30T00:00:00Z",
-      createdAt: "2026-05-04T00:00:00Z",
-      acceptedAt: null,
-      invited: false,
-      copied: false,
-      role: "editor",
-    };
+    const inviteState = makeInviteState();
     const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(trip);
     const getInviteSpy = vi
       .spyOn(appDataApi, "getInviteState")
@@ -389,12 +395,17 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
     renderAppRoute("/invites/jeju-3d/accept");
 
     await waitFor(() =>
-      expect(document.querySelector('input[type="email"]')).toBeTruthy(),
+      expect(screen.getByText("트래블헌터 일정 초대입니다")).toBeInTheDocument(),
     );
 
-    await userEvent
-      .setup()
-      .click(screen.getByRole("button", { name: "회원가입" }));
+    expect(
+      screen.getByText("일정 상세 내용은 로그인 또는 회원가입 후 초대를 수락한 뒤 확인할 수 있습니다."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("초대가 만료됐으면 초대한 사람에게 새 초대 링크를 요청하세요."),
+    ).toBeInTheDocument();
+
+    await userEvent.setup().click(screen.getByRole("link", { name: "회원가입하고 수락하기" }));
     await waitFor(() =>
       expect(
         screen.getByRole("heading", { name: "회원가입" }),
@@ -412,18 +423,7 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
       id: "55",
       title: "Invite share trip",
     };
-    const inviteState: InviteState = {
-      id: "9",
-      tripId: "55",
-      inviteToken: "abc",
-      inviteUrl: "http://127.0.0.1:5173/invites/abc/accept",
-      expiresAt: "2026-06-30T00:00:00Z",
-      createdAt: "2026-05-04T00:00:00Z",
-      acceptedAt: null,
-      invited: false,
-      copied: false,
-      role: "editor",
-    };
+    const inviteState = makeInviteState();
     const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(trip);
     const getInviteSpy = vi
       .spyOn(appDataApi, "getInviteState")
@@ -453,6 +453,77 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
     }
   });
 
+  it("sends an invite email while preserving the fallback invite link", async () => {
+    const trip: Trip = {
+      ...getPreviewTrip(),
+      id: "55",
+      title: "Invite email trip",
+    };
+    const inviteState = makeInviteState();
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(trip);
+    const getInviteSpy = vi.spyOn(appDataApi, "getInviteState").mockResolvedValue(inviteState);
+    const sendInviteEmailSpy = vi.spyOn(appDataApi, "sendInviteEmail").mockResolvedValue({
+      invite: { ...inviteState, invited: true, role: "viewer" },
+      deliveryStatus: "notConfigured",
+      message: "Email delivery is not configured.",
+    });
+
+    try {
+      await login();
+      cleanup();
+      renderAppRoute("/friend-invite?tripId=55");
+      const user = userEvent.setup();
+
+      await waitFor(() => expect(getInviteSpy).toHaveBeenCalledWith("55"));
+      await user.click(await screen.findByRole("button", { name: /보기만 가능/ }));
+      await user.type(screen.getByRole("textbox", { name: "친구 email" }), "friend@example.com");
+      await user.click(screen.getByRole("button", { name: "email 초대 보내기" }));
+
+      await waitFor(() =>
+        expect(sendInviteEmailSpy).toHaveBeenCalledWith("55", {
+          email: "friend@example.com",
+          role: "viewer",
+        }),
+      );
+      expect(await screen.findByText("email 발송 설정이 아직 없어요. 아래 초대 링크를 복사해 직접 보내 주세요.")).toBeInTheDocument();
+      expect(document.body).toHaveTextContent("http://127.0.0.1:5173/invites/abc/accept");
+    } finally {
+      getTripSpy.mockRestore();
+      getInviteSpy.mockRestore();
+      sendInviteEmailSpy.mockRestore();
+    }
+  });
+
+  it("blocks direct friend invite management for non-owner trip members", async () => {
+    const trip: Trip = {
+      ...getPreviewTrip(),
+      id: "55",
+      currentUserRole: "editor",
+      title: "Editor member trip",
+    };
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(trip);
+    const getInviteSpy = vi.spyOn(appDataApi, "getInviteState").mockRejectedValue(new Error("Trip not found"));
+    const confirmInviteSpy = vi.spyOn(appDataApi, "confirmInviteSent");
+    const sendInviteEmailSpy = vi.spyOn(appDataApi, "sendInviteEmail");
+
+    try {
+      await login();
+      cleanup();
+      renderAppRoute("/friend-invite?tripId=55");
+
+      expect(await screen.findByText("친구 초대는 일정 소유자만 관리할 수 있어요. 일정 상세로 돌아가 현재 권한을 확인해 주세요.")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "초대 링크 활성화" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "email 초대 보내기" })).not.toBeInTheDocument();
+      expect(confirmInviteSpy).not.toHaveBeenCalled();
+      expect(sendInviteEmailSpy).not.toHaveBeenCalled();
+    } finally {
+      getTripSpy.mockRestore();
+      getInviteSpy.mockRestore();
+      confirmInviteSpy.mockRestore();
+      sendInviteEmailSpy.mockRestore();
+    }
+  });
+
   it("accepts a valid invite after login and links to the joined trip", async () => {
     renderAppRoute("/login?redirect=/invites/jeju-3d/accept");
 
@@ -470,7 +541,7 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
     );
 
     await waitFor(() =>
-      expect(document.body).toHaveTextContent("초대를 수락했어요"),
+      expect(document.body).toHaveTextContent(/초대를 수락했어요|이미 참여 중인 일정입니다/),
     );
     const tripLink = await waitFor(() => {
       const link = document.querySelector('a[href^="/trips/"]');
