@@ -26,12 +26,12 @@ def make_source(**overrides) -> ExternalBenefitSource:
     data = {
         "source_name": "여행가는 달",
         "source_type": "official_campaign",
-        "source_url": "https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+        "source_url": "https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
         "source_category": "regional_benefit",
         "external_id": "external-1",
         "canonical_key": "canonical-1",
         "detail_url": "https://www.yw.go.kr",
-        "collected_page_url": "https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+        "collected_page_url": "https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
         "title": "영월박물관 사진 체험 할인",
         "organizer_text": "강원특별자치도, 영월군",
         "organizers": ["강원특별자치도", "영월군"],
@@ -138,6 +138,24 @@ def test_policy_slug_fallback_excludes_non_active_or_non_fresh_records(db: Sessi
     assert [
         get_external_source_record_by_policy_slug(db, f"travelmonth-{row.id}") for row in rows
     ] == [None, None, None, None]
+
+
+def test_policy_slug_fallback_allows_active_fresh_stay_discount(db: Session) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                source_category="stay_discount",
+                external_id="stay-1",
+                canonical_key="stay-1",
+            )
+        ],
+    )
+
+    found = get_external_source_record_by_policy_slug(db, f"travelmonth-{rows[0].id}")
+
+    assert found is not None
+    assert found.source_category == "stay_discount"
 
 
 def test_policy_slug_fallback_excludes_active_fresh_traffic_benefit(db: Session) -> None:

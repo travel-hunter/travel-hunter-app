@@ -119,7 +119,7 @@ def test_db_mode_policy_list_can_return_collected_external_benefits(monkeypatch)
                 "category": "지역할인",
                 "requirements": ["공식 안내에서 신청 조건을 확인하세요."],
                 "documents": ["혜택 안내 확인"],
-                "officialUrl": "https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+                "officialUrl": "https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
                 "applyUrl": None,
                 "sourceType": "external",
             }

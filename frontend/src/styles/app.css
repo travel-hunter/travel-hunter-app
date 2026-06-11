@@ -8089,9 +8089,23 @@ a.prototype-stat-card:active {
   font-weight: 900;
 }
 
-.admin-section-head > span {
+.admin-section-head > span,
+.admin-section-actions > span {
   color: #8c8ca1;
   font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-muted {
+  margin: 0 0 12px;
+  color: #6f6f84;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -8210,6 +8224,7 @@ a.prototype-stat-card:active {
 
 @media (max-width: 720px) {
   .admin-section-head,
+  .admin-section-actions,
   .admin-source-card > div:first-child {
     align-items: flex-start;
     flex-direction: column;

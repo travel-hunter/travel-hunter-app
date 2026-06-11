@@ -13,6 +13,7 @@ from app.schemas.trip import (
     CreateTripPlaceRequest,
     CreateTripRequest,
     MoveTripPlaceRequest,
+    SendInviteEmailRequest,
     UpdateTripPlaceRequest,
     UpdateTripStatusRequest,
 )
@@ -31,6 +32,19 @@ def make_user(user_id: int = 1, nickname: str = "Test User") -> UserModel:
     )
 
 
+def make_invite(*, role: str = "editor", accepted_at: datetime | None = None) -> TripInvite:
+    return TripInvite(
+        id=9,
+        trip_id=7,
+        invite_token="abc",
+        created_by=1,
+        role=role,
+        created_at=datetime(2026, 5, 4, 0, 0, 0),
+        expires_at=datetime(2026, 6, 30, 0, 0, 0),
+        accepted_at=accepted_at,
+    )
+
+
 def make_trip() -> Trip:
     owner = make_user(1, "Test User")
     friend = make_user(2, "Minseo")
@@ -39,6 +53,7 @@ def make_trip() -> Trip:
         owner_id=1,
         title="Jeju 3-day trip",
         status="confirmed",
+        revision=1,
         start_date=date(2026, 6, 15),
         end_date=date(2026, 6, 17),
         region="Jeju",
@@ -122,6 +137,7 @@ def test_trip_to_api_returns_numeric_string_id_and_contract_shape() -> None:
     assert payload["id"] == "7"
     assert payload["title"] == "Jeju 3-day trip"
     assert payload["status"] == "confirmed"
+    assert payload["revision"] == 1
     assert payload["travelAreaId"] is None
     assert payload["dates"] == "2026.06.15 - 06.17"
     assert payload["people"] == ["Test User", "Minseo"]
@@ -419,15 +435,6 @@ def test_get_trip_recommendations_ignore_raw_collected_benefits(monkeypatch) -> 
     user = make_user()
     trip = make_trip()
     trip.region = "부산"
-    external_record = ExternalSourceRecord(
-        id=58,
-        title="부산 야간관광 여행가는 달 할인",
-        region="부산",
-        is_nationwide=False,
-        benefit_text="부산 야간관광 상품 할인",
-        benefit_value_text="최대 2만원",
-        end_date=date(2026, 6, 30),
-    )
 
     monkeypatch.setattr(
         trip_service.trip_repository,
@@ -443,16 +450,6 @@ def test_get_trip_recommendations_ignore_raw_collected_benefits(monkeypatch) -> 
 
     assert payload is not None
     assert payload["recommendedPolicies"] == []
-    return
-
-    assert payload["recommendedPolicies"] == [
-        {
-            "slug": "travelmonth-58",
-            "title": "부산 야간관광 여행가는 달 할인",
-            "amount": "최대 2만원",
-            "region": "부산",
-        }
-    ]
 
 
 def test_get_trip_recommends_normalized_travelmonth_policy(monkeypatch) -> None:
@@ -521,6 +518,9 @@ def test_get_trip_rejects_noncanonical_and_non_numeric_handles(monkeypatch) -> N
 class FakeDb:
     def __init__(self) -> None:
         self.commits = 0
+
+    def execute(self, *_args, **_kwargs):
+        return SimpleNamespace(rowcount=1)
 
     def commit(self) -> None:
         self.commits += 1
@@ -781,6 +781,7 @@ def test_add_place_to_trip_day_persists_place_and_returns_updated_trip(monkeypat
         "7",
         1,
         CreateTripPlaceRequest(
+            expectedRevision=1,
             time="14:30",
             label="Cafe stop",
             meta="Dessert",
@@ -1076,7 +1077,7 @@ def test_update_trip_place_changes_existing_place(monkeypatch) -> None:
         user,
         "7",
         1,
-        UpdateTripPlaceRequest(time="10:15", label="Updated peak", meta="New memo"),
+        UpdateTripPlaceRequest(expectedRevision=1, time="10:15", label="Updated peak", meta="New memo"),
     )
 
     updated = payload["days"][1][0]
@@ -1084,7 +1085,38 @@ def test_update_trip_place_changes_existing_place(monkeypatch) -> None:
     assert updated["time"] == "10:15"
     assert updated["label"] == "Updated peak"
     assert updated["meta"] == "New memo"
+    assert payload["revision"] == 2
     assert fake_db.commits == 1
+
+
+def test_update_trip_place_rejects_stale_revision_without_mutating(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda *_args, **_kwargs: trip,
+    )
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "bump_trip_revision_if_current",
+        lambda *_args, **_kwargs: False,
+    )
+
+    with pytest.raises(trip_service.TripServiceError) as error:
+        trip_service.update_trip_place(
+            fake_db,
+            user,
+            "7",
+            1,
+            UpdateTripPlaceRequest(expectedRevision=1, label="Stale edit"),
+        )
+
+    assert error.value.status_code == 409
+    assert error.value.detail == "Trip has changed. Refresh before saving."
+    assert trip.days[0].places[0].place_name == "Sunrise peak"
+    assert fake_db.commits == 0
 
 
 def test_move_trip_place_reorders_places_within_same_day(monkeypatch) -> None:
@@ -1112,7 +1144,7 @@ def test_move_trip_place_reorders_places_within_same_day(monkeypatch) -> None:
         user,
         "7",
         2,
-        MoveTripPlaceRequest(dayNumber=1, position=1),
+        MoveTripPlaceRequest(expectedRevision=1, dayNumber=1, position=1),
     )
 
     assert [place.order_num for place in trip.days[0].places] == [1, 2]
@@ -1148,7 +1180,7 @@ def test_move_trip_place_moves_place_to_another_day(monkeypatch) -> None:
         user,
         "7",
         1,
-        MoveTripPlaceRequest(dayNumber=2, position=2),
+        MoveTripPlaceRequest(expectedRevision=1, dayNumber=2, position=2),
     )
 
     moved_place = second_day.places[1]
@@ -1177,7 +1209,7 @@ def test_delete_trip_place_removes_existing_place(monkeypatch) -> None:
 
     monkeypatch.setattr(trip_service.trip_repository, "delete_trip_place", delete_place_stub)
 
-    payload = trip_service.delete_trip_place(fake_db, user, "7", 1)
+    payload = trip_service.delete_trip_place(fake_db, user, "7", 1, 1)
 
     assert deleted[0].id == 1
     assert payload["days"][1] == []
@@ -1200,22 +1232,22 @@ def test_trip_place_crud_returns_404_for_missing_day_or_place(monkeypatch) -> No
             user,
             "7",
             99,
-            CreateTripPlaceRequest(time="12:00", label="Missing day", meta=""),
+            CreateTripPlaceRequest(expectedRevision=1, time="12:00", label="Missing day", meta=""),
         ),
         lambda: trip_service.update_trip_place(
             fake_db,
             user,
             "7",
             999,
-            UpdateTripPlaceRequest(label="Missing place"),
+            UpdateTripPlaceRequest(expectedRevision=1, label="Missing place"),
         ),
-        lambda: trip_service.delete_trip_place(fake_db, user, "7", 999),
+        lambda: trip_service.delete_trip_place(fake_db, user, "7", 999, 1),
         lambda: trip_service.move_trip_place(
             fake_db,
             user,
             "7",
             1,
-            MoveTripPlaceRequest(dayNumber=99, position=1),
+            MoveTripPlaceRequest(expectedRevision=1, dayNumber=99, position=1),
         ),
     ):
         try:
@@ -1284,6 +1316,45 @@ def test_repository_add_trip_place_accepts_kakao_metadata(sqlite_db_session) -> 
     assert str(place.longitude) == "128.5901234"
 
 
+def test_repository_bump_trip_revision_if_current_is_atomic(sqlite_db_session) -> None:
+    user = UserModel(
+        email="owner-revision@example.com",
+        password_hash="hashed",
+        nickname="Owner",
+        onboarding_completed=True,
+    )
+    sqlite_db_session.add(user)
+    sqlite_db_session.flush()
+    trip = trip_service.trip_repository.create_trip(
+        sqlite_db_session,
+        owner_id=user.id,
+        title="Revision trip",
+        start_date=date(2026, 7, 12),
+        end_date=date(2026, 7, 13),
+        status="draft",
+        region="강원",
+        travel_area_id=None,
+        participant_count=1,
+        description=None,
+    )
+    sqlite_db_session.commit()
+
+    assert trip.revision == 1
+    assert trip_service.trip_repository.bump_trip_revision_if_current(
+        sqlite_db_session,
+        trip_id=trip.id,
+        expected_revision=1,
+    ) is True
+    assert trip_service.trip_repository.bump_trip_revision_if_current(
+        sqlite_db_session,
+        trip_id=trip.id,
+        expected_revision=1,
+    ) is False
+    sqlite_db_session.commit()
+    sqlite_db_session.refresh(trip)
+    assert trip.revision == 2
+
+
 def test_move_trip_place_rejects_invalid_position(monkeypatch) -> None:
     fake_db = FakeDb()
     user = make_user()
@@ -1300,7 +1371,7 @@ def test_move_trip_place_rejects_invalid_position(monkeypatch) -> None:
             user,
             "7",
             1,
-            MoveTripPlaceRequest(dayNumber=1, position=2),
+            MoveTripPlaceRequest(expectedRevision=1, dayNumber=1, position=2),
         )
     except trip_service.TripServiceError as error:
         assert error.status_code == 422
@@ -1328,22 +1399,22 @@ def test_viewer_member_cannot_edit_trip_places(monkeypatch) -> None:
             user,
             "7",
             1,
-            CreateTripPlaceRequest(time="12:00", label="Viewer add", meta=""),
+            CreateTripPlaceRequest(expectedRevision=1, time="12:00", label="Viewer add", meta=""),
         ),
         lambda: trip_service.update_trip_place(
             fake_db,
             user,
             "7",
             1,
-            UpdateTripPlaceRequest(label="Viewer edit"),
+            UpdateTripPlaceRequest(expectedRevision=1, label="Viewer edit"),
         ),
-        lambda: trip_service.delete_trip_place(fake_db, user, "7", 1),
+        lambda: trip_service.delete_trip_place(fake_db, user, "7", 1, 1),
         lambda: trip_service.move_trip_place(
             fake_db,
             user,
             "7",
             1,
-            MoveTripPlaceRequest(dayNumber=1, position=1),
+            MoveTripPlaceRequest(expectedRevision=1, dayNumber=1, position=1),
         ),
     ):
         try:
@@ -1377,18 +1448,10 @@ def test_recommendation_mapper_ignores_invalid_items() -> None:
 
 
 def test_invite_to_api_computes_display_flags() -> None:
-    from app.models import TripInvite
-
     now = trip_service.security.utc_now_naive()
-    invite = TripInvite(
-        id=9,
-        trip_id=7,
-        invite_token="abc",
-        created_by=1,
-        role="viewer",
-        created_at=now - timedelta(days=1),
-        expires_at=now + timedelta(days=30),
-    )
+    invite = make_invite(role="viewer")
+    invite.created_at = now - timedelta(days=1)
+    invite.expires_at = now + timedelta(days=30)
 
     payload = trip_service.invite_to_api(invite, trip_id=7)
 
@@ -1398,26 +1461,19 @@ def test_invite_to_api_computes_display_flags() -> None:
     assert payload["invited"] is True
     assert payload["copied"] is False
     assert payload["role"] == "viewer"
+    assert payload["alreadyMember"] is False
 
 
 def test_invite_to_api_uses_public_frontend_base_url(monkeypatch) -> None:
-    from app.models import TripInvite
-
     class PublicSettings:
         def frontend_base_url(self) -> str:
             return "https://travel-hunter.co.kr"
 
     monkeypatch.setattr(trip_service, "settings", PublicSettings())
     now = trip_service.security.utc_now_naive()
-    invite = TripInvite(
-        id=9,
-        trip_id=7,
-        invite_token="abc",
-        created_by=1,
-        role="viewer",
-        created_at=now - timedelta(days=1),
-        expires_at=now + timedelta(days=30),
-    )
+    invite = make_invite(role="viewer")
+    invite.created_at = now - timedelta(days=1)
+    invite.expires_at = now + timedelta(days=30)
 
     payload = trip_service.invite_to_api(invite, trip_id=7)
 
@@ -1428,19 +1484,11 @@ def test_confirm_invite_sent_updates_active_invite_role(monkeypatch) -> None:
     fake_db = FakeDb()
     user = make_user()
     trip = make_trip()
-    invite = TripInvite(
-        id=9,
-        trip_id=7,
-        invite_token="abc",
-        created_by=1,
-        role="editor",
-        created_at=datetime(2026, 5, 4, 0, 0, 0),
-        expires_at=datetime(2026, 6, 30, 0, 0, 0),
-    )
+    invite = make_invite()
 
     monkeypatch.setattr(
         trip_service.trip_repository,
-        "get_accessible_trip_by_id",
+        "get_owned_trip_by_id",
         lambda db, trip_id, user_id: trip
         if db is fake_db and trip_id == 7 and user_id == 1
         else None,
@@ -1458,6 +1506,75 @@ def test_confirm_invite_sent_updates_active_invite_role(monkeypatch) -> None:
     assert payload is not None
     assert payload["role"] == "viewer"
     assert invite.role == "viewer"
+    assert fake_db.commits == 1
+
+
+def test_confirm_invite_sent_requires_owner(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user(2, "Editor")
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_owned_trip_by_id",
+        lambda *_args, **_kwargs: None,
+    )
+
+    assert trip_service.confirm_invite_sent(fake_db, user, "7", "editor") is None
+    assert fake_db.commits == 0
+
+
+def test_send_invite_email_returns_sent_status(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    invite = make_invite()
+    sent_payload: dict[str, str] = {}
+    monkeypatch.setattr(trip_service.trip_repository, "get_owned_trip_by_id", lambda *_args, **_kwargs: trip)
+    monkeypatch.setattr(trip_service.trip_repository, "get_latest_active_invite", lambda *_args, **_kwargs: invite)
+    monkeypatch.setattr(
+        trip_service.email_service,
+        "send_trip_invite_email",
+        lambda **kwargs: sent_payload.update(kwargs),
+    )
+
+    result = trip_service.send_invite_email(
+        fake_db,
+        user,
+        "7",
+        SendInviteEmailRequest(email="friend@example.com", role="viewer"),
+    )
+
+    assert result is not None
+    assert result["deliveryStatus"] == "sent"
+    assert result["invite"]["role"] == "viewer"
+    assert sent_payload["to_email"] == "friend@example.com"
+    assert sent_payload["invite_url"].endswith("/invites/abc/accept")
+    assert invite.role == "viewer"
+    assert fake_db.commits == 1
+
+
+def test_send_invite_email_returns_fallback_when_smtp_not_configured(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    invite = make_invite()
+    monkeypatch.setattr(trip_service.trip_repository, "get_owned_trip_by_id", lambda *_args, **_kwargs: trip)
+    monkeypatch.setattr(trip_service.trip_repository, "get_latest_active_invite", lambda *_args, **_kwargs: invite)
+
+    def raise_not_configured(**_kwargs):
+        raise trip_service.email_service.EmailNotConfiguredError("Email delivery is not configured")
+
+    monkeypatch.setattr(trip_service.email_service, "send_trip_invite_email", raise_not_configured)
+
+    result = trip_service.send_invite_email(
+        fake_db,
+        user,
+        "7",
+        SendInviteEmailRequest(email="friend@example.com"),
+    )
+
+    assert result is not None
+    assert result["deliveryStatus"] == "notConfigured"
+    assert result["invite"]["inviteUrl"].endswith("/invites/abc/accept")
     assert fake_db.commits == 1
 
 
@@ -1971,16 +2088,7 @@ def test_create_trip_rejects_unknown_policy_slug(monkeypatch) -> None:
 def test_accept_invite_marks_acceptance_and_adds_member(monkeypatch) -> None:
     fake_db = FakeDb()
     user = make_user(3, "Friend")
-    invite = TripInvite(
-        id=9,
-        trip_id=7,
-        invite_token="abc",
-        created_by=1,
-        role="viewer",
-        created_at=datetime(2026, 5, 4, 0, 0, 0),
-        expires_at=datetime(2026, 6, 30, 0, 0, 0),
-        accepted_at=None,
-    )
+    invite = make_invite(role="viewer")
     captured_membership: dict[str, object] = {}
 
     monkeypatch.setattr(
@@ -2007,6 +2115,7 @@ def test_accept_invite_marks_acceptance_and_adds_member(monkeypatch) -> None:
     assert payload["tripId"] == "7"
     assert payload["acceptedAt"] is not None
     assert payload["invited"] is True
+    assert payload["alreadyMember"] is False
     assert invite.accepted_at is not None
     assert captured_membership == {"trip_id": 7, "user_id": 3, "role": "viewer"}
     assert fake_db.commits == 1
@@ -2016,16 +2125,7 @@ def test_accept_invite_is_idempotent_for_existing_member(monkeypatch) -> None:
     fake_db = FakeDb()
     user = make_user(3, "Friend")
     accepted_at = datetime(2026, 5, 5, 0, 0, 0)
-    invite = TripInvite(
-        id=9,
-        trip_id=7,
-        invite_token="abc",
-        created_by=1,
-        role="editor",
-        created_at=datetime(2026, 5, 4, 0, 0, 0),
-        expires_at=datetime(2026, 6, 30, 0, 0, 0),
-        accepted_at=accepted_at,
-    )
+    invite = make_invite(role="editor", accepted_at=accepted_at)
     added_members: list[dict[str, object]] = []
 
     monkeypatch.setattr(
@@ -2048,7 +2148,41 @@ def test_accept_invite_is_idempotent_for_existing_member(monkeypatch) -> None:
 
     assert payload is not None
     assert payload["acceptedAt"] == "2026-05-05T00:00:00Z"
+    assert payload["alreadyMember"] is True
     assert invite.accepted_at == accepted_at
+    assert added_members == []
+    assert fake_db.commits == 1
+
+
+def test_accept_invite_treats_trip_owner_without_member_row_as_already_member(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user(1, "Owner")
+    trip = make_trip()
+    trip.members = []
+    invite = make_invite(role="viewer")
+    invite.trip = trip
+    added_members: list[dict[str, object]] = []
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_active_invite_by_token",
+        lambda *_args, **_kwargs: invite,
+    )
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_trip_member",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "add_trip_member",
+        lambda _db, **kwargs: added_members.append(kwargs),
+    )
+
+    payload = trip_service.accept_invite(fake_db, user, "abc")
+
+    assert payload is not None
+    assert payload["alreadyMember"] is True
     assert added_members == []
     assert fake_db.commits == 1
 
@@ -2064,3 +2198,132 @@ def test_accept_invite_returns_none_for_missing_or_expired_token(monkeypatch) ->
 
     assert trip_service.accept_invite(fake_db, user, "missing") is None
     assert fake_db.commits == 0
+
+
+def test_get_trip_recommendations_use_date_category_and_fresh_external_gate(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    trip = make_trip()
+    trip.region = "강원"
+    trip.travel_area_id = "gangwon-sokcho-goseong-yangyang"
+    trip.title = "속초 2박 휴식 여행"
+    trip.description = "호텔에서 쉬는 일정"
+    linked_policy = trip.policies[0].policy
+    linked_policy.slug = "fixture-policy"
+    linked_policy.region = "전국"
+    matching_local = Policy(
+        id=4,
+        slug="travelmonth-local-half",
+        title="속초 대한민국 반값여행 지원",
+        benefit_detail="최대 20만원 환급",
+        benefit_amount=200000,
+        region="강원",
+        start_date=date(2026, 6, 1),
+        end_date=date(2026, 7, 31),
+        source_category="local_half_trip",
+        external_source_record_id=4,
+        verification_status="fresh",
+    )
+    nationwide_stay = Policy(
+        id=5,
+        slug="travelmonth-stay",
+        title="대한민국 숙박세일 페스타 숙박 할인",
+        benefit_detail="2/3/5/7만원 할인권",
+        benefit_amount=70000,
+        region="전국",
+        start_date=date(2026, 6, 11),
+        end_date=date(2026, 7, 31),
+        source_category="stay_discount",
+        policy_type="숙박",
+        external_source_record_id=5,
+        verification_status="fresh",
+    )
+    stale_stay = Policy(
+        id=6,
+        slug="travelmonth-stale-stay",
+        title="속초 숙박 할인",
+        benefit_detail="5만원 할인",
+        benefit_amount=50000,
+        region="강원",
+        start_date=date(2026, 6, 1),
+        end_date=date(2026, 7, 31),
+        source_category="stay_discount",
+        external_source_record_id=6,
+        verification_status="stale",
+    )
+    ended_before_trip = Policy(
+        id=7,
+        slug="old-gangwon-benefit",
+        title="강원 지난 혜택",
+        benefit_detail="1만원 할인",
+        benefit_amount=10000,
+        region="강원",
+        start_date=date(2026, 5, 1),
+        end_date=date(2026, 5, 31),
+        source_category="regional_benefit",
+        external_source_record_id=7,
+        verification_status="fresh",
+    )
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip if db is fake_db and trip_id == 7 and user_id == 1 else None,
+    )
+    monkeypatch.setattr(
+        trip_service.policy_repository,
+        "list_policies",
+        lambda db: [linked_policy, nationwide_stay, stale_stay, ended_before_trip, matching_local] if db is fake_db else [],
+    )
+
+    payload = trip_service.get_trip("7", fake_db, user)
+
+    assert payload is not None
+    assert [policy["slug"] for policy in payload["recommendedPolicies"]] == [
+        "travelmonth-local-half",
+        "travelmonth-stay",
+    ]
+
+
+def test_recommended_policies_use_candidate_style_tags_for_rule_score() -> None:
+    trip = make_trip()
+    trip.region = "전국"
+    trip.description = "호텔에서 쉬는 휴식 여행"
+    trip.policies = []
+    candidates = [
+        {
+            "slug": "generic-coupon",
+            "title": "전국 여행 쿠폰",
+            "amount": "1만원",
+            "region": "전국",
+            "benefitAmount": 10000,
+            "startDate": date(2026, 6, 1),
+            "endDate": date(2026, 7, 31),
+            "sourceCategory": "regional_benefit",
+            "policyType": "",
+            "tags": [],
+            "styles": [],
+            "sortId": 1,
+        },
+        {
+            "slug": "rest-style-coupon",
+            "title": "전국 여행 쿠폰",
+            "amount": "1만원",
+            "region": "전국",
+            "benefitAmount": 10000,
+            "startDate": date(2026, 6, 1),
+            "endDate": date(2026, 7, 31),
+            "sourceCategory": "regional_benefit",
+            "policyType": "",
+            "tags": ["숙박"],
+            "styles": ["휴식"],
+            "sortId": 99,
+        },
+    ]
+
+    recommended = trip_service._recommended_policies(trip, candidates, limit=2)
+
+    assert [policy["slug"] for policy in recommended] == [
+        "rest-style-coupon",
+        "generic-coupon",
+    ]

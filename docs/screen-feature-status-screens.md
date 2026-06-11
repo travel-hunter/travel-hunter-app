@@ -309,10 +309,10 @@
 | --- | --- | --- |
 | 일정 상세 조회 | 완료 | `appDataApi.getTrip(tripId)` → `GET /api/trips/{tripId}` |
 | 연결 정책 해제 | 완료 | `appDataApi.removePolicyFromTrip(trip.id, policy.slug)` → `DELETE /api/trips/{tripId}/policies/{policySlug}` |
-| 장소 추가 | 완료 | `appDataApi.addTripPlace(trip.id, dayNumber, payload)` → `POST /api/trips/{tripId}/days/{dayNumber}/places` |
-| 장소 수정 | 완료 | `appDataApi.updateTripPlace(trip.id, place.id, payload)` → `PATCH /api/trips/{tripId}/places/{placeId}` |
-| 장소 이동 | 완료 | `appDataApi.moveTripPlace(trip.id, place.id, { dayNumber, position })` → `PATCH /api/trips/{tripId}/places/{placeId}/move` |
-| 장소 삭제 | 완료 | `appDataApi.deleteTripPlace(trip.id, place.id)` → `DELETE /api/trips/{tripId}/places/{placeId}` |
+| 장소 추가 | 완료 | `appDataApi.addTripPlace(trip.id, dayNumber, { ...payload, expectedRevision: trip.revision })` → `POST /api/trips/{tripId}/days/{dayNumber}/places` |
+| 장소 수정 | 완료 | `appDataApi.updateTripPlace(trip.id, place.id, { ...payload, expectedRevision: trip.revision })` → `PATCH /api/trips/{tripId}/places/{placeId}` |
+| 장소 이동 | 완료 | `appDataApi.moveTripPlace(trip.id, place.id, { dayNumber, position, expectedRevision: trip.revision })` → `PATCH /api/trips/{tripId}/places/{placeId}/move` |
+| 장소 삭제 | 완료 | `appDataApi.deleteTripPlace(trip.id, place.id, trip.revision)` → `DELETE /api/trips/{tripId}/places/{placeId}?expectedRevision=...` |
 | 친구 초대 진입 | 완료 | `/friend-invite?tripId={tripId}` 화면 이동. 초대 상태 API는 친구 초대 화면에서 사용한다. |
 | AI 추천 후보 진입 | 완료 | `/ai-results?tripId={tripId}` 화면 이동. 추천 후보 API는 AI 결과 화면에서 `GET /api/trips/{tripId}/recommendations`를 호출한다. |
 | 지도 표시 | 완료 | 장소의 `latitude`, `longitude`, `address`, `placeUrl`, `externalPlaceId` 등 Kakao place metadata를 `KakaoMapView` marker로 전달한다. |

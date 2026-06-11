@@ -306,6 +306,7 @@ class Trip(Base):
     region: Mapped[str | None] = mapped_column(String(100))
     travel_area_id: Mapped[str | None] = mapped_column(String(120), index=True)
     participant_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1", default=1)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1", default=1)
     description: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()

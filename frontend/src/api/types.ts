@@ -218,10 +218,40 @@ export type AdminExternalSourceSummaryResponse = {
   latestFetchedAt: string | null;
 };
 
+export type ExternalCollectionOpsHealth = {
+  schedulerEnabled: boolean;
+  runAt: string;
+  pollSeconds: number;
+  minParsedCount: number;
+  lastAttemptedRunDate: string | null;
+  lastSuccessfulRunDate: string | null;
+  lastParsedCount: number | null;
+  lastOutcome: string | null;
+  lastError: string | null;
+};
+
+export type ExternalCollectionSourceRunResult = {
+  sourceCategory: string;
+  parsedCount: number;
+  createdOrUpdatedCount: number;
+  outcome: string;
+  error: string | null;
+};
+
+export type ExternalCollectionRunResponse = {
+  sourceName: string;
+  sourceCategory: string;
+  parsedCount: number;
+  createdOrUpdatedCount: number;
+  outcome: string;
+  sources: ExternalCollectionSourceRunResult[];
+};
+
 export type Trip = {
   id: string;
   title: string;
   status: "draft" | "confirmed";
+  revision: number;
   dates: string;
   people: string[];
   participantCount: number;
@@ -289,6 +319,7 @@ export type TravelAreaRecommendationResponse = {
 };
 
 export type InviteRole = "viewer" | "editor";
+export type InviteEmailDeliveryStatus = "sent" | "notConfigured" | "failed";
 
 export type InviteState = {
   id: string;
@@ -301,6 +332,13 @@ export type InviteState = {
   invited: boolean;
   copied: boolean;
   role: InviteRole;
+  alreadyMember: boolean;
+};
+
+export type InviteEmailResult = {
+  invite: InviteState;
+  deliveryStatus: InviteEmailDeliveryStatus;
+  message: string;
 };
 
 export type ProfileOptions = {

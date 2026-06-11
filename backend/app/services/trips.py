@@ -12,16 +12,19 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core import security
 from app.data import seed
-from app.models import Policy, Trip, TripDay, TripInvite, TripPlace, User
+from app.models import ExternalSourceRecord, Policy, Trip, TripDay, TripInvite, TripPlace, User
+from app.repositories import external_sources as external_source_repository
 from app.repositories import policies as policy_repository
 from app.repositories import trips as trip_repository
 from app.schemas.trip import (
     CreateTripPlaceRequest,
     CreateTripRequest,
     MoveTripPlaceRequest,
+    SendInviteEmailRequest,
     UpdateTripPlaceRequest,
     UpdateTripStatusRequest,
 )
+from app.services import email as email_service
 from app.services import itinerary_recommendations
 from app.services.kakao_local import KakaoLocalClient
 
@@ -207,7 +210,12 @@ def _policy_to_trip_policy_candidate(policy: Policy) -> dict[str, object]:
         "amount": amount,
         "region": policy.region or "",
         "benefitAmount": policy.benefit_amount or 0,
+        "startDate": policy.start_date,
         "endDate": policy.end_date,
+        "sourceCategory": policy.source_category or "",
+        "policyType": policy.policy_type or "",
+        "verificationStatus": policy.verification_status or "",
+        "externalSourceRecordId": policy.external_source_record_id,
         "sortId": policy.id or 0,
     }
 
@@ -219,7 +227,12 @@ def _external_source_record_to_trip_policy_candidate(record: ExternalSourceRecor
         "amount": record.benefit_value_text or record.benefit_text,
         "region": record.region or (NATIONWIDE_REGION if record.is_nationwide else ""),
         "benefitAmount": record.extracted_amount_krw or 0,
+        "startDate": record.start_date,
         "endDate": record.end_date,
+        "sourceCategory": record.source_category or "",
+        "policyType": "",
+        "tags": record.tags or [],
+        "styles": record.inferred_travel_styles or [],
         "sortId": record.id or 0,
     }
 
@@ -273,12 +286,18 @@ def _known_destination_terms() -> list[str]:
 
 
 def _candidate_policy_text(candidate: dict[str, object]) -> str:
+    tags = candidate.get("tags")
+    styles = candidate.get("styles")
     return _normalized_text(
         " ".join(
             [
                 str(candidate.get("title") or ""),
                 str(candidate.get("amount") or ""),
                 str(candidate.get("region") or ""),
+                str(candidate.get("sourceCategory") or ""),
+                str(candidate.get("policyType") or ""),
+                " ".join(str(tag) for tag in tags if tag) if isinstance(tags, list) else "",
+                " ".join(str(style) for style in styles if style) if isinstance(styles, list) else "",
             ]
         )
     )
@@ -287,6 +306,7 @@ def _candidate_policy_text(candidate: dict[str, object]) -> str:
 def _trip_policy_candidate_score(
     candidate: dict[str, object],
     *,
+    trip: Trip,
     match_terms: list[str],
     area_sido: str | None,
     known_destination_terms: list[str],
@@ -294,7 +314,7 @@ def _trip_policy_candidate_score(
     score = 0
     candidate_region = _normalized_text(candidate.get("region"))
     candidate_text = _candidate_policy_text(candidate)
-    normalized_terms = {_normalized_text(term) for term in match_terms if _normalized_text(term)}
+    normalized_terms = {normalized for term in match_terms if (normalized := _normalized_text(term))}
     normalized_sido = _normalized_text(area_sido)
 
     if normalized_sido and candidate_region == normalized_sido:
@@ -308,9 +328,9 @@ def _trip_policy_candidate_score(
         score += 90
 
     conflicting_terms = [
-        _normalized_text(term)
+        normalized
         for term in known_destination_terms
-        if _normalized_text(term) and _normalized_text(term) not in normalized_terms
+        if (normalized := _normalized_text(term)) and normalized not in normalized_terms
     ]
     if any(term in candidate_text for term in conflicting_terms):
         score -= 120
@@ -318,10 +338,78 @@ def _trip_policy_candidate_score(
     if any(_normalized_text(keyword) in candidate_text for keyword in CONDITIONAL_POLICY_KEYWORDS):
         score -= 80
 
+    score += _trip_policy_date_score(candidate, trip)
+    score += _trip_policy_category_score(candidate, trip)
+    score += _trip_policy_style_score(candidate, trip)
+
     if candidate.get("benefitAmount"):
         score += 10
 
     return score
+
+
+def _is_expired_external_trip_policy_candidate(candidate: dict[str, object], trip: Trip) -> bool:
+    end_date = candidate.get("endDate")
+    return bool(candidate.get("externalSourceRecordId")) and isinstance(end_date, date) and end_date < trip.start_date
+
+
+def _trip_policy_date_score(candidate: dict[str, object], trip: Trip) -> int:
+    start_date = candidate.get("startDate")
+    end_date = candidate.get("endDate")
+    if not isinstance(start_date, date) and not isinstance(end_date, date):
+        return 0
+    candidate_start = start_date if isinstance(start_date, date) else date.min
+    candidate_end = end_date if isinstance(end_date, date) else date.max
+    if candidate_start <= trip.end_date and candidate_end >= trip.start_date:
+        return 60
+    if candidate_end < trip.start_date:
+        return -40
+    if candidate_start > trip.end_date:
+        return -20
+    return 0
+
+
+def _trip_policy_category_score(candidate: dict[str, object], trip: Trip) -> int:
+    text = _candidate_policy_text(candidate)
+    source_category = str(candidate.get("sourceCategory") or "")
+    policy_type = str(candidate.get("policyType") or "")
+    trip_days = max((trip.end_date - trip.start_date).days + 1, 1)
+    score = 0
+    if source_category == "stay_discount" or policy_type == "숙박" or "숙박" in text:
+        score += 55 if trip_days >= 2 else 15
+    if source_category == "traffic_benefit" or policy_type == "교통":
+        score += 15
+    if source_category in {"local_half_trip", "regional_benefit"} or policy_type == "지역할인":
+        score += 10
+    return score
+
+
+def _trip_policy_style_score(candidate: dict[str, object], trip: Trip) -> int:
+    trip_text = _normalized_text(
+        " ".join(
+            [
+                trip.title or "",
+                trip.description or "",
+                *(place.place_name or "" for day in trip.days for place in day.places),
+                *(place.category_group_name or "" for day in trip.days for place in day.places),
+            ]
+        )
+    )
+    candidate_text = _candidate_policy_text(candidate)
+    matched = 0
+    style_keywords = {
+        "휴식": ("휴식", "힐링", "숙박", "호텔", "리조트"),
+        "맛집": ("맛집", "식당", "음식", "카페"),
+        "체험": ("체험", "투어", "관광", "박물관"),
+        "자연": ("자연", "바다", "해변", "숲"),
+        "사진": ("사진", "포토", "전망"),
+    }
+    for keywords in style_keywords.values():
+        if any(_normalized_text(keyword) in trip_text for keyword in keywords) and any(
+            _normalized_text(keyword) in candidate_text for keyword in keywords
+        ):
+            matched += 1
+    return min(matched * 15, 30)
 
 
 def _recommended_policies(trip: Trip, candidates: list[dict[str, object]] | None = None, limit: int = 3) -> list[dict[str, str]]:
@@ -337,6 +425,7 @@ def _recommended_policies(trip: Trip, candidates: list[dict[str, object]] | None
         candidate
         for candidate in candidates
         if str(candidate["slug"]) not in linked_slugs
+        and not _is_expired_external_trip_policy_candidate(candidate, trip)
     ]
     trip_region = (trip.region or "").strip()
     if not trip.travel_area_id:
@@ -353,6 +442,7 @@ def _recommended_policies(trip: Trip, candidates: list[dict[str, object]] | None
         (
             _trip_policy_candidate_score(
                 candidate,
+                trip=trip,
                 match_terms=match_terms,
                 area_sido=area_sido,
                 known_destination_terms=known_destination_terms,
@@ -386,15 +476,19 @@ def _recommended_policies(trip: Trip, candidates: list[dict[str, object]] | None
 
 
 def _list_recommended_policy_candidates(db: Session) -> list[dict[str, object]]:
-    candidates: list[dict[str, object]] = []
     try:
-        candidates.extend(
-            _policy_to_trip_policy_candidate(policy)
-            for policy in policy_repository.list_policies(db)
-        )
+        policies = policy_repository.list_policies(db)
     except AttributeError:
-        pass
-    return candidates
+        if not hasattr(db, "scalars"):
+            return []
+        raise
+    return [
+        _policy_to_trip_policy_candidate(policy)
+        for policy in policies
+        if policy.external_source_record_id is None
+        or not policy.verification_status
+        or policy.verification_status == "fresh"
+    ]
 
 
 def _trip_role_for_user(trip: Trip, user: User | None) -> str:
@@ -456,6 +550,7 @@ def trip_to_api(trip: Trip, user: User | None = None, recommended_policies: list
         "id": str(trip.id),
         "title": trip.title,
         "status": trip.status or "confirmed",
+        "revision": trip.revision or 1,
         "travelAreaId": trip.travel_area_id,
         "dates": _format_dates(trip.start_date, trip.end_date),
         "people": people,
@@ -474,6 +569,12 @@ def _resolve_trip(db: Session, trip_handle: str, user: User) -> Trip | None:
     return None
 
 
+def _resolve_owned_trip(db: Session, trip_handle: str, user: User) -> Trip | None:
+    if NUMERIC_TRIP_ID_PATTERN.fullmatch(trip_handle):
+        return trip_repository.get_owned_trip_by_id(db, int(trip_handle), user.id)
+    return None
+
+
 def _resolve_required_trip(db: Session, trip_handle: str, user: User) -> Trip:
     trip = _resolve_trip(db, trip_handle, user)
     if trip is None:
@@ -488,6 +589,16 @@ def _refresh_trip_payload(db: Session, trip_id: int, user: User) -> dict[str, ob
     if trip is None:
         raise TripServiceError(404, "Trip not found")
     return trip_to_api(trip, user, _list_recommended_policy_candidates(db))
+
+
+def _bump_trip_revision_or_conflict(db: Session, trip: Trip, expected_revision: int) -> None:
+    if not trip_repository.bump_trip_revision_if_current(
+        db,
+        trip_id=trip.id,
+        expected_revision=expected_revision,
+    ):
+        raise TripServiceError(409, "Trip has changed. Refresh before saving.")
+    trip.revision = expected_revision + 1
 
 
 def _find_trip_day(trip: Trip, day_number: int) -> TripDay:
@@ -712,6 +823,7 @@ def add_place_to_trip_day(
     label = payload.label.strip()
     if not label:
         raise TripServiceError(422, "Place label is required")
+    _bump_trip_revision_or_conflict(db, trip, payload.expectedRevision)
 
     next_order = max((place.order_num or 0 for place in trip_day.places), default=0) + 1
     trip_repository.add_trip_place(
@@ -744,12 +856,15 @@ def update_trip_place(
     trip = _resolve_required_trip(db, trip_handle, user)
     _require_trip_editor(trip, user)
     place = _find_trip_place(trip, place_id)
-    values = payload.model_dump(exclude_unset=True)
+    values = payload.model_dump(exclude_unset=True, exclude={"expectedRevision"})
 
     if "label" in values:
         label = (values["label"] or "").strip()
         if not label:
             raise TripServiceError(422, "Place label is required")
+    _bump_trip_revision_or_conflict(db, trip, payload.expectedRevision)
+
+    if "label" in values:
         place.place_name = label
     if "time" in values:
         place.visit_time = _parse_optional_time(values["time"])
@@ -781,6 +896,7 @@ def move_trip_place(
     max_position = len(target_places) + 1
     if payload.position > max_position:
         raise TripServiceError(422, "Invalid place position")
+    _bump_trip_revision_or_conflict(db, trip, payload.expectedRevision)
 
     target_places.insert(payload.position - 1, place)
     if same_day:
@@ -798,10 +914,12 @@ def delete_trip_place(
     user: User,
     trip_handle: str,
     place_id: int,
+    expected_revision: int,
 ) -> dict[str, object]:
     trip = _resolve_required_trip(db, trip_handle, user)
     _require_trip_editor(trip, user)
     place = _find_trip_place(trip, place_id)
+    _bump_trip_revision_or_conflict(db, trip, expected_revision)
     trip_repository.delete_trip_place(db, place)
     db.commit()
     return _refresh_trip_payload(db, trip.id, user)
@@ -966,7 +1084,13 @@ def _ensure_invite(db: Session, trip: Trip, user: User, role: str | None = None)
     )
 
 
-def invite_to_api(invite: TripInvite, *, trip_id: int, invited: bool = False) -> dict[str, object]:
+def invite_to_api(
+    invite: TripInvite,
+    *,
+    trip_id: int,
+    invited: bool = False,
+    already_member: bool = False,
+) -> dict[str, object]:
     return {
         "id": str(invite.id),
         "tripId": str(trip_id),
@@ -978,6 +1102,7 @@ def invite_to_api(invite: TripInvite, *, trip_id: int, invited: bool = False) ->
         "invited": invited or invite.expires_at > security.utc_now_naive(),
         "copied": False,
         "role": invite.role or "editor",
+        "alreadyMember": already_member,
     }
 
 
@@ -986,7 +1111,7 @@ def get_invite_state(
     user: User,
     trip_handle: str,
 ) -> dict[str, object] | None:
-    trip = _resolve_trip(db, trip_handle, user)
+    trip = _resolve_owned_trip(db, trip_handle, user)
     if trip is None:
         return None
     invite = _ensure_invite(db, trip, user)
@@ -1000,12 +1125,50 @@ def confirm_invite_sent(
     trip_handle: str,
     role: str = "editor",
 ) -> dict[str, object] | None:
-    trip = _resolve_trip(db, trip_handle, user)
+    trip = _resolve_owned_trip(db, trip_handle, user)
     if trip is None:
         return None
     invite = _ensure_invite(db, trip, user, role)
     db.commit()
     return invite_to_api(invite, trip_id=trip.id, invited=True)
+
+
+def send_invite_email(
+    db: Session,
+    user: User,
+    trip_handle: str,
+    payload: SendInviteEmailRequest,
+) -> dict[str, object] | None:
+    trip = _resolve_owned_trip(db, trip_handle, user)
+    if trip is None:
+        return None
+    invite = _ensure_invite(db, trip, user, payload.role)
+    db.commit()
+    invite_payload = invite_to_api(invite, trip_id=trip.id, invited=True)
+
+    try:
+        email_service.send_trip_invite_email(
+            to_email=payload.email,
+            invite_url=str(invite_payload["inviteUrl"]),
+        )
+    except email_service.EmailNotConfiguredError:
+        return {
+            "invite": invite_payload,
+            "deliveryStatus": "notConfigured",
+            "message": "Email delivery is not configured. Share the invite link directly.",
+        }
+    except email_service.EmailDeliveryError:
+        return {
+            "invite": invite_payload,
+            "deliveryStatus": "failed",
+            "message": "Email delivery failed. Share the invite link directly.",
+        }
+
+    return {
+        "invite": invite_payload,
+        "deliveryStatus": "sent",
+        "message": "Invite email sent.",
+    }
 
 
 def accept_invite(db: Session, user: User, invite_token: str) -> dict[str, object] | None:
@@ -1021,12 +1184,14 @@ def accept_invite(db: Session, user: User, invite_token: str) -> dict[str, objec
     if invite.accepted_at is None:
         invite.accepted_at = now
 
+    is_owner = invite.trip is not None and invite.trip.owner_id == user.id
     existing_member = trip_repository.get_trip_member(
         db,
         trip_id=invite.trip_id,
         user_id=user.id,
     )
-    if existing_member is None:
+    already_member = is_owner or existing_member is not None
+    if not already_member:
         trip_repository.add_trip_member(
             db,
             trip_id=invite.trip_id,
@@ -1035,4 +1200,9 @@ def accept_invite(db: Session, user: User, invite_token: str) -> dict[str, objec
         )
 
     db.commit()
-    return invite_to_api(invite, trip_id=invite.trip_id, invited=True)
+    return invite_to_api(
+        invite,
+        trip_id=invite.trip_id,
+        invited=True,
+        already_member=already_member,
+    )

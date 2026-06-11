@@ -332,6 +332,20 @@ describe("admin pages", () => {
       promotedPolicyCount: 5,
       latestFetchedAt: "2026-05-27T09:00:00",
     });
+    vi.spyOn(
+      appDataApi as any,
+      "getExternalCollectionOpsHealth",
+    ).mockResolvedValue({
+      schedulerEnabled: false,
+      runAt: "03:00",
+      pollSeconds: 60,
+      minParsedCount: 1,
+      lastAttemptedRunDate: null,
+      lastSuccessfulRunDate: null,
+      lastParsedCount: null,
+      lastOutcome: null,
+      lastError: null,
+    });
 
     renderAppRoute("/admin");
 
@@ -340,7 +354,51 @@ describe("admin pages", () => {
     );
     expect(document.body).toHaveTextContent("대한민국 반값여행");
     expect(
-      screen.queryByRole("button", { name: /수집/ }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "지금 수집 실행" }),
+    ).toBeInTheDocument();
+  });
+
+  it("runs external policy collection from the admin dashboard", async () => {
+    installStoredUser({ ...getPreviewUser(), role: "admin" });
+    const summarySpy = vi
+      .spyOn(appDataApi as any, "getAdminExternalSourceSummary")
+      .mockResolvedValue({
+        items: [],
+        totalRecords: 0,
+        activeRecords: 0,
+        freshRecords: 0,
+        promotedPolicyCount: 0,
+        latestFetchedAt: null,
+      });
+    vi.spyOn(
+      appDataApi as any,
+      "getExternalCollectionOpsHealth",
+    ).mockResolvedValue({
+      schedulerEnabled: false,
+      runAt: "03:00",
+      pollSeconds: 60,
+      minParsedCount: 1,
+      lastAttemptedRunDate: null,
+      lastSuccessfulRunDate: null,
+      lastParsedCount: null,
+      lastOutcome: null,
+      lastError: null,
+    });
+    const runSpy = vi.spyOn(appDataApi as any, "runExternalCollection").mockResolvedValue({
+      sourceName: "official external benefits",
+      sourceCategory: "multiple",
+      parsedCount: 3,
+      createdOrUpdatedCount: 2,
+      outcome: "success",
+      sources: [],
+    });
+
+    renderAppRoute("/admin");
+
+    await userEvent.click(await screen.findByRole("button", { name: "지금 수집 실행" }));
+
+    await waitFor(() => expect(runSpy).toHaveBeenCalledTimes(1));
+    expect(summarySpy).toHaveBeenCalledTimes(2);
+    expect(document.body).toHaveTextContent("수집 결과 success");
   });
 });

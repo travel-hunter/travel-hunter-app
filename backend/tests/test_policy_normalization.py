@@ -22,12 +22,12 @@ def make_source(**overrides) -> ExternalBenefitSource:
     data = {
         "source_name": "여행가는 달",
         "source_type": "official_campaign",
-        "source_url": "https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+        "source_url": "https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
         "source_category": "regional_benefit",
         "external_id": "external-1",
         "canonical_key": "canonical-1",
         "detail_url": "https://example.com/detail",
-        "collected_page_url": "https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+        "collected_page_url": "https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
         "title": "Official regional benefit",
         "organizer_text": "Official organizer",
         "organizers": ["Official organizer"],
@@ -185,6 +185,37 @@ def test_promotion_derives_missing_percent_value_from_title(db: Session) -> None
     assert policy.policy_comment == "행사 기간 중 온라인 체험상품 예약 결제 후 사용 완료 참여자 26년 4월 중순부터 5월 말"
 
 
+def test_promotes_active_fresh_stay_discount_as_lodging_policy(db: Session) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                source_name="대한민국 숙박세일 페스타",
+                source_url="https://korean.visitkorea.or.kr/travelmonth/benefits/stay.do",
+                collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefits/stay.do",
+                source_category="stay_discount",
+                canonical_key="stay-discount",
+                external_id="stay-discount",
+                title="숙박세일 페스타 7만원 할인",
+                benefit_text="숙박상품 2/3/5/7만원 할인권",
+                benefit_value_text="2/3/5/7만원 할인권",
+                extracted_amount_krw=70000,
+            )
+        ],
+    )
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+
+    promote_external_benefits_to_policies(db)
+
+    policy = get_policy_by_slug(db, f"travelmonth-{rows[0].id}")
+    assert policy is not None
+    assert policy.source_category == "stay_discount"
+    assert policy.policy_type == "숙박"
+    assert policy.benefit_amount == 70000
+    assert policy.official_url == "https://example.com/detail"
+
+
 def test_skips_inactive_or_stale_records(db: Session) -> None:
     upsert_external_source_records(
         db,
@@ -247,7 +278,7 @@ def test_upsert_accepts_non_regional_external_source(db: Session) -> None:
     assert rows[0].benefit_value_type == "percent"
 
 
-def test_promotes_traffic_and_half_trip_records_to_policies(db: Session) -> None:
+def test_promotes_half_trip_but_keeps_traffic_benefit_legacy_only(db: Session) -> None:
     traffic = make_source(
         canonical_key="traffic",
         external_id="traffic",
@@ -284,10 +315,11 @@ def test_promotes_traffic_and_half_trip_records_to_policies(db: Session) -> None
     result = promote_external_benefits_to_policies(db)
 
     policies = db.query(Policy).order_by(Policy.id).all()
-    assert result.promoted_count == 2
-    assert [policy.policy_type for policy in policies] == ["교통", "지역할인"]
-    assert policies[0].official_url == traffic.collected_page_url
-    assert policies[1].source_category == "local_half_trip"
+    assert result.promoted_count == 1
+    assert len(policies) == 1
+    assert policies[0].policy_type == "지역할인"
+    assert policies[0].source_category == "local_half_trip"
+    assert policies[0].official_url == half_trip.detail_url
 
 
 def test_hides_promoted_local_half_trip_when_source_becomes_ended_or_unknown(

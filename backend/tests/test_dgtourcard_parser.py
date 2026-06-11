@@ -101,3 +101,43 @@ def test_parse_dgtourcard_benefits_falls_back_to_section_markup() -> None:
     assert records[1].detail_url == "https://pc.halftrip.kr"
     assert records[2].status == "ended"
     assert records[2].detail_url is None
+
+
+def test_parse_dgtourcard_benefits_handles_june_july_status_variants() -> None:
+    html = """
+    <html><body>
+    <section>
+      <h2>영월 예정</h2>
+      <p>신청접수 : 6월 중 예정</p>
+      <p>여행기간 : 2026.07.01~2026.07.31</p>
+    </section>
+    <section>
+      <h2>거창</h2>
+      <p>신청접수 : 6.16 10시부터</p>
+      <p>여행기간 : 2026.07.01~2026.07.31</p>
+    </section>
+    <section>
+      <h2>남해 마감</h2>
+      <p>신청접수 : 마감</p>
+      <p>여행기간 : 2026.07.01~2026.07.31</p>
+    </section>
+    </body></html>
+    """
+
+    before_start = parse_dgtourcard_benefits(
+        html,
+        collected_page_url="https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+        fetched_at=datetime(2026, 6, 15, tzinfo=UTC),
+        today=date(2026, 6, 15),
+    )
+    after_start = parse_dgtourcard_benefits(
+        html,
+        collected_page_url="https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+        fetched_at=datetime(2026, 6, 16, tzinfo=UTC),
+        today=date(2026, 6, 16),
+    )
+
+    assert [record.status for record in before_start] == ["scheduled", "scheduled", "ended"]
+    assert [record.status for record in after_start] == ["scheduled", "active", "ended"]
+    assert after_start[1].start_date == date(2026, 6, 16)
+    assert after_start[1].raw_payload["tripPeriod"] == "2026.07.01~2026.07.31"

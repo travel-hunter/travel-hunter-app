@@ -36,6 +36,7 @@ export function getPreviewTrip(): Trip {
     id: "21",
     title: "부산 여행 1",
     status: "confirmed",
+    revision: 1,
     dates: "2026.06.12 - 06.13",
     people: ["여행자"],
     participantCount: 1,

@@ -339,6 +339,7 @@ describe("Travel Hunter app — AI results", () => {
           3,
           expect.objectContaining({
             label: recommendation.title,
+            expectedRevision: 1,
             meta: "음식점 > 카페 > 커피전문점 · 033-222-3333",
             address: recommendation.address,
             latitude: recommendation.latitude,
@@ -565,7 +566,7 @@ describe("Travel Hunter app — AI results", () => {
         expect(addPlaceSpy).toHaveBeenCalledWith(
           "55",
           1,
-          expect.objectContaining({ label: recommendation.title }),
+          expect.objectContaining({ label: recommendation.title, expectedRevision: 1 }),
         ),
       );
       await waitFor(() =>

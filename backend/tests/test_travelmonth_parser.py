@@ -11,7 +11,7 @@ FETCHED_AT = datetime(2026, 5, 21, 9, 0, 0)
 def _parse_fixture():
     return parse_regional_benefits(
         FIXTURE.read_text(encoding="utf-8"),
-        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
         fetched_at=FETCHED_AT,
         today=date(2026, 5, 21),
     )
@@ -31,6 +31,16 @@ def test_parse_regional_benefits_extracts_expected_records() -> None:
     assert first.inferred_travel_styles == ["체험", "사진"]
     assert first.detail_url == "https://www.yw.go.kr"
     assert first.last_verified_at == FETCHED_AT
+
+
+def test_parse_regional_benefits_records_new_vacation_source_url() -> None:
+    records = _parse_fixture()
+
+    assert records[0].source_url == "https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do"
+    assert (
+        records[0].collected_page_url
+        == "https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do"
+    )
 
 
 def test_parse_regional_benefits_marks_nationwide_fallback_candidate() -> None:
@@ -64,7 +74,7 @@ def test_parse_regional_benefits_skips_incomplete_sections() -> None:
 
     records = parse_regional_benefits(
         html,
-        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
         fetched_at=FETCHED_AT,
         today=date(2026, 5, 21),
     )
@@ -86,7 +96,7 @@ def test_parse_regional_benefits_skips_invalid_period_dates() -> None:
 
     records = parse_regional_benefits(
         html,
-        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
         fetched_at=FETCHED_AT,
         today=date(2026, 5, 21),
     )
@@ -157,7 +167,7 @@ def test_parse_regional_benefits_extracts_current_live_thumbnail_modal_shape() -
 
     records = parse_regional_benefits(
         html,
-        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
         fetched_at=FETCHED_AT,
         today=date(2026, 5, 21),
     )
@@ -214,7 +224,7 @@ def test_parse_regional_benefits_keeps_current_live_items_without_period() -> No
 
     records = parse_regional_benefits(
         html,
-        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
         fetched_at=FETCHED_AT,
         today=date(2026, 5, 21),
     )
@@ -226,3 +236,44 @@ def test_parse_regional_benefits_keeps_current_live_items_without_period() -> No
     assert records[0].end_date is None
     assert records[0].is_nationwide is True
     assert records[0].extracted_amount_krw == 50000
+
+
+def test_parse_regional_benefits_falls_back_to_current_vacation_benefit_summary() -> None:
+    html = """
+    <main>
+      <h1>여행가는 달 지역사랑 휴가지원</h1>
+      <p>농어촌 인구감소지역 방문 후 소비 인증 시 여행경비 50% 환급(모바일 지역화폐)</p>
+      <p>(적용 지역) 16개 지자체</p>
+      <p>강원권(영월, 횡성, 평창)</p>
+      <p>경상권(밀양, 하동, 거창, 합천, 남해)</p>
+      <p>충청권(제천)</p>
+      <p>전라권(강진, 영광, 해남, 영암, 고흥, 완도, 고창)</p>
+      <p>운영기간 4~8월(단, 월별 예산 배정액 소진 시 접수 마감)</p>
+      <p>문의처 반값여행 운영사무국 02-6271-2016</p>
+      <p>1인 10만원, 2인 이상 20만원, 청년 20% 가산, 가족 최대 50만원</p>
+      <a href="/dgtourcard/tour50.do">할인혜택 보러가기</a>
+    </main>
+    """
+
+    records = parse_regional_benefits(
+        html,
+        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
+        fetched_at=datetime(2026, 6, 11, 9, 0, 0),
+        today=date(2026, 6, 11),
+    )
+
+    assert len(records) == 16
+    by_city = {record.city: record for record in records}
+    assert by_city["영월군"].region == "강원"
+    assert by_city["밀양시"].region == "경남"
+    assert by_city["제천시"].region == "충북"
+    assert by_city["고창군"].region == "전북"
+    first = by_city["영월군"]
+    assert first.status == "active"
+    assert first.start_date == date(2026, 4, 1)
+    assert first.end_date == date(2026, 8, 31)
+    assert first.extracted_discount_percent == 50
+    assert first.extracted_amount_krw == 500000
+    assert first.benefit_value_type == "mixed"
+    assert first.detail_url == "https://korean.visitkorea.or.kr/dgtourcard/tour50.do"
+    assert first.raw_payload["fallback"] == "vacation-benefit-summary"

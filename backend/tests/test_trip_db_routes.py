@@ -27,15 +27,16 @@ def trip_payload(trip_id: str = "7") -> dict[str, object]:
         "id": trip_id,
         "title": "Jeju 3-day trip",
         "status": "confirmed",
+        "revision": 1,
         "dates": "2026.06.15 - 06.17",
         "people": ["Test User"],
         "participantCount": 1,
-        "expectedSaving": "30留뚯썝",
+        "expectedSaving": "30만원",
         "linkedPolicies": [
             {
                 "slug": "fixture-policy",
                 "title": "Vacation policy",
-                "amount": "30留뚯썝",
+                "amount": "30만원",
                 "region": "Jeju",
             }
         ],
@@ -56,6 +57,7 @@ def invite_payload(trip_id: str = "7") -> dict[str, object]:
         "invited": False,
         "copied": False,
         "role": "editor",
+        "alreadyMember": False,
     }
 
 
@@ -402,8 +404,8 @@ def test_db_trip_place_crud_routes_return_updated_trip(monkeypatch) -> None:
         calls.append(("update", payload))
         return trip_payload(trip_id) if db is fake_db and current_user is user and place_id == 1 else None
 
-    def delete_place(db, current_user, trip_id, place_id):
-        calls.append(("delete", place_id))
+    def delete_place(db, current_user, trip_id, place_id, expected_revision):
+        calls.append(("delete", place_id, expected_revision))
         return trip_payload(trip_id) if db is fake_db and current_user is user and place_id == 1 else None
 
     def move_place(db, current_user, trip_id, place_id, payload):
@@ -418,17 +420,17 @@ def test_db_trip_place_crud_routes_return_updated_trip(monkeypatch) -> None:
     try:
         add_response = client.post(
             "/api/trips/7/days/1/places",
-            json={"time": "10:00", "label": "Cafe", "meta": "Dessert"},
+            json={"time": "10:00", "label": "Cafe", "meta": "Dessert", "expectedRevision": 1},
         )
         update_response = client.patch(
             "/api/trips/7/places/1",
-            json={"time": "11:00", "label": "Updated cafe"},
+            json={"time": "11:00", "label": "Updated cafe", "expectedRevision": 1},
         )
         move_response = client.patch(
             "/api/trips/7/places/1/move",
-            json={"dayNumber": 2, "position": 1},
+            json={"dayNumber": 2, "position": 1, "expectedRevision": 1},
         )
-        delete_response = client.delete("/api/trips/7/places/1")
+        delete_response = client.delete("/api/trips/7/places/1?expectedRevision=1")
     finally:
         clear_overrides()
 
@@ -444,7 +446,7 @@ def test_db_trip_place_crud_routes_return_updated_trip(monkeypatch) -> None:
     assert calls[2][0] == "move"
     assert calls[2][1].dayNumber == 2
     assert calls[2][1].position == 1
-    assert calls[3] == ("delete", 1)
+    assert calls[3] == ("delete", 1, 1)
 
 
 def test_db_trip_place_routes_map_service_errors(monkeypatch) -> None:
@@ -461,10 +463,10 @@ def test_db_trip_place_routes_map_service_errors(monkeypatch) -> None:
     monkeypatch.setattr(trip_routes.trip_service, "delete_trip_place", reject)
 
     try:
-        add_response = client.post("/api/trips/7/days/99/places", json={"label": "Missing"})
-        update_response = client.patch("/api/trips/7/places/999", json={"label": "Missing"})
-        move_response = client.patch("/api/trips/7/places/999/move", json={"dayNumber": 1, "position": 1})
-        delete_response = client.delete("/api/trips/7/places/999")
+        add_response = client.post("/api/trips/7/days/99/places", json={"label": "Missing", "expectedRevision": 1})
+        update_response = client.patch("/api/trips/7/places/999", json={"label": "Missing", "expectedRevision": 1})
+        move_response = client.patch("/api/trips/7/places/999/move", json={"dayNumber": 1, "position": 1, "expectedRevision": 1})
+        delete_response = client.delete("/api/trips/7/places/999?expectedRevision=1")
     finally:
         clear_overrides()
 
@@ -473,6 +475,41 @@ def test_db_trip_place_routes_map_service_errors(monkeypatch) -> None:
     assert move_response.status_code == 404
     assert delete_response.status_code == 404
     assert add_response.json() == {"detail": "Trip not found"}
+
+
+def test_db_trip_place_routes_map_revision_conflict(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    install_db_route_dependencies(monkeypatch, fake_db, user)
+
+    def reject(*_args):
+        raise trip_service.TripServiceError(409, "Trip has changed. Refresh before saving.")
+
+    monkeypatch.setattr(trip_routes.trip_service, "update_trip_place", reject)
+
+    try:
+        response = client.patch(
+            "/api/trips/7/places/1",
+            json={"label": "Stale edit", "expectedRevision": 1},
+        )
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "Trip has changed. Refresh before saving."}
+
+
+def test_db_trip_place_delete_route_requires_expected_revision(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    install_db_route_dependencies(monkeypatch, fake_db, user)
+
+    try:
+        response = client.delete("/api/trips/7/places/1")
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 422
 
 
 def test_db_trip_place_routes_map_viewer_permission_error(monkeypatch) -> None:
@@ -487,8 +524,8 @@ def test_db_trip_place_routes_map_viewer_permission_error(monkeypatch) -> None:
     monkeypatch.setattr(trip_routes.trip_service, "move_trip_place", reject)
 
     try:
-        response = client.post("/api/trips/7/days/1/places", json={"label": "Read only"})
-        move_response = client.patch("/api/trips/7/places/1/move", json={"dayNumber": 1, "position": 1})
+        response = client.post("/api/trips/7/days/1/places", json={"label": "Read only", "expectedRevision": 1})
+        move_response = client.patch("/api/trips/7/places/1/move", json={"dayNumber": 1, "position": 1, "expectedRevision": 1})
     finally:
         clear_overrides()
 
@@ -503,7 +540,7 @@ def test_db_trip_place_move_route_rejects_invalid_position(monkeypatch) -> None:
     install_db_route_dependencies(monkeypatch, fake_db, user)
 
     try:
-        response = client.patch("/api/trips/7/places/1/move", json={"dayNumber": 1, "position": 0})
+        response = client.patch("/api/trips/7/places/1/move", json={"dayNumber": 1, "position": 0, "expectedRevision": 1})
     finally:
         clear_overrides()
 
@@ -551,6 +588,53 @@ def test_db_recommendation_and_invite_routes(monkeypatch) -> None:
     assert confirm.status_code == 200
     assert confirm.json()["invited"] is True
     assert confirm.json()["role"] == "viewer"
+
+
+def test_db_trip_invite_email_route_returns_delivery_status(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    install_db_route_dependencies(monkeypatch, fake_db, user)
+    monkeypatch.setattr(
+        trip_routes.trip_service,
+        "send_invite_email",
+        lambda db, current_user, trip_id, payload: {
+            "invite": {**invite_payload(trip_id), "invited": True, "role": payload.role},
+            "deliveryStatus": "sent",
+            "message": "Invite email sent.",
+        }
+        if db is fake_db and current_user is user and trip_id == "7"
+        else None,
+    )
+
+    try:
+        response = client.post(
+            "/api/trips/7/invite/email",
+            json={"email": "friend@example.com", "role": "viewer"},
+        )
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    assert response.json()["deliveryStatus"] == "sent"
+    assert response.json()["invite"]["tripId"] == "7"
+    assert response.json()["invite"]["role"] == "viewer"
+
+
+def test_db_trip_invite_email_route_returns_404_for_non_owner(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    install_db_route_dependencies(monkeypatch, fake_db, user)
+    monkeypatch.setattr(trip_routes.trip_service, "send_invite_email", lambda *_args: None)
+
+    try:
+        response = client.post(
+            "/api/trips/7/invite/email",
+            json={"email": "friend@example.com", "role": "editor"},
+        )
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 404
 
 
 def test_db_trip_invite_route_rejects_invalid_role(monkeypatch) -> None:

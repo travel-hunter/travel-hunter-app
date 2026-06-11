@@ -8,6 +8,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import {
+  ApiError,
   appDataApi,
   type Recommendation,
   type Trip,
@@ -58,6 +59,7 @@ describe("Travel Hunter app — place editing", () => {
     };
     const addedTrip: Trip = {
       ...initialTrip,
+      revision: 2,
       days: {
         1: [
           ...initialTrip.days[1],
@@ -67,6 +69,7 @@ describe("Travel Hunter app — place editing", () => {
     };
     const editedTrip: Trip = {
       ...addedTrip,
+      revision: 3,
       days: {
         1: [
           { id: "1", time: "10:20", label: "Updated peak", meta: "New memo" },
@@ -76,6 +79,7 @@ describe("Travel Hunter app — place editing", () => {
     };
     const deletedTrip: Trip = {
       ...editedTrip,
+      revision: 4,
       days: { 1: [editedTrip.days[1][1]] },
     };
     const getTripSpy = vi
@@ -139,6 +143,7 @@ describe("Travel Hunter app — place editing", () => {
           time: "14:30",
           label: "Cafe stop",
           meta: "Dessert",
+          expectedRevision: 1,
         }),
       );
       expect(
@@ -183,7 +188,7 @@ describe("Travel Hunter app — place editing", () => {
         expect(updatePlaceSpy).toHaveBeenCalledWith(
           "55",
           "1",
-          expect.objectContaining({ label: "Updated peak", time: "10:20" }),
+          expect.objectContaining({ label: "Updated peak", time: "10:20", expectedRevision: 2 }),
         ),
       );
       expect(
@@ -204,7 +209,7 @@ describe("Travel Hunter app — place editing", () => {
         within(deleteDialog).getByRole("button", { name: "삭제" }),
       );
       await waitFor(() =>
-        expect(deletePlaceSpy).toHaveBeenCalledWith("55", "1"),
+        expect(deletePlaceSpy).toHaveBeenCalledWith("55", "1", 3),
       );
       await waitFor(() =>
         expect(screen.queryByText("Updated peak")).not.toBeInTheDocument(),
@@ -215,6 +220,84 @@ describe("Travel Hunter app — place editing", () => {
       updatePlaceSpy.mockRestore();
       deletePlaceSpy.mockRestore();
       confirmSpy.mockRestore();
+    }
+  });
+
+  it("refreshes the trip and preserves edit drafts when a stale place save conflicts", async () => {
+    const initialTrip: Trip = {
+      ...getPreviewTrip(),
+      id: "56",
+      status: "draft",
+      currentUserRole: "owner",
+      title: "Conflict trip",
+      days: {
+        1: [{ id: "1", time: "09:00", label: "Sunrise peak", meta: "Nature" }],
+      },
+    };
+    const refreshedTrip: Trip = {
+      ...initialTrip,
+      revision: 2,
+      days: {
+        1: [{ id: "1", time: "09:00", label: "Friend edit", meta: "Updated elsewhere" }],
+      },
+    };
+    const getTripSpy = vi
+      .spyOn(appDataApi, "getTrip")
+      .mockResolvedValueOnce(initialTrip)
+      .mockResolvedValueOnce(refreshedTrip);
+    const updatePlaceSpy = vi
+      .spyOn(appDataApi, "updateTripPlace")
+      .mockRejectedValue(
+        new ApiError("Trip has changed. Refresh before saving.", {
+          status: 409,
+          statusText: "Conflict",
+          detail: "Trip has changed. Refresh before saving.",
+        }),
+      );
+
+    try {
+      await login();
+      cleanup();
+      renderAppRoute("/trips/56");
+      const user = userEvent.setup();
+
+      await waitFor(() =>
+        expect(document.body).toHaveTextContent("Sunrise peak"),
+      );
+      await user.click(
+        document.querySelector(".place-actions .ghost") as HTMLButtonElement,
+      );
+      await user.clear(
+        document.querySelector('input[name="place-label"]') as HTMLInputElement,
+      );
+      await user.type(
+        document.querySelector('input[name="place-label"]') as HTMLInputElement,
+        "My unsaved edit",
+      );
+      await user.click(
+        document.querySelector(".sheet-actions button") as HTMLButtonElement,
+      );
+
+      await waitFor(() =>
+        expect(updatePlaceSpy).toHaveBeenCalledWith(
+          "56",
+          "1",
+          expect.objectContaining({ label: "My unsaved edit", expectedRevision: 1 }),
+        ),
+      );
+      await waitFor(() => expect(getTripSpy).toHaveBeenLastCalledWith("56"));
+      expect(
+        await screen.findByText(
+          "다른 사용자가 먼저 일정을 수정했어요. 최신 내용을 확인한 뒤 다시 저장해 주세요.",
+        ),
+      ).toBeInTheDocument();
+      expect(document.body).toHaveTextContent("Friend edit");
+      expect(
+        window.localStorage.getItem("travel-hunter:draft:trip-place:56:edit:1"),
+      ).toContain("My unsaved edit");
+    } finally {
+      getTripSpy.mockRestore();
+      updatePlaceSpy.mockRestore();
     }
   });
 
@@ -317,6 +400,7 @@ describe("Travel Hunter app — place editing", () => {
           1,
           expect.objectContaining({
             label: "동백 식당",
+            expectedRevision: 1,
             meta: "음식점 · 제주 서귀포시 중문관광로 10",
             address: "제주 서귀포시 중문관광로 10",
             latitude: 33.251,
@@ -513,7 +597,7 @@ describe("Travel Hunter app — place editing", () => {
         expect(addPlaceSpy).toHaveBeenCalledWith(
           "55",
           1,
-          expect.objectContaining({ label: "Tea house" }),
+          expect.objectContaining({ label: "Tea house", expectedRevision: 1 }),
         ),
       );
       expect(
@@ -798,6 +882,7 @@ describe("Travel Hunter app — place editing", () => {
         expect(movePlaceSpy).toHaveBeenCalledWith("55", "2", {
           dayNumber: 1,
           position: 1,
+          expectedRevision: 1,
         }),
       );
       expect(await screen.findByText("이동 중")).toBeInTheDocument();
@@ -825,6 +910,7 @@ describe("Travel Hunter app — place editing", () => {
         expect(movePlaceSpy).toHaveBeenLastCalledWith("55", "2", {
           dayNumber: 2,
           position: 2,
+          expectedRevision: 1,
         }),
       );
       await waitFor(() =>
@@ -880,6 +966,7 @@ describe("Travel Hunter app — place editing", () => {
         expect(movePlaceSpy).toHaveBeenCalledWith("55", "2", {
           dayNumber: 1,
           position: 1,
+          expectedRevision: 1,
         }),
       );
       await waitFor(() =>

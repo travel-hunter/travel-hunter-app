@@ -13,6 +13,26 @@ export const apiConfig = {
 
 let accessToken: string | null = null;
 
+export class ApiError extends Error {
+  status: number;
+  statusText: string;
+  detail: unknown;
+  body: unknown;
+
+  constructor(message: string, options: { status: number; statusText: string; detail?: unknown; body?: unknown }) {
+    super(message);
+    this.name = "ApiError";
+    this.status = options.status;
+    this.statusText = options.statusText;
+    this.detail = options.detail;
+    this.body = options.body;
+  }
+}
+
+export function isApiError(error: unknown): error is ApiError {
+  return error instanceof ApiError;
+}
+
 export function setApiAccessToken(token: string | null) {
   accessToken = token;
 }
@@ -31,14 +51,25 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    let detail = "";
+    let detail: unknown;
+    let body: unknown;
     try {
-      const payload = (await response.clone().json()) as { detail?: unknown };
-      if (typeof payload.detail === "string") detail = payload.detail;
+      body = await response.clone().json();
+      if (body && typeof body === "object" && "detail" in body) {
+        detail = (body as { detail?: unknown }).detail;
+      }
     } catch {
       // Keep the generic message when the backend does not return a JSON error payload.
     }
-    throw new Error(detail || `API request failed: ${response.status} ${response.statusText}`);
+    const message = typeof detail === "string" && detail
+      ? detail
+      : `API request failed: ${response.status} ${response.statusText}`;
+    throw new ApiError(message, {
+      status: response.status,
+      statusText: response.statusText,
+      detail,
+      body,
+    });
   }
 
   return response.json() as Promise<T>;

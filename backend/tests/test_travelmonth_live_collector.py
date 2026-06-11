@@ -18,6 +18,15 @@ class FakeDb:
         self.commits += 1
 
 
+def test_live_collector_regional_source_url_uses_vacation_benefit_page() -> None:
+    from app.services import travelmonth_live_collector
+
+    assert (
+        travelmonth_live_collector.TRAVELMONTH_REGIONAL_BENEFIT_URL
+        == "https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do"
+    )
+
+
 def test_live_collector_fetches_official_page_and_collects_html(monkeypatch) -> None:
     from app.services import travelmonth_live_collector
 
@@ -121,6 +130,10 @@ def test_live_collector_allows_empty_parse_results(monkeypatch) -> None:
 
 def test_collect_travelmonth_once_cli_prints_json_summary(monkeypatch, capsys) -> None:
     from app.scripts import collect_travelmonth_once
+    from app.services.external_benefit_collection import (
+        ExternalBenefitCollectionResult,
+        SourceCollectionResult,
+    )
 
     class FakeSession:
         def __enter__(self):
@@ -135,17 +148,26 @@ def test_collect_travelmonth_once_cli_prints_json_summary(monkeypatch, capsys) -
     def fake_collect(db, *, timeout):
         assert isinstance(db, FakeSession)
         assert timeout == 15.0
-        return CollectionResult(
-            source_name="TravelMonth",
-            source_category="regional_benefit",
+        return ExternalBenefitCollectionResult(
+            source_name="official external benefits",
+            source_category="multiple",
             parsed_count=58,
             created_or_updated_count=58,
+            outcome="success",
+            sources=[
+                SourceCollectionResult(
+                    source_category="regional_benefit",
+                    parsed_count=58,
+                    created_or_updated_count=58,
+                    outcome="success",
+                )
+            ],
         )
 
     monkeypatch.setattr(collect_travelmonth_once, "get_session_factory", lambda: fake_session_factory)
     monkeypatch.setattr(
         collect_travelmonth_once,
-        "collect_regional_benefits_from_live_source",
+        "collect_external_benefits_from_live_sources",
         fake_collect,
     )
 
@@ -153,6 +175,8 @@ def test_collect_travelmonth_once_cli_prints_json_summary(monkeypatch, capsys) -
 
     captured = capsys.readouterr()
     assert exit_code == 0
-    assert '"sourceCategory": "regional_benefit"' in captured.out
+    assert '"sourceCategory": "multiple"' in captured.out
     assert '"parsedCount": 58' in captured.out
     assert '"createdOrUpdatedCount": 58' in captured.out
+    assert '"outcome": "success"' in captured.out
+    assert '"sources": [{"createdOrUpdatedCount": 58, "error": null, "outcome": "success", "parsedCount": 58, "sourceCategory": "regional_benefit"}]' in captured.out

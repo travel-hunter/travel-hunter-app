@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 SourceType = Literal["official_campaign"]
-SourceCategory = Literal["regional_benefit", "traffic_benefit", "local_half_trip"]
+SourceCategory = Literal["regional_benefit", "traffic_benefit", "local_half_trip", "stay_discount"]
 SourceStatus = Literal["active", "ended", "scheduled", "unknown"]
 BenefitValueType = Literal["amount", "percent", "free", "upgrade", "mixed", "unknown"]
 FreshnessStatus = Literal["fresh", "stale", "expired", "unknown"]
@@ -64,7 +64,7 @@ class ExternalBenefitSource(BaseModel):
 class TravelMonthRegionalBenefitSource(ExternalBenefitSource):
     source_name: Literal["여행가는 달"] = "여행가는 달"
     source_type: SourceType = "official_campaign"
-    source_url: str = "https://korean.visitkorea.or.kr/travelmonth/benefit.do"
+    source_url: str = "https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do"
     source_category: Literal["regional_benefit"] = "regional_benefit"
 
 

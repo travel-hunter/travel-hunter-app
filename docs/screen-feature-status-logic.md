@@ -16,14 +16,14 @@
 
 ### 수집 구조
 
-정책 수집은 프론트 화면에서 실행되는 기능이 아니라 백엔드 수집 서비스가 공식 외부 페이지를 가져와 DB에 반영하는 구조이다. 현재 기본 Docker 설정에서는 `EXTERNAL_COLLECTION_SCHEDULER_ENABLED=false`로 되어 있어 자동 수집 스케줄러는 꺼져 있고, 화면은 DB에 이미 저장된 active 정책을 `GET /api/policies`로 조회한다.
+정책 수집은 백엔드 수집 서비스가 공식 외부 페이지를 가져와 DB에 반영하는 구조이다. 현재 기본 Docker 설정에서는 `EXTERNAL_COLLECTION_SCHEDULER_ENABLED=false`로 되어 있어 자동 수집 스케줄러는 꺼져 있고, 화면은 DB에 이미 저장된 active 정책을 `GET /api/policies`로 조회한다. 관리자는 관리자 대시보드에서 현재 수집 상태를 보고 수동으로 1회 수집을 실행할 수 있다.
 
 ### 수집 대상/흐름
 
 | 단계 | 개발 상태 | 로직 |
 | --- | --- | --- |
 | 공식 페이지 HTML 가져오기 | 완료 | `httpx.get()`으로 공식 페이지 HTML을 가져온다. 기본 User-Agent는 `Travel Hunter official-source collector/0.1`이다. |
-| 수집 대상 분류 | 완료 | `regional_benefit`, `traffic_benefit`, `local_half_trip` 3개 source category를 지원한다. |
+| 수집 대상 분류 | 완료 | `regional_benefit`, `local_half_trip`, `stay_discount`를 public 정책/추천 입력으로 지원하고, `traffic_benefit`은 optional legacy source evidence로만 유지한다. |
 | HTML 파싱 | 완료 | source category별 parser가 HTML에서 제목, 지역, 기간, 혜택 문구, 금액/할인율, 상세 URL 등을 추출한다. |
 | 원천 레코드 저장 | 완료 | `external_source_records` 테이블에 `source_name + source_category + canonical_key` 기준으로 upsert한다. |
 | 정책 테이블 반영 | 완료 | active/fresh 원천 레코드를 `policies` 테이블로 승격한다. 생성되는 slug는 `travelmonth-{external_source_record_id}` 형식이다. |
@@ -38,8 +38,9 @@
 | 스케줄 시간 | 구현 완료 | `EXTERNAL_COLLECTION_RUN_AT`, 기본 `03:00` KST 이후 하루 1회 실행한다. |
 | 수집 주기 확인 | 구현 완료 | `EXTERNAL_COLLECTION_POLL_SECONDS`, 기본 60초마다 실행 시점 도달 여부를 확인한다. |
 | 최소 파싱 건수 검증 | 구현 완료 | `EXTERNAL_COLLECTION_MIN_PARSED_COUNT`보다 적게 파싱되면 성공 실행일로 기록하지 않는다. |
-| 단건 수동 수집 CLI | 구현 완료 | `python -m app.scripts.collect_travelmonth_once`로 여행가는 달 지역 혜택 페이지를 1회 수집할 수 있다. |
-| 운영 상태 확인 API | 구현 완료 | ops route에서 스케줄러 활성 여부, 마지막 실행일, 파싱 건수, outcome, error를 조회할 수 있다. |
+| 단건 수동 수집 CLI | 구현 완료 | `python -m app.scripts.collect_travelmonth_once`로 configured 공식 source 전체를 1회 수집하고 source별 outcome을 JSON으로 확인할 수 있다. |
+| 운영 상태 확인 API | 구현 완료 | 관리자 ops route에서 스케줄러 활성 여부, 마지막 실행일, 파싱 건수, outcome, error를 조회할 수 있다. |
+| 관리자 수동 실행 API/UI | 구현 완료 | `POST /api/ops/external-collection/run`과 관리자 대시보드의 “지금 수집 실행” 버튼으로 공식 source 수집을 실행한다. |
 
 ### 보고용 요약
 
@@ -63,7 +64,7 @@
 - 자동 수집은 구현되어 있지만 기본 compose 설정에서는 비활성이다. 운영에서 자동 최신화를 사용하려면 환경변수 활성화와 실행 모니터링이 필요하다.
 - HTML parser 기반이므로 공식 사이트 마크업이 바뀌면 파싱 결과가 줄거나 실패할 수 있다.
 - 일부 source가 실패해도 전체 수집 결과는 `partial_success`가 될 수 있으므로 source별 실패 로그 확인이 필요하다.
-- 현재 수동 CLI는 여행가는 달 지역 혜택 중심이고, 다중 source 전체 수집은 스케줄러/서비스 경로에서 수행된다.
+- 관리자 수동 실행은 live fetch를 수행하므로 공식 사이트 차단/timeout/마크업 변경 시 `partial_success` 또는 `error`가 날 수 있다.
 
 ## 2026-05-29 - Kakao Map API 연결 상태 사전 확인
 
@@ -258,3 +259,10 @@ Kakao Local provider가 없거나 외부 후보가 충분하지 않으면 내장
 - catalog fallback은 MVP 안전장치지만, 장기적으로는 지역 coverage 확장 또는 외부 후보 품질 개선이 필요하다.
 - “이동 거리”, “예산” 같은 추천 기준 UI 문구는 제품 방향을 설명하지만 현재 모든 항목이 정량화된 ranking feature로 완성된 것은 아니다.
 - 팀원 공유 시 “현재는 평점/리뷰 기반 만족도 추천이 아니다”와 “경로 API 기반 동선 최적화는 향후 후보”를 함께 설명해야 오해가 적다.
+
+
+### 2026-06-11 - 정책 수집 로컬 확장
+
+- `stay_discount` source가 숙박세일 페스타 숙박 할인권을 파싱해 `external_source_records`에 저장하고 active/fresh 레코드를 `policies`로 승격한다.
+- 대한민국 반값여행 parser는 `신청접수`, `6월 중 예정`, `6.16 10시부터`, `마감` 같은 6-7월 상태 문구를 구분하고 여행기간을 raw payload에 보존한다.
+- 일정 상세 추천 정책은 지역, 일정 날짜 겹침, 카테고리, 여행 스타일 텍스트만으로 점수화하며 LLM/AI 판단은 사용하지 않는다.

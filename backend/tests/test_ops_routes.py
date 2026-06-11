@@ -7,12 +7,17 @@ from sqlalchemy import Integer, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.api import dependencies as api_dependencies
 from app.api.routes import ops as ops_routes
 from app.db.base import Base
 from app.main import app
 from app.models import ExternalSourceRecord, User
 from app.repositories.external_sources import upsert_external_source_records
 from app.schemas.external_sources import ExternalBenefitSource, TravelMonthRegionalBenefitSource, TravelStyle
+from app.services.external_benefit_collection import (
+    ExternalBenefitCollectionResult,
+    SourceCollectionResult,
+)
 from app.services import external_collection_scheduler
 from app.services.region_recommendations import NATIONWIDE_REGION
 from app.services.travelmonth_collection import CollectionResult
@@ -25,11 +30,12 @@ STYLE_FOOD = get_args(TravelStyle)[1]
 STYLE_EXPERIENCE = get_args(TravelStyle)[2]
 
 
-def make_ops_user() -> User:
+def make_ops_user(*, role: str = "admin") -> User:
     return User(
         id=1,
         email="ops@example.com",
         nickname="Ops User",
+        role=role,
         onboarding_completed=True,
         created_at=datetime(2026, 5, 21, 0, 0, 0),
         updated_at=datetime(2026, 5, 21, 0, 0, 0),
@@ -37,11 +43,12 @@ def make_ops_user() -> User:
 
 
 def authenticate_ops_user() -> None:
-    app.dependency_overrides[ops_routes.get_current_user] = make_ops_user
+    app.dependency_overrides[ops_routes.require_admin_user] = make_ops_user
 
 
 def clear_ops_user() -> None:
-    app.dependency_overrides.pop(ops_routes.get_current_user, None)
+    app.dependency_overrides.pop(ops_routes.require_admin_user, None)
+    app.dependency_overrides.pop(api_dependencies.get_current_user, None)
 
 
 def make_source(
@@ -59,12 +66,12 @@ def make_source(
     return ExternalBenefitSource(
         source_name=SOURCE_NAME,
         source_type="official_campaign",
-        source_url="https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+        source_url="https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
         source_category="regional_benefit",
         external_id=canonical_key,
         canonical_key=canonical_key,
         detail_url=None,
-        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
         title=title,
         organizer_text=f"{region} organizer",
         organizers=[f"{region} organizer"],
@@ -145,12 +152,20 @@ def test_external_collection_ops_health_returns_scheduler_snapshot() -> None:
     }
 
 
-def test_external_collection_ops_health_requires_authentication() -> None:
+def test_external_collection_ops_health_requires_admin() -> None:
     clear_ops_user()
 
     response = client.get("/api/ops/external-collection")
 
     assert response.status_code == 401
+
+    app.dependency_overrides[api_dependencies.get_current_user] = lambda: make_ops_user(role="user")
+    try:
+        response = client.get("/api/ops/external-collection")
+    finally:
+        clear_ops_user()
+
+    assert response.status_code == 403
 
 
 def test_regular_api_health_contract_is_unchanged() -> None:
@@ -192,6 +207,72 @@ def test_external_collection_ops_health_exposes_active_scheduler_status(
         "lastOutcome": "success",
         "lastError": None,
     }.items() <= response.json().items()
+
+
+def test_external_collection_run_triggers_live_collection_for_admin(monkeypatch) -> None:
+    fake_db = object()
+    app.dependency_overrides[ops_routes.get_optional_db] = lambda: fake_db
+    authenticate_ops_user()
+    calls: list[object] = []
+
+    def fake_collect(db):
+        calls.append(db)
+        return ExternalBenefitCollectionResult(
+            source_name="official external benefits",
+            source_category="multiple",
+            parsed_count=3,
+            created_or_updated_count=2,
+            outcome="partial_success",
+            sources=[
+                SourceCollectionResult(
+                    source_category="regional_benefit",
+                    parsed_count=2,
+                    created_or_updated_count=2,
+                    outcome="success",
+                ),
+                SourceCollectionResult(
+                    source_category="traffic_benefit",
+                    parsed_count=0,
+                    created_or_updated_count=0,
+                    outcome="source_unavailable",
+                    error="404 Client Error: Not Found for url",
+                ),
+            ],
+        )
+
+    monkeypatch.setattr(ops_routes, "collect_external_benefits_from_live_sources", fake_collect)
+
+    try:
+        response = client.post("/api/ops/external-collection/run")
+    finally:
+        clear_ops_user()
+        app.dependency_overrides.pop(ops_routes.get_optional_db, None)
+
+    assert response.status_code == 200
+    assert calls == [fake_db]
+    assert response.json() == {
+        "sourceName": "official external benefits",
+        "sourceCategory": "multiple",
+        "parsedCount": 3,
+        "createdOrUpdatedCount": 2,
+        "outcome": "partial_success",
+        "sources": [
+            {
+                "sourceCategory": "regional_benefit",
+                "parsedCount": 2,
+                "createdOrUpdatedCount": 2,
+                "outcome": "success",
+                "error": None,
+            },
+            {
+                "sourceCategory": "traffic_benefit",
+                "parsedCount": 0,
+                "createdOrUpdatedCount": 0,
+                "outcome": "source_unavailable",
+                "error": "404 Client Error: Not Found for url",
+            },
+        ],
+    }
 
 
 def test_external_collection_quality_report_returns_empty_counts() -> None:

@@ -95,8 +95,8 @@ def make_external_record() -> ExternalSourceRecord:
         source_category="regional_benefit",
         external_id="tm-58",
         canonical_key="busan-photo-benefit",
-        detail_url="https://korean.visitkorea.or.kr/travelmonth/benefit.do",
-        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefit.do",
+        detail_url="https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
+        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
         title="부산 야경투어 여행가는 달 할인",
         organizer_text="부산관광공사",
         region="부산",
@@ -150,7 +150,7 @@ def test_db_policy_list_uses_normalized_policies_without_raw_external_merge(monk
     assert collected["amount"] == "최대 2만원"
     assert collected["tag"] == "최대 2만원"
     assert collected["category"] == "지역할인"
-    assert collected["officialUrl"] == "https://korean.visitkorea.or.kr/travelmonth/benefit.do"
+    assert collected["officialUrl"] == "https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do"
     assert collected["applyUrl"] is None
 
 
@@ -188,7 +188,7 @@ def test_external_policy_category_scores_text_before_regional_default() -> None:
     record.source_category = "regional_benefit"
     record.title = "남도 기차둘레길 1박 2일 최대 35% 할인행사"
     record.benefit_text = "남도 기차 여행상품 최대 35% 할인"
-    record.collected_page_url = "https://korean.visitkorea.or.kr/travelmonth/benefit.do"
+    record.collected_page_url = "https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do"
 
     payload = policy_service.external_source_record_to_policy_api(record)
 

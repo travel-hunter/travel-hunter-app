@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import date, datetime
 from html.parser import HTMLParser
 from urllib.parse import urljoin, urlparse
@@ -182,7 +183,7 @@ def _record_from_section(
     paragraphs = [
         str(item) for item in raw_record.get("paragraphs", []) if str(item).strip()
     ]
-    application_period = _value_after_label(paragraphs, "신청기간")
+    application_period = _value_after_label(paragraphs, "신청기간") or _value_after_label(paragraphs, "신청접수")
     trip_period = _value_after_label(paragraphs, "여행기간") or _value_after_label(
         paragraphs,
         "여행일정",
@@ -312,18 +313,54 @@ def _split_heading(value: str) -> tuple[str, str | None]:
 
 def _value_after_label(values: list[str], label: str) -> str | None:
     for value in values:
-        if label in value:
+        if label not in value:
+            continue
+        if ":" in value:
             return normalize_text(value.split(":", 1)[-1])
+        if "：" in value:
+            return normalize_text(value.split("：", 1)[-1])
+        return normalize_text(value.replace(label, "", 1))
     return None
 
 
 def _parse_application_period(value: str | None) -> tuple[date | None, date | None]:
-    if not value or any(token in value for token in ("준비중", "예정", "미정")):
+    if not value:
         return None, None
+    text = normalize_text(value)
+    if any(token in text for token in ("준비중", "미정")) or "월 중 예정" in text:
+        return None, None
+    parsed_period = _try_parse_standard_period(text)
+    if parsed_period != (None, None):
+        return parsed_period
+    return _parse_partial_period(text, default_year=2026)
+
+
+def _try_parse_standard_period(value: str) -> tuple[date | None, date | None]:
     try:
         return parse_period(value)
     except ValueError:
         return None, None
+
+
+def _parse_partial_period(value: str, *, default_year: int) -> tuple[date | None, date | None]:
+    korean_dates = re.findall(r"(?:(20\d{2})\s*년\s*)?(\d{1,2})\s*월\s*(\d{1,2})\s*일?", value)
+    if len(korean_dates) >= 2:
+        return _date_from_korean(korean_dates[0], default_year), _date_from_korean(korean_dates[1], default_year)
+    start_match = re.search(r"(?<!\d)(\d{1,2})\s*[.]\s*(\d{1,2})\s*(?=\d{1,2}시|부터|접수|오픈)", value)
+    if start_match:
+        return date(default_year, int(start_match.group(1)), int(start_match.group(2))), None
+    dot_dates = re.findall(r"(?<!\d)(\d{1,2})\s*[.]\s*(\d{1,2})(?!\s*[.]?\d)", value)
+    if len(dot_dates) >= 2:
+        return date(default_year, int(dot_dates[0][0]), int(dot_dates[0][1])), date(default_year, int(dot_dates[1][0]), int(dot_dates[1][1]))
+    if len(korean_dates) == 1:
+        return _date_from_korean(korean_dates[0], default_year), None
+    if len(dot_dates) == 1:
+        return date(default_year, int(dot_dates[0][0]), int(dot_dates[0][1])), None
+    return None, None
+
+
+def _date_from_korean(parts: tuple[str, str, str], default_year: int) -> date:
+    return date(int(parts[0] or default_year), int(parts[1]), int(parts[2]))
 
 
 def _status_from(
@@ -340,10 +377,10 @@ def _status_from(
         return "active"
     if "준비중" in text or "예정" in text:
         return "scheduled"
-    if start_date and end_date:
-        if today < start_date:
-            return "scheduled"
-        if today > end_date:
-            return "ended"
+    if start_date and today < start_date:
+        return "scheduled"
+    if start_date and end_date and today > end_date:
+        return "ended"
+    if start_date and (end_date is None or today <= end_date):
         return "active"
     return "unknown"

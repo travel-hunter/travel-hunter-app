@@ -606,6 +606,7 @@ CREATE TABLE public.trips (
     region character varying(100),
     travel_area_id character varying(120),
     participant_count integer DEFAULT 1 NOT NULL,
+    revision integer DEFAULT 1 NOT NULL,
     description text,
     created_at timestamp without time zone DEFAULT now() NOT NULL,
     updated_at timestamp without time zone DEFAULT now() NOT NULL,

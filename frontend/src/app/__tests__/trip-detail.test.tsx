@@ -75,6 +75,29 @@ describe("Travel Hunter app — trip detail & itinerary", () => {
     }
   });
 
+  it("hides the friend invite entry for non-owner trip members", async () => {
+    const trip: Trip = {
+      ...getPreviewTrip(),
+      id: "57",
+      currentUserRole: "editor",
+      title: "편집자 참여 일정",
+    };
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(trip);
+
+    try {
+      await login();
+      cleanup();
+      renderAppRoute("/trips/57");
+
+      await waitFor(() =>
+        expect(screen.getAllByText("편집자 참여 일정").length).toBeGreaterThan(0),
+      );
+      expect(screen.queryByRole("link", { name: "+ 친구 초대" })).not.toBeInTheDocument();
+    } finally {
+      getTripSpy.mockRestore();
+    }
+  });
+
   it("shows linked policies from the trip detail response", async () => {
     const trip: Trip = {
       ...getPreviewTrip(),

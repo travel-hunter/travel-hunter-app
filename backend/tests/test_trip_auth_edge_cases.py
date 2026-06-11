@@ -46,6 +46,7 @@ def make_trip_with_viewer() -> tuple[Trip, UserModel]:
         owner_id=1,
         title="Test Trip",
         status="confirmed",
+        revision=1,
         start_date=date(2026, 7, 1),
         end_date=date(2026, 7, 3),
         created_at=datetime(2026, 5, 4),
@@ -89,7 +90,7 @@ def test_viewer_cannot_add_place(monkeypatch) -> None:
             user=viewer,
             trip_handle="10",
             day_number=1,
-            payload=CreateTripPlaceRequest(label="New Place"),
+            payload=CreateTripPlaceRequest(expectedRevision=1, label="New Place"),
         )
 
     assert exc_info.value.status_code == 403
@@ -109,7 +110,7 @@ def test_viewer_cannot_update_place(monkeypatch) -> None:
             user=viewer,
             trip_handle="10",
             place_id=5,
-            payload=UpdateTripPlaceRequest(label="Renamed"),
+            payload=UpdateTripPlaceRequest(expectedRevision=1, label="Renamed"),
         )
 
     assert exc_info.value.status_code == 403
@@ -129,7 +130,7 @@ def test_viewer_cannot_move_place(monkeypatch) -> None:
             user=viewer,
             trip_handle="10",
             place_id=5,
-            payload=MoveTripPlaceRequest(dayNumber=1, position=1),
+            payload=MoveTripPlaceRequest(expectedRevision=1, dayNumber=1, position=1),
         )
 
     assert exc_info.value.status_code == 403
@@ -149,6 +150,7 @@ def test_viewer_cannot_delete_place(monkeypatch) -> None:
             user=viewer,
             trip_handle="10",
             place_id=5,
+            expected_revision=1,
         )
 
     assert exc_info.value.status_code == 403
@@ -190,7 +192,7 @@ def test_nonmember_cannot_add_place(monkeypatch) -> None:
             user=outsider,
             trip_handle="10",
             day_number=1,
-            payload=CreateTripPlaceRequest(label="Sneaky Place"),
+            payload=CreateTripPlaceRequest(expectedRevision=1, label="Sneaky Place"),
         )
 
     assert exc_info.value.status_code == 404
@@ -212,6 +214,7 @@ def test_nonmember_cannot_delete_place(monkeypatch) -> None:
             user=outsider,
             trip_handle="10",
             place_id=5,
+            expected_revision=1,
         )
 
     assert exc_info.value.status_code == 404

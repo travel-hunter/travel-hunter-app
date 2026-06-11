@@ -2,13 +2,13 @@
 
 ## 기준
 
-- 기준일: 2026-06-05
-- 기준 Alembic head: `0017_widen_social_provider_id`
+- 기준일: 2026-06-11
+- 기준 Alembic head: `0018_add_trip_revision`
 - PostgreSQL: 16.13
 - SQL 산출물: `docs/db-schema-current.sql`
 - 생성 방식: fresh PostgreSQL DB에 `alembic upgrade head`를 적용한 뒤 `pg_dump --schema-only --no-owner --no-privileges`로 추출했다.
 
-이 문서는 현재 앱이 사용하는 PostgreSQL schema의 기준 문서다. 초기 SQL 기준본 이후 Alembic migration `0002`~`0017`이 적용된 현재 구조를 설명한다.
+이 문서는 현재 앱이 사용하는 PostgreSQL schema의 기준 문서다. 초기 SQL 기준본 이후 Alembic migration `0002`~`0018`이 적용된 현재 구조를 설명한다.
 
 ## 테이블 그룹
 
@@ -72,6 +72,7 @@ Migration metadata:
 - `policies.apply_url`
 - `trip_invites.role`
 - `trips.status`
+- `trips.revision`
 
 ## `phone_verification_codes`
 
@@ -149,6 +150,10 @@ Migration metadata:
 
 `trips.participant_count` stores the planned travel party size for itinerary creation. It is separate from `trip_members`, which continues to represent real invited/authenticated trip members and permissions. The API exposes this field as `participantCount`.
 
+
+## 2026-06-11 trips.revision
+
+`trips.revision` is an integer optimistic-lock version for itinerary place edits. It defaults to `1` and is incremented atomically when owner/editor users add, update, move, or delete trip places. The API exposes this field as `Trip.revision`, while place mutation requests send the last seen value as `expectedRevision`.
 
 ## Admin management additions
 
