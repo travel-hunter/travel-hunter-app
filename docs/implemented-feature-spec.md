@@ -36,7 +36,7 @@
 
 | 기능 | 사용자 동작 | 연결 |
 |---|---|---|
-| 정책 목록/상세 | `/policies`에서 DB 정책과 active/fresh TravelMonth 혜택을 함께 보고 `/policies/:slug`에서 상세를 확인한다. 수집 혜택은 `sourceType="external"`과 `travelmonth-{externalSourceRecordId}` slug로 노출하지만 사용자 화면에는 구현 구분 라벨을 표시하지 않고 공식 혜택으로 표현한다. raw 수집 레코드는 normalization 전까지 저장/일정 연결 action을 neutral 안내와 함께 임시 제한한다. | `GET /api/policies`, `GET /api/policies/{policySlug}` |
+| 정책 목록/상세 | `/policies`에서 DB 정책과 active/fresh TravelMonth/대한민국 반값여행/숙박세일 페스타 혜택을 함께 보고 `/policies/:slug`에서 상세를 확인한다. 수집 혜택은 `sourceType="external"`과 `travelmonth-{externalSourceRecordId}` slug로 노출하지만 사용자 화면에는 구현 구분 라벨을 표시하지 않고 공식 혜택으로 표현한다. raw 수집 레코드는 normalization 전까지 저장/일정 연결 action을 neutral 안내와 함께 임시 제한한다. | `GET /api/policies`, `GET /api/policies/{policySlug}` |
 | 검색/필터 | 검색어, 지역, 카테고리를 client-side AND 조건으로 적용한다. 카테고리는 `교통`, `숙박`, `여행상품`, `지역할인`, `이벤트`, `기타` 혜택 유형이며 `travelStyles`와 분리한다. | frontend filtering |
 | 정책 탐색 바로가기 | `/policies` 상단에서 매칭 높은 정책, 마감 임박 정책, 유형별 모아보기를 먼저 보여주고 `/home`에서도 마감 임박/추천 혜택 레일을 분리해 보여준다. 홈 인기 국내 여행지와 AI 추천 맞춤 일정 카드는 `GET /api/recommendations/regions`를 `AppDataApi` 경유로 호출해 정책 수, 마감 임박, 혜택 금액, 취향 보정, 프로필 지역 최종 tie-breaker 기준으로 표시하고 실패/empty 때는 정책 지역 기반 후보로 fallback한다. AI 추천 맞춤 일정 카드는 기존 일정 목록의 첫 일정을 노출하지 않고 `/trips/new?region=...` 새 일정 생성 CTA로 연결한다. | `GET /api/recommendations/regions`, frontend grouping |
 | 조건 확인 요약/FAQ | 정책 상세에서 내 관심 지역과 정책 지역, 핵심 신청 조건, 필요 서류를 요약하고 정적 FAQ accordion을 제공한다. 확정 자격 판정은 하지 않는다. | `Policy.requirements`, `Policy.documents`, `Policy.region` |
@@ -53,8 +53,8 @@
 | 일정 목록/생성 | `/trips`에서 목록을 보고 `/trips/new`에서 지역, 스타일, 기간으로 일정을 만든다. `/home`의 추천 지역 링크가 넘긴 `/trips/new?region=...` 값은 새 일정 생성 지역으로 유지된다. | `GET/POST /api/trips` |
 | 일정 확정 저장 | `/trips` 카드에서 draft 일정을 확정 선택 후 저장해 DB 상태를 `confirmed`로 바꾼다. | `trips.status`, `PATCH /api/trips/{tripId}/status` |
 | 생성 draft autosave | `/trips/new`의 지역, 스타일, 기간, policySlug draft를 24시간 localStorage에 저장한다. 생성 성공 시 삭제한다. | `frontend/src/utils/draftStorage.ts` |
-| 상세/삭제 | `/trips/:id`에서 상세를 보고 owner는 목록에서 일정을 삭제한다. 일정 상세의 추천 정책 카드는 `recommendedPolicies`를 사용해 정규화된 정책과 TravelMonth 혜택 상세 페이지로 연결한다. | `GET/DELETE /api/trips/{tripId}`, `Trip.recommendedPolicies` |
-| 장소 추가/수정/삭제/이동 | owner/editor는 장소를 추가, 수정, 삭제하고 드래그앤드롭으로 같은 Day 순서 변경 또는 다른 Day 이동을 수행한다. 이동 핸들, Day drop target, 이동 중 상태를 표시하고 viewer는 편집할 수 없다. | `trip_places` CRUD/move endpoints |
+| 상세/삭제 | `/trips/:id`에서 상세를 보고 owner는 목록에서 일정을 삭제한다. 일정 상세의 추천 정책 카드는 `recommendedPolicies`를 사용해 정규화된 정책과 TravelMonth/반값여행/숙박세일 혜택 상세 페이지로 연결하며 지역, 날짜 겹침, 카테고리, 스타일 텍스트만으로 deterministic ranking한다. | `GET/DELETE /api/trips/{tripId}`, `Trip.recommendedPolicies` |
+| 장소 추가/수정/삭제/이동 | owner/editor는 장소를 추가, 수정, 삭제하고 드래그앤드롭으로 같은 Day 순서 변경 또는 다른 Day 이동을 수행한다. 각 장소 변경은 `Trip.revision`/`expectedRevision` optimistic conflict 처리를 거치며 stale 저장은 409 후 최신 일정을 다시 불러오고 draft를 유지한다. viewer는 편집할 수 없다. | `trip_places` CRUD/move endpoints, `trips.revision` |
 | 장소 추가 draft autosave | 장소 추가 sheet의 시간, 장소명, 메모, dayNumber draft를 24시간 localStorage에 저장한다. 저장 성공 또는 닫기 시 삭제한다. | `frontend/src/utils/draftStorage.ts` |
 | 장소 수정 draft autosave | 장소 수정 sheet의 시간, 장소명, 메모 draft를 `placeId` 기준으로 24시간 localStorage에 저장한다. 저장 성공, 닫기, 장소 삭제 시 삭제한다. | `frontend/src/utils/draftStorage.ts` |
 | Draft 복원 안내/폐기 | `/trips/new`와 장소 sheet에서 유효 draft를 불러오면 안내를 표시하고 사용자가 임시 저장 내용을 버릴 수 있다. | frontend localStorage UX |
@@ -72,9 +72,10 @@
 
 | 기능 | 사용자 동작 | 연결 |
 |---|---|---|
-| 초대 링크 생성 | `/friend-invite?tripId=...`에서 viewer/editor 권한을 골라 링크를 활성화한다. 백엔드가 반환하는 `inviteUrl`은 `TRAVEL_HUNTER_PUBLIC_BASE_URL` 기준 `/invites/{token}/accept` 공개 수락 경로를 사용한다. | `trip_invites.role`, `TRAVEL_HUNTER_PUBLIC_BASE_URL` |
+| 초대 링크/email 생성 | `/friend-invite?tripId=...`에서 owner가 viewer/editor 권한을 골라 링크를 활성화하거나 email 초대를 보낸다. 백엔드가 반환하는 `inviteUrl`은 `TRAVEL_HUNTER_PUBLIC_BASE_URL` 기준 `/invites/{token}/accept` 공개 수락 경로를 사용하며, email 본문에는 일정 상세를 담지 않는다. SMTP 미설정/실패 시 링크 복사 fallback을 안내한다. | `trip_invites.role`, `TRAVEL_HUNTER_PUBLIC_BASE_URL`, SMTP env |
 | 초대 수락 | `/invites/:token/accept`로 진입해 로그인 후 초대를 수락한다. 비로그인 사용자는 로그인/가입 후 redirect로 원래 초대 링크에 복귀하고, 만료/오류 상태는 새 초대 링크 요청 안내를 표시한다. | `trip_invites.accepted_at`, `trip_members` |
 | 권한 적용 | owner/editor만 장소를 편집하고 viewer는 읽기 전용으로 본다. | trip service authorization |
+| 상세 작업흐름 | 링크 기반 초대, 로그인/가입 후 수락, 중복 수락, 상세 일정 편집 권한, 장소 저장 충돌, email 초대와 예외 흐름은 별도 workflow spec을 따른다. | `docs/specs/invite-trip-edit-workflow.md` |
 
 ## 알림
 
@@ -95,7 +96,7 @@
 | Production sourcemap | Vite production sourcemap은 명시적으로 비활성화되어 있다. |
 | 로컬 개발 런타임 | Docker `db/backend`와 Vite dev server 기준 실행 절차를 문서화했다. |
 | Cloudflare Tunnel 배포 | `docs/deployment-cicd/`에 GitHub, Docker, Jenkins 계획, release checklist 기준을 모았다. |
-| 정책 수집 운영 상태 | bearer 인증된 `/api/ops/external-collection`과 `/api/ops/external-collection/quality`가 scheduler 상태, 수집 품질 count, 추천 preview를 read-only로 제공한다. RC gate는 `totalRecords >= minParsedCount`, `freshRecords > 0`, `activeRecords > 0`, 최신 수집/검증 timestamp 존재, 정규화 정책의 list/detail 노출, stale 숨김으로 검증한다. | `GET /api/ops/external-collection`, `GET /api/ops/external-collection/quality` |
+| 정책 수집 운영 상태/수동 실행 | 관리자 인증된 `/api/ops/external-collection`과 `/api/ops/external-collection/quality`가 scheduler 상태, 수집 품질 count, 추천 preview를 제공한다. 수집 source는 여행가는 달 지역/교통 혜택, 대한민국 반값여행, 숙박세일 페스타(`stay_discount`)를 포함한다. `/api/ops/external-collection/run`은 관리자가 공식 source 수집을 1회 실행하고 per-source 성공/실패를 반환한다. 관리자 대시보드에서는 외부 정책 수집 상태와 수동 실행 버튼을 제공한다. RC gate는 `totalRecords >= minParsedCount`, `freshRecords > 0`, `activeRecords > 0`, 최신 수집/검증 timestamp 존재, 정규화 정책의 list/detail 노출, stale 숨김으로 검증한다. | `GET /api/ops/external-collection`, `POST /api/ops/external-collection/run`, `GET /api/ops/external-collection/quality`, `GET /api/admin/external-sources/summary` |
 
 ## 조건부 기능과 미구현 범위
 

@@ -44,14 +44,16 @@ docker compose --env-file deploy/.env.prod -f compose.tunnel.yaml logs --tail=10
 curl -fsS https://<domain>/api/health
 APPROVED_BEARER_TOKEN=<approved-bearer-token>
 curl -fsS -H "Authorization: Bearer $APPROVED_BEARER_TOKEN" https://<domain>/api/ops/external-collection
+curl -fsS -X POST -H "Authorization: Bearer $APPROVED_BEARER_TOKEN" https://<domain>/api/ops/external-collection/run
 curl -fsS -H "Authorization: Bearer $APPROVED_BEARER_TOKEN" "https://<domain>/api/ops/external-collection/quality?style=맛집&region=부산&limit=3"
 ```
 
 ## Smoke Test
 
 - [ ] `https://<domain>/api/health` returns ok.
-- [ ] Bearer-authenticated `https://<domain>/api/ops/external-collection` returns scheduler cadence and last collection status without changing `/api/health`.
-- [ ] Bearer-authenticated `https://<domain>/api/ops/external-collection/quality?style=맛집&region=부산&limit=3` returns DB-backed collection quality counts and recommendation preview without live fetch.
+- [ ] Admin bearer-authenticated `https://<domain>/api/ops/external-collection` returns scheduler cadence and last collection status without changing `/api/health`.
+- [ ] Optional admin bearer-authenticated `POST https://<domain>/api/ops/external-collection/run` returns source-level collection outcome without exposing secrets.
+- [ ] Admin bearer-authenticated `https://<domain>/api/ops/external-collection/quality?style=맛집&region=부산&limit=3` returns DB-backed collection quality counts and recommendation preview without live fetch.
 - [ ] `https://<domain>/login` renders.
 - [ ] 로그인 성공.
 - [ ] 로그인 실패 메시지 확인.

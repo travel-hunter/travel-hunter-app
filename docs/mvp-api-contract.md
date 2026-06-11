@@ -54,7 +54,7 @@ DB 연결 상태 포함 서버 헬스 확인. 인증 불필요.
 
 ### GET /ops/external-collection
 
-TravelMonth external collection scheduler 운영 확인용 상태를 반환한다. 기존 `/health`와 `/api/health` 응답 계약은 변경하지 않는다. Bearer 인증이 필요하다.
+공식 외부 혜택 수집 scheduler 운영 확인용 상태를 반환한다. 기존 `/health`와 `/api/health` 응답 계약은 변경하지 않는다. 관리자 Bearer 인증이 필요하다.
 
 **Response 200**
 ```json
@@ -71,14 +71,42 @@ TravelMonth external collection scheduler 운영 확인용 상태를 반환한�
 }
 ```
 
-`lastOutcome`은 현재 backend process의 in-memory scheduler snapshot이며, 값은 `success`, `below_threshold`, `error`, 또는 `null`이다. process 재시작 후에는 마지막 실행 상태가 `null`로 돌아간다.
+`lastOutcome`은 현재 backend process의 in-memory scheduler snapshot이며, 값은 `success`, `partial_success`, `below_threshold`, `error`, 또는 `null`이다. process 재시작 후에는 마지막 실행 상태가 `null`로 돌아간다.
+
+---
+
+### POST /ops/external-collection/run
+
+공식 외부 혜택 수집을 관리자 수동 실행으로 1회 수행한다. configured source(`regional_benefit`, `local_half_trip`, `stay_discount`)를 live fetch하고, `traffic_benefit`은 제거/404 가능성이 있는 optional legacy source로 취급하며, parser 결과를 `external_source_records`에 upsert한 뒤 active/fresh 레코드를 `policies`로 승격한다. 관리자 Bearer 인증이 필요하다.
+
+**Response 200**
+```json
+{
+  "sourceName": "official external benefits",
+  "sourceCategory": "multiple",
+  "parsedCount": 58,
+  "createdOrUpdatedCount": 58,
+  "outcome": "success",
+  "sources": [
+    {
+      "sourceCategory": "regional_benefit",
+      "parsedCount": 42,
+      "createdOrUpdatedCount": 42,
+      "outcome": "success",
+      "error": null
+    }
+  ]
+}
+```
+
+`outcome`은 전체 실행 결과이며 `success`, `partial_success`, `error` 중 하나다. per-source `outcome`은 여기에 `source_unavailable`을 추가로 사용할 수 있으며, source HTTP 404/410은 `source_unavailable`로 기록한다. 필수 공식 source fetch/parser가 실패해도 다른 source가 성공하면 `partial_success`와 per-source `error`를 반환한다. optional legacy `traffic_benefit`의 404/410은 전체 실행을 실패로 강등하지 않는다. 응답에는 API key, bearer token, SMTP credential 같은 secret을 포함하지 않는다.
 
 ---
 
 ### GET /ops/external-collection/quality
 
 외부 공식 혜택 수집 품질 리포트를 반환한다. 현재 DB의 `external_source_records`를 집계하며 live network fetch는 실행하지 않는다.
-Bearer 인증이 필요하다.
+관리자 Bearer 인증이 필요하다.
 
 **Query params**
 
@@ -614,7 +642,7 @@ Account linking policy:
 
 ### GET /policies
 
-전체 정책 목록. 인증 불필요. DB `policies` 레코드만 `Policy` DTO로 반환한다. TravelMonth, 대한민국 반값여행 등 공식 외부 수집 레코드(`external_source_records`)는 수집/검증 원문 근거로 보존하고, active/fresh `regional_benefit`, `traffic_benefit`, `local_half_trip` 항목은 collection normalization service가 `policies`로 승격한다. 승격된 외부 정책은 기존 호환 slug `travelmonth-{externalSourceRecordId}`를 사용한다. 디지털관광주민증/대한민국 반값여행 계열(`local_half_trip`)은 공식 페이지의 지역별 상태가 `신청접수중`인 active/fresh 항목만 public 정책으로 노출하고, 준비중/마감/unknown 또는 stale 항목은 기존 연결 보호를 위해 `policies.status = "hidden"`으로 내려 사용자 목록에서 제외한다.
+전체 정책 목록. 인증 불필요. DB `policies` 레코드만 `Policy` DTO로 반환한다. TravelMonth, 대한민국 반값여행 등 공식 외부 수집 레코드(`external_source_records`)는 수집/검증 원문 근거로 보존하고, active/fresh `regional_benefit`, `local_half_trip`, `stay_discount` 항목은 collection normalization service가 `policies`로 승격한다. `traffic_benefit`은 legacy/optional 수집 근거로 보존될 수 있지만 public 정책 승격 대상에서는 제외한다. 승격된 외부 정책은 기존 호환 slug `travelmonth-{externalSourceRecordId}`를 사용한다. 디지털관광주민증/대한민국 반값여행 계열(`local_half_trip`)은 공식 페이지의 지역별 상태가 `신청접수중`인 active/fresh 항목만 public 정책으로 노출하고, 준비중/마감/unknown 또는 stale 항목은 기존 연결 보호를 위해 `policies.status = "hidden"`으로 내려 사용자 목록에서 제외한다.
 
 **Response 200** → `Policy[]`
 ```json
@@ -645,14 +673,14 @@ Account linking policy:
 `category` 허용 값: `"교통" | "숙박" | "여행상품" | "지역할인" | "이벤트" | "기타"`
 `sourceType` 허용 값은 `"internal" | "external"`이며 API 호환과 내부 진단을 위해 유지한다. 사용자 화면은 `internal/external` 같은 구현 구분 문구를 노출하지 않는다. 사용자에게 노출되는 모든 정책은 정규화된 `policies` 레코드이므로 저장/일정 연결 동작을 동일하게 지원한다.
 `actionStatus`는 생략 또는 `null`이면 저장/일정 연결 가능 상태로 간주한다. migration gap 동안 상세 조회만 허용되는 raw fallback 정책은 `"infoOnly"`를 반환하며, 프론트엔드는 저장/일정 연결 action을 차단하고 공식 원문 확인 안내만 제공한다.
-`external_source_records.source_category` 중 정책 승격 대상은 `regional_benefit`, `traffic_benefit`, `local_half_trip`이다. 목적지/지역 추천 점수에는 `traffic_benefit`을 제외한다.
+`external_source_records.source_category` 중 정책 승격 대상은 `regional_benefit`, `local_half_trip`, `stay_discount`이다. `traffic_benefit`은 optional legacy source로 남기며 목적지/지역 추천 점수와 public 정책 승격에서 제외한다. 목적지/지역 추천 점수에는 `traffic_benefit`을 제외하고, 일정 상세 정책 추천은 정규화된 active/fresh 정책에 대해 지역/일정 날짜/카테고리/여행 스타일 태그만 사용하는 deterministic scoring을 적용한다.
 외부 수집 정책의 `category`는 `external_source_records`의 제목, 혜택 본문, 태그, 출처 URL, source category를 점수화한 deterministic classifier 결과다. 단순 source URL/source category 매핑이 아니며, 동점이면 `교통 > 숙박 > 여행상품 > 이벤트 > 지역할인 > 기타` 우선순위를 따른다.
 
 ---
 
 ### GET /policies/{policy_slug}
 
-정책 상세. `travelmonth-{externalSourceRecordId}` slug는 정규화된 TravelMonth 정책 상세로 해석한다. migration gap 동안 상세 조회만 기존 raw `external_source_records` fallback을 사용할 수 있지만, 목록/추천/저장/일정 연결 경로는 정규화된 `policies` 기준이다. raw fallback은 active/fresh `regional_benefit`과 `local_half_trip`만 허용하며, `traffic_benefit`이나 non-active/non-fresh source는 상세 404와 동일하게 처리한다. `local_half_trip`의 지역별 상세 URL이 확인된 경우 `officialUrl`은 generic `tour50.do`보다 해당 지역 안내/신청 페이지를 우선한다.
+정책 상세. `travelmonth-{externalSourceRecordId}` slug는 정규화된 TravelMonth 정책 상세로 해석한다. migration gap 동안 상세 조회만 기존 raw `external_source_records` fallback을 사용할 수 있지만, 목록/추천/저장/일정 연결 경로는 정규화된 `policies` 기준이다. raw fallback은 active/fresh `regional_benefit`, `local_half_trip`, `stay_discount`만 허용하며, `traffic_benefit`이나 non-active/non-fresh source는 상세 404와 동일하게 처리한다. `local_half_trip`의 지역별 상세 URL이 확인된 경우 `officialUrl`은 generic `tour50.do`보다 해당 지역 안내/신청 페이지를 우선한다.
 
 **Response 200** → `Policy`
 
@@ -680,6 +708,7 @@ Account linking policy:
     "id": "1",
     "title": "제주 3일 여행",
     "status": "draft",
+    "revision": 1,
     "dates": "2026-07-12 ~ 2026-07-14",
     "people": ["나", "친구"],
     "participantCount": 2,
@@ -711,6 +740,7 @@ Account linking policy:
 ```
 
 `status` 허용 값: `"draft" | "confirmed"`
+`revision`은 일정 상세 장소 add/update/move/delete optimistic conflict 처리용 정수 버전이다. 장소 변경 성공 시 1씩 증가하며, 클라이언트는 마지막으로 조회한 `revision`을 `expectedRevision`으로 보내야 한다. stale revision이면 409 `Trip has changed. Refresh before saving.`을 반환한다.
 
 Frontend behavior: `/trips` does not expose trip confirmation controls or draft/confirmed status badges. `/trips/{tripId}` keeps owner/editor editing controls available regardless of persisted `draft` or `confirmed` status. Viewer users remain read-only by role.
 `currentUserRole` 허용 값: `"owner" | "editor" | "viewer"`
@@ -846,12 +876,14 @@ Optional request fields:
 **Request**
 ```json
 {
+  "expectedRevision": 1,
   "time": "10:30",
   "label": "함덕해수욕장",
   "meta": "제주시 조천읍"
 }
 ```
 
+- `expectedRevision`: 필수, 현재 `Trip.revision` 값. 불일치 시 409.
 - `label`: 필수, 1~200자
 - `time`: optional, `HH:MM` 형식 또는 빈 문자열
 - `meta`: optional
@@ -861,6 +893,7 @@ Optional request fields:
 **Errors**
 - 403: viewer는 추가 불가
 - 404: 일정 없음 또는 day 없음
+- 409: 다른 사용자가 먼저 장소를 변경해 revision 불일치
 
 ---
 
@@ -871,17 +904,21 @@ Optional request fields:
 **Request**
 ```json
 {
+  "expectedRevision": 1,
   "time": "11:00",
   "label": "함덕해수욕장",
   "meta": "제주시 조천읍"
 }
 ```
 
+- `expectedRevision`: 필수, 현재 `Trip.revision` 값. 불일치 시 409.
+
 **Response 200** → `Trip`
 
 **Errors**
 - 403: viewer는 수정 불가
 - 404: 장소 없음
+- 409: 다른 사용자가 먼저 장소를 변경해 revision 불일치
 
 ---
 
@@ -892,11 +929,13 @@ Optional request fields:
 **Request**
 ```json
 {
+  "expectedRevision": 1,
   "dayNumber": 2,
   "position": 1
 }
 ```
 
+- `expectedRevision`: 필수, 현재 `Trip.revision` 값. 불일치 시 409.
 - `dayNumber`: 1 이상
 - `position`: 1 이상
 
@@ -905,18 +944,23 @@ Optional request fields:
 **Errors**
 - 403: viewer는 이동 불가
 - 404: 장소 또는 대상 day 없음
+- 409: 다른 사용자가 먼저 장소를 변경해 revision 불일치
 
 ---
 
 ### DELETE /trips/{trip_id}/places/{place_id}
 
-장소 삭제. owner/editor만 가능.
+장소 삭제. owner/editor만 가능. `expectedRevision` query parameter가 필수이며 현재 `Trip.revision` 값과 일치해야 한다.
+
+**Query**
+- `expectedRevision`: number, 1 이상. 불일치 시 409.
 
 **Response 200** → `Trip`
 
 **Errors**
 - 403: viewer는 삭제 불가
 - 404: 장소 없음
+- 409: 다른 사용자가 먼저 장소를 변경해 revision 불일치
 
 ---
 
@@ -978,7 +1022,8 @@ AI 추천 장소 목록 조회.
   "acceptedAt": null,
   "invited": false,
   "copied": false,
-  "role": "editor"
+  "role": "editor",
+  "alreadyMember": false
 }
 ```
 
@@ -1005,6 +1050,52 @@ AI 추천 장소 목록 조회.
 
 ---
 
+### POST /trips/{trip_id}/invite/email
+
+초대 링크를 생성/업데이트한 뒤 email로 전송. owner만 가능. email 본문에는 일정 상세를 포함하지 않고 “트래블헌터 일정 초대입니다 / 로그인 또는 회원가입 후 수락할 수 있습니다 / 초대가 만료됐으면 다시 요청하세요” 수준의 안전 안내와 초대 링크만 포함한다.
+
+**Request**
+```json
+{
+  "email": "friend@example.com",
+  "role": "editor"
+}
+```
+
+`role` 허용 값: `"viewer" | "editor"` (기본값: `"editor"`)
+
+**Response 200**
+```json
+{
+  "invite": {
+    "id": "uuid",
+    "tripId": "1",
+    "inviteToken": "<token>",
+    "inviteUrl": "https://<domain>/invites/<token>/accept",
+    "expiresAt": "2026-05-25T00:00:00",
+    "createdAt": "2026-05-19T00:00:00",
+    "acceptedAt": null,
+    "invited": true,
+    "copied": false,
+    "role": "editor",
+    "alreadyMember": false
+  },
+  "deliveryStatus": "sent",
+  "message": "Invite email sent."
+}
+```
+
+`deliveryStatus` 허용 값:
+- `"sent"`: SMTP 발송 성공
+- `"notConfigured"`: SMTP 설정 없음. 초대 링크는 유효하므로 프론트는 링크 복사 fallback을 안내한다.
+- `"failed"`: SMTP 발송 실패. 초대 링크는 유효하므로 프론트는 링크 복사 fallback을 안내한다.
+
+**Errors**
+- 404: 일정 없음 또는 owner가 아님
+- 422: email 또는 role 형식 오류
+
+---
+
 ### POST /trips/{trip_id}/invites
 
 `POST /trips/{trip_id}/invite`와 동일. 하위 호환용 alias.
@@ -1015,7 +1106,7 @@ AI 추천 장소 목록 조회.
 
 ### POST /invites/{invite_token}/accept
 
-초대 링크로 일정에 참여. 인증 필요.
+초대 링크로 일정에 참여. 인증 필요. 이미 참여 중인 사용자가 다시 수락하면 중복 멤버를 만들거나 기존 권한을 낮추지 않고 `alreadyMember: true`를 반환한다.
 
 **Response 200** → `InviteState`
 
@@ -1116,12 +1207,13 @@ SOLAPI 발송 결과 webhook 수신. `X-Solapi-Secret` 헤더로 검증.
 | id | string | 일정 ID |
 | title | string | 일정 제목 |
 | status | string | `"draft" \| "confirmed"` |
+| revision | number | 장소 add/update/move/delete optimistic conflict 처리용 일정 버전. 변경 성공 시 1 증가 |
 | dates | string | 날짜 표시 문자열 |
 | people | string[] | 참여자 닉네임 목록 |
 | participantCount | number | Planned travel party size, separate from real member/invite list `people`. |
 | expectedSaving | string | 예상 절약 금액 표시 |
 | linkedPolicies | LinkedTripPolicy[] | 연결된 정책 목록 |
-| recommendedPolicies | LinkedTripPolicy[] | 일정 지역에 맞춰 추천된 정규화 정책 및 active/fresh TravelMonth 혜택 목록. 이미 연결된 정규화 정책은 제외하며 각 항목은 `/policies/{slug}` 상세로 이동 가능하다. |
+| recommendedPolicies | LinkedTripPolicy[] | 일정 지역에 맞춰 추천된 정규화 정책 및 active/fresh TravelMonth/반값여행/숙박세일 혜택 목록. 이미 연결된 정규화 정책은 제외하며 각 항목은 `/policies/{slug}` 상세로 이동 가능하다. 추천 순서는 지역, 일정 날짜 겹침, 정책 카테고리, 여행 스타일 텍스트/태그만 사용하며 AI/LLM 판단을 사용하지 않는다. |
 | days | object | `{ [dayNumber]: ItineraryPlace[] }` |
 | currentUserRole | string | `"owner" \| "editor" \| "viewer"` |
 
