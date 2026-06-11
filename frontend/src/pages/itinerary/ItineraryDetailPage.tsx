@@ -4,7 +4,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Car, ChevronLeft, GripVertical, Info, List, Map as MapIcon, X } from "lucide-react";
 import { useEffect, useState, type KeyboardEvent } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { appDataApi, type ItineraryPlace, type LinkedTripPolicy, type Recommendation, type Trip, type TripPlaceRequest } from "../../api";
+import { appDataApi, isApiError, type ItineraryPlace, type LinkedTripPolicy, type Recommendation, type Trip, type TripPlaceRequest } from "../../api";
 import { useSession } from "../../app/session";
 import { useAsyncResource } from "../../api/useAsyncResource";
 import { KakaoMapView, type KakaoMapMarker } from "../../components/map/KakaoMapView";
@@ -208,6 +208,12 @@ function recommendationSearchText(item: Recommendation): string {
     .toLocaleLowerCase("ko-KR");
 }
 
+const TRIP_CONFLICT_MESSAGE = "다른 사용자가 먼저 일정을 수정했어요. 최신 내용을 확인한 뒤 다시 저장해 주세요.";
+
+function isTripConflict(error: unknown): boolean {
+  return isApiError(error) && error.status === 409;
+}
+
 export function ItineraryDetailPage() {
   const { tripId } = useParams();
   const navigate = useNavigate();
@@ -262,6 +268,12 @@ export function ItineraryDetailPage() {
     useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
+  const refreshTripAfterConflict = async (setError: (message: string) => void) => {
+    if (!trip) return;
+    const latestTrip = await appDataApi.getTrip(trip.id).catch(() => null);
+    if (latestTrip) setTrip(latestTrip);
+    setError(TRIP_CONFLICT_MESSAGE);
+  };
 
   useEffect(() => {
     if (loadedTrip) setTrip(loadedTrip);
@@ -386,10 +398,11 @@ export function ItineraryDetailPage() {
     setIsSavingPlace(true);
     setPlaceError("");
     try {
-      const payload: TripPlaceRequest = {
+      const payload: TripPlaceRequest & { expectedRevision: number } = {
         time,
         label,
         meta: placeForm.meta?.trim() || undefined,
+        expectedRevision: trip.revision,
       };
       if (placeForm.address !== undefined) payload.address = placeForm.address;
       if (placeForm.latitude !== undefined) payload.latitude = placeForm.latitude;
@@ -410,8 +423,12 @@ export function ItineraryDetailPage() {
       setPlaceDraftNotice("");
       setNotice(placeEditor.mode === "add" ? "장소를 일정에 추가했어요." : "장소 정보를 수정했어요.");
       window.setTimeout(() => setNotice(null), 1800);
-    } catch {
-      setPlaceError("장소 정보를 저장하지 못했어요. 입력값을 확인하고 다시 시도해 주세요.");
+    } catch (error) {
+      if (isTripConflict(error)) {
+        await refreshTripAfterConflict(setPlaceError);
+      } else {
+        setPlaceError("장소 정보를 저장하지 못했어요. 입력값을 확인하고 다시 시도해 주세요.");
+      }
     } finally {
       setIsSavingPlace(false);
     }
@@ -436,14 +453,18 @@ export function ItineraryDetailPage() {
     setMovingPlaceId(place.id);
     setMoveError("");
     try {
-      const nextTrip = await appDataApi.moveTripPlace(trip.id, place.id, { dayNumber, position });
+      const nextTrip = await appDataApi.moveTripPlace(trip.id, place.id, { dayNumber, position, expectedRevision: trip.revision });
       setTrip(nextTrip);
       setActiveDay(dayNumber);
       updateDetailSearchParams({ day: dayNumber, place: null });
       setNotice("장소 순서를 변경했어요.");
       window.setTimeout(() => setNotice(null), 1800);
-    } catch {
-      setMoveError("장소 순서를 변경하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    } catch (error) {
+      if (isTripConflict(error)) {
+        await refreshTripAfterConflict(setMoveError);
+      } else {
+        setMoveError("장소 순서를 변경하지 못했어요. 잠시 후 다시 시도해 주세요.");
+      }
     } finally {
       setMovingPlaceId(null);
     }
@@ -488,15 +509,19 @@ export function ItineraryDetailPage() {
     setIsSavingPlace(true);
     setPlaceDeleteError("");
     try {
-      const nextTrip = await appDataApi.deleteTripPlace(trip.id, place.id);
+      const nextTrip = await appDataApi.deleteTripPlace(trip.id, place.id, trip.revision);
       clearDraft(tripPlaceEditDraftKey(trip.id, place.id));
       setTrip(nextTrip);
       setDeleteCandidatePlace(null);
       setPlaceDraftNotice("");
       setNotice("장소를 일정에서 삭제했어요.");
       window.setTimeout(() => setNotice(null), 1800);
-    } catch {
-      setPlaceDeleteError("장소를 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    } catch (error) {
+      if (isTripConflict(error)) {
+        await refreshTripAfterConflict(setPlaceDeleteError);
+      } else {
+        setPlaceDeleteError("장소를 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.");
+      }
     } finally {
       setIsSavingPlace(false);
     }
@@ -629,9 +654,11 @@ export function ItineraryDetailPage() {
             </div>
             <span className="meta">{tripPeople.length}명 참여 중</span>
           </div>
-          <Link className="prototype-invite-pill" to={`/friend-invite?tripId=${encodeURIComponent(trip.id)}`}>
-            + 친구 초대
-          </Link>
+          {trip.currentUserRole === "owner" && (
+            <Link className="prototype-invite-pill" to={`/friend-invite?tripId=${encodeURIComponent(trip.id)}`}>
+              + 친구 초대
+            </Link>
+          )}
         </div>
       </div>
       <section className="prototype-linked-policy-section" aria-label="연결된 정책">

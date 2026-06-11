@@ -30,6 +30,7 @@ def test_current_schema_tables_are_registered() -> None:
 def test_current_schema_decision_columns_are_registered() -> None:
     users = Base.metadata.tables["users"]
     policies = Base.metadata.tables["policies"]
+    trips = Base.metadata.tables["trips"]
     trip_invites = Base.metadata.tables["trip_invites"]
     user_notification_settings = Base.metadata.tables["user_notification_settings"]
     notification_deliveries = Base.metadata.tables["notification_deliveries"]
@@ -72,6 +73,7 @@ def test_current_schema_decision_columns_are_registered() -> None:
     assert "expires_at" in password_reset_tokens.c
     assert "used_at" in password_reset_tokens.c
     assert social_accounts.c["provider_id"].type.length == 255
+    assert "revision" in trips.c
     assert "user_id" in phone_verification_codes.c
     assert "phone_number" in phone_verification_codes.c
     assert "code_hash" in phone_verification_codes.c

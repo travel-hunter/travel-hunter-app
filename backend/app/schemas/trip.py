@@ -1,13 +1,14 @@
 from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 
 InviteRole = Literal["viewer", "editor"]
 TripRole = Literal["owner", "editor", "viewer"]
 TripStatus = Literal["draft", "confirmed"]
 RecommendationSourceType = Literal["freshCandidate", "savedSummary"]
+InviteEmailDeliveryStatus = Literal["sent", "notConfigured", "failed"]
 
 
 class ItineraryPlace(BaseModel):
@@ -62,6 +63,7 @@ class Trip(BaseModel):
     id: str
     title: str
     status: TripStatus
+    revision: int
     travelAreaId: str | None = None
     dates: str
     people: list[str]
@@ -105,10 +107,22 @@ class InviteState(BaseModel):
     invited: bool
     copied: bool
     role: InviteRole = "editor"
+    alreadyMember: bool = False
 
 
 class ConfirmInviteRequest(BaseModel):
     role: InviteRole = "editor"
+
+
+class SendInviteEmailRequest(BaseModel):
+    email: EmailStr
+    role: InviteRole = "editor"
+
+
+class InviteEmailResult(BaseModel):
+    invite: InviteState
+    deliveryStatus: InviteEmailDeliveryStatus
+    message: str
 
 
 class TripPolicyResponse(BaseModel):
@@ -123,6 +137,7 @@ class DeleteTripResponse(BaseModel):
 
 
 class CreateTripPlaceRequest(BaseModel):
+    expectedRevision: int = Field(ge=1)
     time: str | None = None
     label: str = Field(min_length=1, max_length=200)
     meta: str | None = None
@@ -137,12 +152,14 @@ class CreateTripPlaceRequest(BaseModel):
 
 
 class UpdateTripPlaceRequest(BaseModel):
+    expectedRevision: int = Field(ge=1)
     time: str | None = None
     label: str | None = Field(default=None, min_length=1, max_length=200)
     meta: str | None = None
 
 
 class MoveTripPlaceRequest(BaseModel):
+    expectedRevision: int = Field(ge=1)
     dayNumber: int = Field(ge=1)
     position: int = Field(ge=1)
 

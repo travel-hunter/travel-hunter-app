@@ -121,6 +121,17 @@ def add_trip_place(
     return place
 
 
+def bump_trip_revision_if_current(db: Session, *, trip_id: int, expected_revision: int) -> bool:
+    result = db.execute(
+        update(Trip)
+        .where(Trip.id == trip_id)
+        .where(Trip.revision == expected_revision)
+        .values(revision=Trip.revision + 1)
+        .execution_options(synchronize_session=False)
+    )
+    return (result.rowcount or 0) == 1
+
+
 def add_trip_member(db: Session, *, trip_id: int, user_id: int, role: str) -> TripMember:
     membership = TripMember(trip_id=trip_id, user_id=user_id, role=role)
     db.add(membership)
@@ -213,6 +224,7 @@ def get_latest_active_invite(db: Session, *, trip_id: int, now) -> TripInvite | 
 def get_active_invite_by_token(db: Session, *, invite_token: str, now) -> TripInvite | None:
     statement = (
         select(TripInvite)
+        .options(selectinload(TripInvite.trip))
         .where(TripInvite.invite_token == invite_token)
         .where(TripInvite.expires_at > now)
     )

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
@@ -9,9 +9,11 @@ from app.schemas.trip import (
     CreateTripPlaceRequest,
     CreateTripRequest,
     DeleteTripResponse,
+    InviteEmailResult,
     InviteState,
     MoveTripPlaceRequest,
     Recommendation,
+    SendInviteEmailRequest,
     Trip,
     TripPolicyResponse,
     UpdateTripPlaceRequest,
@@ -214,6 +216,7 @@ def move_trip_place(
 def delete_trip_place(
     trip_id: str,
     place_id: int,
+    expected_revision: int = Query(alias="expectedRevision", ge=1),
     db: Session | None = Depends(get_optional_db),
     current_user: User | None = Depends(get_current_user),
 ) -> Trip:
@@ -223,6 +226,7 @@ def delete_trip_place(
             _require_user(current_user),
             trip_id,
             place_id,
+            expected_revision,
         )
     except trip_service.TripServiceError as error:
         _raise_trip_error(error)
@@ -277,6 +281,24 @@ def confirm_invite_sent(
     if invite_state is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trip not found")
     return InviteState(**invite_state)
+
+
+@router.post("/{trip_id}/invite/email", response_model=InviteEmailResult)
+def send_invite_email(
+    trip_id: str,
+    payload: SendInviteEmailRequest,
+    db: Session | None = Depends(get_optional_db),
+    current_user: User | None = Depends(get_current_user),
+) -> InviteEmailResult:
+    invite_result = trip_service.send_invite_email(
+        _require_db(db),
+        _require_user(current_user),
+        trip_id,
+        payload,
+    )
+    if invite_result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trip not found")
+    return InviteEmailResult(**invite_result)
 
 
 @router.post("/{trip_id}/invites", response_model=InviteState)
