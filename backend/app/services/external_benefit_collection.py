@@ -58,7 +58,6 @@ Parser = Callable[[str, datetime, date], object]
 _SOURCE_UNAVAILABLE_STATUSES = {404, 410}
 
 
-
 def collect_external_benefits_from_html_sources(
     db: Session,
     *,
@@ -70,18 +69,16 @@ def collect_external_benefits_from_html_sources(
     all_rows = []
     for source_category, html in html_sources.items():
         try:
-            parser = _parser_for(source_category)
-            parsed = list(parser(html, fetched_at, today))
-            rows = external_source_repository.upsert_external_source_records(db, parsed)
-            all_rows.extend(rows)
-            source_results.append(
-                SourceCollectionResult(
-                    source_category=source_category,
-                    parsed_count=len(parsed),
-                    created_or_updated_count=len(rows),
-                    outcome="success",
-                )
+            rows, result = _collect_source_records(
+                db,
+                source_category=source_category,
+                parser=_parser_for(source_category),
+                html=html,
+                fetched_at=fetched_at,
+                today=today,
             )
+            all_rows.extend(rows)
+            source_results.append(result)
         except Exception as exc:
             source_results.append(
                 SourceCollectionResult(
@@ -112,17 +109,16 @@ def collect_external_benefits_from_live_sources(
     for source in _source_registry():
         try:
             html = fetch_external_source_html(source.url, timeout=timeout)
-            parsed = list(source.parser(html, fetched_at, today))
-            rows = external_source_repository.upsert_external_source_records(db, parsed)
-            all_rows.extend(rows)
-            source_results.append(
-                SourceCollectionResult(
-                    source_category=source.source_category,
-                    parsed_count=len(parsed),
-                    created_or_updated_count=len(rows),
-                    outcome="success",
-                )
+            rows, result = _collect_source_records(
+                db,
+                source_category=source.source_category,
+                parser=source.parser,
+                html=html,
+                fetched_at=fetched_at,
+                today=today,
             )
+            all_rows.extend(rows)
+            source_results.append(result)
         except Exception as exc:
             source_results.append(_source_failure_result(source, exc))
     if all_rows:
@@ -144,6 +140,25 @@ def fetch_external_source_html(
     )
     response.raise_for_status()
     return response.text
+
+
+def _collect_source_records(
+    db: Session,
+    *,
+    source_category: str,
+    parser: Parser,
+    html: str,
+    fetched_at: datetime,
+    today: date,
+) -> tuple[list[object], SourceCollectionResult]:
+    parsed = list(parser(html, fetched_at, today))
+    rows = external_source_repository.upsert_external_source_records(db, parsed)
+    return rows, SourceCollectionResult(
+        source_category=source_category,
+        parsed_count=len(parsed),
+        created_or_updated_count=len(rows),
+        outcome="success",
+    )
 
 
 def _parser_for(source_category: str) -> Parser:

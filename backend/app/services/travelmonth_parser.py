@@ -17,8 +17,6 @@ from app.services.travelmonth_normalizer import (
 )
 
 
-
-
 _VACATION_BENEFIT_AREAS: tuple[tuple[str, str, str], ...] = (
     ("강원특별자치도", "영월군", "영월"),
     ("강원특별자치도", "횡성군", "횡성"),
