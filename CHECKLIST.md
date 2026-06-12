@@ -31,6 +31,7 @@
 - 2026-06-12 GitHub promotion path opened because protected branches reject direct pushes: draft PR #52 (`codex/production-promotion-20260612` -> `main`) created, and CI passed (`Frontend DB-backed fast lane`, `Backend fast lane`, CodeRabbit). Main promotion still needs PR review/merge.
 - 2026-06-12 development-server RC handoff docs updated: `docs/deployment-cicd/dev-rc-handoff.md` records the separated dev/prod ownership model, required production env keys without values, Cloudflare/OAuth/Brevo/Kakao setup expectations, operating-server smoke checklist, and no-go lines.
 - 2026-06-12 `/trips` list participation display fix validated: local `cd frontend && npm run typecheck`, `cd frontend && npm run build`, `cd frontend && npm run test:mojibake`, and `cd frontend && npx vitest run src/components/cards.test.tsx` passed. Local DB-backed route wrapper could not start because this WSL distro lacks `docker`, but PR #52 CI passed `Backend fast lane` and `Frontend DB-backed fast lane` for commit `892125f` before the checklist evidence update.
+- 2026-06-12 development-server `/trips` participation display fix deployed and smoked: `/home/deploy/travel-hunter-app` moved from `09f3a4d` to `b4be808`, frontend image rebuilt and restarted through `compose.tunnel.yaml`, `/api/health` returned connected, and a temporary invite-accept smoke showed API `participantCount=1` with `people.length=2` while `https://dev.travel-hunter.co.kr/trips` rendered `👥 2명 참여`; smoke trip `9` was deleted.
 
 ## Remaining Risks
 
