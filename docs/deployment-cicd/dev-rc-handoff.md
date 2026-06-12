@@ -2,14 +2,14 @@
 
 ## 목적
 
-이 문서는 Travel Hunter를 운영 서버에 직접 배포하기 위한 실행서가 아니라, **개발 서버에서 초기 배포 가능한 release candidate를 검증하고 운영 서버 담당자에게 넘기기 위한 인수인계 문서**다.
+이 문서는 Travel Hunter를 운영 서버에 직접 배포하기 위한 실행서가 아니라, **개발 서버에서 초기 배포 가능한 release candidate를 검증하고 운영 전환 담당자에게 넘기기 위한 인수인계 문서**다.
 
 현재 운영 방침:
 
 - 개발 서버와 운영 서버는 분리되어 있다.
 - 현재 Codex/개발 작업 범위는 개발 서버 release candidate 완성과 검증이다.
-- 운영 서버 동기화와 운영 배포는 별도 팀원이 담당한다.
-- 이 문서는 운영 담당자가 운영 서버에 반영할 때 확인해야 하는 구조, 설정 항목, 검증 증거, 남은 위험을 정리한다.
+- 운영 서버 동기화와 운영 배포는 운영 전환 담당자가 담당한다.
+- 이 문서는 운영 전환 담당자가 운영 서버에 반영할 때 확인해야 하는 구조, 설정 항목, 검증 증거, 남은 위험을 정리한다.
 
 ## 현재 개발 서버 기준값
 
@@ -21,7 +21,7 @@
 | 개발 서버 compose 파일 | `compose.tunnel.yaml` |
 | 개발 서버 runtime env | `/home/deploy/travel-hunter-app/deploy/.env.prod` |
 | 개발 서버 도메인 | `https://dev.travel-hunter.co.kr` |
-| 개발 서버 배포 기준 SHA | `09f3a4dfe6673080c4c049ae849e60b707281084` |
+| 개발 서버 배포 기준 SHA | `b4be808779bd541b048a49487e768631cce834a3` |
 | main promotion PR | <https://github.com/travel-hunter/travel-hunter-app/pull/52> |
 
 주의:
@@ -56,7 +56,7 @@
 - `.omx/evidence/docker-dns-diagnosis-20260612.md`
 - `.omx/evidence/docker-dns-fix-20260612.md`
 - `.omx/evidence/production-preflight-20260612.md`
-  - 단, 이 파일의 production preflight는 이후 운영 서버 직접 배포 범위가 아닌 **운영 담당자 인수인계 준비 증거**로 해석한다.
+  - 단, 이 파일의 production preflight는 이후 운영 서버 직접 배포 범위가 아닌 **운영 전환 담당자 인수인계 준비 증거**로 해석한다.
 
 ## 코드 release gate 상태
 
@@ -74,9 +74,9 @@ PR #52에 포함된 핵심 정리:
 - backend-mode e2e fixture를 현재 seed policy slug와 현재 itinerary time slot에 맞게 수정.
 - release checklist와 CHECKLIST에 개발 서버/RC 검증 상태 반영.
 
-운영 담당자는 운영 서버 반영 전, PR #52 또는 그 후속 PR이 `main`에 merge된 SHA를 기준으로 운영 배포해야 한다.
+운영 전환 담당자는 운영 서버 반영 전, PR #52 또는 그 후속 PR이 `main`에 merge된 SHA를 기준으로 운영 배포해야 한다.
 
-## 운영 서버 담당자에게 넘길 설정 항목
+## 운영 전환 담당자에게 넘길 설정 항목
 
 아래는 값이 아니라 **필요한 key 목록**이다. 실제 값은 운영 서버의 runtime secret 관리 방식으로만 주입한다.
 
@@ -111,7 +111,9 @@ VITE_KAKAO_MAP_JS_KEY=<kakao javascript key>
 STAGING_DOMAIN=travel-hunter.co.kr
 ```
 
-현재 compose 변수명이 `STAGING_DOMAIN`인 이유는 tunnel compose가 staging/prod 공용으로 쓰이기 때문이다. 운영 서버에서는 값만 production domain으로 둔다.
+현재 compose 변수명이 `STAGING_DOMAIN`인 이유는 tunnel compose가 staging/dev/prod 유사 구성을 공유하면서 남은 legacy 이름이기 때문이다.
+이 이름은 실제 환경이 staging이라는 뜻이 아니며, Vite preview allowed host에 넣을 public hostname으로만 해석한다.
+운영 서버에서는 값만 production domain으로 둔다. 다음 runtime config 정리 때는 `PUBLIC_DOMAIN`처럼 중립적인 이름으로 바꾸는 follow-up을 검토한다.
 
 ### SMTP/Brevo
 
@@ -176,7 +178,7 @@ API:      https://travel-hunter.co.kr/api
 
 ## 운영 서버 반영 절차 개요
 
-운영 담당자가 운영 서버에서 조정할 절차:
+운영 전환 담당자가 운영 서버에서 조정할 절차:
 
 ```bash
 git fetch origin
@@ -199,7 +201,7 @@ docker compose --env-file deploy/.env.prod -f compose.tunnel.yaml run --rm backe
 
 ## 운영 서버 smoke checklist
 
-운영 담당자는 운영 도메인에서 아래를 확인한다.
+운영 전환 담당자는 운영 도메인에서 아래를 확인한다.
 
 - `https://travel-hunter.co.kr/api/health`
 - `https://travel-hunter.co.kr/login`
@@ -241,4 +243,4 @@ docker compose --env-file deploy/.env.prod -f compose.tunnel.yaml run --rm backe
 - production OAuth provider console 변경.
 - production DB migration/seed 실행.
 
-Codex가 담당한 것은 개발 서버 RC 검증, release gate 정리, 운영 담당자가 사용할 수 있는 인수인계 문서화다.
+Codex가 담당한 것은 개발 서버 RC 검증, release gate 정리, 운영 전환 담당자가 사용할 수 있는 인수인계 문서화다.

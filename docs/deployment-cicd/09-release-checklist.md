@@ -2,12 +2,12 @@
 
 ## 현재 배포 범위
 
-2026-06-12 기준 현재 Codex 작업 범위는 운영 서버 직접 배포가 아니라 **개발 서버 release candidate 완성과 운영 담당자 인수인계 준비**다.
+2026-06-12 기준 현재 Codex 작업 범위는 운영 서버 직접 배포가 아니라 **개발 서버 release candidate 완성과 운영 전환 담당자 인수인계 준비**다.
 
 - 개발 서버: `https://dev.travel-hunter.co.kr`, `/home/deploy/travel-hunter-app`.
-- 운영 서버: 별도 서버이며 운영 서버 동기화/배포는 별도 팀원이 담당한다.
+- 운영 서버: 별도 서버이며 운영 서버 동기화/배포는 운영 전환 담당자가 담당한다.
 - 운영 서버에 필요한 설정 항목과 smoke 기준은 `docs/deployment-cicd/dev-rc-handoff.md`에 정리한다.
-- production DNS, Cloudflare, OAuth provider, 운영 DB migration/seed는 운영 담당자 실행 범위다. Codex가 직접 실행하지 않는다.
+- production DNS, Cloudflare, OAuth provider, 운영 DB migration/seed는 운영 전환 담당자 실행 범위다. Codex가 직접 실행하지 않는다.
 
 ## 개발 서버 재개/남은 smoke 준비
 
@@ -18,7 +18,7 @@
 - 서버 repo 경로: `/home/deploy/travel-hunter-app`
 - compose 파일: `compose.tunnel.yaml`
 - 서버 runtime env: `/home/deploy/travel-hunter-app/deploy/.env.prod` (`chmod 600`, gitignored, 값 출력 금지)
-- 배포 SHA: `09f3a4dfe6673080c4c049ae849e60b707281084`
+- 배포 SHA: `b4be808779bd541b048a49487e768631cce834a3`
 - 개발 도메인: `https://dev.travel-hunter.co.kr`
 
 남은 개발 서버 smoke 값은 repo 밖의 서버 전용 파일에만 둔다.
