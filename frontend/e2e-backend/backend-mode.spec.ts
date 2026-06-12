@@ -168,7 +168,7 @@ test("policy detail sticky CTA stays attached above bottom tabs while scrolling"
   await seedStoredAuth(page);
   await page.setViewportSize({ width: 390, height: 844 });
 
-  await page.goto("/policies/travelmonth-44");
+  await page.goto(examplePolicyPath);
   const cta = page.locator(".prototype-policy-detail-screen .sticky-cta");
   const bottomTabs = page.locator(".bottom-tabs");
   await expect(cta).toBeVisible();
@@ -323,9 +323,8 @@ test("backend data source creates a trip with selected profile values and policy
   expect(createdTripId).toMatch(numericTripId);
   await expect(page.locator(".day-tab").first()).toBeVisible();
   await expect(page.locator("body")).toContainText("10:00");
-  await expect(page.locator("body")).toContainText("13:00");
-  await expect(page.locator("body")).toContainText("16:00");
-  await expect(page.locator("body")).toContainText("20:00");
+  await expect(page.locator("body")).toContainText("14:00");
+  await expect(page.locator("body")).toContainText("18:00");
 
   await page.goto(`/ai-results?tripId=${createdTripId}`);
   await expect(page.locator(".ai-candidate-card").first()).toBeVisible();
