@@ -439,6 +439,7 @@ describe("Travel Hunter app — trips list", () => {
         id: "77",
         title: "부산 4일 여행",
         dates: "2026.06.15 - 06.18",
+        people: ["여행자", "초대친구"],
         participantCount: 4,
         days: { 1: [], 2: [], 3: [], 4: [] },
       },
@@ -462,9 +463,34 @@ describe("Travel Hunter app — trips list", () => {
       await screen.findByText("부산 4일 여행");
       expect(screen.getByText("경주 3일 여행")).toBeInTheDocument();
       expect(document.querySelectorAll(".itinerary-card")).toHaveLength(2);
-      expect(screen.getByText(/👥 4명 참여/)).toBeInTheDocument();
+      expect(screen.getByText(/👥 2명 참여 · 예정 4명/)).toBeInTheDocument();
       expect(getLink("/trips/77")).toBeInTheDocument();
       expect(getLink("/trips/78")).toBeInTheDocument();
+    } finally {
+      listTripsSpy.mockRestore();
+    }
+  });
+
+  it("uses real accepted trip members for the trips-list participation count", async () => {
+    const joinedTrip: Trip = {
+      ...getPreviewTrip(),
+      id: "90",
+      title: "초대 같이 보기 일정",
+      people: ["여행자", "초대친구"],
+      participantCount: 1,
+    };
+    const listTripsSpy = vi
+      .spyOn(appDataApi, "listTrips")
+      .mockResolvedValue([joinedTrip]);
+
+    try {
+      await login();
+      cleanup();
+      renderAppRoute("/trips");
+
+      await screen.findByText("초대 같이 보기 일정");
+      expect(screen.getByText(/👥 2명 참여/)).toBeInTheDocument();
+      expect(screen.queryByText(/👥 1명 참여/)).not.toBeInTheDocument();
     } finally {
       listTripsSpy.mockRestore();
     }

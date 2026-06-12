@@ -218,7 +218,7 @@ describe("Travel Hunter app — trip creation", () => {
           screen.getByRole("heading", { name: "부산 맛집 여행", level: 4 }),
         ).toBeInTheDocument(),
       );
-      expect(screen.getByText(/👥 3명 참여/)).toBeInTheDocument();
+      expect(screen.getByText(/👥 1명 참여 · 예정 3명/)).toBeInTheDocument();
     } finally {
       createTripSpy.mockRestore();
       addPolicySpy.mockRestore();

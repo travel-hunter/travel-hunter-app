@@ -84,7 +84,12 @@ export function ItineraryCard({
   const detailPath = `/trips/${trip.id}`;
   const totalPlaces = Object.values(trip.days).reduce((sum, places) => sum + places.length, 0);
   const dayCount = Object.keys(trip.days).length || 1;
-  const participantCount = trip.participantCount ?? (trip.people.length || 1);
+  const memberCount = trip.people.length || 1;
+  const plannedParticipantCount = trip.participantCount ?? memberCount;
+  const participantMeta =
+    plannedParticipantCount > memberCount
+      ? `👥 ${memberCount}명 참여 · 예정 ${plannedParticipantCount}명`
+      : `👥 ${memberCount}명 참여`;
 
   return (
     <SurfaceCard as="article" className="itinerary-card">
@@ -111,7 +116,8 @@ export function ItineraryCard({
             📅 {trip.dates} · {dayCount}일 · 장소 {totalPlaces}개
           </div>
           <div className="meta">
-            👥 {participantCount}명 참여{addedPolicy ? " · 정책 연결됨" : ""}
+            {participantMeta}
+            {addedPolicy ? " · 정책 연결됨" : ""}
           </div>
           <div className="itinerary-policy-row">
             <Tag tone="benefit">예상 혜택 {trip.expectedSaving}</Tag>

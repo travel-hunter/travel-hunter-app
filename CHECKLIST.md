@@ -30,6 +30,7 @@
 - 2026-06-12 frontend release gate fixed: lockfile security updates cleared high/critical npm audit findings, and backend-mode e2e now uses the current seeded policy slug plus current generated itinerary time slots.
 - 2026-06-12 GitHub promotion path opened because protected branches reject direct pushes: draft PR #52 (`codex/production-promotion-20260612` -> `main`) created, and CI passed (`Frontend DB-backed fast lane`, `Backend fast lane`, CodeRabbit). Main promotion still needs PR review/merge.
 - 2026-06-12 development-server RC handoff docs updated: `docs/deployment-cicd/dev-rc-handoff.md` records the separated dev/prod ownership model, required production env keys without values, Cloudflare/OAuth/Brevo/Kakao setup expectations, operating-server smoke checklist, and no-go lines.
+- 2026-06-12 `/trips` list participation display fix validated locally: `cd frontend && npm run typecheck`, `cd frontend && npm run build`, `cd frontend && npm run test:mojibake`, and `cd frontend && npx vitest run src/components/cards.test.tsx` passed. The DB-backed route test wrapper command `cd frontend && npm test -- --run src/app/__tests__/trips-list.test.tsx src/app/__tests__/trip-create.test.tsx` could not start because this WSL distro lacks the `docker` command required to launch PostgreSQL/FastAPI.
 
 ## Remaining Risks
 
@@ -38,6 +39,7 @@
 - Existing dev runtime env has required secret keys, but domain/redirect values are dev-domain scoped; operating-server env must use production-domain values and a production-confirmed Cloudflare tunnel/token before stack start.
 - Main promotion is not merged yet because GitHub branch protection requires PR review/merge; direct push to `develop` was rejected by repository rules.
 - Production stack deploy and public production smoke have not been executed in this Codex scope.
+- The updated `/trips` route integration tests still need CI or a Docker-enabled local environment for full DB-backed verification; local component/type/build checks passed.
 
 ## Cleanup Policy
 
