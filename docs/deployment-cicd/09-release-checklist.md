@@ -1,5 +1,14 @@
 # Release Checklist
 
+## 현재 배포 범위
+
+2026-06-12 기준 현재 Codex 작업 범위는 운영 서버 직접 배포가 아니라 **개발 서버 release candidate 완성과 운영 담당자 인수인계 준비**다.
+
+- 개발 서버: `https://dev.travel-hunter.co.kr`, `/home/deploy/travel-hunter-app`.
+- 운영 서버: 별도 서버이며 운영 서버 동기화/배포는 별도 팀원이 담당한다.
+- 운영 서버에 필요한 설정 항목과 smoke 기준은 `docs/deployment-cicd/dev-rc-handoff.md`에 정리한다.
+- production DNS, Cloudflare, OAuth provider, 운영 DB migration/seed는 운영 담당자 실행 범위다. Codex가 직접 실행하지 않는다.
+
 ## 개발 서버 재개/남은 smoke 준비
 
 최신 개발 서버 기준값:
