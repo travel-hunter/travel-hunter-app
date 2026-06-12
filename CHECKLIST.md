@@ -28,12 +28,14 @@
 - 2026-06-12 production deployment work spec approved for `same-server-separate-stack`, `promote-develop-to-main`, external Cloudflare/OAuth/Kakao Maps/Brevo changes, empty-DB initial seed, and existing-DB backup-then-migration only. Spec: `.omx/plans/work-spec-production-deploy-20260612.md`.
 - 2026-06-12 production release preflight passed: backend `pytest` (`455 passed, 1 warning`), Alembic SQL generation, frontend `npm audit --audit-level=high`, `npm run typecheck`, `npm run test:mojibake`, `npm test` (`18 files`, `162 tests`), `npm run test:e2e` (`10 passed`), `npm run build`, remote `docker compose -f compose.yaml config`, remote `docker compose --env-file ... -f compose.tunnel.yaml config`, and dummy-env `compose.tunnel.yaml` Docker image build.
 - 2026-06-12 frontend release gate fixed: lockfile security updates cleared high/critical npm audit findings, and backend-mode e2e now uses the current seeded policy slug plus current generated itinerary time slots.
+- 2026-06-12 GitHub promotion path opened because protected branches reject direct pushes: draft PR #52 (`codex/production-promotion-20260612` -> `main`) created, and CI passed (`Frontend DB-backed fast lane`, `Backend fast lane`, CodeRabbit). Main promotion still needs PR review/merge.
 
 ## Remaining Risks
 
 - Production DNS for `travel-hunter.co.kr` and `api.travel-hunter.co.kr` is still unresolved from local/remote probes.
 - Cloudflare API/token/cert authority is not present in the current local or server environment; production public routing and provider console changes cannot be executed by the agent until that authority is provided securely or the user applies those console changes.
 - Existing dev runtime env has required secret keys, but domain/redirect values are dev-domain scoped; production env must use production-domain values and a production-confirmed Cloudflare tunnel/token before stack start.
+- Main promotion is not merged yet because GitHub branch protection requires PR review/merge; direct push to `develop` was rejected by repository rules.
 - Production stack deploy and public production smoke have not been executed because the Cloudflare/DNS no-go line is still active.
 
 ## Cleanup Policy
