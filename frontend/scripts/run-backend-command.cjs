@@ -1,12 +1,27 @@
 const { spawn, spawnSync } = require("node:child_process");
 const http = require("node:http");
 const path = require("node:path");
+const fs = require("node:fs");
 
 const repoRoot = path.resolve(__dirname, "..", "..");
 const backendDir = path.join(repoRoot, "backend");
 const frontendDir = path.join(repoRoot, "frontend");
 
-const pythonCommand = process.env.PYTHON || "python";
+function resolvePythonCommand() {
+  if (process.env.PYTHON) return process.env.PYTHON;
+  const venvPython =
+    process.platform === "win32"
+      ? path.join(backendDir, ".venv", "Scripts", "python.exe")
+      : path.join(backendDir, ".venv", "bin", "python");
+  if (fs.existsSync(venvPython)) return venvPython;
+  const python3 = spawnSync(process.platform === "win32" ? "python.exe" : "python3", ["--version"], {
+    stdio: "ignore",
+  });
+  if (python3.status === 0) return process.platform === "win32" ? "python.exe" : "python3";
+  return "python";
+}
+
+const pythonCommand = resolvePythonCommand();
 const dockerCommand = process.platform === "win32" ? "docker.exe" : "docker";
 const apiPort = process.env.E2E_API_PORT || "8001";
 const frontendPort = process.env.E2E_FRONTEND_PORT || "5174";
@@ -45,6 +60,11 @@ function run(command, args, options = {}) {
     env: options.env || process.env,
     stdio: "inherit",
   });
+
+  if (result.error) {
+    console.error(result.error);
+    process.exit(1);
+  }
 
   if (result.status !== 0) {
     process.exit(result.status || 1);
@@ -170,6 +190,11 @@ async function main() {
       stdio: "inherit",
       shell: process.platform === "win32",
     });
+    if (result.error) {
+      console.error(result.error);
+      process.exitCode = 1;
+      return;
+    }
     process.exitCode = result.status || 0;
   } catch (error) {
     console.error(error);

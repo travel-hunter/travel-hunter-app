@@ -4,9 +4,9 @@ from types import SimpleNamespace
 import pytest
 
 from app.core import security
-from app.models import AuthRefreshToken
+from app.models import AuthRefreshToken, PendingSignup
 from app.models import User as UserModel
-from app.schemas.user import LoginRequest, SignupRequest
+from app.schemas.user import LoginRequest, SignupCompleteRequest, SignupRequest, SignupVerifyRequest
 from app.services import auth as auth_service
 
 
@@ -43,9 +43,111 @@ def make_user(
     )
 
 
-def test_signup_creates_hashed_user_and_refresh_token(monkeypatch) -> None:
+def test_signup_creates_pending_signup_and_sends_verification_email(monkeypatch) -> None:
     db = FakeDb()
     captured: dict[str, object] = {}
+
+    monkeypatch.setattr(auth_service.user_repository, "get_user_by_email", lambda _db, email: None)
+    monkeypatch.setattr(auth_service.security, "create_urlsafe_token", lambda: "raw-signup-token")
+    monkeypatch.setattr(
+        auth_service,
+        "send_signup_verification_email",
+        lambda **kwargs: captured.update({"sent_email": kwargs}),
+    )
+    monkeypatch.setattr(
+        auth_service.pending_signup_repository,
+        "delete_pending_signup_by_email",
+        lambda _db, email: captured.update({"deleted_email": email}),
+    )
+
+    def create_pending(_db, **kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(**kwargs)
+
+    monkeypatch.setattr(
+        auth_service.pending_signup_repository,
+        "create_pending_signup",
+        create_pending,
+    )
+
+    result = auth_service.signup(
+        db,
+        SignupRequest(email="TEST.USER@EXAMPLE.COM"),
+    )
+
+    assert db.committed is True
+    assert result == {"verificationRequired": True, "email": "test.user@example.com"}
+    assert captured["email"] == "test.user@example.com"
+    assert captured["token_hash"] == security.hash_token("raw-signup-token")
+    assert captured["sent_email"]["to_email"] == "test.user@example.com"
+    assert "raw-signup-token" in captured["sent_email"]["verify_url"]
+    assert captured["deleted_email"] == "test.user@example.com"
+
+
+def test_signup_send_failure_rolls_back_without_replacing_existing_pending(monkeypatch) -> None:
+    db = FakeDb()
+    calls: list[str] = []
+
+    monkeypatch.setattr(auth_service.user_repository, "get_user_by_email", lambda _db, email: None)
+
+    def fail_send(**_kwargs):
+        raise auth_service.EmailDeliveryError("boom")
+
+    monkeypatch.setattr(auth_service, "send_signup_verification_email", fail_send)
+    monkeypatch.setattr(
+        auth_service.pending_signup_repository,
+        "delete_pending_signup_by_email",
+        lambda *_args, **_kwargs: calls.append("delete"),
+    )
+    monkeypatch.setattr(
+        auth_service.pending_signup_repository,
+        "create_pending_signup",
+        lambda *_args, **_kwargs: calls.append("create"),
+    )
+
+    with pytest.raises(auth_service.AuthServiceError) as error:
+        auth_service.signup(
+            db,
+            SignupRequest(email="test.user@example.com"),
+        )
+
+    assert error.value.status_code == 503
+    assert error.value.detail == auth_service.SIGNUP_EMAIL_DELIVERY_ERROR
+    assert db.rolled_back is True
+    assert calls == []
+
+
+def test_verify_signup_confirms_token_without_creating_user(monkeypatch) -> None:
+    db = FakeDb()
+    pending = PendingSignup(
+        id=1,
+        email="test.user@example.com",
+        token_hash=security.hash_token("raw-signup-token"),
+        expires_at=security.utc_now_naive() + timedelta(minutes=30),
+    )
+
+    monkeypatch.setattr(
+        auth_service.pending_signup_repository,
+        "get_active_pending_signup_by_token",
+        lambda _db, **kwargs: pending if kwargs["token_hash"] == pending.token_hash else None,
+    )
+    monkeypatch.setattr(auth_service.user_repository, "get_user_by_email", lambda _db, email: None)
+
+    result = auth_service.verify_signup(db, SignupVerifyRequest(token="raw-signup-token"))
+
+    assert db.committed is False
+    assert result == {"verified": True, "email": "test.user@example.com"}
+
+
+def test_complete_signup_creates_user_and_refresh_token(monkeypatch) -> None:
+    db = FakeDb()
+    captured: dict[str, object] = {}
+    pending = PendingSignup(
+        id=1,
+        email="test.user@example.com",
+        token_hash=security.hash_token("raw-signup-token"),
+        expires_at=security.utc_now_naive() + timedelta(minutes=30),
+    )
 
     def create_user(_db, *, email: str, nickname: str, password_hash: str) -> UserModel:
         captured["email"] = email
@@ -56,24 +158,26 @@ def test_signup_creates_hashed_user_and_refresh_token(monkeypatch) -> None:
         user.password_hash = password_hash
         return user
 
-    def create_refresh_token(_db, *, user_id: int, refresh_token_hash: str, expires_at):
-        captured["refresh_user_id"] = user_id
-        captured["refresh_token_hash"] = refresh_token_hash
-        captured["expires_at"] = expires_at
-
+    monkeypatch.setattr(
+        auth_service.pending_signup_repository,
+        "get_active_pending_signup_by_token",
+        lambda _db, **kwargs: pending if kwargs["token_hash"] == pending.token_hash else None,
+    )
     monkeypatch.setattr(auth_service.user_repository, "get_user_by_email", lambda _db, email: None)
     monkeypatch.setattr(auth_service.user_repository, "create_user", create_user)
     monkeypatch.setattr(auth_service.nicknames, "generate_random_nickname", lambda: "알뜰한여행자482")
     monkeypatch.setattr(
+        auth_service.pending_signup_repository,
+        "delete_pending_signup",
+        lambda _db, value: captured.update({"deleted_pending": value}),
+    )
+    monkeypatch.setattr(
         auth_service.token_repository,
         "create_refresh_token",
-        create_refresh_token,
+        lambda _db, **kwargs: captured.update({"refresh": kwargs}),
     )
 
-    result = auth_service.signup(
-        db,
-        SignupRequest(email="TEST.USER@EXAMPLE.COM", password="password123"),
-    )
+    result = auth_service.complete_signup(db, SignupCompleteRequest(token="raw-signup-token", password="password123"))
 
     assert db.committed is True
     assert result.access_token
@@ -83,9 +187,22 @@ def test_signup_creates_hashed_user_and_refresh_token(monkeypatch) -> None:
     assert captured["nickname"] == "알뜰한여행자482"
     assert captured["password_hash"] != "password123"
     assert security.verify_password("password123", str(captured["password_hash"]))
-    assert captured["refresh_user_id"] == 1
-    assert captured["refresh_token_hash"] != result.refresh_token
+    assert captured["deleted_pending"] is pending
+    assert captured["refresh"]["user_id"] == 1
 
+
+def test_verify_signup_rejects_invalid_or_expired_token(monkeypatch) -> None:
+    monkeypatch.setattr(
+        auth_service.pending_signup_repository,
+        "get_active_pending_signup_by_token",
+        lambda _db, **kwargs: None,
+    )
+
+    with pytest.raises(auth_service.AuthServiceError) as error:
+        auth_service.verify_signup(FakeDb(), SignupVerifyRequest(token="bad-token"))
+
+    assert error.value.status_code == 400
+    assert error.value.detail == "Invalid or expired signup verification token"
 
 def test_signup_rejects_duplicate_email(monkeypatch) -> None:
     monkeypatch.setattr(
@@ -97,7 +214,7 @@ def test_signup_rejects_duplicate_email(monkeypatch) -> None:
     with pytest.raises(auth_service.AuthServiceError) as error:
         auth_service.signup(
             FakeDb(),
-            SignupRequest(email="test.user@example.com", password="password123"),
+            SignupRequest(email="test.user@example.com"),
         )
 
     assert error.value.status_code == 409
@@ -259,7 +376,7 @@ def test_password_reset_request_stores_hash_and_sends_email(monkeypatch) -> None
     monkeypatch.setattr(
         auth_service,
         "send_password_reset_email",
-        lambda **kwargs: captured.update({"email": kwargs}),
+        lambda **kwargs: captured.update({"sent_email": kwargs}),
     )
 
     result = auth_service.request_password_reset(
@@ -271,8 +388,8 @@ def test_password_reset_request_stores_hash_and_sends_email(monkeypatch) -> None
     assert db.committed is True
     assert captured["user_id"] == 1
     assert captured["token_hash"] != "raw-reset-token"
-    assert captured["email"]["to_email"] == user.email
-    assert "raw-reset-token" in captured["email"]["reset_url"]
+    assert captured["sent_email"]["to_email"] == user.email
+    assert "raw-reset-token" in captured["sent_email"]["reset_url"]
 
 
 def test_password_reset_confirm_changes_password_and_revokes_sessions(monkeypatch) -> None:

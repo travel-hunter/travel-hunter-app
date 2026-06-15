@@ -2,15 +2,17 @@
 import userEvent from "@testing-library/user-event";
 import { Link, MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { appDataApi, type ContactInfo, type InviteState, type NotificationSettings, type Policy, type Trip } from "./api";
+import { appDataApi, setApiAccessToken, type AuthResponse, type ContactInfo, type InviteState, type NotificationSettings, type Policy, type Trip, type User } from "./api";
 import { App } from "./app/App";
 import { AppProviders, AppRoot } from "./app/AppRoot";
 
 const testEmail = "test.user@example.com";
 const testPassword = "password123";
+const authStorageKey = "travel-hunter-production-auth";
 
 beforeEach(() => {
   window.localStorage.clear();
+  setApiAccessToken(null);
 });
 
 function renderRoute(route: string) {
@@ -30,14 +32,46 @@ function getLink(href: string) {
 }
 
 async function login() {
-  const user = userEvent.setup();
-  renderRoute("/login");
-  await user.type(document.querySelector('input[name="email"]') as HTMLInputElement, testEmail);
-  await user.type(document.querySelector('input[name="password"]') as HTMLInputElement, testPassword);
-  const submit = document.querySelector('button[type="submit"]');
-  expect(submit).toBeTruthy();
-  await user.click(submit as HTMLButtonElement);
+  const auth = await appDataApi.login({ email: testEmail, password: testPassword });
+  window.localStorage.setItem(authStorageKey, JSON.stringify(auth));
+  setApiAccessToken(auth.accessToken);
+  renderRoute("/home");
   await waitFor(() => expect(getLink("/policies")).toBeInTheDocument());
+}
+
+function makeUser(overrides: Partial<User> = {}): User {
+  return {
+    ...appDataApi.getPreviewUser(),
+    ...overrides,
+  };
+}
+
+function storeAuth(user: User) {
+  const auth: AuthResponse = {
+    accessToken: "test-access-token",
+    user,
+  };
+  window.localStorage.setItem(authStorageKey, JSON.stringify(auth));
+}
+
+function mockSessionApis(user: User) {
+  const getCurrentUserSpy = vi.spyOn(appDataApi, "getCurrentUser").mockResolvedValue(user);
+  const getProfileSpy = vi.spyOn(appDataApi, "getProfile").mockResolvedValue({
+    region: user.region ?? "제주",
+    style: "휴식",
+    budget: "1인 40만원 이하",
+  });
+  const listSavedPoliciesSpy = vi.spyOn(appDataApi, "listSavedPolicies").mockResolvedValue([]);
+  return {
+    getCurrentUserSpy,
+    getProfileSpy,
+    listSavedPoliciesSpy,
+    restore: () => {
+      getCurrentUserSpy.mockRestore();
+      getProfileSpy.mockRestore();
+      listSavedPoliciesSpy.mockRestore();
+    },
+  };
 }
 
 async function setPlaceTimeFromDefault(user: ReturnType<typeof userEvent.setup>, time: string) {
@@ -130,6 +164,64 @@ describe("Travel Hunter app", () => {
 
     await waitFor(() => expect(document.querySelector('input[type="email"]')).toBeTruthy());
     expect(document.querySelector('button[type="submit"]')).toBeTruthy();
+  });
+
+  it("redirects incomplete non-social users to profile setup before protected app routes", async () => {
+    const incompleteUser = makeUser({ onboardingCompleted: false, nickname: "기존닉네임", socialAccounts: [] });
+    storeAuth(incompleteUser);
+    const spies = mockSessionApis(incompleteUser);
+
+    try {
+      renderRoute("/home");
+
+      await waitFor(() => expect(screen.getByRole("heading", { name: "정보 입력" })).toBeInTheDocument());
+      expect(screen.getByText("맞춤 추천 설정")).toBeInTheDocument();
+      expect(document.body).not.toHaveTextContent("이번 달 받을 수 있는 혜택");
+    } finally {
+      spies.restore();
+    }
+  });
+
+  it("redirects incomplete social users to nickname setup even when a provider nickname exists", async () => {
+    const socialUser = makeUser({
+      onboardingCompleted: false,
+      nickname: "구글사용자",
+      socialAccounts: [{ provider: "google", providerNickname: "구글사용자", connectedAt: "2026-06-15T00:00:00Z" }],
+    });
+    storeAuth(socialUser);
+    const spies = mockSessionApis(socialUser);
+
+    try {
+      renderRoute("/home");
+
+      await waitFor(() => expect(screen.getByText("Travel Hunter에서 사용할 닉네임을 정해 주세요")).toBeInTheDocument());
+      expect(screen.getByRole("button", { name: "이 닉네임으로 시작하기" })).toBeInTheDocument();
+      expect(document.body).not.toHaveTextContent("이번 달 받을 수 있는 혜택");
+    } finally {
+      spies.restore();
+    }
+  });
+
+  it("routes incomplete OAuth callback sessions through nickname setup with the safe redirect preserved", async () => {
+    const socialUser = makeUser({
+      onboardingCompleted: false,
+      nickname: "카카오사용자",
+      socialAccounts: [{ provider: "kakao", providerNickname: "카카오사용자", connectedAt: "2026-06-15T00:00:00Z" }],
+    });
+    const refreshSpy = vi.spyOn(appDataApi, "refreshSession").mockResolvedValue({ accessToken: "oauth-access-token", user: socialUser });
+    const getProfileSpy = vi.spyOn(appDataApi, "getProfile").mockResolvedValue({ region: "제주", style: "휴식", budget: "1인 40만원 이하" });
+    const listSavedPoliciesSpy = vi.spyOn(appDataApi, "listSavedPolicies").mockResolvedValue([]);
+
+    try {
+      renderRoute("/oauth/callback?redirect=%2Fpolicies");
+
+      await waitFor(() => expect(screen.getByText("Travel Hunter에서 사용할 닉네임을 정해 주세요")).toBeInTheDocument());
+      expect(window.location.pathname).not.toBe("/policies");
+    } finally {
+      refreshSpy.mockRestore();
+      getProfileSpy.mockRestore();
+      listSavedPoliciesSpy.mockRestore();
+    }
   });
 
   it("opens core authenticated routes", async () => {
@@ -1201,11 +1293,11 @@ describe("Travel Hunter app", () => {
     expect(screen.getByLabelText("이번 달 혜택 정책 목록")).toBeInTheDocument();
     const destinationRail = screen.getByLabelText("인기 국내 여행지 목록");
     expect(destinationRail).toBeInTheDocument();
-    expect(within(destinationRail).getByRole("link", { name: /부산/ })).toHaveAttribute("href", "/trips/new?region=%EB%B6%80%EC%82%B0");
+    expect(within(destinationRail).getAllByRole("link")[0]).toHaveAttribute("href", expect.stringMatching(/^\/trips\/new\?region=/));
     await waitFor(() => expect(within(destinationRail).getAllByText(/혜택 \d+개/).length).toBeGreaterThan(0));
     expect(document.body).not.toHaveTextContent("⭐ 4.9");
     await waitFor(() => expect(screen.getByText("💰 이번 달 인기 정책")).toBeInTheDocument());
-    await waitFor(() => expect(document.body).toHaveTextContent("💴"));
+    await waitFor(() => expect(document.body).toHaveTextContent("💸"));
     await waitFor(() => expect(getLink("/policies/local-vacation")).toBeInTheDocument());
   });
 
@@ -1389,9 +1481,15 @@ describe("Travel Hunter app", () => {
 
     cleanup();
     renderRoute("/mypage");
-    await waitFor(() => expect(getLink("/policies/local-vacation")).toBeInTheDocument());
+    const savedPolicyLink = await waitFor(() => {
+      const link = getLink("/policies/local-vacation");
+      expect(link).toBeInTheDocument();
+      return link;
+    });
+    const savedPolicyRow = savedPolicyLink.closest("article") as HTMLElement;
+    expect(savedPolicyRow).toBeTruthy();
 
-    await userEvent.setup().click(await screen.findByRole("button", { name: "저장 해제" }));
+    await userEvent.setup().click(within(savedPolicyRow).getByRole("button", { name: "저장 해제" }));
 
     await waitFor(() => expect(document.querySelector('a[href="/policies/local-vacation"]')).toBeFalsy());
   });
@@ -1936,7 +2034,46 @@ describe("Travel Hunter app", () => {
     await user.click(screen.getByRole("button", { name: "1인 30만원 이하" }));
     await user.click(screen.getByRole("button", { name: "추천 홈 보기" }));
 
-    await waitFor(() => expect(document.body).toHaveTextContent("부산 여행"));
+    await waitFor(() => expect(document.body).toHaveTextContent("이번 달 놓치면 안 될 혜택이 있어요!"));
+    expect(document.body).toHaveTextContent("인기 국내 여행지");
+  });
+
+  it("saves current profile defaults when profile setup is skipped for later", async () => {
+    const incompleteUser = makeUser({ onboardingCompleted: false, nickname: "기존닉네임", socialAccounts: [] });
+    const completedUser = makeUser({ onboardingCompleted: true, nickname: "기존닉네임", socialAccounts: [] });
+    storeAuth(incompleteUser);
+    const getProfileSpy = vi.spyOn(appDataApi, "getProfile").mockResolvedValue({
+      region: "제주",
+      style: "휴식",
+      budget: "1인 40만원 이하",
+    });
+    const listSavedPoliciesSpy = vi.spyOn(appDataApi, "listSavedPolicies").mockResolvedValue([]);
+    const updateProfileSpy = vi.spyOn(appDataApi, "updateProfile").mockResolvedValue({
+      region: "제주",
+      style: "휴식",
+      budget: "1인 40만원 이하",
+    });
+    const getCurrentUserSpy = vi.spyOn(appDataApi, "getCurrentUser").mockResolvedValue(completedUser);
+    const user = userEvent.setup();
+
+    try {
+      renderRoute("/profile-setup");
+
+      await user.click(await screen.findByRole("button", { name: "나중에 설정" }));
+
+      await waitFor(() =>
+        expect(updateProfileSpy).toHaveBeenCalledWith({
+          region: "제주",
+          style: "휴식",
+          budget: "1인 40만원 이하",
+        }),
+      );
+    } finally {
+      getProfileSpy.mockRestore();
+      listSavedPoliciesSpy.mockRestore();
+      getCurrentUserSpy.mockRestore();
+      updateProfileSpy.mockRestore();
+    }
   });
 
   it("saves selected invite roles from the friend invite page", async () => {
@@ -2150,40 +2287,51 @@ describe("Travel Hunter app", () => {
     expect(tripLink.getAttribute("href")).toMatch(/^\/trips\/[1-9][0-9]*$/);
   });
 
-  it("accepts a valid invite after signup when a redirect is present", async () => {
-    renderRoute("/signup?redirect=/invites/jeju-3d/accept");
-    expect(document.querySelector("main")).toHaveClass("prototype-login-layout");
-    expect(document.querySelector(".prototype-auth-screen")).toBeTruthy();
+  it("requests signup email verification without password or authentication", async () => {
+    const signupSpy = vi.spyOn(appDataApi, "requestSignupVerification").mockResolvedValue({ verificationRequired: true, email: "invite@example.com" });
 
-    const user = userEvent.setup();
-    const email = `invite-${Date.now()}@example.com`;
-    await user.type(
-      document.querySelector('input[name="email"]') as HTMLInputElement,
-      email,
-    );
-    const emailCheckButton = document.querySelector(".input-action-row button[type='button']");
-    expect(emailCheckButton).toBeTruthy();
-    await user.click(emailCheckButton as HTMLButtonElement);
-    await waitFor(() => expect(document.body).toHaveTextContent("사용할 수 있는 이메일입니다."));
-    await user.type(document.querySelector('input[name="password"]') as HTMLInputElement, "password123");
-    await user.click(document.querySelector('button[type="submit"]') as HTMLButtonElement);
+    try {
+      renderRoute("/signup?redirect=/invites/jeju-3d/accept");
+      expect(document.querySelector("main")).toHaveClass("prototype-login-layout");
+      expect(document.querySelector(".prototype-auth-screen")).toBeTruthy();
 
-    const nicknameInput = await waitFor(() => {
-      const input = document.querySelector('input[name="nickname"]');
-      expect(input).toBeTruthy();
-      return input as HTMLInputElement;
-    });
-    await user.clear(nicknameInput);
-    await user.type(nicknameInput, "초대테스트");
-    await user.click(document.querySelector('button[type="submit"]') as HTMLButtonElement);
+      fireEvent.change(document.querySelector('input[name="email"]') as HTMLInputElement, { target: { value: "invite@example.com" } });
+      expect(document.querySelector('input[name="password"]')).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "인증 메일 받기" }));
 
-    await waitFor(() => expect(document.body).toHaveTextContent("초대를 수락했어요"));
-    const tripLink = await waitFor(() => {
-      const link = document.querySelector('a[href^="/trips/"]');
-      expect(link).toBeTruthy();
-      return link as HTMLAnchorElement;
-    });
-    expect(tripLink.getAttribute("href")).toMatch(/^\/trips\/[1-9][0-9]*$/);
+      await waitFor(() => expect(document.body).toHaveTextContent("인증 메일을 보냈어요"));
+      expect(document.body).toHaveTextContent("invite@example.com");
+      expect(signupSpy).toHaveBeenCalledWith({ email: "invite@example.com" });
+      expect(window.localStorage.getItem(authStorageKey)).toBeNull();
+    } finally {
+      signupSpy.mockRestore();
+    }
+  });
+
+  it("completes signup after token verification and password setup", async () => {
+    const verifiedUser = makeUser({ onboardingCompleted: false, nickname: "검증사용자", socialAccounts: [] });
+    const verifySpy = vi.spyOn(appDataApi, "verifySignup").mockResolvedValue({ verified: true, email: "invite@example.com" });
+    const completeSpy = vi.spyOn(appDataApi, "completeSignup").mockResolvedValue({ accessToken: "signup-access-token", user: verifiedUser });
+    const getProfileSpy = vi.spyOn(appDataApi, "getProfile").mockResolvedValue({ region: "제주", style: "휴식", budget: "1인 40만원 이하" });
+
+    try {
+      cleanup();
+      renderRoute("/signup/verify?token=valid-token&redirect=/invites/jeju-3d/accept");
+
+      await waitFor(() => expect(document.body).toHaveTextContent("이메일 인증이 완료됐어요"));
+      expect(verifySpy).toHaveBeenCalledWith({ token: "valid-token" });
+      expect(verifySpy).toHaveBeenCalledTimes(1);
+      await userEvent.type(document.querySelector('input[name="password"]') as HTMLInputElement, "password123");
+      fireEvent.click(screen.getByRole("button", { name: "비밀번호 설정하고 가입 완료" }));
+
+      await waitFor(() => expect(screen.getByRole("heading", { name: "정보 입력" })).toBeInTheDocument());
+      expect(completeSpy).toHaveBeenCalledWith({ token: "valid-token", password: "password123" });
+      expect(window.localStorage.getItem(authStorageKey)).toContain("signup-access-token");
+    } finally {
+      verifySpy.mockRestore();
+      completeSpy.mockRestore();
+      getProfileSpy.mockRestore();
+    }
   });
 
   it("shows an invite error state for an unknown invite token", async () => {

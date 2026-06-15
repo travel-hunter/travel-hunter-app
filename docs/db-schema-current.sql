@@ -140,6 +140,38 @@ ALTER SEQUENCE public.password_reset_tokens_id_seq OWNED BY public.password_rese
 
 
 --
+-- Name: pending_signups; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pending_signups (
+    id bigint NOT NULL,
+    email character varying(255) NOT NULL,
+    token_hash character varying(255) NOT NULL,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    expires_at timestamp without time zone NOT NULL
+);
+
+
+--
+-- Name: pending_signups_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.pending_signups_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: pending_signups_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.pending_signups_id_seq OWNED BY public.pending_signups.id;
+
+
+--
 -- Name: policies; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -611,6 +643,13 @@ ALTER TABLE ONLY public.password_reset_tokens ALTER COLUMN id SET DEFAULT nextva
 
 
 --
+-- Name: pending_signups id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pending_signups ALTER COLUMN id SET DEFAULT nextval('public.pending_signups_id_seq'::regclass);
+
+
+--
 -- Name: policies id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -747,6 +786,30 @@ ALTER TABLE ONLY public.password_reset_tokens
 
 ALTER TABLE ONLY public.password_reset_tokens
     ADD CONSTRAINT password_reset_tokens_token_hash_key UNIQUE (token_hash);
+
+
+--
+-- Name: pending_signups pending_signups_email_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pending_signups
+    ADD CONSTRAINT pending_signups_email_key UNIQUE (email);
+
+
+--
+-- Name: pending_signups pending_signups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pending_signups
+    ADD CONSTRAINT pending_signups_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: pending_signups pending_signups_token_hash_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pending_signups
+    ADD CONSTRAINT pending_signups_token_hash_key UNIQUE (token_hash);
 
 
 --
@@ -987,6 +1050,20 @@ CREATE INDEX ix_password_reset_tokens_token_hash ON public.password_reset_tokens
 --
 
 CREATE INDEX ix_password_reset_tokens_user_id ON public.password_reset_tokens USING btree (user_id);
+
+
+--
+-- Name: ix_pending_signups_email; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_pending_signups_email ON public.pending_signups USING btree (email);
+
+
+--
+-- Name: ix_pending_signups_token_hash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_pending_signups_token_hash ON public.pending_signups USING btree (token_hash);
 
 
 --

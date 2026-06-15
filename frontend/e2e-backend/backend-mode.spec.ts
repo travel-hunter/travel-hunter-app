@@ -48,10 +48,12 @@ test("backend data source persists profile setup choices", async ({ page }) => {
   await page.getByRole("button", { name: "추천 홈 보기" }).click();
 
   await expect(page).toHaveURL(/\/home$/);
-  await expect(page.locator("body")).toContainText("부산 여행");
+  await expect(page.locator("body")).toContainText("이번 달 놓치면 안 될 혜택이 있어요!");
+  await expect(page.locator("body")).toContainText("인기 국내 여행지");
 
   await page.reload();
-  await expect(page.locator("body")).toContainText("부산 여행");
+  await expect(page.locator("body")).toContainText("이번 달 놓치면 안 될 혜택이 있어요!");
+  await expect(page.locator("body")).toContainText("인기 국내 여행지");
 });
 
 test("backend data source drives policy, trip, recommendation, invite, and logout flow", async ({ page }) => {

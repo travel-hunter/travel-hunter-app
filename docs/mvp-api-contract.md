@@ -68,12 +68,58 @@ DB 연결 상태 포함 서버 헬스 확인. 인증 불필요.
 
 ### POST /auth/signup
 
-이메일/비밀번호 회원가입. 성공 시 access token 반환, refresh token은 cookie에 set.
+이메일 인증 요청. 성공 시 계정은 아직 생성하지 않고 인증 메일을 발송한다. 같은 이메일의 미완료 pending signup은 새 요청으로 교체한다.
+
+**Request**
+```json
+{ "email": "user@example.com" }
+```
+
+**Response 200**
+```json
+{
+  "verificationRequired": true,
+  "email": "user@example.com"
+}
+```
+
+**Errors**
+- 409: 이미 가입 완료된 이메일
+- 503: 인증 메일 발송 실패. 이 경우 pending signup은 저장하지 않는다.
+
+---
+
+### POST /auth/signup/verify
+
+회원가입 인증 링크의 token을 검증한다. 성공 시 계정은 아직 생성하지 않고 비밀번호 설정 가능 상태를 반환한다.
+
+**Request**
+```json
+{ "token": "<verification-token>" }
+```
+
+**Response 200**
+```json
+{
+  "verified": true,
+  "email": "user@example.com"
+}
+```
+
+**Errors**
+- 400: 인증 token 없음, 만료, 또는 이미 사용됨
+- 409: 이미 가입 완료된 이메일
+
+---
+
+### POST /auth/signup/complete
+
+검증된 회원가입 token과 비밀번호로 계정을 생성한다. 성공 시 access token을 반환하며 refresh token은 cookie에 set.
 
 **Request**
 ```json
 {
-  "email": "user@example.com",
+  "token": "<verification-token>",
   "password": "password123"
 }
 ```
@@ -89,7 +135,9 @@ DB 연결 상태 포함 서버 헬스 확인. 인증 불필요.
 ```
 
 **Errors**
-- 409: 이메일 이미 사용 중
+- 400: 인증 token 없음, 만료, 또는 이미 사용됨
+- 409: 이미 가입 완료된 이메일
+- 409: 인증 전 같은 이메일 계정이 이미 생성됨
 
 ---
 

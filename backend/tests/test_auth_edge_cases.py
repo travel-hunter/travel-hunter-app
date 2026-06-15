@@ -1,7 +1,7 @@
 """Auth edge case tests.
 
 Covers:
-- Password length boundary validation (Pydantic schema)
+- Signup email-first and completion password boundary validation (Pydantic schema)
 - Invalid email format rejection (Pydantic schema)
 - Expired / invalid password reset token -> AuthServiceError(400)
 - OAuth state mismatch / missing -> OAuthServiceError(400)
@@ -11,24 +11,29 @@ Covers:
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.user import LoginRequest, NicknameUpdate, SignupRequest
+from app.schemas.user import LoginRequest, NicknameUpdate, SignupCompleteRequest, SignupRequest
 from app.services import auth as auth_service
 from app.services import oauth as oauth_service
 from app.services.auth import AuthServiceError
 
 
 # ---------------------------------------------------------------------------
-# Schema: password length boundary
+# Schema: signup email-first and completion password length boundary
 # ---------------------------------------------------------------------------
 
 
-def test_signup_rejects_password_shorter_than_8_chars() -> None:
+def test_signup_request_is_email_first() -> None:
+    req = SignupRequest(email="a@example.com")
+    assert req.email == "a@example.com"
+
+
+def test_signup_complete_rejects_password_shorter_than_8_chars() -> None:
     with pytest.raises(ValidationError):
-        SignupRequest(email="a@example.com", password="short7")
+        SignupCompleteRequest(token="verified-token", password="short7")
 
 
-def test_signup_accepts_password_of_exactly_8_chars() -> None:
-    req = SignupRequest(email="a@example.com", password="exactly8")
+def test_signup_complete_accepts_password_of_exactly_8_chars() -> None:
+    req = SignupCompleteRequest(token="verified-token", password="exactly8")
     assert req.password == "exactly8"
 
 
@@ -50,11 +55,11 @@ def test_login_accepts_single_char_password() -> None:
 def test_signup_rejects_invalid_email_formats() -> None:
     for bad_email in ["notanemail", "missing@", "@domain.com", "two@@domain.com", "space @domain.com"]:
         with pytest.raises(ValidationError):
-            SignupRequest(email=bad_email, password="password123")
+            SignupRequest(email=bad_email)
 
 
 def test_signup_normalizes_valid_email() -> None:
-    req = SignupRequest(email="User@Example.COM", password="password123")
+    req = SignupRequest(email="User@Example.COM")
     assert "@" in req.email
 
 

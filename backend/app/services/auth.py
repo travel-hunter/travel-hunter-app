@@ -9,10 +9,11 @@ from app.core import security
 from app.core.config import settings
 from app.models import User as UserModel
 from app.repositories import auth_tokens as token_repository
+from app.repositories import pending_signups as pending_signup_repository
 from app.repositories import password_resets as password_reset_repository
 from app.repositories import users as user_repository
-from app.schemas.user import EmailAvailabilityRequest, LoginRequest, PasswordResetConfirm, PasswordResetRequest, SignupRequest
-from app.services.email import EmailDeliveryError, send_password_reset_email
+from app.schemas.user import EmailAvailabilityRequest, LoginRequest, PasswordResetConfirm, PasswordResetRequest, SignupCompleteRequest, SignupRequest, SignupVerifyRequest
+from app.services.email import EmailDeliveryError, send_password_reset_email, send_signup_verification_email
 from app.services import nicknames
 
 
@@ -28,6 +29,10 @@ class AuthResult:
     access_token: str
     refresh_token: str
     user: dict[str, object]
+
+
+SIGNUP_EMAIL_DELIVERY_ERROR = "인증 메일을 보낼 수 없습니다. 잠시 후 다시 시도해 주세요."
+SIGNUP_VERIFICATION_EXPIRE_MINUTES = 30
 
 
 def normalize_email(email: str) -> str:
@@ -84,17 +89,62 @@ def _issue_tokens(db: Session, user: UserModel) -> AuthResult:
     )
 
 
-def signup(db: Session, request: SignupRequest) -> AuthResult:
+def signup(db: Session, request: SignupRequest) -> dict[str, object]:
     email = normalize_email(str(request.email))
     if user_repository.get_user_by_email(db, email) is not None:
         raise AuthServiceError(409, "Email already registered")
 
-    user = user_repository.create_user(
+    raw_token = security.create_urlsafe_token()
+    token_hash = security.hash_token(raw_token)
+    expires_at = security.utc_now_naive() + timedelta(minutes=SIGNUP_VERIFICATION_EXPIRE_MINUTES)
+    verify_url = f"{_frontend_base_url()}/signup/verify?token={raw_token}"
+
+    try:
+        send_signup_verification_email(to_email=email, verify_url=verify_url)
+    except EmailDeliveryError as error:
+        db.rollback()
+        raise AuthServiceError(503, SIGNUP_EMAIL_DELIVERY_ERROR) from error
+
+    pending_signup_repository.delete_pending_signup_by_email(db, email)
+    pending_signup_repository.create_pending_signup(
         db,
         email=email,
+        token_hash=token_hash,
+        expires_at=expires_at,
+    )
+    db.commit()
+    return {"verificationRequired": True, "email": email}
+
+
+def _get_verified_pending_signup(db: Session, token: str):
+    pending = pending_signup_repository.get_active_pending_signup_by_token(
+        db,
+        token_hash=security.hash_token(token),
+        now=security.utc_now_naive(),
+    )
+    if pending is None:
+        raise AuthServiceError(400, "Invalid or expired signup verification token")
+    if user_repository.get_user_by_email(db, pending.email) is not None:
+        pending_signup_repository.delete_pending_signup(db, pending)
+        db.commit()
+        raise AuthServiceError(409, "Email already registered")
+    return pending
+
+
+def verify_signup(db: Session, request: SignupVerifyRequest) -> dict[str, object]:
+    pending = _get_verified_pending_signup(db, request.token)
+    return {"verified": True, "email": pending.email}
+
+
+def complete_signup(db: Session, request: SignupCompleteRequest) -> AuthResult:
+    pending = _get_verified_pending_signup(db, request.token)
+    user = user_repository.create_user(
+        db,
+        email=pending.email,
         nickname=nicknames.generate_random_nickname(),
         password_hash=security.hash_password(request.password),
     )
+    pending_signup_repository.delete_pending_signup(db, pending)
     result = _issue_tokens(db, user)
     db.commit()
     return result

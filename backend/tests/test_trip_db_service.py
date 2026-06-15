@@ -583,7 +583,7 @@ def test_invite_to_api_computes_display_flags() -> None:
         created_by=1,
         role="viewer",
         created_at=datetime(2026, 5, 4, 0, 0, 0),
-        expires_at=datetime(2026, 5, 4, 0, 0, 0) + timedelta(days=30),
+        expires_at=datetime(2099, 5, 4, 0, 0, 0),
     )
 
     payload = trip_service.invite_to_api(invite, trip_id=7)

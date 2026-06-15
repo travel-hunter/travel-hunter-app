@@ -25,6 +25,10 @@ import {
   PasswordResetResponse,
   SavePolicyResponse,
   SignupRequest,
+  SignupVerificationResponse,
+  SignupCompleteRequest,
+  SignupVerifyRequest,
+  SignupVerifyResponse,
   TripPlaceMoveRequest,
   TripPlaceRequest,
   TripPlaceUpdateRequest,
@@ -40,7 +44,6 @@ const defaultLogin: LoginRequest = {
 
 const defaultSignup: SignupRequest = {
   email: user.email,
-  password: "password123",
 };
 
 export const backendApi: AppDataApi = {
@@ -48,7 +51,10 @@ export const backendApi: AppDataApi = {
   getProfileOptions: (): ProfileOptions => ({ regions, travelStyles, budgets }),
   getPreviewTrip: (): Trip => itinerary,
   login: (request = defaultLogin): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/login", request),
-  signup: (request = defaultSignup): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/signup", request),
+  signup: (request = defaultSignup): Promise<SignupVerificationResponse> => apiClient.post<SignupVerificationResponse>("/api/auth/signup", request),
+  requestSignupVerification: (request = defaultSignup): Promise<SignupVerificationResponse> => apiClient.post<SignupVerificationResponse>("/api/auth/signup", request),
+  verifySignup: (request: SignupVerifyRequest): Promise<SignupVerifyResponse> => apiClient.post<SignupVerifyResponse>("/api/auth/signup/verify", request),
+  completeSignup: (request: SignupCompleteRequest): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/signup/complete", request),
   checkEmailAvailability: (request: EmailAvailabilityRequest): Promise<EmailAvailabilityResponse> => apiClient.post<EmailAvailabilityResponse>("/api/auth/email-check", request),
   getNicknameSuggestion: (): Promise<NicknameSuggestionResponse> => apiClient.get<NicknameSuggestionResponse>("/api/me/nickname-suggestion"),
   updateNickname: (request: NicknameUpdateRequest): Promise<User> => apiClient.patch<User>("/api/me/nickname", request),

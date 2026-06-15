@@ -4,7 +4,10 @@ import {
   AuthResponse,
   LoginRequest,
   setApiAccessToken,
+  SignupCompleteRequest,
   SignupRequest,
+  SignupVerificationResponse,
+  SignupVerifyResponse,
   Profile,
   User,
 } from "../api";
@@ -18,8 +21,10 @@ type SessionContextValue = {
   likedPolicy: boolean;
   invited: boolean;
   login: (request?: LoginRequest) => Promise<void>;
-  signup: (request?: SignupRequest) => Promise<void>;
-  completeOAuthSession: () => Promise<void>;
+  signup: (request?: SignupRequest) => Promise<SignupVerificationResponse>;
+  verifySignup: (token: string) => Promise<SignupVerifyResponse>;
+  completeSignup: (request: SignupCompleteRequest) => Promise<User>;
+  completeOAuthSession: () => Promise<User>;
   logout: () => Promise<void>;
   saveNickname: (nickname: string) => Promise<User>;
   updateProfile: (key: keyof Profile, value: string) => void;
@@ -105,7 +110,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           try {
             await applyAuth(await appDataApi.refreshSession());
           } catch {
-            clearAuth();
+            if (!cancelled && !readStoredAuth()) clearAuth();
           }
           return;
         }
@@ -121,8 +126,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           } catch {
             // Fall through to clearing the stale local session.
           }
-          clearAuth();
-          setCurrentUser(null);
+          if (cancelled) return;
+          if (readStoredAuth()?.accessToken === stored.accessToken) {
+            clearAuth();
+            setCurrentUser(null);
+          }
         }
       } finally {
         if (!cancelled) {
@@ -154,11 +162,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         appDataApi.listSavedPolicies().then((p) => setSavedSlugs(new Set(p.map((s) => s.slug)))).catch(() => {});
       },
       signup: async (request) => {
-        const auth = await appDataApi.signup(request);
+        const result = await appDataApi.requestSignupVerification(request);
+        setSavedSlugs(new Set());
+        return result;
+      },
+      verifySignup: async (token) => appDataApi.verifySignup({ token }),
+      completeSignup: async (request) => {
+        const auth = await appDataApi.completeSignup(request);
         persistAuth(auth);
         setCurrentUser(auth.user);
         setProfile(await readRemoteProfile());
         setSavedSlugs(new Set());
+        return auth.user;
       },
       completeOAuthSession: async () => {
         const auth = await appDataApi.refreshSession();
@@ -166,6 +181,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setCurrentUser(auth.user);
         setProfile(await readRemoteProfile());
         appDataApi.listSavedPolicies().then((p) => setSavedSlugs(new Set(p.map((s) => s.slug)))).catch(() => {});
+        return auth.user;
       },
       saveNickname: async (nickname) => {
         const user = await appDataApi.updateNickname({ nickname });

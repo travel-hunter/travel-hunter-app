@@ -2,13 +2,13 @@
 
 ## 기준
 
-- 기준일: 2026-05-19
-- 기준 Alembic head: `0009_add_trip_status`
+- 기준일: 2026-06-15
+- 기준 Alembic head: `0019_email_first_signup`
 - PostgreSQL: 16.13
 - SQL 산출물: `docs/db-schema-current.sql`
 - 생성 방식: fresh PostgreSQL DB에 `alembic upgrade head`를 적용한 뒤 `pg_dump --schema-only --no-owner --no-privileges`로 추출했다.
 
-이 문서는 현재 앱이 사용하는 PostgreSQL schema의 기준 문서다. 초기 SQL 기준본 이후 Alembic migration `0002`~`0009`가 적용된 현재 구조를 설명한다.
+이 문서는 현재 앱이 사용하는 PostgreSQL schema의 기준 문서다. 초기 SQL 기준본 이후 Alembic migration `0002`~`0019`가 적용된 현재 구조를 설명한다.
 
 ## 테이블 그룹
 
@@ -18,6 +18,7 @@ Auth/User:
 - `auth_refresh_tokens`
 - `social_accounts`
 - `password_reset_tokens`
+- `pending_signups`
 - `user_notification_settings`
 
 Policy:
@@ -52,6 +53,7 @@ Migration metadata:
 - `user_notification_settings`
 - `notification_deliveries`
 - `password_reset_tokens`
+- `pending_signups`
 - `alembic_version`
 
 추가 컬럼:

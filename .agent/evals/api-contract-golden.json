@@ -60,7 +60,33 @@
       "path": "/api/auth/signup",
       "status": 200,
       "request": {
-        "email": "new-user@travel.kr",
+        "email": "new-user@travel.kr"
+      },
+      "requiredFields": {
+        "verificationRequired": "boolean",
+        "email": "string"
+      },
+      "dbModeBehavior": "Sends verification email and stores pending signup only after email delivery succeeds; does not create users until /api/auth/signup/complete."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/signup/verify",
+      "status": 200,
+      "request": {
+        "token": "verification-token"
+      },
+      "requiredFields": {
+        "verified": "boolean",
+        "email": "string"
+      },
+      "dbModeBehavior": "Validates a pending signup token and returns the verified email without creating a user or setting a refresh cookie."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/signup/complete",
+      "status": 200,
+      "request": {
+        "token": "verification-token",
         "password": "password123"
       },
       "requiredFields": {
@@ -72,7 +98,8 @@
           "onboardingCompleted": "boolean",
           "socialAccounts": "array"
         }
-      }
+      },
+      "dbModeBehavior": "Consumes a valid pending signup token with a password, creates the user, returns AuthResponse, and sets the refresh cookie."
     },
     {
       "method": "POST",
@@ -402,7 +429,11 @@
       "legacyTripAlias": "jeju-3-days",
       "dbModeTripIdPolicy": "The API returns numeric trip ids as strings; jeju-3-days is accepted only as a legacy seed alias.",
       "numericHandlePattern": "^[1-9][0-9]*$",
-      "invalidNumericLikeHandles": ["0", "001", "1.0"]
+      "invalidNumericLikeHandles": [
+        "0",
+        "001",
+        "1.0"
+      ]
     },
     {
       "method": "POST",

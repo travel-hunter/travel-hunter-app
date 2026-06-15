@@ -27,25 +27,26 @@
 
 ## 최근 검증
 
-- 2026-05-19 DB schema docs: `git diff --check`, stale schema-reference search, `python -m pytest tests/test_db_schema.py`, `alembic upgrade head --sql`, and `alembic current` passed.
-- 2026-05-19 docs core cleanup: stale deleted-doc reference search and `git diff --check` passed.
-- 2026-05-19 backend docs cleanup: stale backend doc/eval reference search and `git diff --check` passed.
-- 2026-05-19 frontend docs cleanup: stale frontend README/eval reference search and `git diff --check` passed.
-- 2026-05-19 AI docs cleanup: AI/Codex guidance is consolidated in `docs/deployment-cicd/06-ai-workflow.md`; reference search and `git diff --check` passed.
-- 2026-05-19 remaining docs cleanup: `CHECKLIST.md`, `PLANS.md`, `README.md`, `.agent` release readiness docs, and release checklist were compacted; removed-doc reference search, `.agent/evals` listing, and `git diff --check` passed.
-- 2026-05-19 final verification: frontend `npm run typecheck`, `npm test`, `npm run build`, and `npm run test:e2e` passed after updating stale e2e expectations to the current policy CTA, invite, logout, and trip creation flows; backend `python -m pytest tests/test_db_schema.py`, `python -m pytest`, `alembic upgrade head --sql`, compose config checks, and `docker compose -f compose.yaml build` passed.
-- 2026-05-19 PR #17 handoff: `feat/prototype-to-react` was pushed to origin, `develop` PR #17 was opened, GitHub Actions frontend/backend fast lanes passed, reviewers were requested, and `compose.tunnel.yaml` actual-env `config --quiet` plus build passed. Full tunnel `up`, migration, and public health smoke were intentionally left for the release window.
-- 2026-05-19 deployment hardening: Protected routes now wait for session bootstrap before redirecting, and tunnel compose services use `restart: unless-stopped`; frontend typecheck/test, tunnel compose config checks, tunnel build, and `git diff --check` passed.
+- 2026-06-15 email-first signup full regression prep: `cd backend && .venv/bin/python -m pytest` passed (`226 passed`, `1 warning`).
+- 2026-06-15 email-first signup full regression prep: `cd frontend && npm test` passed (`87 passed`); `cd frontend && npm run typecheck && npm run build` passed; `cd frontend && npm run test:e2e` passed (`5 passed`).
+- 2026-06-15 email-first signup full regression prep: `cd backend && .venv/bin/alembic upgrade head --sql` generated successfully; `docker compose -f compose.yaml config` passed; `git diff --check`, `.agent/evals/api-contract-golden.json` JSON parse, and changed-file UTF-8 replacement-character scan passed.
+- 2026-06-15 email-first signup flow: `cd frontend && npx vitest run src/App.test.tsx -t "signup"` passed (`3 passed`, `76 skipped`).
+- 2026-06-15 email-first signup flow: `python3 -m json.tool .agent/evals/api-contract-golden.json >/dev/null`, `git diff --check`, and changed-file UTF-8 replacement-character scan passed.
+- 2026-06-15 public dev smoke: synced source to `deploy@192.168.32.15`, Docker backend/frontend build passed, services restarted, `/api/health` returned ok/connected, public `POST /api/auth/signup` for `young940816@nate.com` returned `verificationRequired=true`, and user confirmed real-inbox signup → onboarding/nickname setup completed.
+- 2026-06-15 migration risk cleanup: restored repo Alembic continuity with compatibility revisions `0018_add_trip_revision` and `0019_email_first_signup`; local `alembic upgrade head` moved `0018_add_trip_revision` → `0019_email_first_signup (head)` and `alembic upgrade head --sql` generated successfully.
+- 2026-06-15 migration risk cleanup: remote backend image rebuilt, remote DB upgraded to `0019_email_first_signup (head)`, internal OpenAPI exposes `/api/auth/signup`, `/api/auth/signup/verify`, `/api/auth/signup/complete`, and `pending_signups` columns are `id,email,token_hash,created_at,expires_at` with `password_hash` absent.
+- 2026-06-15 minimal regression: `cd backend && .venv/bin/python -m pytest tests/test_auth_db_service.py tests/test_auth_db_routes.py tests/test_db_schema.py -q` passed (`30 passed`, `1 warning`); `cd frontend && npm run typecheck` passed.
 
 ## 남은 우선순위
 
-- [ ] Complete review and merge PR #17 into `develop` after the latest checks are green.
-- [ ] Run Cloudflare Tunnel full staging smoke during the release window.
-- [ ] Verify SMTP delivery in staging.
-- [ ] Verify OAuth provider credentials in staging.
+- [x] Run broader frontend/backend regression before merging.
+- [ ] Smoke test real OAuth provider callbacks in staging because local tests mock provider handoff.
+- [ ] Rotate exposed staging/dev secrets that appeared in terminal output during risk cleanup: DB password, auth secret, OAuth secrets, SMTP key, and Cloudflare tunnel token.
 
 ## 주의사항
 
-- Historical validation logs, prototype notes, and VPS-era runbook details are intentionally kept only in Git history.
-- Documentation-only cleanup does not require frontend/backend test suites unless a code, API, schema, or runtime behavior changes.
-- For release handoff, run the release gate in `docs/deployment-cicd/09-release-checklist.md` and record only the final evidence here, in the PR, or in the handoff note.
+- Historical validation logs and older runbook details are intentionally kept only in Git history.
+- This change touches runtime auth behavior; full local regression now passes, but real OAuth provider callback smoke remains a staging follow-up.
+- Local duplicate `cloudflared` connector was stopped so the public dev hostname routes to the updated remote dev server instead of a stale local connector.
+- Public dev DB had historical revision `0018_add_trip_revision`; the repo now includes a compatibility marker plus `0019_email_first_signup` so Alembic can continue without manual stamping.
+- A compose config command printed staging/dev secrets in terminal output during this session; rotate those credentials before treating the environment as secure.
