@@ -9,7 +9,15 @@ from sqlalchemy.orm import Session
 from app.models import ExternalSourceRecord
 from app.repositories import external_sources as external_source_repository
 from app.schemas.external_sources import TravelMonthRegionalBenefitSource
-from app.schemas.ops import ExternalCollectionQualityReport, ExternalCollectionRegionQuality
+from app.schemas.ops import (
+    ExternalCollectionQualityReport,
+    ExternalCollectionQualitySourceBreakdown,
+    ExternalCollectionRegionQuality,
+)
+from app.services.external_source_identity import (
+    ExternalSourceIdentity,
+    resolve_external_source_identity,
+)
 from app.services.region_recommendations import NATIONWIDE_REGION, recommend_regions
 
 
@@ -44,8 +52,26 @@ def get_external_collection_quality_report(
         db,
         source_category=target_source_category,
     )
-    source_name = str(records[0].source_name) if records else str(SOURCE_NAME)
+    unique_source_names = {str(record.source_name or "") for record in records if record.source_name}
+    source_name = (
+        str(records[0].source_name)
+        if len(unique_source_names) == 1 and records
+        else ("multiple" if len(unique_source_names) > 1 else str(SOURCE_NAME))
+    )
     region_stats: dict[str, _RegionQualityStats] = {}
+    source_breakdown: dict[str, tuple[ExternalSourceIdentity, list[ExternalSourceRecord]]] = {}
+
+    for record in records:
+        identity = resolve_external_source_identity(
+            source_category=record.source_category,
+            source_name=record.source_name,
+            source_url=record.source_url,
+        )
+        grouped = source_breakdown.get(identity.source_key)
+        if grouped is None:
+            source_breakdown[identity.source_key] = (identity, [record])
+        else:
+            grouped[1].append(record)
 
     for record in records:
         if not _is_nationwide(record) and record.region:
@@ -76,6 +102,21 @@ def get_external_collection_quality_report(
         ),
         latestFetchedAt=_latest(record.last_fetched_at for record in records),
         latestVerifiedAt=_latest(record.last_verified_at for record in records),
+        sourceBreakdown=[
+            ExternalCollectionQualitySourceBreakdown(
+                sourceName=identity.source_name,
+                sourceCategory=identity.source_category,
+                sourceUrl=identity.source_url,
+                totalRecords=len(grouped_records),
+                activeRecords=sum(1 for record in grouped_records if record.status == "active"),
+                freshRecords=sum(
+                    1 for record in grouped_records if record.freshness_status == "fresh"
+                ),
+                latestFetchedAt=_latest(record.last_fetched_at for record in grouped_records),
+                latestVerifiedAt=_latest(record.last_verified_at for record in grouped_records),
+            )
+            for _, (identity, grouped_records) in sorted(source_breakdown.items())
+        ],
         regions=[
             ExternalCollectionRegionQuality(
                 region=stats.region,

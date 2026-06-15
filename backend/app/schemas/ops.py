@@ -18,7 +18,9 @@ class ExternalCollectionOpsHealth(BaseModel):
 
 
 class ExternalCollectionSourceRunResult(BaseModel):
+    sourceName: str
     sourceCategory: str
+    sourceUrl: str
     parsedCount: int
     createdOrUpdatedCount: int
     outcome: str
@@ -44,6 +46,17 @@ class ExternalCollectionRegionQuality(BaseModel):
     styleCounts: dict[str, int]
 
 
+class ExternalCollectionQualitySourceBreakdown(BaseModel):
+    sourceName: str
+    sourceCategory: str
+    sourceUrl: str
+    totalRecords: int
+    activeRecords: int
+    freshRecords: int
+    latestFetchedAt: datetime | None
+    latestVerifiedAt: datetime | None
+
+
 class ExternalCollectionQualityReport(BaseModel):
     sourceName: str
     sourceCategory: str
@@ -56,5 +69,6 @@ class ExternalCollectionQualityReport(BaseModel):
     recordsWithStyles: int
     latestFetchedAt: datetime | None
     latestVerifiedAt: datetime | None
+    sourceBreakdown: list[ExternalCollectionQualitySourceBreakdown]
     regions: list[ExternalCollectionRegionQuality]
     recommendationPreview: list[RegionRecommendation]

@@ -156,7 +156,9 @@ def test_collect_travelmonth_once_cli_prints_json_summary(monkeypatch, capsys) -
             outcome="success",
             sources=[
                 SourceCollectionResult(
+                    source_name="여행가는 달",
                     source_category="regional_benefit",
+                    source_url="https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
                     parsed_count=58,
                     created_or_updated_count=58,
                     outcome="success",
@@ -179,4 +181,5 @@ def test_collect_travelmonth_once_cli_prints_json_summary(monkeypatch, capsys) -
     assert '"parsedCount": 58' in captured.out
     assert '"createdOrUpdatedCount": 58' in captured.out
     assert '"outcome": "success"' in captured.out
-    assert '"sources": [{"createdOrUpdatedCount": 58, "error": null, "outcome": "success", "parsedCount": 58, "sourceCategory": "regional_benefit"}]' in captured.out
+    assert '"sourceName": "여행가는 달"' in captured.out
+    assert '"sourceUrl": "https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do"' in captured.out

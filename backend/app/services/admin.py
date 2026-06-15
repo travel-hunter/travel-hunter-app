@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core import security
 from app.data.policy_display import SUPPORTED_CATEGORIES
-from app.models import Policy, User
+from app.models import ExternalSourceRecord, Policy, User
 from app.repositories import admin as admin_repository
 from app.schemas.admin import (
     AdminPolicyCreateRequest,
@@ -16,6 +16,10 @@ from app.schemas.admin import (
     AdminUserUpdateRequest,
 )
 from app.services import nicknames
+from app.services.external_source_identity import (
+    ExternalSourceIdentity,
+    resolve_external_source_identity,
+)
 
 
 class AdminServiceError(Exception):
@@ -56,10 +60,24 @@ SOURCE_CATEGORY_LABELS = {
     "stay_discount": "숙박세일 페스타",
 }
 
+SOURCE_SUMMARY_LABELS = {
+    "regional_benefit": "지역혜택",
+    "traffic_benefit": "교통혜택",
+    "local_half_trip": "반값여행",
+    "stay_discount": "숙박세일 페스타",
+}
+
+
 def _source_label(source_category: str | None) -> str:
     if not source_category:
         return "내부"
     return SOURCE_CATEGORY_LABELS.get(source_category, "외부")
+
+
+def _source_summary_label(source_category: str | None) -> str:
+    if not source_category:
+        return "외부"
+    return SOURCE_SUMMARY_LABELS.get(source_category, "외부")
 
 
 def _user_list_item(user: User) -> dict[str, object]:
@@ -181,24 +199,55 @@ def get_external_source_summary(db: Session, current_admin: User) -> dict[str, o
     _ = current_admin
     records = admin_repository.list_external_source_records(db)
     policies = admin_repository.list_external_source_policies(db)
-    promoted_by_category: dict[str, list[Policy]] = defaultdict(list)
+    record_identity_by_id = {
+        int(record.id): resolve_external_source_identity(
+            source_category=record.source_category,
+            source_name=record.source_name,
+            source_url=record.source_url,
+        )
+        for record in records
+        if record.id is not None and record.source_category
+    }
+    promoted_by_source: dict[str, list[Policy]] = defaultdict(list)
     for policy in policies:
         if policy.source_category:
-            promoted_by_category[str(policy.source_category)].append(policy)
+            identity = None
+            if policy.external_source_record_id is not None:
+                identity = record_identity_by_id.get(int(policy.external_source_record_id))
+            if identity is None:
+                identity = resolve_external_source_identity(
+                    source_category=policy.source_category,
+                    source_name=policy.source_name,
+                    source_url=policy.source_url,
+                )
+            promoted_by_source[identity.source_key].append(policy)
 
     items: list[dict[str, object]] = []
-    categories = sorted({str(record.source_category) for record in records})
-    for category in categories:
-        category_records = [record for record in records if record.source_category == category]
-        promoted_policies = promoted_by_category.get(category, [])
+    grouped_records: dict[
+        str,
+        list[tuple[ExternalSourceIdentity, ExternalSourceRecord]],
+    ] = defaultdict(list)
+    for record in records:
+        identity = resolve_external_source_identity(
+            source_category=record.source_category,
+            source_name=record.source_name,
+            source_url=record.source_url,
+        )
+        grouped_records[identity.source_key].append((identity, record))
+
+    for source_key in sorted(grouped_records):
+        identity = grouped_records[source_key][0][0]
+        category_records = [record for _, record in grouped_records[source_key]]
+        promoted_policies = promoted_by_source.get(source_key, [])
         latest_fetched = _latest_datetime(record.last_fetched_at for record in category_records)
         latest_verified = _latest_datetime(record.last_verified_at for record in category_records)
-        source_name = str(category_records[0].source_name) if category_records else ""
         items.append(
             {
-                "sourceCategory": category,
-                "label": _source_label(category),
-                "sourceName": source_name,
+                "sourceKey": identity.source_key,
+                "sourceCategory": identity.source_category,
+                "label": _source_summary_label(identity.source_category),
+                "sourceName": identity.source_name,
+                "sourceUrl": identity.source_url,
                 "totalRecords": len(category_records),
                 "activeRecords": sum(1 for record in category_records if record.status == "active"),
                 "scheduledRecords": sum(1 for record in category_records if record.status == "scheduled"),
@@ -228,6 +277,7 @@ def _latest_datetime(values) -> datetime | None:
     if not dated_values:
         return None
     return max(dated_values)
+
 
 def list_users(
     db: Session,
@@ -506,4 +556,3 @@ def list_audit_logs(
         "limit": limit,
         "offset": offset,
     }
-

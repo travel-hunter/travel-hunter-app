@@ -14,6 +14,7 @@ from app.schemas.admin import AdminPolicyCreateRequest, AdminUserUpdateRequest
 from app.services import admin as admin_service
 from app.services import policies as policy_service
 from app.services import trips as trip_service
+from app.services.visitisland_parser import NOTICE_URL, parse_island_travel_support_benefits
 
 CATEGORY = sorted(SUPPORTED_CATEGORIES)[0]
 
@@ -292,8 +293,10 @@ def test_admin_external_source_summary_groups_records_and_promoted_policies(db: 
     assert result["freshRecords"] == 1
     assert result["promotedPolicyCount"] == 1
     assert result["latestFetchedAt"] == "2026-05-27T10:00:00"
+    assert result["items"][0]["sourceKey"] == "dgtourcard-local-half-trip"
     assert result["items"][0]["sourceCategory"] == "local_half_trip"
     assert result["items"][0]["label"] == "반값여행"
+    assert result["items"][0]["sourceUrl"] == "https://korean.visitkorea.or.kr/dgtourcard/tour50.do"
     assert result["items"][0]["totalRecords"] == 2
     assert result["items"][0]["activeRecords"] == 1
     assert result["items"][0]["endedRecords"] == 1
@@ -334,3 +337,108 @@ def test_admin_policy_list_includes_source_category_and_label(db: Session) -> No
     assert items["internal-policy"]["sourceCategory"] is None
     assert items["internal-policy"]["sourceLabel"] == "내부"
 
+
+def test_external_source_summary_splits_same_category_by_source_name(db: Session) -> None:
+    admin = make_user(1, email="admin-summary-split@example.com", role="admin")
+    travelmonth = ExternalSourceRecord(
+        id=401,
+        source_name="여행가는 달",
+        source_type="official_campaign",
+        source_category="regional_benefit",
+        source_url="https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
+        external_id="regional-1",
+        canonical_key="regional-1",
+        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
+        title="지역 할인 1",
+        organizer_text="한국관광공사",
+        organizers=["한국관광공사"],
+        region="강원",
+        city=None,
+        is_nationwide=False,
+        status="active",
+        benefit_text="할인",
+        benefit_value_type="amount",
+        tags=["지역할인"],
+        inferred_travel_styles=[],
+        confidence=90,
+        field_completeness=90,
+        raw_list_text="강원",
+        raw_detail_text="강원",
+        raw_payload={},
+        last_fetched_at=datetime(2026, 6, 15, 9, 0, 0),
+        last_verified_at=datetime(2026, 6, 15, 9, 0, 0),
+        freshness_status="fresh",
+    )
+    visitisland = ExternalSourceRecord(
+        id=402,
+        source_name="2026 섬 방문의 해",
+        source_type="official_campaign",
+        source_category="regional_benefit",
+        source_url="https://www.visitisland.kr/brd/notice",
+        external_id="island-1",
+        canonical_key="island-1",
+        collected_page_url="https://www.visitisland.kr/brd/notice",
+        title="섬 여행비 지원",
+        organizer_text="한국섬진흥원",
+        organizers=["한국섬진흥원"],
+        region="제주",
+        city=None,
+        is_nationwide=False,
+        status="active",
+        benefit_text="지원",
+        benefit_value_type="amount",
+        tags=["지역할인"],
+        inferred_travel_styles=[],
+        confidence=90,
+        field_completeness=90,
+        raw_list_text="제주",
+        raw_detail_text="제주",
+        raw_payload={},
+        last_fetched_at=datetime(2026, 6, 15, 10, 0, 0),
+        last_verified_at=datetime(2026, 6, 15, 10, 0, 0),
+        freshness_status="fresh",
+    )
+    db.add_all([admin, travelmonth, visitisland])
+    db.flush()
+
+    result = admin_service.get_external_source_summary(db, admin)
+
+    assert result["totalRecords"] == 2
+    assert len(result["items"]) == 2
+    keys = {item["sourceKey"] for item in result["items"]}
+    names = {item["sourceName"] for item in result["items"]}
+    assert keys == {
+        "travelmonth-regional-benefit",
+        "visitisland-island-travel-support",
+    }
+    assert names == {"여행가는 달", "2026 섬 방문의 해"}
+    assert all(item["label"] == "지역혜택" for item in result["items"])
+
+
+def test_external_source_summary_uses_stable_visitisland_source_key_for_real_parser_output(
+    db: Session,
+) -> None:
+    admin = make_user(1, email="admin-summary-parser@example.com", role="admin")
+    db.add(admin)
+    db.flush()
+
+    html = (
+        "<table><tbody><tr><td>1</td>"
+        "<td onclick=\"location.href='/brd/notice/42'\")>"
+        "[제주특별자치도] 섬 여행비 지원 혜택 6개 섬 리스트</td>"
+        "<td>2026-06-12</td><td>70</td></tr></tbody></table>"
+    )
+    parsed = parse_island_travel_support_benefits(
+        html,
+        collected_page_url=NOTICE_URL,
+        fetched_at=datetime(2026, 6, 15, 9, 0, 0),
+        today=date(2026, 6, 15),
+    )
+    record = ExternalSourceRecord(id=501, **parsed[0].model_dump())
+    db.add(record)
+    db.flush()
+
+    result = admin_service.get_external_source_summary(db, admin)
+
+    assert result["items"][0]["sourceKey"] == "visitisland-island-travel-support"
+    assert result["items"][0]["sourceUrl"] == NOTICE_URL

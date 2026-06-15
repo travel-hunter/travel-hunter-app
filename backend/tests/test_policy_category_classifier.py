@@ -70,3 +70,16 @@ def test_source_category_boosts_do_not_override_stronger_title_signal() -> None:
     assert classify("합천 반값여행 지원", source_category="local_half_trip") == "지역할인"
     assert classify("테마열차 할인", source_category="traffic_benefit") == "교통"
     assert classify("여행가는 달 할인권", source_category="stay_discount") == "숙박"
+
+
+def test_classifies_island_travel_support_as_regional_discount() -> None:
+    assert (
+        classify(
+            "2026 섬 방문의 해 섬 여행비 지원 - 제주",
+            benefit_text="섬에서 1박 2일 이상 체류하고 여행비 10만원 지원",
+            tags=["섬 여행", "지역할인", "여행비 지원"],
+            source_category="regional_benefit",
+            collected_page_url="https://www.visitisland.kr/brd/notice",
+        )
+        == "지역할인"
+    )

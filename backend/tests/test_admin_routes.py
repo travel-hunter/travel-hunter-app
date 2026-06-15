@@ -92,9 +92,11 @@ def test_admin_routes_external_source_summary_for_admin(monkeypatch) -> None:
         lambda db, current_admin: {
             "items": [
                 {
+                    "sourceKey": "dgtourcard-local-half-trip",
                     "sourceCategory": "local_half_trip",
                     "label": "반값여행",
                     "sourceName": "대한민국 반값여행",
+                    "sourceUrl": "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
                     "totalRecords": 16,
                     "activeRecords": 5,
                     "scheduledRecords": 7,

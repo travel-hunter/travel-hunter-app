@@ -1,15 +1,25 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 
 import httpx
 from sqlalchemy.orm import Session
 
+from app.models import ExternalSourceRecord
 from app.repositories import external_sources as external_source_repository
+from app.schemas.external_sources import ExternalBenefitSource
 from app.services import policy_normalization
 from app.services.dgtourcard_parser import parse_dgtourcard_benefits
+from app.services.external_source_identity import (
+    DGTOURCARD_LOCAL_HALF_TRIP,
+    TRAVELMONTH_REGIONAL_BENEFIT,
+    TRAVELMONTH_STAY_DISCOUNT,
+    TRAVELMONTH_TRAFFIC_BENEFIT,
+    VISITISLAND_TRAVEL_SUPPORT,
+    identity_for_html_source_category,
+)
 from app.services.travelmonth_collection import (
     TRAVELMONTH_REGIONAL_BENEFIT_URL,
     CollectionResult,
@@ -27,21 +37,24 @@ from app.services.travelmonth_traffic_parser import (
     SOURCE_URL as TRAVELMONTH_TRAFFIC_BENEFIT_URL,
 )
 from app.services.travelmonth_traffic_parser import parse_traffic_benefits
-
-DGTOURCARD_URL = "https://korean.visitkorea.or.kr/dgtourcard/tour50.do"
+from app.services.visitisland_parser import NOTICE_URL as VISITISLAND_NOTICE_URL
+from app.services.visitisland_parser import parse_island_travel_support_benefits
 
 
 @dataclass(frozen=True)
 class SourceDefinition:
+    source_name: str
     source_category: str
     url: str
-    parser: Callable[[str, datetime, date], object]
+    parser: Callable[[str, datetime, date], Iterable[ExternalBenefitSource]]
     required: bool = True
 
 
 @dataclass(frozen=True)
 class SourceCollectionResult:
+    source_name: str
     source_category: str
+    source_url: str
     parsed_count: int
     created_or_updated_count: int
     outcome: str
@@ -54,7 +67,7 @@ class ExternalBenefitCollectionResult(CollectionResult):
     sources: list[SourceCollectionResult]
 
 
-Parser = Callable[[str, datetime, date], object]
+Parser = Callable[[str, datetime, date], Iterable[ExternalBenefitSource]]
 _SOURCE_UNAVAILABLE_STATUSES = {404, 410}
 
 
@@ -68,10 +81,13 @@ def collect_external_benefits_from_html_sources(
     source_results: list[SourceCollectionResult] = []
     all_rows = []
     for source_category, html in html_sources.items():
+        source_identity = identity_for_html_source_category(source_category)
         try:
             rows, result = _collect_source_records(
                 db,
-                source_category=source_category,
+                source_name=source_identity.source_name,
+                source_category=source_identity.source_category,
+                source_url=source_identity.source_url,
                 parser=_parser_for(source_category),
                 html=html,
                 fetched_at=fetched_at,
@@ -82,7 +98,9 @@ def collect_external_benefits_from_html_sources(
         except Exception as exc:
             source_results.append(
                 SourceCollectionResult(
-                    source_category=source_category,
+                    source_name=source_identity.source_name,
+                    source_category=source_identity.source_category,
+                    source_url=source_identity.source_url,
                     parsed_count=0,
                     created_or_updated_count=0,
                     outcome="error",
@@ -111,7 +129,9 @@ def collect_external_benefits_from_live_sources(
             html = fetch_external_source_html(source.url, timeout=timeout)
             rows, result = _collect_source_records(
                 db,
+                source_name=source.source_name,
                 source_category=source.source_category,
+                source_url=source.url,
                 parser=source.parser,
                 html=html,
                 fetched_at=fetched_at,
@@ -145,16 +165,20 @@ def fetch_external_source_html(
 def _collect_source_records(
     db: Session,
     *,
+    source_name: str,
     source_category: str,
+    source_url: str,
     parser: Parser,
     html: str,
     fetched_at: datetime,
     today: date,
-) -> tuple[list[object], SourceCollectionResult]:
+) -> tuple[list[ExternalSourceRecord], SourceCollectionResult]:
     parsed = list(parser(html, fetched_at, today))
     rows = external_source_repository.upsert_external_source_records(db, parsed)
     return rows, SourceCollectionResult(
+        source_name=source_name,
         source_category=source_category,
+        source_url=source_url,
         parsed_count=len(parsed),
         created_or_updated_count=len(rows),
         outcome="success",
@@ -179,7 +203,7 @@ def _parser_for(source_category: str) -> Parser:
     if source_category == "local_half_trip":
         return lambda html, fetched_at, today: parse_dgtourcard_benefits(
             html,
-            collected_page_url=DGTOURCARD_URL,
+            collected_page_url=DGTOURCARD_LOCAL_HALF_TRIP.source_url,
             fetched_at=fetched_at,
             today=today,
         )
@@ -190,31 +214,49 @@ def _parser_for(source_category: str) -> Parser:
             fetched_at=fetched_at,
             today=today,
         )
+
+    if source_category == "island_travel_support":
+        return lambda html, fetched_at, today: parse_island_travel_support_benefits(
+            html,
+            collected_page_url=VISITISLAND_NOTICE_URL,
+            fetched_at=fetched_at,
+            today=today,
+        )
     raise ValueError(f"Unsupported external source category: {source_category}")
 
 
 def _source_registry() -> tuple[SourceDefinition, ...]:
     return (
         SourceDefinition(
-            "regional_benefit",
-            TRAVELMONTH_REGIONAL_BENEFIT_URL,
+            TRAVELMONTH_REGIONAL_BENEFIT.source_name,
+            TRAVELMONTH_REGIONAL_BENEFIT.source_category,
+            TRAVELMONTH_REGIONAL_BENEFIT.source_url,
             _parser_for("regional_benefit"),
         ),
         SourceDefinition(
-            "traffic_benefit",
-            TRAVELMONTH_TRAFFIC_BENEFIT_URL,
+            TRAVELMONTH_TRAFFIC_BENEFIT.source_name,
+            TRAVELMONTH_TRAFFIC_BENEFIT.source_category,
+            TRAVELMONTH_TRAFFIC_BENEFIT.source_url,
             _parser_for("traffic_benefit"),
             required=False,
         ),
         SourceDefinition(
-            "local_half_trip",
-            DGTOURCARD_URL,
+            DGTOURCARD_LOCAL_HALF_TRIP.source_name,
+            DGTOURCARD_LOCAL_HALF_TRIP.source_category,
+            DGTOURCARD_LOCAL_HALF_TRIP.source_url,
             _parser_for("local_half_trip"),
         ),
         SourceDefinition(
-            "stay_discount",
-            TRAVELMONTH_STAY_DISCOUNT_URL,
+            TRAVELMONTH_STAY_DISCOUNT.source_name,
+            TRAVELMONTH_STAY_DISCOUNT.source_category,
+            TRAVELMONTH_STAY_DISCOUNT.source_url,
             _parser_for("stay_discount"),
+        ),
+        SourceDefinition(
+            VISITISLAND_TRAVEL_SUPPORT.source_name,
+            VISITISLAND_TRAVEL_SUPPORT.source_category,
+            VISITISLAND_TRAVEL_SUPPORT.source_url,
+            _parser_for("island_travel_support"),
         ),
     )
 
@@ -222,7 +264,9 @@ def _source_registry() -> tuple[SourceDefinition, ...]:
 def _source_failure_result(source: SourceDefinition, exc: Exception) -> SourceCollectionResult:
     outcome = "source_unavailable" if _is_source_unavailable(exc) else "error"
     return SourceCollectionResult(
+        source_name=source.source_name,
         source_category=source.source_category,
+        source_url=source.url,
         parsed_count=0,
         created_or_updated_count=0,
         outcome=outcome,

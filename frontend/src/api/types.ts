@@ -194,9 +194,11 @@ export type AdminAuditLogListResponse = {
 };
 
 export type AdminExternalSourceSummaryItem = {
+  sourceKey: string;
   sourceCategory: string;
   label: string;
   sourceName: string;
+  sourceUrl: string;
   totalRecords: number;
   activeRecords: number;
   scheduledRecords: number;
@@ -231,7 +233,9 @@ export type ExternalCollectionOpsHealth = {
 };
 
 export type ExternalCollectionSourceRunResult = {
+  sourceName: string;
   sourceCategory: string;
+  sourceUrl: string;
   parsedCount: number;
   createdOrUpdatedCount: number;
   outcome: string;

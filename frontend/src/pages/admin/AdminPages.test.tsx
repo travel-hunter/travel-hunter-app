@@ -311,9 +311,11 @@ describe("admin pages", () => {
     ).mockResolvedValue({
       items: [
         {
+            sourceKey: "dgtourcard-local-half-trip",
           sourceCategory: "local_half_trip",
           label: "반값여행",
           sourceName: "대한민국 반값여행",
+          sourceUrl: "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
           totalRecords: 16,
           activeRecords: 5,
           scheduledRecords: 7,
@@ -390,7 +392,17 @@ describe("admin pages", () => {
       parsedCount: 3,
       createdOrUpdatedCount: 2,
       outcome: "success",
-      sources: [],
+      sources: [
+        {
+          sourceName: "여행가는 달",
+          sourceCategory: "regional_benefit",
+          sourceUrl: "https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
+          parsedCount: 2,
+          createdOrUpdatedCount: 2,
+          outcome: "success",
+          error: null,
+        },
+      ],
     });
 
     renderAppRoute("/admin");
@@ -400,5 +412,8 @@ describe("admin pages", () => {
     await waitFor(() => expect(runSpy).toHaveBeenCalledTimes(1));
     expect(summarySpy).toHaveBeenCalledTimes(2);
     expect(document.body).toHaveTextContent("수집 결과 success");
+    expect(document.body).toHaveTextContent("여행가는 달");
+    expect(document.body).toHaveTextContent("regional_benefit");
+    expect(document.body).toHaveTextContent("https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do");
   });
 });

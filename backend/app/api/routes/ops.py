@@ -1,3 +1,6 @@
+from datetime import date
+from typing import cast
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -23,7 +26,18 @@ router = APIRouter(prefix="/ops", tags=["ops"])
 def external_collection_ops_health(
     _current_admin: User = Depends(require_admin_user),
 ) -> ExternalCollectionOpsHealth:
-    return ExternalCollectionOpsHealth(**get_external_collection_ops_health())
+    health = get_external_collection_ops_health()
+    return ExternalCollectionOpsHealth(
+        schedulerEnabled=bool(health["schedulerEnabled"]),
+        runAt=str(health["runAt"]),
+        pollSeconds=cast(int, health["pollSeconds"]),
+        minParsedCount=cast(int, health["minParsedCount"]),
+        lastAttemptedRunDate=cast(date | None, health["lastAttemptedRunDate"]),
+        lastSuccessfulRunDate=cast(date | None, health["lastSuccessfulRunDate"]),
+        lastParsedCount=cast(int | None, health["lastParsedCount"]),
+        lastOutcome=cast(str | None, health["lastOutcome"]),
+        lastError=cast(str | None, health["lastError"]),
+    )
 
 
 @router.post("/external-collection/run", response_model=ExternalCollectionRunResponse)
@@ -42,7 +56,9 @@ def run_external_collection(
         outcome=result.outcome,
         sources=[
             ExternalCollectionSourceRunResult(
+                sourceName=source.source_name,
                 sourceCategory=source.source_category,
+                sourceUrl=source.source_url,
                 parsedCount=source.parsed_count,
                 createdOrUpdatedCount=source.created_or_updated_count,
                 outcome=source.outcome,

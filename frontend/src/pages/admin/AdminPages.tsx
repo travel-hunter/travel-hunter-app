@@ -152,9 +152,20 @@ export function AdminDashboardPage() {
           </p>
         )}
         {runResult && (
-          <p className="admin-notice">
-            수집 결과 {runResult.outcome} · 파싱 {runResult.parsedCount}건 · 반영 {runResult.createdOrUpdatedCount}건
-          </p>
+          <div className="admin-notice" aria-live="polite">
+            <p>
+              수집 결과 {runResult.outcome} · 파싱 {runResult.parsedCount}건 · 반영 {runResult.createdOrUpdatedCount}건
+            </p>
+            {runResult.sources.length > 0 && (
+              <ul className="admin-run-result-list">
+                {runResult.sources.map((item) => (
+                  <li key={`${item.sourceCategory}-${item.sourceName}-${item.sourceUrl}`}>
+                    <strong>{item.sourceName}</strong> · {item.sourceCategory} · {item.outcome} · 파싱 {item.parsedCount}건 · 반영 {item.createdOrUpdatedCount}건 · {item.sourceUrl}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
         {summary && (
           <>
@@ -166,7 +177,7 @@ export function AdminDashboardPage() {
             </div>
             <div className="admin-source-list">
               {summary.items.map((item) => (
-                <article className="admin-source-card" key={item.sourceCategory}>
+                <article className="admin-source-card" key={item.sourceKey}>
                   <div>
                     <span className="admin-source-label">{item.label}</span>
                     <strong>{item.sourceName}</strong>
@@ -177,6 +188,7 @@ export function AdminDashboardPage() {
                     <div><dt>마감</dt><dd>{item.endedRecords}</dd></div>
                     <div><dt>노출</dt><dd>{item.activePromotedPolicyCount}</dd></div>
                   </dl>
+                  <p>원천 주소 {item.sourceUrl}</p>
                   <p>마지막 확인 {formatAdminDateTime(item.latestVerifiedAt ?? item.latestFetchedAt)}</p>
                 </article>
               ))}

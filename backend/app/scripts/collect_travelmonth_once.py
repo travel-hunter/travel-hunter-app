@@ -20,7 +20,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--timeout",
         type=float,
         default=15.0,
-        help="HTTP timeout in seconds for the official TravelMonth page fetch.",
+        help="HTTP timeout in seconds for each configured official external source fetch.",
     )
     parser.add_argument(
         "--verbose",
@@ -53,7 +53,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "outcome": result.outcome,
                 "sources": [
                     {
+                        "sourceName": source.source_name,
                         "sourceCategory": source.source_category,
+                        "sourceUrl": source.source_url,
                         "parsedCount": source.parsed_count,
                         "createdOrUpdatedCount": source.created_or_updated_count,
                         "outcome": source.outcome,

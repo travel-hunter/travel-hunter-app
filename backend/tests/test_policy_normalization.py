@@ -118,6 +118,41 @@ def test_promotes_active_fresh_external_record_to_policy(db: Session) -> None:
     assert policy_to_api(policy)["sourceType"] == "external"
 
 
+def test_promotes_active_fresh_island_travel_support_to_policy(db: Session) -> None:
+    from datetime import UTC, date, datetime
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+    from app.services.visitisland_parser import NOTICE_URL, parse_island_travel_support_benefits
+
+    html = (
+        "<table><tbody><tr><td>1</td>"
+        "<td onclick=\"location.href='/brd/notice/42'\")>"
+        "[제주특별자치도] 섬 여행비 지원 혜택 6개 섬 리스트</td>"
+        "<td>2026-06-12</td><td>70</td></tr></tbody></table>"
+    )
+    sources = parse_island_travel_support_benefits(
+        html,
+        collected_page_url=NOTICE_URL,
+        fetched_at=datetime(2026, 6, 15, tzinfo=UTC),
+        today=date(2026, 6, 15),
+    )
+    rows = upsert_external_source_records(db, sources)
+
+    result = promote_external_benefits_to_policies(db)
+
+    assert result.promoted_count == 1
+    policy = get_policy_by_slug(db, f"travelmonth-{rows[0].id}")
+    assert policy is not None
+    assert policy.title == "2026 섬 방문의 해 섬 여행비 지원 - 제주"
+    assert policy.region == "제주"
+    assert policy.policy_type == "지역할인"
+    assert policy.benefit_amount == 100_000
+    assert policy.source_name == "2026 섬 방문의 해"
+    assert policy.source_category == "regional_benefit"
+    assert policy.verification_status == "fresh"
+    assert policy.official_url == "https://www.visitisland.kr/brd/notice/42"
+
+
 def test_promotion_is_idempotent_by_external_source_record_id(db: Session) -> None:
     rows = upsert_external_source_records(db, [make_source(canonical_key="stable")])
 

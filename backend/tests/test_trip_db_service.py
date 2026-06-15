@@ -491,6 +491,51 @@ def test_get_trip_recommends_normalized_travelmonth_policy(monkeypatch) -> None:
     ]
 
 
+def test_get_trip_recommends_normalized_island_travel_support_policy(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    trip = make_trip()
+    trip.region = "제주"
+    trip.title = "제주 섬 여행"
+    trip.description = "섬에서 1박 2일 휴식"
+    island_policy = Policy(
+        id=59,
+        slug="travelmonth-59",
+        title="2026 섬 방문의 해 섬 여행비 지원 - 제주",
+        benefit_detail="최대 10만원",
+        benefit_amount=100_000,
+        region="제주",
+        start_date=date(2026, 6, 12),
+        end_date=date(2026, 8, 31),
+        source_category="regional_benefit",
+        external_source_record_id=59,
+        verification_status="fresh",
+    )
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip if db is fake_db and trip_id == 7 and user_id == 1 else None,
+    )
+    monkeypatch.setattr(
+        trip_service.policy_repository,
+        "list_policies",
+        lambda db: [island_policy] if db is fake_db else [],
+    )
+
+    payload = trip_service.get_trip("7", fake_db, user)
+
+    assert payload is not None
+    assert payload["recommendedPolicies"] == [
+        {
+            "slug": "travelmonth-59",
+            "title": "2026 섬 방문의 해 섬 여행비 지원 - 제주",
+            "amount": "최대 10만원",
+            "region": "제주",
+        }
+    ]
+
+
 def test_get_trip_rejects_noncanonical_and_non_numeric_handles(monkeypatch) -> None:
     fake_db = object()
     user = make_user()

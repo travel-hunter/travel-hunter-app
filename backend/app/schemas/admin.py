@@ -149,9 +149,11 @@ class AdminAuditLogListResponse(BaseModel):
 
 
 class AdminExternalSourceSummaryItem(BaseModel):
+    sourceKey: str
     sourceCategory: str
     label: str
     sourceName: str
+    sourceUrl: str
     totalRecords: int
     activeRecords: int
     scheduledRecords: int

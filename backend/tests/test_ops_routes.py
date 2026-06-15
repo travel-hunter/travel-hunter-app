@@ -225,13 +225,17 @@ def test_external_collection_run_triggers_live_collection_for_admin(monkeypatch)
             outcome="partial_success",
             sources=[
                 SourceCollectionResult(
+                    source_name="여행가는 달",
                     source_category="regional_benefit",
+                    source_url="https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
                     parsed_count=2,
                     created_or_updated_count=2,
                     outcome="success",
                 ),
                 SourceCollectionResult(
+                    source_name="여행가는 달",
                     source_category="traffic_benefit",
+                    source_url="https://korean.visitkorea.or.kr/travelmonth/benefits/traffic.do",
                     parsed_count=0,
                     created_or_updated_count=0,
                     outcome="source_unavailable",
@@ -258,14 +262,18 @@ def test_external_collection_run_triggers_live_collection_for_admin(monkeypatch)
         "outcome": "partial_success",
         "sources": [
             {
+                "sourceName": "여행가는 달",
                 "sourceCategory": "regional_benefit",
+                "sourceUrl": "https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
                 "parsedCount": 2,
                 "createdOrUpdatedCount": 2,
                 "outcome": "success",
                 "error": None,
             },
             {
+                "sourceName": "여행가는 달",
                 "sourceCategory": "traffic_benefit",
+                "sourceUrl": "https://korean.visitkorea.or.kr/travelmonth/benefits/traffic.do",
                 "parsedCount": 0,
                 "createdOrUpdatedCount": 0,
                 "outcome": "source_unavailable",
@@ -297,6 +305,7 @@ def test_external_collection_quality_report_returns_empty_counts() -> None:
         "recordsWithStyles": 0,
         "latestFetchedAt": None,
         "latestVerifiedAt": None,
+        "sourceBreakdown": [],
         "regions": [],
         "recommendationPreview": [],
     }
@@ -354,6 +363,7 @@ def test_external_collection_quality_accepts_source_category_filter() -> None:
     assert payload["sourceCategory"] == "traffic_benefit"
     assert payload["totalRecords"] == 1
     assert payload["recordsWithAmount"] == 0
+    assert payload["sourceBreakdown"][0]["sourceName"] == "여행가는 달"
 
 
 def test_external_collection_quality_report_summarizes_saved_records() -> None:
@@ -412,6 +422,7 @@ def test_external_collection_quality_report_summarizes_saved_records() -> None:
     assert payload["recordsWithStyles"] == 2
     assert payload["latestFetchedAt"] == "2026-05-21T09:00:00"
     assert payload["latestVerifiedAt"] == "2026-05-21T09:00:00"
+    assert payload["sourceBreakdown"][0]["sourceCategory"] == "regional_benefit"
     assert payload["regions"][0] == {
         "region": "Busan",
         "totalRecords": 2,

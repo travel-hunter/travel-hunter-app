@@ -63,6 +63,8 @@ def test_collect_external_benefits_from_html_sources_upserts_successful_sources(
     assert result.outcome == "success"
     assert result.created_or_updated_count == len(calls)
     assert db.commits == 1
+    assert result.sources[0].source_name == "여행가는 달"
+    assert result.sources[0].source_url == "https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do"
 
 
 def test_collect_external_benefits_from_html_sources_reports_partial_success(
@@ -115,8 +117,8 @@ def test_collect_external_benefits_from_live_sources_marks_404_and_410_source_un
         external_benefit_collection,
         "_source_registry",
         lambda: (
-            SourceDefinition("regional_benefit", "https://official.example/404", fake_parser),
-            SourceDefinition("local_half_trip", "https://official.example/410", fake_parser),
+            SourceDefinition("지역 혜택", "regional_benefit", "https://official.example/404", fake_parser),
+            SourceDefinition("반값여행", "local_half_trip", "https://official.example/410", fake_parser),
         ),
     )
     monkeypatch.setattr(
@@ -169,8 +171,9 @@ def test_collect_external_benefits_from_live_sources_treats_traffic_as_optional_
         external_benefit_collection,
         "_source_registry",
         lambda: (
-            SourceDefinition("regional_benefit", "https://official.example/regional", success_parser),
+            SourceDefinition("지역 혜택", "regional_benefit", "https://official.example/regional", success_parser),
             SourceDefinition(
+                "교통 혜택",
                 "traffic_benefit",
                 "https://official.example/traffic-legacy",
                 traffic_parser,
@@ -236,8 +239,8 @@ def test_collect_external_benefits_from_live_sources_reports_partial_success_for
         external_benefit_collection,
         "_source_registry",
         lambda: (
-            SourceDefinition("regional_benefit", "https://official.example/regional", missing_parser),
-            SourceDefinition("stay_discount", "https://official.example/stay", success_parser),
+            SourceDefinition("지역 혜택", "regional_benefit", "https://official.example/regional", missing_parser),
+            SourceDefinition("숙박 혜택", "stay_discount", "https://official.example/stay", success_parser),
         ),
     )
     monkeypatch.setattr(
@@ -273,3 +276,44 @@ def test_collect_external_benefits_from_live_sources_reports_partial_success_for
         ("regional_benefit", "source_unavailable"),
         ("stay_discount", "success"),
     ]
+
+
+def test_collect_external_benefits_from_html_sources_accepts_island_travel_support(
+    monkeypatch,
+) -> None:
+    calls: list[str] = []
+
+    def fake_upsert(db_arg, sources):
+        rows = list(sources)
+        calls.extend(source.source_category for source in rows)
+        return rows
+
+    monkeypatch.setattr(
+        "app.services.external_benefit_collection.external_source_repository.upsert_external_source_records",
+        fake_upsert,
+    )
+    monkeypatch.setattr(
+        "app.services.external_benefit_collection.policy_normalization.promote_external_benefits_to_policies",
+        lambda db_arg: None,
+    )
+
+    result = collect_external_benefits_from_html_sources(
+        FakeDb(),
+        html_sources={
+            "island_travel_support": (
+                "<table><tbody><tr><td>1</td>"
+                "<td onclick=\"location.href='/brd/notice/42'\")>"
+                "[제주특별자치도] 섬 여행비 지원 혜택 6개 섬 리스트</td>"
+                "<td>2026-06-12</td><td>70</td></tr></tbody></table>"
+            ),
+        },
+        fetched_at=datetime(2026, 6, 15, tzinfo=UTC),
+        today=date(2026, 6, 15),
+    )
+
+    assert calls == ["regional_benefit"]
+    assert result.outcome == "success"
+    assert result.parsed_count == 1
+    assert result.sources[0].source_name == "2026 섬 방문의 해"
+    assert result.sources[0].source_url == "https://www.visitisland.kr/brd/notice"
+    assert result.sources[0].source_category == "regional_benefit"

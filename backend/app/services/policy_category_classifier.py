@@ -82,6 +82,7 @@ SOURCE_CATEGORY_BOOSTS: dict[str, tuple[tuple[str, int, str], ...]] = {
 }
 
 URL_CATEGORY_BOOSTS: dict[str, tuple[str, int]] = {
+    "visitisland.kr/brd/notice": ("지역할인", 20),
     "benefits/traffic.do": ("교통", 8),
     "benefits/stay.do": ("숙박", 8),
     "benefits/special.do": ("여행상품", 8),

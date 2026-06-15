@@ -77,7 +77,7 @@ DB 연결 상태 포함 서버 헬스 확인. 인증 불필요.
 
 ### POST /ops/external-collection/run
 
-공식 외부 혜택 수집을 관리자 수동 실행으로 1회 수행한다. configured source(`regional_benefit`, `local_half_trip`, `stay_discount`)를 live fetch하고, `traffic_benefit`은 제거/404 가능성이 있는 optional legacy source로 취급하며, parser 결과를 `external_source_records`에 upsert한 뒤 active/fresh 레코드를 `policies`로 승격한다. 관리자 Bearer 인증이 필요하다.
+공식 외부 혜택 수집을 관리자 수동 실행으로 1회 수행한다. configured source는 여행가는 달 지역 혜택(`regional_benefit`), 2026 섬 방문의 해 섬 여행비 지원(`regional_benefit` 재사용), 대한민국 반값여행(`local_half_trip`), 숙박세일 페스타(`stay_discount`)를 live fetch하고, `traffic_benefit`은 제거/404 가능성이 있는 optional legacy source로 취급한다. parser 결과를 `external_source_records`에 upsert한 뒤 active/fresh 레코드를 `policies`로 승격한다. 관리자 Bearer 인증이 필요하다.
 
 **Response 200**
 ```json
@@ -89,7 +89,9 @@ DB 연결 상태 포함 서버 헬스 확인. 인증 불필요.
   "outcome": "success",
   "sources": [
     {
+      "sourceName": "여행가는 달",
       "sourceCategory": "regional_benefit",
+      "sourceUrl": "https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
       "parsedCount": 42,
       "createdOrUpdatedCount": 42,
       "outcome": "success",
@@ -99,7 +101,7 @@ DB 연결 상태 포함 서버 헬스 확인. 인증 불필요.
 }
 ```
 
-`outcome`은 전체 실행 결과이며 `success`, `partial_success`, `error` 중 하나다. per-source `outcome`은 여기에 `source_unavailable`을 추가로 사용할 수 있으며, source HTTP 404/410은 `source_unavailable`로 기록한다. 필수 공식 source fetch/parser가 실패해도 다른 source가 성공하면 `partial_success`와 per-source `error`를 반환한다. optional legacy `traffic_benefit`의 404/410은 전체 실행을 실패로 강등하지 않는다. 응답에는 API key, bearer token, SMTP credential 같은 secret을 포함하지 않는다.
+`outcome`은 전체 실행 결과이며 `success`, `partial_success`, `error` 중 하나다. per-source `outcome`은 여기에 `source_unavailable`을 추가로 사용할 수 있으며, source HTTP 404/410은 `source_unavailable`로 기록한다. 필수 공식 source fetch/parser가 실패해도 다른 source가 성공하면 `partial_success`와 per-source `error`를 반환한다. optional legacy `traffic_benefit`의 404/410은 전체 실행을 실패로 강등하지 않는다. `sources[]`에는 `sourceName`, `sourceCategory`, `sourceUrl`이 함께 포함되며, 서로 다른 공식 페이지가 같은 public source category(`regional_benefit`)를 공유해도 운영자가 개별 source 결과를 구분할 수 있어야 한다. 응답에는 API key, bearer token, SMTP credential 같은 secret을 포함하지 않는다.
 
 ---
 
@@ -114,7 +116,7 @@ DB 연결 상태 포함 서버 헬스 확인. 인증 불필요.
 |------|------|-------------|
 | style | string, optional | 추천 preview에 전달할 취향 보정 값 |
 | region | string, optional | 추천 preview에 전달할 최종 tie-breaker 지역 |
-| sourceCategory | string, optional | `regional_benefit`, `traffic_benefit`, `local_half_trip` 같은 외부 수집 source category 필터 |
+| sourceCategory | string, optional | `regional_benefit`, `traffic_benefit`, `local_half_trip`, `stay_discount` 같은 외부 수집 source category 필터. 2026 섬 방문의 해 레코드는 `regional_benefit`으로 집계된다. |
 | limit | number, optional | 추천 preview 개수. 기본 3, 1~10 |
 
 **Response 200**
@@ -131,12 +133,24 @@ DB 연결 상태 포함 서버 헬스 확인. 인증 불필요.
   "recordsWithStyles": 37,
   "latestFetchedAt": "2026-05-21T00:00:00",
   "latestVerifiedAt": "2026-05-21T00:00:00",
+  "sourceBreakdown": [
+    {
+      "sourceName": "여행가는 달",
+      "sourceCategory": "regional_benefit",
+      "sourceUrl": "https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
+      "totalRecords": 16,
+      "activeRecords": 16,
+      "freshRecords": 16,
+      "latestFetchedAt": "2026-05-21T00:00:00",
+      "latestVerifiedAt": "2026-05-21T00:00:00"
+    }
+  ],
   "regions": [],
   "recommendationPreview": []
 }
 ```
 
-`regions`는 지역별 저장 품질 집계이며 `recommendationPreview`는 기존 `GET /recommendations/regions`와 같은 ranking service를 사용한다.
+`sourceBreakdown[]`는 같은 `sourceCategory` 안에서도 서로 다른 공식 페이지를 `sourceName`/`sourceUrl` 기준으로 나눠 보여주는 운영용 breakdown이다. `regions`는 지역별 저장 품질 집계이며 `recommendationPreview`는 기존 `GET /recommendations/regions`와 같은 ranking service를 사용한다.
 
 ---
 
@@ -642,7 +656,7 @@ Account linking policy:
 
 ### GET /policies
 
-전체 정책 목록. 인증 불필요. DB `policies` 레코드만 `Policy` DTO로 반환한다. TravelMonth, 대한민국 반값여행 등 공식 외부 수집 레코드(`external_source_records`)는 수집/검증 원문 근거로 보존하고, active/fresh `regional_benefit`, `local_half_trip`, `stay_discount` 항목은 collection normalization service가 `policies`로 승격한다. `traffic_benefit`은 legacy/optional 수집 근거로 보존될 수 있지만 public 정책 승격 대상에서는 제외한다. 승격된 외부 정책은 기존 호환 slug `travelmonth-{externalSourceRecordId}`를 사용한다. 디지털관광주민증/대한민국 반값여행 계열(`local_half_trip`)은 공식 페이지의 지역별 상태가 `신청접수중`인 active/fresh 항목만 public 정책으로 노출하고, 준비중/마감/unknown 또는 stale 항목은 기존 연결 보호를 위해 `policies.status = "hidden"`으로 내려 사용자 목록에서 제외한다.
+전체 정책 목록. 인증 불필요. DB `policies` 레코드만 `Policy` DTO로 반환한다. TravelMonth, 2026 섬 방문의 해, 대한민국 반값여행 등 공식 외부 수집 레코드(`external_source_records`)는 수집/검증 원문 근거로 보존하고, active/fresh `regional_benefit`, `local_half_trip`, `stay_discount` 항목은 collection normalization service가 `policies`로 승격한다. `traffic_benefit`은 legacy/optional 수집 근거로 보존될 수 있지만 public 정책 승격 대상에서는 제외한다. 승격된 외부 정책은 기존 호환 slug `travelmonth-{externalSourceRecordId}`를 사용한다. 디지털관광주민증/대한민국 반값여행 계열(`local_half_trip`)은 공식 페이지의 지역별 상태가 `신청접수중`인 active/fresh 항목만 public 정책으로 노출하고, 준비중/마감/unknown 또는 stale 항목은 기존 연결 보호를 위해 `policies.status = "hidden"`으로 내려 사용자 목록에서 제외한다.
 
 **Response 200** → `Policy[]`
 ```json
@@ -673,7 +687,7 @@ Account linking policy:
 `category` 허용 값: `"교통" | "숙박" | "여행상품" | "지역할인" | "이벤트" | "기타"`
 `sourceType` 허용 값은 `"internal" | "external"`이며 API 호환과 내부 진단을 위해 유지한다. 사용자 화면은 `internal/external` 같은 구현 구분 문구를 노출하지 않는다. 사용자에게 노출되는 모든 정책은 정규화된 `policies` 레코드이므로 저장/일정 연결 동작을 동일하게 지원한다.
 `actionStatus`는 생략 또는 `null`이면 저장/일정 연결 가능 상태로 간주한다. migration gap 동안 상세 조회만 허용되는 raw fallback 정책은 `"infoOnly"`를 반환하며, 프론트엔드는 저장/일정 연결 action을 차단하고 공식 원문 확인 안내만 제공한다.
-`external_source_records.source_category` 중 정책 승격 대상은 `regional_benefit`, `local_half_trip`, `stay_discount`이다. `traffic_benefit`은 optional legacy source로 남기며 목적지/지역 추천 점수와 public 정책 승격에서 제외한다. 목적지/지역 추천 점수에는 `traffic_benefit`을 제외하고, 일정 상세 정책 추천은 정규화된 active/fresh 정책에 대해 지역/일정 날짜/카테고리/여행 스타일 태그만 사용하는 deterministic scoring을 적용한다.
+`external_source_records.source_category` 중 정책 승격 대상은 `regional_benefit`, `local_half_trip`, `stay_discount`이다. `traffic_benefit`은 optional legacy source로 남기며 목적지/지역 추천 점수와 public 정책 승격에서 제외한다. 목적지/지역 추천 점수에는 `traffic_benefit`을 제외하고, 일정 상세 정책 추천은 정규화된 active/fresh 정책에 대해 지역/일정 날짜/카테고리/여행 스타일 태그만 사용하는 deterministic scoring을 적용한다. 2026 섬 방문의 해는 `regional_benefit`으로 승격되며 `visitisland.kr` 공식 URL boost를 통해 `지역할인`으로 분류한다.
 외부 수집 정책의 `category`는 `external_source_records`의 제목, 혜택 본문, 태그, 출처 URL, source category를 점수화한 deterministic classifier 결과다. 단순 source URL/source category 매핑이 아니며, 동점이면 `교통 > 숙박 > 여행상품 > 이벤트 > 지역할인 > 기타` 우선순위를 따른다.
 
 ---
@@ -1351,12 +1365,14 @@ Existing trips can return `travelAreaId: null`.
 
 - `GET /api/admin/external-sources/summary`
 - Auth: bearer token required, admin role required.
-- Purpose: read-only dashboard summary for external policy collection health. This endpoint never starts a collection job and does not expose source-specific manual controls.
+- Purpose: read-only dashboard summary for external policy collection health, grouped by external source instance while preserving shared `sourceCategory` values. This endpoint never starts a collection job and does not expose source-specific manual controls.
 - Response:
   - `items[]`
+  - `items[].sourceKey`
   - `items[].sourceCategory`
   - `items[].label`
   - `items[].sourceName`
+  - `items[].sourceUrl`
   - `items[].totalRecords`
   - `items[].activeRecords`
   - `items[].scheduledRecords`
