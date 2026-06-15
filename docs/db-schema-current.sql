@@ -1516,6 +1516,81 @@ ALTER TABLE ONLY public.user_saved_policies
 ALTER TABLE ONLY public.user_saved_policies
     ADD CONSTRAINT user_saved_policies_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
+--
+-- Name: pending_signups; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pending_signups (
+    id bigint NOT NULL,
+    email character varying(255) NOT NULL,
+    token_hash character varying(255) NOT NULL,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    expires_at timestamp without time zone NOT NULL
+);
+
+
+--
+-- Name: pending_signups_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.pending_signups_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: pending_signups_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.pending_signups_id_seq OWNED BY public.pending_signups.id;
+
+
+--
+-- Name: pending_signups id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pending_signups ALTER COLUMN id SET DEFAULT nextval('public.pending_signups_id_seq'::regclass);
+
+
+--
+-- Name: pending_signups pending_signups_email_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pending_signups
+    ADD CONSTRAINT pending_signups_email_key UNIQUE (email);
+
+
+--
+-- Name: pending_signups pending_signups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pending_signups
+    ADD CONSTRAINT pending_signups_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: pending_signups pending_signups_token_hash_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pending_signups
+    ADD CONSTRAINT pending_signups_token_hash_key UNIQUE (token_hash);
+
+
+--
+-- Name: ix_pending_signups_email; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_pending_signups_email ON public.pending_signups USING btree (email);
+
+
+--
+-- Name: ix_pending_signups_token_hash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_pending_signups_token_hash ON public.pending_signups USING btree (token_hash);
 
 --
 -- PostgreSQL database dump complete

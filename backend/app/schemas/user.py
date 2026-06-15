@@ -83,6 +83,24 @@ class LoginRequest(BaseModel):
 
 class SignupRequest(BaseModel):
     email: EmailStr
+
+
+class SignupVerificationResponse(BaseModel):
+    verificationRequired: bool
+    email: str
+
+
+class SignupVerifyRequest(BaseModel):
+    token: str = Field(min_length=1)
+
+
+class SignupVerifyResponse(BaseModel):
+    verified: bool
+    email: str
+
+
+class SignupCompleteRequest(BaseModel):
+    token: str = Field(min_length=1)
     password: str = Field(min_length=8)
 
 

@@ -118,6 +118,18 @@ class PasswordResetToken(Base):
     user: Mapped[User] = relationship(back_populates="password_reset_tokens")
 
 
+class PendingSignup(Base):
+    __tablename__ = "pending_signups"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    token_hash: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
 class PhoneVerificationCode(Base):
     __tablename__ = "phone_verification_codes"
 

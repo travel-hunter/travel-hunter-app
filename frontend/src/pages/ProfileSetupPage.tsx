@@ -1,7 +1,8 @@
 ﻿import { useState } from "react";
 import { ChevronLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { appDataApi } from "../api";
+import { getSafeRedirect, withRedirect } from "../app/onboarding";
 import { useSession } from "../app/session";
 import { useAsyncResource } from "../api/useAsyncResource";
 import { ProfileSetupStep } from "../components/patterns";
@@ -11,6 +12,7 @@ type ProfileSetupField = "region" | "style" | "budget";
 
 export function ProfileSetupPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { profile, updateProfile, saveProfile } = useSession();
   const { data: profileOptions, error: profileOptionsError, isLoading: profileOptionsLoading } = useAsyncResource(
     () => appDataApi.getProfileOptions(),
@@ -43,6 +45,7 @@ export function ProfileSetupPage() {
 
   const step = steps[stepIndex];
   const selected = profile[step.key];
+  const redirect = getSafeRedirect(searchParams);
 
   if (profileOptionsLoading || !profileOptions) {
     return (
@@ -88,7 +91,20 @@ export function ProfileSetupPage() {
     setIsSaving(true);
     try {
       await saveProfile(profile);
-      navigate("/home");
+      navigate(redirect ?? "/home");
+    } catch {
+      setError("맞춤 추천 설정을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const finishLater = async () => {
+    setError("");
+    setIsSaving(true);
+    try {
+      await saveProfile(profile);
+      navigate(redirect ?? "/home");
     } catch {
       setError("맞춤 추천 설정을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.");
     } finally {
@@ -97,7 +113,7 @@ export function ProfileSetupPage() {
   };
 
   const back = () => {
-    if (stepIndex === 0) navigate("/nickname-setup");
+    if (stepIndex === 0) navigate(withRedirect("/nickname-setup", redirect));
     else setStepIndex((current) => current - 1);
   };
 
@@ -129,7 +145,7 @@ export function ProfileSetupPage() {
         <Button full disabled={isSaving} onClick={next}>
           {isSaving ? "저장 중입니다" : stepIndex === steps.length - 1 ? "추천 홈 보기" : "다음"}
         </Button>
-        <Button full variant="ghost" disabled={isSaving} onClick={() => navigate("/home")}>
+        <Button full variant="ghost" disabled={isSaving} onClick={finishLater}>
           나중에 설정
         </Button>
       </div>

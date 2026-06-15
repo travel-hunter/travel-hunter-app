@@ -21,6 +21,10 @@ import {
   SavePolicyResponse,
   SendInviteEmailRequest,
   SignupRequest,
+  SignupCompleteRequest,
+  SignupVerificationResponse,
+  SignupVerifyRequest,
+  SignupVerifyResponse,
   TripPlaceMoveRequest,
   TripPlaceMutationRequest,
   TripPlaceUpdateRequest,
@@ -62,8 +66,8 @@ const makeDefaultLogin = (request: LoginRequest | undefined): LoginRequest => {
 };
 
 const makeDefaultSignup = (request: SignupRequest | undefined): SignupRequest => {
-  if (!request || !request.email || !request.password) {
-    throw new Error("TRAVEL_HUNTER: signup request must include email and password.");
+  if (!request || !request.email) {
+    throw new Error("TRAVEL_HUNTER: signup request must include email.");
   }
   return request;
 };
@@ -80,7 +84,10 @@ function queryString(params: Record<string, string | number | boolean | undefine
 export const backendApi: AppDataApi = {
   getProfileOptions: (): Promise<ProfileOptions> => apiClient.get<ProfileOptions>("/api/profile-options"),
   login: (request?: LoginRequest): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/login", makeDefaultLogin(request)),
-  signup: (request?: SignupRequest): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/signup", makeDefaultSignup(request)),
+  signup: (request?: SignupRequest): Promise<SignupVerificationResponse> => apiClient.post<SignupVerificationResponse>("/api/auth/signup", makeDefaultSignup(request)),
+  requestSignupVerification: (request?: SignupRequest): Promise<SignupVerificationResponse> => apiClient.post<SignupVerificationResponse>("/api/auth/signup", makeDefaultSignup(request)),
+  verifySignup: (request: SignupVerifyRequest): Promise<SignupVerifyResponse> => apiClient.post<SignupVerifyResponse>("/api/auth/signup/verify", request),
+  completeSignup: (request: SignupCompleteRequest): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/signup/complete", request),
   checkEmailAvailability: (request: EmailAvailabilityRequest): Promise<EmailAvailabilityResponse> => apiClient.post<EmailAvailabilityResponse>("/api/auth/email-check", request),
   getNicknameSuggestion: (): Promise<NicknameSuggestionResponse> => apiClient.get<NicknameSuggestionResponse>("/api/me/nickname-suggestion"),
   updateNickname: (request: NicknameUpdateRequest): Promise<User> => apiClient.patch<User>("/api/me/nickname", request),

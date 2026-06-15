@@ -75,6 +75,67 @@ def test_db_login_route_returns_invalid_credentials(monkeypatch) -> None:
     assert response.json() == {"detail": "Invalid email or password"}
 
 
+
+def test_db_signup_route_requests_email_verification(monkeypatch) -> None:
+    fake_db = object()
+
+    monkeypatch.setattr(
+        auth_routes.auth_service,
+        "signup",
+        lambda db, request: {"verificationRequired": True, "email": str(request.email)},
+    )
+    app.dependency_overrides[auth_routes.get_optional_db] = lambda: fake_db
+
+    try:
+        response = client.post(
+            "/api/auth/signup",
+            json={"email": "new@example.com"},
+        )
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    assert response.json() == {"verificationRequired": True, "email": "new@example.com"}
+    assert "travel_hunter_refresh=" not in response.headers.get("set-cookie", "")
+
+
+def test_db_signup_verify_route_returns_verified_email_without_cookie(monkeypatch) -> None:
+    fake_db = object()
+
+    monkeypatch.setattr(auth_routes.auth_service, "verify_signup", lambda db, request: {"verified": True, "email": "new@example.com"})
+    app.dependency_overrides[auth_routes.get_optional_db] = lambda: fake_db
+
+    try:
+        response = client.post("/api/auth/signup/verify", json={"token": "signup-token"})
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    assert response.json() == {"verified": True, "email": "new@example.com"}
+    assert "travel_hunter_refresh=" not in response.headers.get("set-cookie", "")
+
+
+def test_db_signup_complete_route_sets_refresh_cookie(monkeypatch) -> None:
+    fake_db = object()
+    result = auth_service.AuthResult(
+        access_token="access-token",
+        refresh_token="refresh-token",
+        user=auth_service.user_to_api(make_user()),
+    )
+
+    monkeypatch.setattr(auth_routes.auth_service, "complete_signup", lambda db, request: result)
+    app.dependency_overrides[auth_routes.get_optional_db] = lambda: fake_db
+
+    try:
+        response = client.post("/api/auth/signup/complete", json={"token": "signup-token", "password": "password123"})
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    assert response.json()["accessToken"] == "access-token"
+    assert response.json()["user"]["email"] == "test.user@example.com"
+    assert "travel_hunter_refresh=refresh-token" in response.headers["set-cookie"]
+
 def test_email_check_route_returns_availability(monkeypatch) -> None:
     fake_db = object()
 

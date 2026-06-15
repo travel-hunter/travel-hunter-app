@@ -14,7 +14,7 @@
 
 | 기능 | 사용자 동작 | 연결 |
 |---|---|---|
-| 회원가입 | `/signup`에서 email 중복 확인 후 email/password로 가입한다. 성공 후 인증 세션이 생성되고 닉네임 설정으로 이어진다. | `POST /api/auth/email-check`, `POST /api/auth/signup`, `users`, refresh cookie |
+| 회원가입 | `/signup`에서 email만 입력해 인증 메일을 요청한다. `/signup/verify?token=...` 링크를 열면 이메일 인증 완료 상태에서 비밀번호 입력창이 나타나고, 비밀번호 제출 시 계정이 생성되어 자동 로그인 후 온보딩으로 이어진다. 미완료 인증 재요청은 기존 pending signup을 교체한다. | `POST /api/auth/email-check`, `POST /api/auth/signup`, `POST /api/auth/signup/verify`, `POST /api/auth/signup/complete`, `pending_signups`, `users`, refresh cookie |
 | 닉네임 설정 | `/nickname-setup`에서 자동 생성된 임시 닉네임을 수정하거나 주사위 버튼으로 새 추천 닉네임을 받아 저장한다. | `GET /api/me/nickname-suggestion`, `PATCH /api/me/nickname`, `users.nickname` |
 | 로그인 | `/`와 `/login`에서 프로토타입과 같은 모바일 앱형 로그인 화면을 보여주고 email/password로 로그인한다. 실패 시 사용자용 오류를 표시한다. | `POST /api/auth/login`, `auth_refresh_tokens` |
 | 세션 유지/로그아웃 | refresh cookie로 access token을 갱신하고, 로그아웃 시 refresh token을 revoke한다. | `POST /api/auth/refresh`, `POST /api/auth/logout` |

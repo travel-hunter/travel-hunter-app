@@ -15,7 +15,11 @@ from app.schemas.user import (
     PasswordResetConfirmResponse,
     PasswordResetRequest,
     PasswordResetResponse,
+    SignupCompleteRequest,
     SignupRequest,
+    SignupVerificationResponse,
+    SignupVerifyRequest,
+    SignupVerifyResponse,
 )
 from app.services import auth as auth_service
 from app.services import oauth as oauth_service
@@ -51,14 +55,38 @@ def login(
     return _to_auth_response(result, response)
 
 
-@router.post("/signup", response_model=AuthResponse)
+@router.post("/signup", response_model=SignupVerificationResponse)
 def signup(
     request: SignupRequest,
+    db: Session | None = Depends(get_optional_db),
+) -> SignupVerificationResponse:
+    try:
+        result = auth_service.signup(_require_db(db), request)
+    except auth_service.AuthServiceError as error:
+        _raise_auth_error(error)
+    return SignupVerificationResponse(**result)
+
+
+@router.post("/signup/verify", response_model=SignupVerifyResponse)
+def verify_signup(
+    request: SignupVerifyRequest,
+    db: Session | None = Depends(get_optional_db),
+) -> SignupVerifyResponse:
+    try:
+        result = auth_service.verify_signup(_require_db(db), request)
+    except auth_service.AuthServiceError as error:
+        _raise_auth_error(error)
+    return SignupVerifyResponse(**result)
+
+
+@router.post("/signup/complete", response_model=AuthResponse)
+def complete_signup(
+    request: SignupCompleteRequest,
     response: Response,
     db: Session | None = Depends(get_optional_db),
 ) -> AuthResponse:
     try:
-        result = auth_service.signup(_require_db(db), request)
+        result = auth_service.complete_signup(_require_db(db), request)
     except auth_service.AuthServiceError as error:
         _raise_auth_error(error)
     return _to_auth_response(result, response)

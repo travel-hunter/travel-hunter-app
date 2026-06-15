@@ -53,6 +53,28 @@ def send_password_reset_email(*, to_email: str, reset_url: str) -> None:
     _send_message(message)
 
 
+def send_signup_verification_email(*, to_email: str, verify_url: str) -> None:
+    _require_smtp_config()
+    message = EmailMessage()
+    message["Subject"] = "Travel Hunter 이메일 인증"
+    message["From"] = settings.smtp_from_email
+    message["To"] = to_email
+    message.set_content(
+        "\n".join(
+            [
+                "Travel Hunter 회원가입 이메일 인증을 요청하셨습니다.",
+                "",
+                "아래 링크에서 30분 안에 이메일 인증을 완료하고 비밀번호를 설정해 주세요.",
+                verify_url,
+                "",
+                "요청하지 않았다면 이 메일을 무시해 주세요.",
+            ]
+        )
+    )
+
+    _send_message(message)
+
+
 def send_trip_invite_email(*, to_email: str, invite_url: str) -> None:
     _require_smtp_config()
     message = EmailMessage()

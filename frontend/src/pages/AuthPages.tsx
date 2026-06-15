@@ -1,7 +1,8 @@
-﻿import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { ChevronLeft, Dice5 } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { appDataApi } from "../api";
+import { getPostAuthPath } from "../app/onboarding";
 import { useSession } from "../app/session";
 import { AuthFormShell, BrandMark } from "../components/patterns";
 import { Button, IconButton, LinkButton } from "../components/ui";
@@ -177,65 +178,41 @@ export function LoginPage() {
 }
 
 export function SignupPage() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { signup } = useSession();
   const [error, setError] = useState("");
   const [email, setEmail] = useState("");
-  const [emailStatus, setEmailStatus] = useState<"idle" | "checking" | "available" | "unavailable" | "error">("idle");
-  const [checkedEmail, setCheckedEmail] = useState("");
+  const [sentEmail, setSentEmail] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const redirect = getSafeRedirect(searchParams);
-  const emailAvailable = emailStatus === "available" && checkedEmail === email.trim().toLowerCase();
 
-  const checkEmail = async () => {
-    const normalizedEmail = email.trim().toLowerCase();
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setError("");
+    const normalizedEmail = email.trim().toLowerCase();
+
     if (!normalizedEmail) {
       setError("이메일을 입력해 주세요.");
       return;
     }
-    setEmailStatus("checking");
+
+    setIsSubmitting(true);
     try {
-      const result = await appDataApi.checkEmailAvailability({ email: normalizedEmail });
-      setCheckedEmail(normalizedEmail);
-      setEmailStatus(result.available ? "available" : "unavailable");
-    } catch {
-      setEmailStatus("error");
-      setError("이메일 중복 확인을 하지 못했어요. 잠시 후 다시 시도해 주세요.");
-    }
-  };
-
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    setError("");
-    const normalizedEmail = email.trim().toLowerCase();
-    const password = String(formData.get("password") || "");
-
-    if (!normalizedEmail || password.length < 8) {
-      setError("이메일과 8자 이상 비밀번호를 입력해 주세요.");
-      return;
-    }
-    if (!emailAvailable) {
-      setError("이메일 중복 확인을 해 주세요.");
-      return;
-    }
-
-    try {
-      await signup({
-        email: normalizedEmail,
-        password,
-      });
-      navigate(withRedirect("/nickname-setup", redirect));
+      const result = await signup({ email: normalizedEmail });
+      setSentEmail(result.email);
     } catch (error) {
       const detail = error instanceof Error ? error.message : "";
       if (detail === "Email already registered") {
-        setEmailStatus("unavailable");
-        setCheckedEmail(normalizedEmail);
-        setError("이미 가입된 이메일입니다.");
+        setError("이미 가입된 이메일입니다. 로그인하거나 다른 이메일을 입력해 주세요.");
         return;
       }
-      setError("회원가입에 실패했습니다. 입력한 정보를 다시 확인해 주세요.");
+      if (detail === "인증 메일을 보낼 수 없습니다. 잠시 후 다시 시도해 주세요.") {
+        setError(detail);
+        return;
+      }
+      setError("인증 메일을 보내지 못했어요. 입력한 이메일을 확인해 주세요.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -252,11 +229,10 @@ export function SignupPage() {
         </h1>
         <span />
       </div>
-      <AuthFormShell title="지금 받을 수 있는 여행 혜택부터 찾기" body="관심 지역과 여행 스타일을 설정하면 맞춤 혜택을 먼저 보여드려요." showBrandMark={false}>
-      <form className="form prototype-auth-form" onSubmit={submit}>
-        <label className="field">
-          <span>이메일</span>
-          <div className="input-action-row">
+      <AuthFormShell title="이메일 인증 후 비밀번호를 설정해요" body="먼저 이메일 소유를 확인하고, 인증 링크에서 비밀번호를 입력하면 가입이 완료돼요." showBrandMark={false}>
+        <form className="form prototype-auth-form" onSubmit={submit}>
+          <label className="field">
+            <span>이메일</span>
             <input
               name="email"
               type="email"
@@ -265,36 +241,129 @@ export function SignupPage() {
               value={email}
               onChange={(event) => {
                 setEmail(event.target.value);
-                setEmailStatus("idle");
-                setCheckedEmail("");
+                setSentEmail("");
+                setError("");
               }}
             />
-            <button className="btn sm line" type="button" onClick={checkEmail} disabled={emailStatus === "checking"}>
-              {emailStatus === "checking" ? "확인 중" : "중복 확인"}
-            </button>
-          </div>
-        </label>
-        {emailStatus === "available" && <p className="form-success">사용할 수 있는 이메일입니다.</p>}
-        {emailStatus === "unavailable" && <p className="form-error">이미 가입된 이메일입니다.</p>}
-        <label className="field">
-          <span>비밀번호</span>
-          <input name="password" type="password" placeholder="8자 이상 입력" autoComplete="new-password" />
-        </label>
-        {error && (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        )}
-        <Button full type="submit">
-          가입하고 혜택 정하기
-        </Button>
-      </form>
-      <div className="auth-links prototype-auth-links">
-        <span>이미 계정이 있나요?</span>
-        <LinkButton to={withRedirect("/login", redirect)} variant="ghost">
-          로그인
-        </LinkButton>
-      </div>
+          </label>
+          {sentEmail && (
+            <div className="state-panel">
+              <strong>인증 메일을 보냈어요</strong>
+              <p>{sentEmail}으로 보낸 링크를 30분 안에 열고 비밀번호를 설정하면 가입이 완료돼요.</p>
+            </div>
+          )}
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
+          <Button full type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "인증 메일 발송 중" : sentEmail ? "인증 메일 재발송" : "인증 메일 받기"}
+          </Button>
+        </form>
+        <div className="auth-links prototype-auth-links">
+          <span>이미 계정이 있나요?</span>
+          <LinkButton to={withRedirect("/login", redirect)} variant="ghost">
+            로그인
+          </LinkButton>
+        </div>
+      </AuthFormShell>
+    </section>
+  );
+}
+
+export function SignupVerifyPage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { verifySignup, completeSignup } = useSession();
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [isVerifying, setIsVerifying] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const attemptedTokenRef = useRef<string | null>(null);
+  const redirect = getSafeRedirect(searchParams) ?? "/home";
+  const token = searchParams.get("token") ?? "";
+
+  useEffect(() => {
+    let cancelled = false;
+    async function verify() {
+      if (!token) {
+        setError("인증 토큰이 없어요. 이메일의 링크를 다시 확인해 주세요.");
+        setIsVerifying(false);
+        return;
+      }
+      if (attemptedTokenRef.current === token) return;
+      attemptedTokenRef.current = token;
+      setIsVerifying(true);
+      setError("");
+      try {
+        const result = await verifySignup(token);
+        if (!cancelled) setEmail(result.email);
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : "";
+        if (!cancelled) {
+          setError(detail === "Email already registered" ? "이미 가입된 이메일입니다. 로그인해 주세요." : "인증 링크가 만료되었거나 이미 사용되었어요. 회원가입을 다시 요청해 주세요.");
+        }
+      } finally {
+        if (!cancelled) setIsVerifying(false);
+      }
+    }
+    void verify();
+    return () => {
+      cancelled = true;
+    };
+  }, [token, verifySignup]);
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const password = String(formData.get("password") || "");
+    setError("");
+
+    if (password.length < 8) {
+      setError("비밀번호는 8자 이상 입력해 주세요.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const user = await completeSignup({ token, password });
+      navigate(getPostAuthPath(user, redirect), { replace: true });
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "";
+      setError(detail === "Email already registered" ? "이미 가입된 이메일입니다. 로그인해 주세요." : "가입을 완료하지 못했어요. 인증 링크를 다시 확인해 주세요.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <section className="screen white prototype-auth-screen">
+      <div className="prototype-status-bar" aria-hidden="true" />
+      <AuthFormShell title={isVerifying ? "이메일 인증을 확인하는 중입니다" : email ? "이메일 인증이 완료됐어요" : "이메일 인증이 필요해요"} body={email ? `${email} 계정에 사용할 비밀번호를 설정해 주세요.` : "인증 링크를 확인하고 다시 시도해 주세요."}>
+        <div className="content stack padded prototype-auth-content">
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
+          {!isVerifying && email && !error && (
+            <form className="form prototype-auth-form" onSubmit={submit}>
+              <label className="field">
+                <span>비밀번호</span>
+                <input name="password" type="password" placeholder="8자 이상 입력" autoComplete="new-password" />
+              </label>
+              <Button full type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "가입 완료 중" : "비밀번호 설정하고 가입 완료"}
+              </Button>
+            </form>
+          )}
+          {!isVerifying && !email && (
+            <Button full onClick={() => navigate(withRedirect("/signup", redirect))}>
+              인증 메일 다시 받기
+            </Button>
+          )}
+        </div>
       </AuthFormShell>
     </section>
   );
@@ -636,8 +705,8 @@ export function OAuthCallbackPage() {
       }
       hasCompletedRef.current = true;
       try {
-        await completeOAuthSession();
-        if (!cancelled) navigate(redirect, { replace: true });
+        const user = await completeOAuthSession();
+        if (!cancelled) navigate(getPostAuthPath(user, redirect), { replace: true });
       } catch {
         hasCompletedRef.current = false;
         if (!cancelled) setError("트래블헌터 로그인 처리를 완료하지 못했어요. 다시 시도해 주세요.");

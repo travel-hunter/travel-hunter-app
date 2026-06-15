@@ -7,6 +7,7 @@ def test_current_schema_tables_are_registered() -> None:
         "users",
         "auth_refresh_tokens",
         "password_reset_tokens",
+        "pending_signups",
         "social_accounts",
         "policies",
         "policy_documents",
@@ -35,6 +36,7 @@ def test_current_schema_decision_columns_are_registered() -> None:
     user_notification_settings = Base.metadata.tables["user_notification_settings"]
     notification_deliveries = Base.metadata.tables["notification_deliveries"]
     password_reset_tokens = Base.metadata.tables["password_reset_tokens"]
+    pending_signups = Base.metadata.tables["pending_signups"]
     phone_verification_codes = Base.metadata.tables["phone_verification_codes"]
     external_source_records = Base.metadata.tables["external_source_records"]
     social_accounts = Base.metadata.tables["social_accounts"]
@@ -72,6 +74,9 @@ def test_current_schema_decision_columns_are_registered() -> None:
     assert "token_hash" in password_reset_tokens.c
     assert "expires_at" in password_reset_tokens.c
     assert "used_at" in password_reset_tokens.c
+    assert "email" in pending_signups.c
+    assert "token_hash" in pending_signups.c
+    assert "password_hash" not in pending_signups.c
     assert social_accounts.c["provider_id"].type.length == 255
     assert "revision" in trips.c
     assert "user_id" in phone_verification_codes.c

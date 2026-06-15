@@ -1,7 +1,7 @@
 import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { PublicLayout, ServiceLayout } from "../components/AppLayout";
 import { AiResultsPage, FriendInvitePage, ItineraryCreatePage, ItineraryDetailPage, ItineraryListPage } from "../pages/ItineraryPages";
-import { ForgotPasswordPage, LoginPage, NicknameSetupPage, OAuthCallbackPage, OAuthStartPage, ResetPasswordPage, SignupPage } from "../pages/AuthPages";
+import { ForgotPasswordPage, LoginPage, NicknameSetupPage, OAuthCallbackPage, OAuthStartPage, ResetPasswordPage, SignupPage, SignupVerifyPage } from "../pages/AuthPages";
 import { AppliedPolicyLinksPage } from "../pages/AppliedPolicyLinksPage";
 import { HomePage } from "../pages/HomePage";
 import { InviteAcceptPage } from "../pages/InviteAcceptPage";
@@ -10,6 +10,7 @@ import { PolicyDetailPage, PolicyListPage } from "../pages/PolicyPages";
 import { ProfileSetupPage } from "../pages/ProfileSetupPage";
 import { LoadingState } from "../components/ui";
 import { AdminAuditLogsPage, AdminDashboardPage, AdminForbiddenPage, AdminLayout, AdminPoliciesPage, AdminPolicyEditorPage, AdminUserDetailPage, AdminUsersPage } from "../pages/admin/AdminPages";
+import { getOnboardingPath, isOnboardingRoute, withRedirect } from "./onboarding";
 import { useSession } from "./session";
 
 export function App() {
@@ -20,6 +21,7 @@ export function App() {
         <Route path="/onboarding" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/signup/verify" element={<SignupVerifyPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/oauth/:provider/start" element={<OAuthStartPage />} />
@@ -80,6 +82,12 @@ function ProtectedRoute() {
   if (!currentUser) {
     const redirectTo = `${location.pathname}${location.search}${location.hash}`;
     return <Navigate to={`/login?redirect=${encodeURIComponent(redirectTo)}`} replace />;
+  }
+  const onboardingPath = getOnboardingPath(currentUser);
+  const mustConfirmNicknameFirst = location.pathname === "/profile-setup" && onboardingPath === "/nickname-setup";
+  if (onboardingPath && (!isOnboardingRoute(location.pathname) || mustConfirmNicknameFirst)) {
+    const redirectTo = `${location.pathname}${location.search}${location.hash}`;
+    return <Navigate to={withRedirect(onboardingPath, redirectTo)} replace />;
   }
   return <Outlet />;
 }
