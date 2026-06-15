@@ -552,55 +552,94 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
   });
 
   it("accepts a valid invite after signup when a redirect is present", async () => {
-    renderAppRoute("/signup?redirect=/invites/jeju-3d/accept");
-    expect(document.querySelector("main")).toHaveClass(
-      "prototype-login-layout",
-    );
-    expect(document.querySelector(".prototype-auth-screen")).toBeTruthy();
-    expect(document.querySelector(".ds-auth-form-shell")).toBeTruthy();
-
-    const user = userEvent.setup();
     const email = `invite-${Date.now()}@example.com`;
-    await user.type(
-      document.querySelector('input[name="email"]') as HTMLInputElement,
-      email,
-    );
-    const emailCheckButton = document.querySelector(
-      ".input-action-row button[type='button']",
-    );
-    expect(emailCheckButton).toBeTruthy();
-    await user.click(emailCheckButton as HTMLButtonElement);
-    await waitFor(() =>
-      expect(document.body).toHaveTextContent("사용할 수 있는 이메일입니다."),
-    );
-    await user.type(
-      document.querySelector('input[name="password"]') as HTMLInputElement,
-      "password123",
-    );
-    await user.click(
-      document.querySelector('button[type="submit"]') as HTMLButtonElement,
-    );
-
-    const nicknameInput = await waitFor(() => {
-      const input = document.querySelector('input[name="nickname"]');
-      expect(input).toBeTruthy();
-      return input as HTMLInputElement;
+    const signupSpy = vi
+      .spyOn(appDataApi, "requestSignupVerification")
+      .mockResolvedValue({ verificationRequired: true, email });
+    const verifySpy = vi
+      .spyOn(appDataApi, "verifySignup")
+      .mockResolvedValue({ verified: true, email });
+    const completeSpy = vi.spyOn(appDataApi, "completeSignup").mockResolvedValue({
+      accessToken: "signup-access-token",
+      user: {
+        id: "signup-user",
+        nickname: "초대테스트",
+        email,
+        role: "user",
+        birthDate: null,
+        gender: null,
+        region: null,
+        homeRegion: "제주",
+        residenceArea: null,
+        preferredRegions: null,
+        persona: "초대테스트님",
+        savedAmount: 0,
+        onboardingCompleted: true,
+        socialAccounts: [],
+        createdAt: "2026-06-15T00:00:00Z",
+        updatedAt: "2026-06-15T00:00:00Z",
+      },
     });
-    await user.clear(nicknameInput);
-    await user.type(nicknameInput, "초대테스트");
-    await user.click(
-      document.querySelector('button[type="submit"]') as HTMLButtonElement,
-    );
-
-    await waitFor(() =>
-      expect(document.body).toHaveTextContent("초대를 수락했어요"),
-    );
-    const tripLink = await waitFor(() => {
-      const link = document.querySelector('a[href^="/trips/"]');
-      expect(link).toBeTruthy();
-      return link as HTMLAnchorElement;
+    const getProfileSpy = vi.spyOn(appDataApi, "getProfile").mockResolvedValue({
+      region: "제주",
+      style: "휴식",
+      budget: "1인 40만원 이하",
     });
-    expect(tripLink.getAttribute("href")).toMatch(/^\/trips\/[1-9][0-9]*$/);
+    const acceptInviteSpy = vi
+      .spyOn(appDataApi, "acceptInvite")
+      .mockResolvedValue(makeInviteState({ invited: true, acceptedAt: "2026-06-15T00:00:00Z" }));
+
+    try {
+      renderAppRoute("/signup?redirect=/invites/jeju-3d/accept");
+      expect(document.querySelector("main")).toHaveClass(
+        "prototype-login-layout",
+      );
+      expect(document.querySelector(".prototype-auth-screen")).toBeTruthy();
+      expect(document.querySelector(".ds-auth-form-shell")).toBeTruthy();
+
+      const user = userEvent.setup();
+      await user.type(
+        document.querySelector('input[name="email"]') as HTMLInputElement,
+        email,
+      );
+      expect(document.querySelector('input[name="password"]')).toBeNull();
+      await user.click(
+        document.querySelector('button[type="submit"]') as HTMLButtonElement,
+      );
+
+      await waitFor(() => expect(document.body).toHaveTextContent("인증 메일을 보냈어요"));
+      expect(signupSpy).toHaveBeenCalledWith({ email });
+
+      cleanup();
+      renderAppRoute("/signup/verify?token=valid-token&redirect=/invites/jeju-3d/accept");
+      await waitFor(() => expect(document.body).toHaveTextContent("이메일 인증이 완료됐어요"));
+      await user.type(
+        document.querySelector('input[name="password"]') as HTMLInputElement,
+        "password123",
+      );
+      await user.click(
+        document.querySelector('button[type="submit"]') as HTMLButtonElement,
+      );
+
+      await waitFor(() => expect(verifySpy).toHaveBeenCalledWith({ token: "valid-token" }));
+      await waitFor(() => expect(completeSpy).toHaveBeenCalledWith({ token: "valid-token", password: "password123" }));
+      await waitFor(() => expect(acceptInviteSpy).toHaveBeenCalledWith("jeju-3d"));
+      await waitFor(() =>
+        expect(document.body).toHaveTextContent("초대를 수락했어요"),
+      );
+      const tripLink = await waitFor(() => {
+        const link = document.querySelector('a[href^="/trips/"]');
+        expect(link).toBeTruthy();
+        return link as HTMLAnchorElement;
+      });
+      expect(tripLink.getAttribute("href")).toMatch(/^\/trips\/[1-9][0-9]*$/);
+    } finally {
+      signupSpy.mockRestore();
+      verifySpy.mockRestore();
+      completeSpy.mockRestore();
+      getProfileSpy.mockRestore();
+      acceptInviteSpy.mockRestore();
+    }
   });
 
   it("shows an invite error state for an unknown invite token", async () => {

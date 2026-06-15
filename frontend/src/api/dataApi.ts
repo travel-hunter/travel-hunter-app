@@ -31,6 +31,24 @@ export type LoginRequest = {
 
 export type SignupRequest = {
   email: string;
+};
+
+export type SignupVerificationResponse = {
+  verificationRequired: boolean;
+  email: string;
+};
+
+export type SignupVerifyRequest = {
+  token: string;
+};
+
+export type SignupVerifyResponse = {
+  verified: boolean;
+  email: string;
+};
+
+export type SignupCompleteRequest = {
+  token: string;
   password: string;
 };
 
@@ -167,7 +185,10 @@ export type ContactVerificationConfirmRequest = {
 export type AppDataApi = {
   getProfileOptions: () => Promise<ProfileOptions>;
   login: (request?: LoginRequest) => Promise<AuthResponse>;
-  signup: (request?: SignupRequest) => Promise<AuthResponse>;
+  signup: (request?: SignupRequest) => Promise<SignupVerificationResponse>;
+  requestSignupVerification: (request?: SignupRequest) => Promise<SignupVerificationResponse>;
+  verifySignup: (request: SignupVerifyRequest) => Promise<SignupVerifyResponse>;
+  completeSignup: (request: SignupCompleteRequest) => Promise<AuthResponse>;
   checkEmailAvailability: (request: EmailAvailabilityRequest) => Promise<EmailAvailabilityResponse>;
   getNicknameSuggestion: () => Promise<NicknameSuggestionResponse>;
   updateNickname: (request: NicknameUpdateRequest) => Promise<User>;

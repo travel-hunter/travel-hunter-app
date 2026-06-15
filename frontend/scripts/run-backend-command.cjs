@@ -59,6 +59,11 @@ function run(command, args, options = {}) {
     stdio: "inherit",
   });
 
+  if (result.error) {
+    console.error(result.error);
+    process.exit(1);
+  }
+
   if (result.status !== 0) {
     process.exit(result.status || 1);
   }
@@ -189,7 +194,12 @@ async function main() {
       stdio: "inherit",
       shell: process.platform === "win32",
     });
-    process.exitCode = result.status || 0;
+    if (result.error) {
+      console.error(result.error);
+      process.exitCode = 1;
+    } else {
+      process.exitCode = result.status || 0;
+    }
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

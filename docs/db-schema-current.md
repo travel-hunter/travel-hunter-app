@@ -2,13 +2,13 @@
 
 ## 기준
 
-- 기준일: 2026-06-11
-- 기준 Alembic head: `0018_add_trip_revision`
+- 기준일: 2026-06-15
+- 기준 Alembic head: `0019_email_first_signup`
 - PostgreSQL: 16.13
 - SQL 산출물: `docs/db-schema-current.sql`
 - 생성 방식: fresh PostgreSQL DB에 `alembic upgrade head`를 적용한 뒤 `pg_dump --schema-only --no-owner --no-privileges`로 추출했다.
 
-이 문서는 현재 앱이 사용하는 PostgreSQL schema의 기준 문서다. 초기 SQL 기준본 이후 Alembic migration `0002`~`0018`이 적용된 현재 구조를 설명한다.
+이 문서는 현재 앱이 사용하는 PostgreSQL schema의 기준 문서다. 초기 SQL 기준본 이후 Alembic migration `0002`~`0019`이 적용된 현재 구조를 설명한다.
 
 ## 테이블 그룹
 
@@ -18,6 +18,7 @@ Auth/User:
 - `auth_refresh_tokens`
 - `social_accounts`
 - `password_reset_tokens`
+- `pending_signups`
 - `user_notification_settings`
 
 `social_accounts.provider_id`는 Google OIDC `sub` 등 긴 provider subject를 보관할 수 있도록 `varchar(255)`로 유지한다.
@@ -58,6 +59,7 @@ Migration metadata:
 - `user_notification_settings`
 - `notification_deliveries`
 - `password_reset_tokens`
+- `pending_signups`
 - `phone_verification_codes`
 - `admin_audit_logs`
 - `external_source_records`
@@ -73,6 +75,19 @@ Migration metadata:
 - `trip_invites.role`
 - `trips.status`
 - `trips.revision`
+
+
+## `pending_signups`
+
+`pending_signups`는 email-first 회원가입 인증 링크를 위한 단기 pending 상태 저장 테이블이다. 원문 토큰은 저장하지 않고 `token_hash`만 보관하며, 비밀번호는 인증 완료 단계에서만 수집한다.
+
+주요 컬럼:
+
+- `id`
+- `email`
+- `token_hash`
+- `created_at`
+- `expires_at`
 
 ## `phone_verification_codes`
 
