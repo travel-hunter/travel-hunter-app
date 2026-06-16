@@ -1,5 +1,59 @@
 # Release Checklist
 
+## 개발 서버 재개/남은 smoke 준비
+
+최신 개발 서버 기준값:
+
+- SSH: `ssh deploy@192.168.32.15`
+- 확인된 hostname: `C307-24`
+- 서버 repo 경로: `/home/deploy/travel-hunter-app`
+- compose 파일: `compose.tunnel.yaml`
+- 서버 runtime env: `/home/deploy/travel-hunter-app/deploy/.env.prod` (`chmod 600`, gitignored, 값 출력 금지)
+- 배포 SHA: `9169990aac582e4608648761b8633e56a429cbd5`
+- 개발 도메인: `https://dev.travel-hunter.co.kr`
+- 2026-06-16 복구 기준: 서버 dirty worktree 백업 `/home/deploy/.travel-hunter-recovery/20260616T011723Z` 보존 후 clean `develop`@`9169990aac582e4608648761b8633e56a429cbd5`로 reset/rebuild/migration/smoke 완료.
+
+남은 개발 서버 smoke 값은 repo 밖의 서버 전용 파일에만 둔다.
+
+```bash
+ssh deploy@192.168.32.15
+umask 077
+cat > ~/.travel-hunter-smoke.env <<'EOF'
+# Admin ops smoke
+SMOKE_ADMIN_MODE=create_temp
+SMOKE_ADMIN_EMAIL=dev-admin-smoke@example.com
+SMOKE_ADMIN_PASSWORD=<runtime-only-test-password>
+SMOKE_ADMIN_CLEANUP=revert_role
+
+# SMTP smoke
+SMOKE_TEST_EMAIL=<smtp-test-inbox>
+SMOKE_MAIL_RECEIPT_MODE=manual
+
+# OAuth smoke
+SMOKE_OAUTH_MODE=manual_browser
+SMOKE_GOOGLE_TEST_EMAIL=<google-test-account-email>
+SMOKE_KAKAO_TEST_EMAIL=<kakao-test-account-email>
+EOF
+chmod 600 ~/.travel-hunter-smoke.env
+```
+
+주의:
+
+- Google/Kakao 계정 비밀번호는 파일, 채팅, git, 로그에 남기지 않는다. OAuth callback smoke는 브라우저 수동 로그인으로 확인한다.
+- `SMOKE_ADMIN_CLEANUP`은 `revert_role`, `delete_user`, `retain` 중 하나로 명시하고 결과를 evidence에 기록한다.
+- Docker daemon/network DNS 변경은 별도 Docker DNS 작업명세서와 명시 승인 후에만 실행한다.
+- production 서버/DNS/Cloudflare/OAuth provider 변경은 production 작업명세서를 먼저 보여주고 명시 승인 후에만 실행한다.
+- DB 초기화, Docker volume 삭제, secret 출력, production 변경은 별도 승인 없이는 하지 않는다.
+
+### Dirty worktree 복구 절차
+
+서버 repo가 dirty이면 compose build를 금지하고 아래 순서를 먼저 따른다.
+
+1. `deploy/.env.prod` 값을 출력하지 않은 상태로 `git status --short`, `git branch -vv`, `git diff`, 삭제/미추적 파일 목록을 `~/.travel-hunter-recovery/<timestamp>/`에 저장한다.
+2. 대상 브랜치와 SHA를 확인한다. 개발 서버 기본값은 clean `develop` / `origin/develop`이다.
+3. reset/clean/rebuild/migration/smoke 계획을 `CHECKLIST.md`, `.omx/plans/*`, 또는 별도 handoff 문서에 남긴 뒤 실행한다.
+4. 복구 후 public/API smoke와 서버 source-boundary smoke 결과를 기록한다.
+
 ## 배포 전
 
 - [ ] 배포 대상 브랜치가 맞다.

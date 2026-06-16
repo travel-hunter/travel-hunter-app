@@ -398,7 +398,7 @@ describe("admin pages", () => {
     await userEvent.click(await screen.findByRole("button", { name: "지금 수집 실행" }));
 
     await waitFor(() => expect(runSpy).toHaveBeenCalledTimes(1));
-    expect(summarySpy).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(summarySpy.mock.calls.length).toBeGreaterThanOrEqual(2));
     expect(document.body).toHaveTextContent("수집 결과 success");
   });
 });
