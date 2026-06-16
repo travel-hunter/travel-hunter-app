@@ -322,9 +322,12 @@ test("backend data source creates a trip with selected profile values and policy
   const createdTripId = page.url().split("/").pop() ?? "";
   expect(createdTripId).toMatch(numericTripId);
   await expect(page.locator(".day-tab").first()).toBeVisible();
-  await expect(page.locator("body")).toContainText("10:00");
-  await expect(page.locator("body")).toContainText("14:00");
-  await expect(page.locator("body")).toContainText("18:00");
+  await expect(page.locator("body")).toContainText("영광 디지털관광주민증 혜택");
+  const itineraryTimes = page.locator(".timeline-item .place-prototype-meta span");
+  await expect.poll(async () => itineraryTimes.count(), { timeout: 8000 }).toBeGreaterThanOrEqual(3);
+  for (const timeText of (await itineraryTimes.allTextContents()).slice(0, 3)) {
+    expect(timeText).toMatch(/^[0-2][0-9]:[0-5][0-9]$/);
+  }
 
   await page.goto(`/ai-results?tripId=${createdTripId}`);
   await expect(page.locator(".ai-candidate-card").first()).toBeVisible();

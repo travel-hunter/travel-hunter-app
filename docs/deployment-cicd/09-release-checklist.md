@@ -9,8 +9,9 @@
 - 서버 repo 경로: `/home/deploy/travel-hunter-app`
 - compose 파일: `compose.tunnel.yaml`
 - 서버 runtime env: `/home/deploy/travel-hunter-app/deploy/.env.prod` (`chmod 600`, gitignored, 값 출력 금지)
-- 배포 SHA: `09f3a4dfe6673080c4c049ae849e60b707281084`
+- 배포 SHA: `9169990aac582e4608648761b8633e56a429cbd5`
 - 개발 도메인: `https://dev.travel-hunter.co.kr`
+- 2026-06-16 복구 기준: 서버 dirty worktree 백업 `/home/deploy/.travel-hunter-recovery/20260616T011723Z` 보존 후 clean `develop`@`9169990aac582e4608648761b8633e56a429cbd5`로 reset/rebuild/migration/smoke 완료.
 
 남은 개발 서버 smoke 값은 repo 밖의 서버 전용 파일에만 둔다.
 
@@ -43,6 +44,15 @@ chmod 600 ~/.travel-hunter-smoke.env
 - Docker daemon/network DNS 변경은 별도 Docker DNS 작업명세서와 명시 승인 후에만 실행한다.
 - production 서버/DNS/Cloudflare/OAuth provider 변경은 production 작업명세서를 먼저 보여주고 명시 승인 후에만 실행한다.
 - DB 초기화, Docker volume 삭제, secret 출력, production 변경은 별도 승인 없이는 하지 않는다.
+
+### Dirty worktree 복구 절차
+
+서버 repo가 dirty이면 compose build를 금지하고 아래 순서를 먼저 따른다.
+
+1. `deploy/.env.prod` 값을 출력하지 않은 상태로 `git status --short`, `git branch -vv`, `git diff`, 삭제/미추적 파일 목록을 `~/.travel-hunter-recovery/<timestamp>/`에 저장한다.
+2. 대상 브랜치와 SHA를 확인한다. 개발 서버 기본값은 clean `develop` / `origin/develop`이다.
+3. reset/clean/rebuild/migration/smoke 계획을 `CHECKLIST.md`, `.omx/plans/*`, 또는 별도 handoff 문서에 남긴 뒤 실행한다.
+4. 복구 후 public/API smoke와 서버 source-boundary smoke 결과를 기록한다.
 
 ## 배포 전
 

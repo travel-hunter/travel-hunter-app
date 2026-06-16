@@ -2,10 +2,10 @@
 
 ## Current Status
 
-- Latest validated scope: email-first signup merge into `develop`, including pending signup storage, signup verification/complete API contract, frontend signup/verify flow, invite redirect after signup, onboarding redirect helpers, and preservation of develop admin/external-source/trip-revision work.
-- Last validation date: 2026-06-15.
-- Current release posture: local backend pytest, Alembic offline SQL, frontend typecheck/unit/build/e2e, compose config, API golden JSON parse, whitespace checks, and UTF-8 file scan are validated on `merge/email-first-to-develop` before pushing to `origin/develop`. Existing PR #53 remains a separate draft PR to `main`.
-- Keep this file slim: current status, recent validation evidence, and active risks only. Historical detail belongs in git history or source-specific docs.
+- Latest validated scope: local `develop` reconciliation onto `origin/develop`, development-server stale-build recovery on `dev.travel-hunter.co.kr`, and frontend release-gate refresh after Vite/Vitest audit remediation.
+- Last validation date: 2026-06-16.
+- Current release posture: the development server is restored to clean `origin/develop` at `9169990aac582e4608648761b8633e56a429cbd5`; the local worktree now contains validated frontend dependency/test updates and recovery docs that still need branch-protection-safe publication before any dev-server redeploy. Production release remains blocked on external DNS/Cloudflare/provider authority before any production stack mutation.
+- Keep this file slim: current status, recent validation evidence, and active risks only. Historical detail belongs in git history, source-specific docs, or `.omx/evidence/*`.
 
 ## Current Source Documents
 
@@ -13,20 +13,26 @@
 - DB schema: `docs/db-schema-current.md`, `docs/db-schema-current.sql`.
 - Invite/trip workflow spec: `docs/specs/invite-trip-edit-workflow.md` via `docs/specs/spec-index.md`.
 - Screen and logic status: `docs/screen-feature-status-screens.md`, `docs/screen-feature-status-logic.md`.
-- Deployment/CICD: `docs/deployment-cicd/README.md` and linked deployment guides.
+- Deployment/CICD: `docs/deployment-cicd/README.md` and linked deployment guides, especially `docs/deployment-cicd/09-release-checklist.md`.
+- Dev-server recovery/runtime evidence: `.omx/specs/deep-interview-dev-server-stale-build-recovery.md`, `.omx/plans/dev-server-recovery-20260616.md`, `.omx/ultragoal/ledger.jsonl`, `.omx/evidence/dev-server-runtime-deploy-20260612.md`, `.omx/evidence/dev-server-runtime-gates-20260612.md`, `.omx/evidence/docker-dns-fix-20260612.md`, `.omx/evidence/production-preflight-20260612.md`.
 
 ## Latest Validations
 
-- 2026-06-15 develop merge pre-push validation passed: `cd backend && .venv/bin/python -m pytest` → 463 passed / 1 warning; `cd backend && .venv/bin/alembic upgrade head --sql >/tmp/travel-hunter-develop-alembic.sql` → passed with linear `0018_add_trip_revision -> 0019_email_first_signup`; `cd frontend && npm test` → 18 files / 162 tests passed; `cd frontend && npm run typecheck` → passed; `cd frontend && npm run build` → passed; `cd frontend && npm run test:e2e` → 10 Playwright backend-mode tests passed; `docker compose -f compose.yaml config >/tmp/travel-hunter-compose.yaml` → passed; `git diff --check --cached`, `git diff --check`, and `python3 -m json.tool .agent/evals/api-contract-golden.json >/dev/null` → passed.
-- 2026-06-15 targeted email-first regression validation passed before full suite: backend auth/schema subset `tests/test_auth_db_service.py tests/test_auth_db_routes.py tests/test_auth_edge_cases.py tests/test_db_schema.py` → 63 passed / 1 warning; frontend invite signup redirect test file `npm test -- src/app/__tests__/invite-oauth.test.tsx` → 21 passed.
-- 2026-06-15 merge safety checks passed: feature commit `f37b483` was not an ancestor of `origin/develop` before merge; merge branch was created from `origin/develop` to avoid pushing local `develop` commit `fdb4e60`; no unresolved conflict files remained before validation.
+- 2026-06-16 frontend release-gate refresh passed after Vite/Vitest audit remediation: `npm run --prefix frontend typecheck` passed; `npm --prefix frontend test` passed (18 files / 162 tests); `npm --prefix frontend audit --audit-level=high` passed (0 vulnerabilities); `npm run --prefix frontend build` passed; `npm run --prefix frontend test:e2e` passed (10 Playwright backend-mode tests).
+- 2026-06-16 targeted frontend regression passed: `npm --prefix frontend run test:mojibake` passed; `cd frontend && node scripts/run-backend-command.cjs ./node_modules/.bin/vitest run src/pages/admin/AdminPages.test.tsx` passed (1 file / 9 tests).
+- 2026-06-16 local branch reconciliation step passed: current `develop` was rebased onto `origin/develop` `9169990aac582e4608648761b8633e56a429cbd5`; backup branch `backup/develop-local-20260616T013555Z` and patch `.omx/evidence/local-recovery-docs-before-reconcile-20260616T013555Z.patch` preserve the pre-reconcile local docs state.
+- 2026-06-16 development-server stale-build recovery passed: dirty server state was backed up under `/home/deploy/.travel-hunter-recovery/20260616T011723Z`; server repo was switched to clean `develop` and reset to `origin/develop` `9169990aac582e4608648761b8633e56a429cbd5`; `deploy/.env.prod` stayed present and unprinted.
+- 2026-06-16 development-server rebuild/migration/public smoke passed: compose config/build/up and backend `alembic upgrade head` completed; backend/db were healthy; frontend/caddy/cloudflared were running; `/api/health`, `/login`, `/signup`, `/signup/verify`, `/policies`, unauthenticated `/home` redirect, `/api/policies`, `/api/regions`, and server source-boundary smoke passed.
+- 2026-06-15 develop merge pre-push validation passed for email-first signup: backend pytest, Alembic offline SQL, frontend unit/typecheck/build/e2e, compose config, API golden JSON parse, whitespace checks, and UTF-8 scan passed before merge to `origin/develop`.
 
 ## Remaining Risks
 
-- Real SMTP signup verification inbox delivery still needs a development-server/runtime smoke with actual SMTP credentials; do not print or commit those credentials.
-- Real OAuth provider callback browser checks and domain-dependent provider checks remain separate release gates.
-- Development-server deployment still depends on valid SSH origin host/auth; previous dev-domain health checks returned 502 before redeploy.
-- `docs/db-schema-current.sql` was manually reconciled during merge rather than regenerated from pg_dump; Alembic offline SQL and schema tests passed, but regenerate from a live migrated DB before a schema-doc-only release gate if exact dump fidelity is required.
+- The local release-gate fix, recovery docs, and frontend audit remediation are not yet published to a remote branch or merged to `origin/develop`; publication must respect repository branch protection.
+- The development server is intentionally clean at `origin/develop` and does not include the local frontend audit remediation until the remote publication path is complete and a new dev-server redeploy is performed.
+- Production DNS for `travel-hunter.co.kr` and `api.travel-hunter.co.kr` is still unresolved from local/remote probes.
+- Cloudflare API/token/cert authority is not present in the current local or server environment; production public routing and provider console changes cannot be executed by the agent until that authority is provided securely or the user applies those console changes.
+- Existing dev runtime env has required secret keys, but domain/redirect values are dev-domain scoped; production env must use production-domain values and a production-confirmed Cloudflare tunnel/token before stack start.
+- Production stack deploy and public production smoke have not been executed because the Cloudflare/DNS no-go line is still active.
 
 ## Cleanup Policy
 
