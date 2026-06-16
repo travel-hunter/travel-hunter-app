@@ -46,6 +46,8 @@ curl -fsS https://<domain>/api/health
 ## Smoke Test
 
 - [ ] `https://<domain>/api/health` returns ok.
+- [ ] `https://<domain>/api/ops/external-collection` returns scheduler cadence and last collection status without changing `/api/health`.
+- [ ] `https://<domain>/api/ops/external-collection/quality?style=맛집&region=부산&limit=3` returns DB-backed collection quality counts and recommendation preview without live fetch.
 - [ ] `https://<domain>/login` renders.
 - [ ] 로그인 성공.
 - [ ] 로그인 실패 메시지 확인.

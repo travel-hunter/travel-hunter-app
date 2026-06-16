@@ -5,7 +5,13 @@ import { appDataApi, type Policy } from "../api";
 import { useAsyncResource } from "../api/useAsyncResource";
 import { useSession } from "../app/session";
 import { ErrorState, LoadingState } from "../components/ui";
-import { buildHomeDestinations, getDeadlinePolicies, getFeaturedPolicy, getHomePolicyIcon } from "../data/displayConfig";
+import {
+  buildHomeDestinations,
+  buildHomeDestinationsFromRegionRecommendations,
+  getDeadlinePolicies,
+  getFeaturedPolicy,
+  getHomePolicyIcon,
+} from "../data/displayConfig";
 import { dday } from "../utils";
 
 export function HomePage() {
@@ -13,11 +19,16 @@ export function HomePage() {
   const previewUser = appDataApi.getPreviewUser();
   const { data: policies, error: policiesError, isLoading: policiesLoading } = useAsyncResource(() => appDataApi.listPolicies(), []);
   const { data: trips, error: tripsError, isLoading: tripsLoading } = useAsyncResource(() => appDataApi.listTrips(), []);
+  const { data: regionRecommendations } = useAsyncResource(
+    () => appDataApi.listRegionRecommendations({ style: profile.style, region: profile.region, limit: 3 }),
+    [profile.region, profile.style],
+  );
   const name = currentUser?.nickname ?? previewUser.nickname ?? "여행자";
   const featuredPolicy = getFeaturedPolicy(policies);
   const featuredTrip = trips?.[0];
   const deadlinePolicies = getDeadlinePolicies(policies, 4);
-  const homeDestinations = buildHomeDestinations(policies);
+  const recommendedDestinations = buildHomeDestinationsFromRegionRecommendations(regionRecommendations);
+  const homeDestinations = recommendedDestinations.length > 0 ? recommendedDestinations : buildHomeDestinations(policies);
   const avatarLabel = name.trim().slice(0, 1).toUpperCase() || "T";
   const aiCardTo = featuredTrip ? `/trips/${featuredTrip.id}` : "/trips/new";
 

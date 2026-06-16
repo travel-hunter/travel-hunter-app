@@ -111,7 +111,7 @@ def test_trip_to_api_includes_owner_when_owner_is_not_a_member() -> None:
     assert payload["people"] == ["Test User", "Minseo"]
 
 
-def test_get_trip_resolves_numeric_id_and_legacy_alias(monkeypatch) -> None:
+def test_get_trip_resolves_numeric_id_only(monkeypatch) -> None:
     fake_db = object()
     user = make_user()
     trip = make_trip()
@@ -121,36 +121,23 @@ def test_get_trip_resolves_numeric_id_and_legacy_alias(monkeypatch) -> None:
         "get_accessible_trip_by_id",
         lambda db, trip_id, user_id: trip if db is fake_db and trip_id == 7 and user_id == 1 else None,
     )
-    monkeypatch.setattr(
-        trip_service.trip_repository,
-        "get_seed_alias_trip",
-        lambda db, **kwargs: trip
-        if db is fake_db and kwargs["user_id"] == 1 and kwargs["owner_email"] == "test.user@example.com"
-        else None,
-    )
 
     numeric = trip_service.get_trip("7", fake_db, user)
-    legacy = trip_service.get_trip("jeju-3-days", fake_db, user)
-    missing = trip_service.get_trip("missing-trip", fake_db, user)
+    missing_numeric = trip_service.get_trip("8", fake_db, user)
 
     assert numeric is not None
     assert numeric["id"] == "7"
-    assert legacy is not None
-    assert legacy["id"] == "7"
-    assert missing is None
+    assert missing_numeric is None
 
 
-def test_get_trip_rejects_noncanonical_numeric_handles(monkeypatch) -> None:
+def test_get_trip_rejects_noncanonical_and_non_numeric_handles(monkeypatch) -> None:
     fake_db = object()
     user = make_user()
     calls: list[str] = []
+    non_numeric_handle = "-".join(["jeju", "3", "days"])
 
     def unexpected_numeric_lookup(*_args):
         calls.append("numeric")
-        return None
-
-    def unexpected_alias_lookup(*_args, **_kwargs):
-        calls.append("alias")
         return None
 
     monkeypatch.setattr(
@@ -158,12 +145,9 @@ def test_get_trip_rejects_noncanonical_numeric_handles(monkeypatch) -> None:
         "get_accessible_trip_by_id",
         unexpected_numeric_lookup,
     )
-    monkeypatch.setattr(
-        trip_service.trip_repository,
-        "get_seed_alias_trip",
-        unexpected_alias_lookup,
-    )
 
+    assert trip_service.get_trip(non_numeric_handle, fake_db, user) is None
+    assert trip_service.get_trip("missing-trip", fake_db, user) is None
     assert trip_service.get_trip("001", fake_db, user) is None
     assert trip_service.get_trip("0", fake_db, user) is None
     assert trip_service.get_trip("1.0", fake_db, user) is None
@@ -634,7 +618,7 @@ def test_confirm_invite_sent_updates_active_invite_role(monkeypatch) -> None:
 
 
 def install_create_trip_stubs(monkeypatch, *, policy: Policy | None = None):
-    captured: dict[str, object] = {"trip_days": []}
+    captured: dict[str, object] = {"trip_days": [], "trip_places": [], "recommendations": []}
     created_trip = make_trip()
     created_trip.id = 11
 
@@ -653,11 +637,17 @@ def install_create_trip_stubs(monkeypatch, *, policy: Policy | None = None):
         )
         return TripDay(id=day_number, trip_id=trip_id, day_number=day_number, date=date_value)
 
+    def add_trip_place_stub(_db, **kwargs):
+        captured["trip_places"].append(kwargs)
+
+    def add_recommendation_stub(_db, **kwargs):
+        captured["recommendations"].append(kwargs)
+
     monkeypatch.setattr(trip_service.trip_repository, "create_trip", create_trip_stub)
     monkeypatch.setattr(trip_service.trip_repository, "add_trip_member", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(trip_service.trip_repository, "add_trip_day", add_trip_day_stub)
-    monkeypatch.setattr(trip_service.trip_repository, "add_trip_place", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(trip_service.trip_repository, "add_recommendation", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(trip_service.trip_repository, "add_trip_place", add_trip_place_stub)
+    monkeypatch.setattr(trip_service.trip_repository, "add_recommendation", add_recommendation_stub)
     monkeypatch.setattr(trip_service, "_ensure_invite", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         trip_service.trip_repository,
@@ -671,6 +661,48 @@ def install_create_trip_stubs(monkeypatch, *, policy: Policy | None = None):
 
     monkeypatch.setattr(trip_service.trip_repository, "add_trip_policy", add_trip_policy_stub)
     return captured
+
+
+def test_create_trip_generates_catalog_places_and_recommendations(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    captured = install_create_trip_stubs(monkeypatch)
+
+    trip_service.create_trip(
+        fake_db,
+        user,
+        CreateTripRequest(region="제주", style="자연", durationDays=2),
+    )
+
+    assert len(captured["trip_days"]) == 2
+    assert len(captured["trip_places"]) == 6
+    assert [place["visit_time"] for place in captured["trip_places"][:3]] == [time(10), time(14), time(18)]
+    assert captured["trip_places"][0]["place_name"] == "성산 일출봉"
+    assert captured["trip_places"][0]["order_num"] == 1
+    assert captured["trip_places"][0]["memo"] == "자연 · 제주 동부"
+    assert len(captured["recommendations"]) == 1
+    recommendation_result = captured["recommendations"][0]["result"]
+    assert recommendation_result[0]["title"] == "성산 일출봉"
+    assert recommendation_result[0]["meta"].startswith("Day 1 · 10:00")
+    assert fake_db.commits == 1
+
+
+def test_create_trip_persists_empty_recommendations_when_catalog_has_no_region(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    captured = install_create_trip_stubs(monkeypatch)
+
+    trip_service.create_trip(
+        fake_db,
+        user,
+        CreateTripRequest(region="경주", style="자연", durationDays=2),
+    )
+
+    assert len(captured["trip_days"]) == 2
+    assert captured["trip_places"] == []
+    assert len(captured["recommendations"]) == 1
+    assert captured["recommendations"][0]["result"] == []
+    assert fake_db.commits == 1
 
 
 def test_create_trip_uses_region_and_style_payload(monkeypatch) -> None:

@@ -2,13 +2,13 @@
 
 ## 기준
 
-- 기준일: 2026-05-19
-- 기준 Alembic head: `0009_add_trip_status`
+- 기준일: 2026-05-21
+- 기준 Alembic head: `0011_phone_verification_codes`
 - PostgreSQL: 16.13
 - SQL 산출물: `docs/db-schema-current.sql`
 - 생성 방식: fresh PostgreSQL DB에 `alembic upgrade head`를 적용한 뒤 `pg_dump --schema-only --no-owner --no-privileges`로 추출했다.
 
-이 문서는 현재 앱이 사용하는 PostgreSQL schema의 기준 문서다. 초기 SQL 기준본 이후 Alembic migration `0002`~`0009`가 적용된 현재 구조를 설명한다.
+이 문서는 현재 앱이 사용하는 PostgreSQL schema의 기준 문서다. 초기 SQL 기준본 이후 Alembic migration `0002`~`0010`이 적용된 현재 구조를 설명한다.
 
 ## 테이블 그룹
 
@@ -25,6 +25,10 @@ Policy:
 - `policies`
 - `policy_documents`
 - `user_saved_policies`
+
+External collection:
+
+- `external_source_records`
 
 Trip:
 
@@ -52,6 +56,8 @@ Migration metadata:
 - `user_notification_settings`
 - `notification_deliveries`
 - `password_reset_tokens`
+- `phone_verification_codes`
+- `external_source_records`
 - `alembic_version`
 
 추가 컬럼:
@@ -63,6 +69,41 @@ Migration metadata:
 - `policies.apply_url`
 - `trip_invites.role`
 - `trips.status`
+
+## `phone_verification_codes`
+
+`phone_verification_codes`는 알림 연락처 OTP 실인증을 위한 단기 인증 코드 저장 테이블이다. 원문 인증번호는 저장하지 않고 `code_hash`만 보관하며, dev/test provider boundary가 발송을 담당한다.
+
+주요 컬럼:
+
+- `id`
+- `user_id`
+- `phone_number`
+- `code_hash`
+- `expires_at`
+- `attempt_count`
+- `verified_at`
+- `created_at`
+
+## `external_source_records`
+
+`external_source_records`는 공식 외부 출처에서 수집한 원문과 파생 레코드를 내부 정책/추천 입력으로 변환하기 전에 보존하는 수집 기준 테이블이다. 목록/상세 원문, 출처 메타데이터, 정규화된 지역/상태/혜택/선호도 필드, 신뢰도와 freshness 정보를 함께 저장해 후속 collector, normalizer, recommendation API가 같은 근거 데이터를 재사용할 수 있게 한다.
+
+주요 컬럼 그룹:
+
+- `id`
+- `source_name` / `source_type` / `source_url` / `source_category`
+- `external_id` / `canonical_key`
+- `detail_url` / `collected_page_url`
+- `title` / `organizer_text` / `organizers`
+- `region` / `city` / `is_nationwide`
+- `status_text` / `status` / `start_date` / `end_date`
+- `benefit_text` / `benefit_value_text` / `extracted_amount_krw` / `extracted_discount_percent` / `benefit_value_type`
+- `tags` / `contact_text` / `inferred_travel_styles`
+- `confidence` / `field_completeness`
+- `raw_list_text` / `raw_detail_text` / `raw_payload`
+- `last_fetched_at` / `last_verified_at` / `freshness_status`
+- `created_at` / `updated_at`
 
 ## 운영 기준
 

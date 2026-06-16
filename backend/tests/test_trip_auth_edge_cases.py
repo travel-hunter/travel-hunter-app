@@ -168,11 +168,6 @@ def test_nonmember_get_trip_returns_none(monkeypatch) -> None:
         "get_accessible_trip_by_id",
         lambda db, trip_id, user_id: None,
     )
-    monkeypatch.setattr(
-        trip_service.trip_repository,
-        "get_seed_alias_trip",
-        lambda db, **kwargs: None,
-    )
 
     result = trip_service.get_trip("10", db=object(), user=outsider)
 

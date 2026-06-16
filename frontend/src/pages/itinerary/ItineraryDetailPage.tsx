@@ -174,7 +174,10 @@ export function ItineraryDetailPage() {
   const [activeDay, setActiveDay] = useState(1);
   const [viewMode, setViewMode] = useState<TripDetailViewMode>(() => parseTripDetailViewMode(searchParams.get("view")));
   const [selectedMapPlaceId, setSelectedMapPlaceId] = useState<string | null>(() => searchParams.get("place"));
-  const { data: loadedTrip, error, isLoading } = useAsyncResource(() => appDataApi.getTrip(tripId), [tripId]);
+  const { data: loadedTrip, error, isLoading } = useAsyncResource(() => {
+    if (!tripId) return Promise.reject(new Error("Trip not found"));
+    return appDataApi.getTrip(tripId);
+  }, [tripId]);
   const [trip, setTrip] = useState<Trip | null>(null);
   const [placeEditor, setPlaceEditor] = useState<{ mode: "add"; dayNumber: number } | { mode: "edit"; dayNumber: number; place: ItineraryPlace } | null>(null);
   const [placeForm, setPlaceForm] = useState<TripPlaceRequest>({ time: "", label: "", meta: "" });

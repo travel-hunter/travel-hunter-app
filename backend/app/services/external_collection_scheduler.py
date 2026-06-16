@@ -1,0 +1,204 @@
+import asyncio
+import logging
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import date, datetime, time
+from zoneinfo import ZoneInfo
+
+from sqlalchemy.orm import Session, sessionmaker
+
+from app.core.config import Settings, settings
+from app.db.session import get_session_factory
+from app.services.travelmonth_collection import CollectionResult
+from app.services.travelmonth_live_collector import (
+    collect_regional_benefits_from_live_source,
+)
+from app.services.notification_scheduler import parse_run_at
+
+KST = ZoneInfo("Asia/Seoul")
+logger = logging.getLogger(__name__)
+_active_external_collection_scheduler: "ExternalCollectionScheduler | None" = None
+
+
+@dataclass
+class ExternalCollectionSchedulerStatus:
+    last_attempted_run_date: date | None = None
+    last_successful_run_date: date | None = None
+    last_parsed_count: int | None = None
+    last_outcome: str | None = None
+    last_error: str | None = None
+
+
+def kst_now() -> datetime:
+    return datetime.now(KST)
+
+
+def run_external_collection_once(
+    *,
+    today: date | None = None,
+    session_factory: sessionmaker[Session] | None = None,
+) -> CollectionResult:
+    run_date = today or kst_now().date()
+    factory = session_factory or get_session_factory()
+    db = factory()
+    try:
+        return collect_regional_benefits_from_live_source(db, today=run_date)
+    finally:
+        db.close()
+
+
+class ExternalCollectionScheduler:
+    def __init__(
+        self,
+        *,
+        run_at: time,
+        poll_seconds: int,
+        min_parsed_count: int = 1,
+        now_provider: Callable[[], datetime] = kst_now,
+        collect: Callable[[date], CollectionResult] | None = None,
+        sleep: Callable[[float], object] = asyncio.sleep,
+    ) -> None:
+        self.run_at = run_at
+        self.poll_seconds = poll_seconds
+        self.min_parsed_count = min_parsed_count
+        self.now_provider = now_provider
+        self.collect = collect or (lambda today: run_external_collection_once(today=today))
+        self.sleep = sleep
+        self.last_successful_run_date: date | None = None
+        self.status = ExternalCollectionSchedulerStatus()
+
+    def run_once_if_due(self) -> bool:
+        now = self.now_provider()
+        today = now.date()
+        if self.last_successful_run_date == today:
+            return False
+        if now.timetz().replace(tzinfo=None) < self.run_at:
+            return False
+
+        self.status.last_attempted_run_date = today
+        try:
+            result = self.collect(today)
+        except Exception as exc:
+            self.status.last_parsed_count = None
+            self.status.last_outcome = "error"
+            self.status.last_error = str(exc)
+            logger.exception("External collection failed.")
+            return False
+
+        if result.parsed_count < self.min_parsed_count:
+            self.status.last_parsed_count = result.parsed_count
+            self.status.last_outcome = "below_threshold"
+            self.status.last_error = (
+                f"parsed {result.parsed_count} records, "
+                f"below minimum {self.min_parsed_count}"
+            )
+            logger.error(
+                "External collection parsed %s records for %s, below minimum %s.",
+                result.parsed_count,
+                today.isoformat(),
+                self.min_parsed_count,
+            )
+            return False
+
+        self.last_successful_run_date = today
+        self.status.last_successful_run_date = today
+        self.status.last_parsed_count = result.parsed_count
+        self.status.last_outcome = "success"
+        self.status.last_error = None
+        logger.info(
+            "External collection completed for %s with %s parsed records.",
+            today.isoformat(),
+            result.parsed_count,
+        )
+        return True
+
+    async def run_forever(self) -> None:
+        try:
+            while True:
+                await asyncio.to_thread(self.run_once_if_due)
+                await self.sleep(self.poll_seconds)
+        except asyncio.CancelledError:
+            logger.info("External collection scheduler stopped.")
+            raise
+
+
+def validate_external_collection_scheduler_settings(
+    settings_obj: Settings = settings,
+) -> None:
+    if not settings_obj.external_collection_scheduler_enabled:
+        return
+    if not settings_obj.database_url:
+        raise RuntimeError(
+            "DATABASE_URL is required when EXTERNAL_COLLECTION_SCHEDULER_ENABLED=true."
+        )
+    try:
+        parse_run_at(settings_obj.external_collection_run_at)
+    except ValueError as exc:
+        raise ValueError(
+            "EXTERNAL_COLLECTION_RUN_AT must use HH:MM or HH:MM:SS format."
+        ) from exc
+    if settings_obj.external_collection_poll_seconds < 1:
+        raise ValueError("EXTERNAL_COLLECTION_POLL_SECONDS must be greater than 0.")
+    if settings_obj.external_collection_min_parsed_count < 0:
+        raise ValueError("EXTERNAL_COLLECTION_MIN_PARSED_COUNT must be 0 or greater.")
+
+
+def get_external_collection_ops_health(
+    settings_obj: Settings = settings,
+) -> dict[str, object]:
+    status = (
+        _active_external_collection_scheduler.status
+        if _active_external_collection_scheduler is not None
+        else ExternalCollectionSchedulerStatus()
+    )
+    return {
+        "schedulerEnabled": settings_obj.external_collection_scheduler_enabled,
+        "runAt": settings_obj.external_collection_run_at,
+        "pollSeconds": settings_obj.external_collection_poll_seconds,
+        "minParsedCount": settings_obj.external_collection_min_parsed_count,
+        "lastAttemptedRunDate": status.last_attempted_run_date,
+        "lastSuccessfulRunDate": status.last_successful_run_date,
+        "lastParsedCount": status.last_parsed_count,
+        "lastOutcome": status.last_outcome,
+        "lastError": status.last_error,
+    }
+
+
+def build_external_collection_scheduler(
+    settings_obj: Settings = settings,
+) -> ExternalCollectionScheduler:
+    return ExternalCollectionScheduler(
+        run_at=parse_run_at(settings_obj.external_collection_run_at),
+        poll_seconds=settings_obj.external_collection_poll_seconds,
+        min_parsed_count=settings_obj.external_collection_min_parsed_count,
+    )
+
+
+def start_external_collection_scheduler(
+    settings_obj: Settings = settings,
+) -> asyncio.Task[None] | None:
+    global _active_external_collection_scheduler
+    if not settings_obj.external_collection_scheduler_enabled:
+        _active_external_collection_scheduler = None
+        return None
+
+    validate_external_collection_scheduler_settings(settings_obj)
+    scheduler = build_external_collection_scheduler(settings_obj)
+    _active_external_collection_scheduler = scheduler
+    return asyncio.create_task(
+        scheduler.run_forever(),
+        name="travel-hunter-external-collection-scheduler",
+    )
+
+
+async def stop_external_collection_scheduler(task: asyncio.Task[None] | None) -> None:
+    global _active_external_collection_scheduler
+    if task is None:
+        _active_external_collection_scheduler = None
+        return
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+    _active_external_collection_scheduler = None

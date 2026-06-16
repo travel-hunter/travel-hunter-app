@@ -10,6 +10,7 @@ import { clearDraft, createDraftKey, readDraft, saveDraft } from "../../utils/dr
 import { DraftRestoreNotice } from "./_shared";
 
 const durationOptions = [2, 3, 4, 5] as const;
+const profileOptions = appDataApi.getProfileOptions();
 const tripCreateMaxDays = 5;
 const tripCreateMinDays = 2;
 type DurationDays = (typeof durationOptions)[number];
@@ -258,6 +259,22 @@ export function ItineraryCreatePage() {
                   <strong>{region}</strong>
                 </button>
               ))}
+            </div>
+            <div className="prototype-style-choice">
+              <span className="meta">어떤 코스를 선호하나요?</span>
+              <div className="prototype-region-grid" aria-label="장소 취향 선택">
+                {profileOptions.travelStyles.map((style) => (
+                  <button
+                    aria-pressed={profile.style === style}
+                    className={profile.style === style ? "active" : ""}
+                    key={style}
+                    onClick={() => updateProfile("style", style)}
+                    type="button"
+                  >
+                    <strong>{style}</strong>
+                  </button>
+                ))}
+              </div>
             </div>
           </section>
         )}

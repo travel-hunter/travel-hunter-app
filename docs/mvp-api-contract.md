@@ -2,8 +2,8 @@
 
 ## 기준
 
-- 기준일: 2026-05-19
-- 기준 브랜치: `feat/prototype-to-react`
+- 기준일: 2026-05-20
+- 기준 브랜치: `develop`
 - Base URL: `http://localhost:8000/api` (local dev), `https://<domain>/api` (staging/production)
 - 인증: Access Token을 `Authorization: Bearer <token>` 헤더로 전달한다.
 - Refresh Token: HttpOnly cookie (`refresh_token`)로 관리한다.
@@ -49,6 +49,68 @@ DB 연결 상태 포함 서버 헬스 확인. 인증 불필요.
 ---
 
 ## 인증 (`/api/auth`)
+
+## Ops
+
+### GET /ops/external-collection
+
+TravelMonth external collection scheduler 운영 확인용 상태를 반환한다. 기존 `/health`와 `/api/health` 응답 계약은 변경하지 않는다. 인증은 1차 운영 검증 범위에서 요구하지 않는다.
+
+**Response 200**
+```json
+{
+  "schedulerEnabled": false,
+  "runAt": "03:00",
+  "pollSeconds": 60,
+  "minParsedCount": 1,
+  "lastAttemptedRunDate": null,
+  "lastSuccessfulRunDate": null,
+  "lastParsedCount": null,
+  "lastOutcome": null,
+  "lastError": null
+}
+```
+
+`lastOutcome`은 현재 backend process의 in-memory scheduler snapshot이며, 값은 `success`, `below_threshold`, `error`, 또는 `null`이다. process 재시작 후에는 마지막 실행 상태가 `null`로 돌아간다.
+
+---
+
+### GET /ops/external-collection/quality
+
+TravelMonth regional benefit 수집 품질 리포트를 반환한다. 현재 DB의 `external_source_records`를 집계하며 live network fetch는 실행하지 않는다.
+
+**Query params**
+
+| name | type | description |
+|------|------|-------------|
+| style | string, optional | 추천 preview에 전달할 취향 보정 값 |
+| region | string, optional | 추천 preview에 전달할 최종 tie-breaker 지역 |
+| limit | number, optional | 추천 preview 개수. 기본 3, 1~10 |
+
+**Response 200**
+```json
+{
+  "sourceName": "여행가는 달",
+  "sourceCategory": "regional_benefit",
+  "totalRecords": 58,
+  "freshRecords": 58,
+  "activeRecords": 58,
+  "regionalRecords": 42,
+  "nationwideRecords": 16,
+  "recordsWithAmount": 21,
+  "recordsWithStyles": 37,
+  "latestFetchedAt": "2026-05-21T00:00:00",
+  "latestVerifiedAt": "2026-05-21T00:00:00",
+  "regions": [],
+  "recommendationPreview": []
+}
+```
+
+`regions`는 지역별 저장 품질 집계이며 `recommendationPreview`는 기존 `GET /recommendations/regions`와 같은 ranking service를 사용한다.
+
+---
+
+## Auth (`/api/auth`)
 
 ### POST /auth/email-check
 
@@ -330,6 +392,56 @@ OAuth provider callback 처리.
 
 ---
 
+### POST /me/contact/verification/request
+
+알림 연락처 전화번호 인증번호를 요청한다. provider boundary는 `PHONE_VERIFICATION_PROVIDER=dev`를 기본으로 사용하며, `solapi`로 설정하면 SOLAPI SMS provider가 같은 요청 경로에서 인증번호를 발송한다.
+
+**Request**
+```json
+{ "phoneNumber": "010-1234-5678" }
+```
+
+- `phoneNumber`: optional. 값이 있으면 공백 제거 후 `users.phone_number`에 저장하고 번호 변경 시 `users.phone_verified_at`을 초기화한다.
+- 값이 없으면 기존 저장 연락처로 인증번호를 발급한다.
+
+**Response 200**
+```json
+{
+  "requested": true,
+  "expiresAt": "2026-05-21T10:05:00",
+  "resendAvailableAt": "2026-05-21T10:01:00"
+}
+```
+
+**Errors**
+- 400: 저장 또는 요청된 전화번호 없음
+
+---
+
+### POST /me/contact/verification/confirm
+
+알림 연락처 인증번호를 확인하고 성공 시 `users.phone_verified_at`을 갱신한다.
+
+**Request**
+```json
+{ "code": "123456" }
+```
+
+- `code`: 숫자 4~8자
+
+**Response 200** ??`ContactInfo`
+```json
+{
+  "phoneNumber": "01012345678",
+  "phoneVerified": true
+}
+```
+
+**Errors**
+- 400: 인증번호 없음, 만료, 불일치, 시도 횟수 초과
+
+---
+
 ### GET /me/notification-settings
 
 마감 알림 설정 조회.
@@ -404,10 +516,52 @@ OAuth provider callback 처리.
 **Response 200**
 ```json
 {
-  "regions": ["서울", "제주", "부산", "강원", "경주"],
-  "travelStyles": ["혼자", "커플", "가족", "친구"],
-  "budgets": ["저렴", "중간", "여유"]
+  "regions": ["제주", "부산", "강원", "전국"],
+  "travelStyles": ["휴식", "맛집", "체험", "자연", "사진"],
+  "budgets": ["1인 30만원 이하", "1인 40만원 이하", "1인 60만원 이하", "상관없음"]
 }
+```
+
+---
+
+## 추천 (`/api/recommendations`)
+
+### GET /recommendations/regions
+
+여행가는 달 등 공식 외부 수집 레코드(`external_source_records`)를 기반으로 지역/목적지 추천 목록을 반환한다. 인증 불필요.
+
+**Query params**
+
+| 이름 | 타입 | 설명 |
+|------|------|------|
+| style | string, optional | `휴식`, `맛집`, `체험`, `자연`, `사진` 같은 장소 취향. 점수 보정에만 사용하며 정책 점수 우선순위를 뒤집지 않는다. |
+| region | string, optional | 사용자 프로필 관심 지역. 정책 수, 마감 임박, 명시 금액, 취향 보정까지 모두 같은 경우에만 최종 tie-breaker로 사용한다. |
+| limit | number, optional | 반환 개수. 기본 3, 1~10. |
+
+**Ranking**
+
+1. 신청 가능한 지역 혜택 수
+2. 마감 임박 혜택 수
+3. 명시 금액 혜택 가치
+4. 취향 일치 수는 동점권 보조 점수로만 사용
+5. 프로필 지역 일치는 마지막 tie-breaker로만 사용
+
+전국 혜택은 지역 후보가 `limit`보다 부족할 때만 fallback으로 포함한다.
+
+**Response 200** — `RegionRecommendation[]`
+```json
+[
+  {
+    "region": "부산",
+    "title": "부산이 지금 좋아요",
+    "reason": "신청 가능한 지역 혜택 4개 · 마감 임박 2개 · 명시 혜택 최대 100,000원을 기준으로 추천합니다.",
+    "policyCount": 4,
+    "endingSoonCount": 2,
+    "estimatedValueKrw": 100000,
+    "score": 86,
+    "styleMatchedCount": 1
+  }
+]
 ```
 
 ---
@@ -461,6 +615,8 @@ OAuth provider callback 처리.
 
 모든 엔드포인트는 인증 필요.
 
+`trip_id` route parameter는 `trips.id`를 문자열화한 numeric string이며 `^[1-9][0-9]*$` 형식만 지원한다. non-numeric handle은 404로 처리한다.
+
 ---
 
 ### GET /trips
@@ -471,7 +627,7 @@ OAuth provider callback 처리.
 ```json
 [
   {
-    "id": "uuid",
+    "id": "1",
     "title": "제주 3일 여행",
     "status": "draft",
     "dates": "2026-07-12 ~ 2026-07-14",
@@ -487,7 +643,7 @@ OAuth provider callback 처리.
     ],
     "days": {
       "1": [
-        { "id": "uuid", "time": "10:00", "label": "공항 도착", "meta": "제주 국제공항" }
+        { "id": "1", "time": "10:00", "label": "공항 도착", "meta": "제주 국제공항" }
       ]
     },
     "currentUserRole": "owner"
@@ -509,8 +665,8 @@ OAuth provider callback 처리.
 {
   "title": "제주 여행",
   "region": "제주",
-  "style": "커플",
-  "description": "우리 첫 제주 여행",
+  "style": "자연",
+  "description": "제주 자연 중심 여행",
   "policySlug": "dgtourcard-2026",
   "durationDays": 3,
   "startDate": "2026-07-12",
@@ -542,7 +698,7 @@ OAuth provider callback 처리.
 
 **Response 200**
 ```json
-{ "tripId": "uuid", "deleted": true }
+{ "tripId": "1", "deleted": true }
 ```
 
 **Errors**
@@ -577,8 +733,8 @@ OAuth provider callback 처리.
 **Response 200**
 ```json
 {
-  "tripId": "uuid",
-  "policyId": "uuid",
+  "tripId": "1",
+  "policyId": "local-vacation",
   "added": true
 }
 ```
@@ -699,7 +855,7 @@ AI 추천 장소 목록 조회.
 ```json
 {
   "id": "uuid",
-  "tripId": "uuid",
+  "tripId": "1",
   "inviteToken": "<token>",
   "inviteUrl": "https://<domain>/invites/<token>/accept",
   "expiresAt": "2026-05-25T00:00:00",

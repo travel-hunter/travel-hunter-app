@@ -78,7 +78,7 @@ export const policies: Policy[] = [
 ];
 
 export const itinerary: Trip = {
-  id: "jeju-3-days",
+  id: "1",
   status: "confirmed",
   title: "제주 3일 여행",
   dates: "2026.06.15 - 06.17",
@@ -134,7 +134,7 @@ export const recommendations: Recommendation[] = [
 ];
 
 export const regions = ["제주", "부산", "강원", "전국"] as const;
-export const travelStyles = ["휴식", "맛집", "자연", "사진"] as const;
+export const travelStyles = ["휴식", "맛집", "체험", "자연", "사진"] as const;
 export const budgets = ["1인 30만원 이하", "1인 40만원 이하", "1인 60만원 이하", "상관없음"] as const;
 
 export function getPolicy(policySlug = "local-vacation") {

@@ -1,4 +1,4 @@
-import { ContactInfo, InviteRole, InviteState, NotificationSettings, Policy, Profile, ProfileOptions, Recommendation, Trip, User } from "./types";
+import { ContactInfo, ContactVerificationRequestResponse, InviteRole, InviteState, NotificationSettings, Policy, Profile, ProfileOptions, Recommendation, RegionRecommendation, Trip, User } from "./types";
 
 export type LoginRequest = {
   email: string;
@@ -102,6 +102,14 @@ export type ContactUpdateRequest = {
   phoneNumber: string | null;
 };
 
+export type ContactVerificationRequest = {
+  phoneNumber?: string | null;
+};
+
+export type ContactVerificationConfirmRequest = {
+  code: string;
+};
+
 export type AppDataApi = {
   getPreviewUser: () => User;
   getProfileOptions: () => ProfileOptions;
@@ -121,9 +129,12 @@ export type AppDataApi = {
   updateProfile: (profile: Partial<Profile>) => Promise<Profile>;
   getContact: () => Promise<ContactInfo>;
   updateContact: (contact: ContactUpdateRequest) => Promise<ContactInfo>;
+  requestContactVerification: (request: ContactVerificationRequest) => Promise<ContactVerificationRequestResponse>;
+  confirmContactVerification: (request: ContactVerificationConfirmRequest) => Promise<ContactInfo>;
   getNotificationSettings: () => Promise<NotificationSettings>;
   updateNotificationSettings: (settings: Pick<NotificationSettings, "deadlineEnabled">) => Promise<NotificationSettings>;
   listPolicies: () => Promise<Policy[]>;
+  listRegionRecommendations: (options?: { style?: string; region?: string; limit?: number }) => Promise<RegionRecommendation[]>;
   getPolicy: (policySlug?: string) => Promise<Policy>;
   savePolicy: (policySlug: string) => Promise<SavePolicyResponse>;
   listSavedPolicies: () => Promise<Policy[]>;
@@ -132,15 +143,15 @@ export type AppDataApi = {
   listTrips: () => Promise<Trip[]>;
   createTrip: (trip?: CreateTripRequest) => Promise<Trip>;
   deleteTrip: (tripId: string) => Promise<DeleteTripResponse>;
-  getTrip: (tripId?: string) => Promise<Trip>;
+  getTrip: (tripId: string) => Promise<Trip>;
   updateTripStatus: (tripId: string, status: TripStatusUpdateRequest) => Promise<Trip>;
   addTripPlace: (tripId: string, dayNumber: number, place: TripPlaceRequest) => Promise<Trip>;
   updateTripPlace: (tripId: string, placeId: string, place: TripPlaceUpdateRequest) => Promise<Trip>;
   moveTripPlace: (tripId: string, placeId: string, move: TripPlaceMoveRequest) => Promise<Trip>;
   deleteTripPlace: (tripId: string, placeId: string) => Promise<Trip>;
   addPolicyToTrip: (tripId: string, policySlug: string) => Promise<TripPolicyResponse>;
-  listRecommendations: (tripId?: string) => Promise<Recommendation[]>;
-  getInviteState: (tripId?: string) => Promise<InviteState>;
-  confirmInviteSent: (tripId?: string, role?: InviteRole) => Promise<InviteState>;
+  listRecommendations: (tripId: string) => Promise<Recommendation[]>;
+  getInviteState: (tripId: string) => Promise<InviteState>;
+  confirmInviteSent: (tripId: string, role?: InviteRole) => Promise<InviteState>;
   acceptInvite: (inviteToken: string) => Promise<InviteState>;
 };

@@ -1,7 +1,9 @@
 from app.models.tables import (
     AuthRefreshToken,
+    ExternalSourceRecord,
     NotificationDelivery,
     PasswordResetToken,
+    PhoneVerificationCode,
     Policy,
     PolicyDocument,
     Recommendation,
@@ -19,8 +21,10 @@ from app.models.tables import (
 
 __all__ = [
     "AuthRefreshToken",
+    "ExternalSourceRecord",
     "NotificationDelivery",
     "PasswordResetToken",
+    "PhoneVerificationCode",
     "Policy",
     "PolicyDocument",
     "Recommendation",

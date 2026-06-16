@@ -50,6 +50,16 @@ class Settings:
     notification_retry_delay_seconds: int = int(
         os.getenv("NOTIFICATION_RETRY_DELAY_SECONDS", "600")
     )
+    external_collection_scheduler_enabled: bool = os.getenv(
+        "EXTERNAL_COLLECTION_SCHEDULER_ENABLED", "false"
+    ).strip().lower() in {"1", "true", "yes", "on"}
+    external_collection_run_at: str = os.getenv("EXTERNAL_COLLECTION_RUN_AT", "03:00")
+    external_collection_poll_seconds: int = int(
+        os.getenv("EXTERNAL_COLLECTION_POLL_SECONDS", "60")
+    )
+    external_collection_min_parsed_count: int = int(
+        os.getenv("EXTERNAL_COLLECTION_MIN_PARSED_COUNT", "1")
+    )
     kakao_alimtalk_enabled: bool = os.getenv(
         "KAKAO_ALIMTALK_ENABLED", "false"
     ).strip().lower() in {"1", "true", "yes", "on"}
@@ -65,6 +75,7 @@ class Settings:
     ).strip().lower() in {"1", "true", "yes", "on"}
     solapi_timeout_seconds: float = float(os.getenv("SOLAPI_TIMEOUT_SECONDS", "5"))
     solapi_webhook_secret: str = os.getenv("SOLAPI_WEBHOOK_SECRET", "")
+    phone_verification_provider: str = os.getenv("PHONE_VERIFICATION_PROVIDER", "dev")
     travel_hunter_public_base_url: str = os.getenv(
         "TRAVEL_HUNTER_PUBLIC_BASE_URL", ""
     )

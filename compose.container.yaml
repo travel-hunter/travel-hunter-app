@@ -1,0 +1,24 @@
+services:
+  travel-hunter:
+    image: travel-hunter:container
+    container_name: travel-hunter
+    build:
+      context: .
+      dockerfile: deploy/container/Dockerfile
+      args:
+        VITE_API_BASE_URL: http://127.0.0.1:18080
+    env_file:
+      - ./deploy/container/app.env
+    ports:
+      - "18080:80"
+    volumes:
+      - travel-hunter-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1/api/health | grep -q 'connected'"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+volumes:
+  travel-hunter-postgres-data:

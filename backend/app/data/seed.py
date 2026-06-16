@@ -30,9 +30,13 @@ PROFILE = {
 
 PROFILE_OPTIONS = {
     "regions": ["제주", "부산", "강원", "전국"],
-    "travelStyles": ["휴식", "맛집", "자연", "사진"],
+    "travelStyles": ["휴식", "맛집", "체험", "자연", "사진"],
     "budgets": ["1인 30만원 이하", "1인 40만원 이하", "1인 60만원 이하", "상관없음"],
 }
+
+REGIONS = PROFILE_OPTIONS["regions"]
+TRAVEL_STYLES = PROFILE_OPTIONS["travelStyles"]
+BUDGETS = PROFILE_OPTIONS["budgets"]
 
 import json
 from pathlib import Path
@@ -106,7 +110,6 @@ POLICIES = [
 ] + _load_crawled()
 
 TRIP = {
-    "id": "jeju-3-days",
     "title": "제주 3일 여행",
     "dates": "2026.06.15 - 06.17",
     "people": ["테스트 사용자", "민서", "현우"],

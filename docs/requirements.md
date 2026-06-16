@@ -2,9 +2,9 @@
 
 ## 문서 기준
 
-- 문서 버전: 2.0
-- 기준 브랜치: `feat/prototype-to-react`
-- 기준 커밋: `4e68285 docs: streamline project documentation` 이후 현재 상태
+- 문서 버전: 2.1
+- 기준 브랜치: `develop`
+- 기준 검증 기준: `9bdcb73` 및 현재 문서 작업트리
 - 실행 모드: DB-backed-only
 - 대상 독자: PM, 개발자, QA, 디자이너
 
@@ -53,7 +53,7 @@ Travel Hunter는 국내 여행자가 여행 혜택 정책을 찾고, 여행 일�
 |---|---|---|
 | FR-USER-001 | 신규 사용자는 관심 지역, 여행 스타일, 예산을 설정할 수 있다. | `/profile-setup` 완료 시 profile 값이 backend에 저장되고 이후 화면에서 반영된다. |
 | FR-USER-002 | 사용자는 마이페이지에서 프로필을 편집할 수 있다. | 편집 sheet에서 지역/스타일/예산을 저장하고 성공 후 요약 카드가 갱신된다. |
-| FR-USER-003 | 사용자는 알림 연락처를 저장할 수 있다. | 전화번호는 사용자별로 저장/삭제 가능하고 현재 인증 여부는 `phoneVerified`로 표시된다. |
+| FR-USER-003 | 사용자는 알림 연락처를 저장하고 OTP로 인증할 수 있다. | 전화번호는 사용자별로 저장/삭제 가능하고, 인증번호 요청/확인 성공 시 `phoneVerified`가 true로 표시된다. `PHONE_VERIFICATION_PROVIDER=dev|solapi`로 dev/test 또는 SOLAPI SMS 발송 provider를 선택한다. |
 | FR-USER-004 | 사용자는 정책 마감 알림을 켜거나 끌 수 있다. | 설정은 사용자별로 저장되고 기본 lead day는 D-7, D-1이다. |
 
 ### 3.3 정책 탐색과 저장
@@ -66,6 +66,7 @@ Travel Hunter는 국내 여행자가 여행 혜택 정책을 찾고, 여행 일�
 | FR-POLICY-004 | 사용자는 정책을 저장하고 삭제할 수 있다. | 저장 상태는 `user_saved_policies`에 유지되고 새로고침 후에도 반영된다. |
 | FR-POLICY-005 | 사용자는 정책 링크를 복사할 수 있다. | 공유 동작은 현재 URL clipboard 복사와 toast 피드백으로 제공된다. |
 | FR-POLICY-006 | 사용자는 정책을 특정 일정에 담을 수 있다. | 일정 선택 sheet에서 일정을 고르면 `trip_policies`에 연결되고 일정 상세에서 반영된다. |
+| FR-POLICY-007 | 사용자는 홈에서 정책 기반 지역/목적지 추천을 볼 수 있다. | 추천 API는 공식 외부 수집 레코드를 정책 수, 마감 임박, 명시 금액, 취향 보정 순으로 정렬하고 사용자 프로필 지역은 최종 tie-breaker로만 사용한다. |
 
 ### 3.4 일정 관리
 
@@ -76,7 +77,7 @@ Travel Hunter는 국내 여행자가 여행 혜택 정책을 찾고, 여행 일�
 | FR-TRIP-003 | 사용자는 일정 상세를 볼 수 있다. | `trip.days` 기준으로 day tab과 장소 타임라인을 동적으로 표시한다. |
 | FR-TRIP-004 | owner는 일정을 삭제할 수 있다. | 삭제 후 목록에서 제거되고 연결 데이터는 cascade 또는 서비스 규칙에 따라 정리된다. |
 | FR-TRIP-005 | owner/editor는 장소를 추가/수정/삭제할 수 있다. | 장소 변경은 `trip_places`에 저장되고 새로고침 후에도 유지된다. viewer는 편집할 수 없다. |
-| FR-TRIP-006 | legacy `jeju-3-days` handle은 호환 조회만 지원한다. | DB mode 응답의 canonical `Trip.id`는 numeric string이다. 신규 편집 흐름은 canonical id를 사용한다. |
+| FR-TRIP-006 | 일정 상세/편집 handle은 numeric string `Trip.id`만 지원한다. | DB mode 응답의 canonical `Trip.id`는 numeric string이며 non-numeric handle은 not found로 처리된다. |
 
 ### 3.5 AI 추천
 
@@ -145,7 +146,7 @@ Travel Hunter는 국내 여행자가 여행 혜택 정책을 찾고, 여행 일�
 
 - 실제 AI 추천 엔진.
 - 지도/장소 검색 API와 이동 시간 계산.
-- 전화번호 실인증/OTP.
+- 전화번호 OTP 실제 발송 staging smoke.
 - 친구 초대 email/SMS/Kakao 외부 발송.
 - 운영 관리자 화면.
 - 정책 실시간 수집/동기화.

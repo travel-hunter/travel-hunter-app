@@ -38,6 +38,12 @@ export type ContactInfo = {
   phoneVerified: boolean;
 };
 
+export type ContactVerificationRequestResponse = {
+  requested: boolean;
+  expiresAt: string;
+  resendAvailableAt: string;
+};
+
 export type PolicyCategory = "추천" | "환급" | "숙박" | "캐시백";
 
 export type Policy = {
@@ -90,6 +96,17 @@ export type Recommendation = {
   title: string;
   meta: string;
   reason: string;
+};
+
+export type RegionRecommendation = {
+  region: string;
+  title: string;
+  reason: string;
+  policyCount: number;
+  endingSoonCount: number;
+  estimatedValueKrw: number;
+  score: number;
+  styleMatchedCount: number;
 };
 
 export type InviteRole = "viewer" | "editor";

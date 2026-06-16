@@ -61,6 +61,20 @@ class ContactUpdate(BaseModel):
     phoneNumber: str | None = Field(default=None, max_length=30, pattern=r"^(\s*$|[0-9\-+() ]{7,})$")
 
 
+class ContactVerificationRequest(BaseModel):
+    phoneNumber: str | None = Field(default=None, max_length=30, pattern=r"^(\s*$|[0-9\-+() ]{7,})$")
+
+
+class ContactVerificationRequestResponse(BaseModel):
+    requested: bool
+    expiresAt: str
+    resendAvailableAt: str
+
+
+class ContactVerificationConfirm(BaseModel):
+    code: str = Field(min_length=4, max_length=8, pattern=r"^[0-9]+$")
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1)

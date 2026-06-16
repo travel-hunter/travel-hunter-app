@@ -26,7 +26,7 @@
 | 프로필 편집 | `/mypage`의 편집 sheet에서 profile 값을 수정한다. | `PATCH /api/me/profile` |
 | 저장 정책 | `/mypage`에서 저장한 정책을 확인하고 삭제한다. | `GET/DELETE /api/me/saved-policies` |
 | 신청 정책 통계 | `/mypage`에서 내 일정에 연결된 정책 수를 확인한다. | `GET /api/me/applied-policies`, `trip_policies` |
-| 알림 연락처 | 카카오 알림톡 연락처를 저장하거나 삭제한다. | `GET/PATCH /api/me/contact`, `users.phone_number` |
+| 알림 연락처 | 카카오 알림톡 연락처를 저장하거나 삭제하고, env-gated dev/SOLAPI SMS provider boundary를 통해 OTP 인증번호 요청/확인을 수행한다. | `GET/PATCH /api/me/contact`, `POST /api/me/contact/verification/request`, `POST /api/me/contact/verification/confirm`, `PHONE_VERIFICATION_PROVIDER`, `users.phone_number`, `users.phone_verified_at`, `phone_verification_codes` |
 | 마감 알림 설정 | D-7/D-1 정책 알림을 켜거나 끈다. | `GET/PATCH /api/me/notification-settings` |
 
 ## 정책
@@ -35,7 +35,7 @@
 |---|---|---|
 | 정책 목록/상세 | `/policies`에서 목록을 보고 `/policies/:slug`에서 상세를 확인한다. | `GET /api/policies`, `GET /api/policies/{policySlug}` |
 | 검색/필터 | 검색어, 지역, 카테고리를 client-side AND 조건으로 적용한다. | frontend filtering |
-| 정책 탐색 바로가기 | `/policies` 상단에서 매칭 높은 정책, 마감 임박 정책, 유형별 모아보기를 먼저 보여주고 `/home`에서도 마감 임박/추천 혜택 레일을 분리해 보여준다. 홈 인기 국내 여행지는 정책 지역/제목에서 파생하고 fallback 목적지만 보조로 채운다. | frontend grouping |
+| 정책 탐색 바로가기 | `/policies` 상단에서 매칭 높은 정책, 마감 임박 정책, 유형별 모아보기를 먼저 보여주고 `/home`에서도 마감 임박/추천 혜택 레일을 분리해 보여준다. 홈 인기 국내 여행지는 `GET /api/recommendations/regions`를 `AppDataApi` 경유로 호출해 정책 수, 마감 임박, 혜택 금액, 취향 보정, 프로필 지역 최종 tie-breaker 기준으로 표시하고 실패/empty 때는 정책 지역 기반 후보로 fallback한다. | `GET /api/recommendations/regions`, frontend grouping |
 | 조건 확인 요약/FAQ | 정책 상세에서 내 관심 지역과 정책 지역, 핵심 신청 조건, 필요 서류를 요약하고 정적 FAQ accordion을 제공한다. 확정 자격 판정은 하지 않는다. | `Policy.requirements`, `Policy.documents`, `Policy.region` |
 | 저장/삭제 | 정책 상세에서 저장하고 마이페이지에서 삭제한다. | `user_saved_policies` |
 | 공식/신청 URL | `applyUrl`은 `신청하러 가기`, `officialUrl`은 `공식 안내 확인`, 둘 다 없으면 `신청 링크 준비 중`으로 구분한다. | `policies.apply_url`, `policies.official_url` |
@@ -98,4 +98,4 @@
 - SMTP env와 public base URL이 있어야 password reset email smoke를 완료할 수 있다.
 - Kakao/Google provider secret과 redirect URI가 있어야 실제 OAuth smoke를 완료할 수 있다.
 - SOLAPI key, Kakao channel, 승인 템플릿이 있어야 실제 알림톡 발송을 확인할 수 있다.
-- 전화번호 OTP, 실제 AI 엔진, 지도/장소 검색, 친구 초대 외부 발송, 운영 관리자 화면, 정책 실시간 수집은 후속 범위다.
+- 전화번호 OTP 실제 발송 smoke, 실제 AI 엔진, 지도/장소 검색, 친구 초대 외부 발송, 운영 관리자 화면, 정책 실시간 수집은 후속 범위다.

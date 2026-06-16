@@ -2,11 +2,11 @@
 
 ## 기준
 
-- 기준일: 2026-05-19
-- 기준 검증 커밋: `f6fce98 docs: consolidate project documentation and validation`
-- 브랜치: `feat/prototype-to-react`
+- 기준일: 2026-05-20
+- 기준 검증 기준: `9bdcb73` 및 현재 문서 작업트리
+- 브랜치: `develop`
 - 원칙: DB-backed-only MVP를 유지하고 runtime mock mode는 다시 추가하지 않는다.
-- 현재 단계: 문서 핵심화, DB schema current 문서화, frontend itinerary refactor 검증을 완료했고, `develop` 대상 PR/CI 단계로 넘기는 중이다.
+- 현재 단계: PR #17, #18, #19, #20, #23이 `develop`에 합류했고, trip route alias 정리와 release handoff를 마친 뒤 staging 운영 검증 준비 상태다.
 
 ## 제품 범위
 
@@ -39,6 +39,7 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - 일정 생성 3단계 UX, 동적 기본 날짜, draft autosave.
 - 일정 목록, 삭제 dialog, draft/confirmed 상태 저장.
 - 일정 상세 장소 추가/수정/삭제, 10분 단위 시간 스피너, 시간 없음 저장, drag-and-drop 이동.
+- 일정 route handle은 numeric string `Trip.id`만 지원하며 non-numeric handle은 not found로 처리한다.
 - AI 추천 장소를 일정 타임라인에 추가.
 - 초대 링크 role 저장과 viewer/editor 권한 enforcement.
 - 마감 알림 설정, 연락처 저장, 알림 대상 계산, scheduler/provider/retry/webhook 기반.
@@ -54,6 +55,11 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - DB schema 기준을 `docs/db-schema-current.md`, `docs/db-schema-current.sql`로 교체하고 구버전 schema SQL 참조를 정리했다.
 - frontend itinerary 관련 page를 개별 파일로 분리하면서 기존 route import를 유지했다.
 - `.agent/evals`는 machine-readable API contract 기준인 `api-contract-golden.json`만 남겼다.
+- PR #17, #18, #19, #20, #23이 `develop`에 병합됐고 로컬/원격 `develop` 기준으로 문서/계약 정합성을 다시 맞췄다.
+- 기존 non-numeric 제주 3일 trip handle 지원을 제거하고, seed 여행 데이터는 유지한 채 API 계약과 frontend/backend 테스트를 numeric trip id 기준으로 갱신했다.
+- 외주/인프라 담당자용 staging 운영 검증 작업지시서를 `docs/deployment-cicd/staging-ops-work-orders.md`로 추가했다.
+- 여행가는 달 지역 여행할인 모아보기 외부 수집 기반을 추가해 공식 출처 레코드 저장, 원문 보존, 파생 지역/상태/혜택/선호도 필드를 지원한다. 현재 공식 live HTML의 목록/상세 modal 구조는 58건 fetch/parse/upsert smoke로 검증했고, scheduler는 `EXTERNAL_COLLECTION_MIN_PARSED_COUNT` 미달 수집을 실패로 처리해 재시도하며 마지막 시도/성공/parsed count/outcome/error 상태를 내부 관측값으로 남긴다. 운영 확인은 기존 `/api/health` 계약을 유지한 채 `GET /api/ops/external-collection`에서 scheduler 상태를, `GET /api/ops/external-collection/quality`에서 저장 품질과 추천 반영 preview를 분리해 확인한다.
+- `external_source_records` 기반 지역 추천 API는 신청 가능 혜택 수, 마감 임박, 명시 금액, 취향 보조 점수, 프로필 지역 최종 tie-breaker를 사용해 지역/목적지 추천 후보를 반환한다.
 
 ## 현재 조건부 항목
 
@@ -61,7 +67,7 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - Kakao/Google OAuth 실로그인은 provider console redirect URI와 secret 설정이 필요하다.
 - Cloudflare named tunnel full-up은 실제 `CLOUDFLARE_TUNNEL_TOKEN`, staging domain, DB/env 값이 필요하다.
 - SOLAPI 실제 발송은 SOLAPI 계정, Kakao business channel, 승인 템플릿, secret env가 필요하다.
-- 전화번호 OTP 실인증은 아직 후속 설계/구현 범위다.
+- 전화번호 OTP 실인증 foundation은 dev/test provider boundary, env-gated SOLAPI SMS provider, hashed OTP 저장, 요청/확인 API, MyPage UI까지 구현됐다. 실제 발송 smoke는 운영 env 준비 후 진행한다.
 
 ## 문서 역할
 
@@ -72,22 +78,23 @@ Travel Hunter는 여행 지원 정책을 탐색하고, 관심 정책을 저장�
 - `docs/next-work-plan.md`: 다음 작업 우선순위.
 - `docs/deployment-cicd/README.md`: 팀 배포/CICD 기준 문서.
 - `docs/deployment-cicd/09-release-checklist.md`: 배포 전후 smoke와 rollback 체크리스트.
+- `docs/deployment-cicd/staging-ops-work-orders.md`: 비개발자/외주/인프라 담당자용 남은 운영 검증 작업지시서.
 
 ## 최신 검증 기록
 
 - Frontend typecheck: passed.
-- Frontend Vitest: `80 passed`.
-- Frontend e2e: `5 passed`.
+- Frontend Vitest: `82 passed`.
+- Frontend e2e: `4 passed`.
 - Frontend build: passed.
 - Backend schema pytest: `2 passed`.
 - Backend pytest: `218 passed`.
 - Alembic offline SQL: passed.
 - Compose config/build checks: passed.
 - `git diff --check`: passed.
-- 삭제 문서 참조 검색과 secret/env/archive 추적 확인: passed.
+- 삭제 문서 참조, stale trip alias 참조, secret/env/archive 추적 확인: passed.
 
 ## 다음 작업 방향
 
-1. GitHub Actions CI와 review를 통과시켜 `develop` merge 기준을 맞춘다.
-2. 운영 검증 흐름으로 전환할 경우 Cloudflare Tunnel actual env full-up, SMTP staging smoke, OAuth provider smoke 순서로 진행한다.
-3. 기능 개발 흐름을 계속할 경우 홈 추천 목적지 ranking 고도화를 진행한다.
+1. 실제 env가 준비되면 Cloudflare Tunnel actual env full-up, public route smoke, SMTP staging smoke, OAuth provider smoke 순서로 운영 검증을 진행한다.
+2. SOLAPI Kakao AlimTalk staging smoke는 provider 계정, channel, 승인 템플릿, webhook secret 준비 후 진행한다.
+3. 운영 검증 대기 중 기능 개발을 계속할 경우 전화번호 OTP 실제 발송 smoke와 live collector 정기 수집 운영 모니터링을 별도 의뢰로 진행한다.
