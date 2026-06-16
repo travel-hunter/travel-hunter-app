@@ -2035,16 +2035,19 @@ def test_create_trip_uses_duration_days_for_date_range_and_days(monkeypatch) -> 
     trip_service.create_trip(
         fake_db,
         user,
-        CreateTripRequest(region="Jeju", style="Rest", durationDays=4),
+        CreateTripRequest(region="Jeju", style="Rest", durationDays=7),
     )
 
     assert captured["create_trip"]["start_date"] == date(2026, 6, 15)
-    assert captured["create_trip"]["end_date"] == date(2026, 6, 18)
+    assert captured["create_trip"]["end_date"] == date(2026, 6, 21)
     assert captured["trip_days"] == [
         {"trip_id": 11, "day_number": 1, "date_value": date(2026, 6, 15)},
         {"trip_id": 11, "day_number": 2, "date_value": date(2026, 6, 16)},
         {"trip_id": 11, "day_number": 3, "date_value": date(2026, 6, 17)},
         {"trip_id": 11, "day_number": 4, "date_value": date(2026, 6, 18)},
+        {"trip_id": 11, "day_number": 5, "date_value": date(2026, 6, 19)},
+        {"trip_id": 11, "day_number": 6, "date_value": date(2026, 6, 20)},
+        {"trip_id": 11, "day_number": 7, "date_value": date(2026, 6, 21)},
     ]
 
 
@@ -2056,17 +2059,20 @@ def test_create_trip_uses_request_date_range_for_dates_and_days(monkeypatch) -> 
     trip_service.create_trip(
         fake_db,
         user,
-        CreateTripRequest(region="Busan", style="Food", startDate=date(2026, 7, 12), endDate=date(2026, 7, 15)),
+        CreateTripRequest(region="Busan", style="Food", startDate=date(2026, 7, 12), endDate=date(2026, 7, 18)),
     )
 
-    assert captured["create_trip"]["title"] == "Busan 4일 여행"
+    assert captured["create_trip"]["title"] == "Busan 7일 여행"
     assert captured["create_trip"]["start_date"] == date(2026, 7, 12)
-    assert captured["create_trip"]["end_date"] == date(2026, 7, 15)
+    assert captured["create_trip"]["end_date"] == date(2026, 7, 18)
     assert captured["trip_days"] == [
         {"trip_id": 11, "day_number": 1, "date_value": date(2026, 7, 12)},
         {"trip_id": 11, "day_number": 2, "date_value": date(2026, 7, 13)},
         {"trip_id": 11, "day_number": 3, "date_value": date(2026, 7, 14)},
         {"trip_id": 11, "day_number": 4, "date_value": date(2026, 7, 15)},
+        {"trip_id": 11, "day_number": 5, "date_value": date(2026, 7, 16)},
+        {"trip_id": 11, "day_number": 6, "date_value": date(2026, 7, 17)},
+        {"trip_id": 11, "day_number": 7, "date_value": date(2026, 7, 18)},
     ]
 
 

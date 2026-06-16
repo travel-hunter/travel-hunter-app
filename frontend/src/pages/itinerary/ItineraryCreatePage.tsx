@@ -9,7 +9,7 @@ import { tripCreatePrimaryRegions, tripCreatePrimaryRegionValues } from "../../d
 import { getDefaultTripDateRange } from "../../utils/dateDefaults";
 
 const TRIP_CREATE_TOTAL_STEPS = 4;
-const tripCreateMaxDays = 5;
+const tripCreateMaxDays = 7;
 const tripCreateMinDays = 2;
 const tripCreateMinParticipants = 1;
 const tripCreateMaxParticipants = 10;
@@ -115,7 +115,7 @@ export function ItineraryCreatePage() {
     dayCount === null
       ? "출발일과 도착일을 선택하세요."
       : dayCount < tripCreateMinDays || dayCount > tripCreateMaxDays
-        ? "일정 기간은 2일부터 5일까지 선택할 수 있습니다."
+        ? "일정 기간은 2일부터 7일까지 선택할 수 있습니다."
         : "";
   const linkedPolicyLabel = linkablePolicySlug
     ? linkablePolicySlug.startsWith("travelmonth-")

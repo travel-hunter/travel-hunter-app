@@ -630,9 +630,9 @@
         "revision": "number"
       },
       "dbModePolicySlugBehavior": "When policySlug is present, create the trip and link trip_policies; unknown policySlug returns 404 Policy not found.",
-      "durationDaysBehavior": "Optional durationDays defaults to 3, accepts 2 through 5, controls trips.end_date and generated trip_days when startDate/endDate are absent.",
+      "durationDaysBehavior": "Optional durationDays defaults to 3, accepts 2 through 7, controls trips.end_date and generated trip_days when startDate/endDate are absent.",
       "participantCountBehavior": "Optional participantCount defaults to 1, accepts 1 through 10, and is stored as planned party size separate from the real member/invite list.",
-      "dateRangeBehavior": "Optional startDate/endDate must be provided together, accept 2 through 5 days inclusive, override durationDays, and control trips.start_date/end_date plus generated trip_days.date."
+      "dateRangeBehavior": "Optional startDate/endDate must be provided together, accept 2 through 7 days inclusive, override durationDays, and control trips.start_date/end_date plus generated trip_days.date."
     },
     {
       "method": "GET",

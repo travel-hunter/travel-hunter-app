@@ -236,13 +236,18 @@ describe("Travel Hunter app — AI results", () => {
       ...getPreviewTrip(),
       id: "55",
       title: "AI recommendation trip",
-      days: { 1: [], 2: [], 3: [] },
+      days: { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] },
     };
     const updatedTrip: Trip = {
       ...initialTrip,
       days: {
         1: [],
-        2: [
+        2: [],
+        3: [],
+        4: [],
+        5: [],
+        6: [],
+        7: [
           {
             id: "9",
             time: "",
@@ -250,7 +255,6 @@ describe("Travel Hunter app — AI results", () => {
             meta: "음식점 > 카페 > 커피전문점 · 033-222-3333",
           },
         ],
-        3: [],
       },
     };
     const listRecommendationsSpy = vi
@@ -326,19 +330,22 @@ describe("Travel Hunter app — AI results", () => {
       expect(
         within(dayPopover).getByRole("button", { name: "Day 2" }),
       ).toHaveAttribute("aria-pressed", "true");
+      expect(
+        within(dayPopover).getByRole("button", { name: "Day 7" }),
+      ).toBeInTheDocument();
 
       await user.click(
-        within(dayPopover).getByRole("button", { name: "Day 3" }),
+        within(dayPopover).getByRole("button", { name: "Day 7" }),
       );
       expect(addPlaceSpy).not.toHaveBeenCalled();
       await user.click(
-        within(dayPopover).getByRole("button", { name: "Day 3에 추가" }),
+        within(dayPopover).getByRole("button", { name: "Day 7에 추가" }),
       );
 
       await waitFor(() =>
         expect(addPlaceSpy).toHaveBeenCalledWith(
           "55",
-          3,
+          7,
           expect.objectContaining({
             label: recommendation.title,
             expectedRevision: 1,
@@ -356,7 +363,7 @@ describe("Travel Hunter app — AI results", () => {
       await waitFor(() => expect(getTripSpy).toHaveBeenCalledWith("55"));
       await waitFor(() =>
         expect(document.body).toHaveTextContent(
-          "속초 로컬 맛집을 Day 3 일정에 추가했어요.",
+          "속초 로컬 맛집을 Day 7 일정에 추가했어요.",
         ),
       );
     } finally {
