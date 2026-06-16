@@ -13,6 +13,16 @@ from app.repositories import external_sources as external_source_repository
 
 ALIAS_PREFIX = "stay-discount"
 SOURCE_CATEGORY = "stay_discount"
+DISPLAY_SUMMARY = "비수도권 인구감소지역 숙박 예약 시 결제 금액과 숙박 조건에 따라 2만~7만원 할인권을 제공합니다."
+DISPLAY_AMOUNT = "최대 7만원"
+DISPLAY_REQUIREMENTS = [
+    "7만원 미만 국내 숙박상품: 2만원 할인 (1박 이상)",
+    "7만원 이상 국내 숙박상품: 3만원 할인 (1박 이상)",
+    "14만원 미만 국내 숙박상품: 5만원 할인 (연박 이상)",
+    "14만원 이상 국내 숙박상품: 7만원 할인 (연박 이상)",
+    "참여 온라인 여행사에서 매일 오전 10시부터 선착순 발급",
+    "입실기간: 2026.6.11~7.31",
+]
 
 _SIDO_SLUGS = {
     "강원": "gangwon",
@@ -146,6 +156,14 @@ class StayDiscountAliasRecord:
 
 def is_stay_discount_canonical_policy(policy: PolicyModel) -> bool:
     return (policy.source_category or "") == SOURCE_CATEGORY and policy.external_source_record_id is not None
+
+
+def apply_detail_display_fields(payload: dict[str, object]) -> dict[str, object]:
+    payload["tag"] = DISPLAY_AMOUNT
+    payload["amount"] = DISPLAY_AMOUNT
+    payload["summary"] = DISPLAY_SUMMARY
+    payload["requirements"] = [*DISPLAY_REQUIREMENTS]
+    return payload
 
 
 def alias_slug_for_area(sido: str, city: str) -> str:

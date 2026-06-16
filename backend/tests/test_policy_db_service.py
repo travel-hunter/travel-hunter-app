@@ -548,8 +548,49 @@ def test_stay_discount_alias_detail_echoes_alias_slug(monkeypatch) -> None:
     assert detail["id"] == "stay-discount-gyeongnam-goseong"
     assert detail["title"] == "[고성] 2026 대한민국 숙박세일 페스타 숙박 할인"
     assert detail["region"] == "경남"
+    assert detail["amount"] == "최대 7만원"
+    assert detail["summary"] == "비수도권 인구감소지역 숙박 예약 시 결제 금액과 숙박 조건에 따라 2만~7만원 할인권을 제공합니다."
+    assert detail["requirements"] == [
+        "7만원 미만 국내 숙박상품: 2만원 할인 (1박 이상)",
+        "7만원 이상 국내 숙박상품: 3만원 할인 (1박 이상)",
+        "14만원 미만 국내 숙박상품: 5만원 할인 (연박 이상)",
+        "14만원 이상 국내 숙박상품: 7만원 할인 (연박 이상)",
+        "참여 온라인 여행사에서 매일 오전 10시부터 선착순 발급",
+        "입실기간: 2026.6.11~7.31",
+    ]
+    assert "7만원 미만* 국내 숙박상품 예약 시 2만원 할인" not in str(detail["summary"])
     assert detail["officialUrl"] == "https://ktostay.visitkorea.or.kr/"
     assert detail.get("actionStatus") is None
+
+
+def test_stay_discount_raw_fallback_detail_uses_clean_display_copy(monkeypatch) -> None:
+    fake_db = object()
+    record = make_stay_record()
+    record.raw_detail_text = (
+        "7만원 미만* 국내 숙박상품 예약 시 2만원 할인 / "
+        "7만원 이상 국내 숙박상품 예약 시 3만원 할인 / "
+        "7만원 미만* 국내 숙박상품 예약 시 2만원 할인"
+    )
+
+    monkeypatch.setattr(policy_service.policy_repository, "get_policy_by_slug_any_status", lambda *_args: None)
+    monkeypatch.setattr(
+        policy_service.external_source_repository,
+        "get_external_source_record_by_policy_slug",
+        lambda db, slug: record if db is fake_db and slug == "travelmonth-88" else None,
+    )
+
+    detail = policy_service.get_policy("travelmonth-88", fake_db)
+
+    assert detail is not None
+    assert detail["amount"] == "최대 7만원"
+    assert detail["summary"] == "비수도권 인구감소지역 숙박 예약 시 결제 금액과 숙박 조건에 따라 2만~7만원 할인권을 제공합니다."
+    assert detail["requirements"][:4] == [
+        "7만원 미만 국내 숙박상품: 2만원 할인 (1박 이상)",
+        "7만원 이상 국내 숙박상품: 3만원 할인 (1박 이상)",
+        "14만원 미만 국내 숙박상품: 5만원 할인 (연박 이상)",
+        "14만원 이상 국내 숙박상품: 7만원 할인 (연박 이상)",
+    ]
+    assert str(detail).count("7만원 미만*") == 0
 
 
 def test_stay_discount_alias_save_uses_canonical_policy_id_and_echoes_alias(monkeypatch) -> None:

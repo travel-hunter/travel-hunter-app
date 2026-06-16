@@ -70,7 +70,7 @@ def policy_to_api(policy: PolicyModel) -> dict[str, object]:
         policy.source_category,
     )
 
-    return {
+    payload = {
         "id": slug,
         "slug": slug,
         "label": str(display.get("label", slug[:2].upper())),
@@ -89,6 +89,9 @@ def policy_to_api(policy: PolicyModel) -> dict[str, object]:
         "applyUrl": policy.apply_url,
         "sourceType": source_type,
     }
+    if stay_discount_aliases.is_stay_discount_canonical_policy(policy):
+        stay_discount_aliases.apply_detail_display_fields(payload)
+    return payload
 
 
 def _policy_to_stay_discount_alias_api(
@@ -157,7 +160,7 @@ def external_source_record_to_policy_api(
         record.city,
     )
 
-    return {
+    payload = {
         "id": external_policy_slug(record),
         "slug": external_policy_slug(record),
         "label": _external_policy_label(record),
@@ -177,6 +180,9 @@ def external_source_record_to_policy_api(
         "sourceType": "external",
         "actionStatus": "infoOnly",
     }
+    if record.source_category == stay_discount_aliases.SOURCE_CATEGORY:
+        stay_discount_aliases.apply_detail_display_fields(payload)
+    return payload
 
 
 def list_policies(db: Session | None = None) -> list[dict[str, object]]:
