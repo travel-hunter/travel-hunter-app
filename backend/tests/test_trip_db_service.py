@@ -3,6 +3,7 @@ from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
+from pydantic import ValidationError
 from sqlalchemy import BigInteger, Integer, create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -1733,6 +1734,17 @@ def test_create_trip_persists_participant_count_without_fake_members(monkeypatch
     assert created["participantCount"] == 4
     assert created["people"] == ["Test User", "Minseo"]
     assert captured["create_trip"]["participant_count"] == 4
+
+
+def test_create_trip_request_allows_ten_participants() -> None:
+    request = CreateTripRequest(region="Busan", participantCount=10, durationDays=2)
+
+    assert request.participantCount == 10
+
+
+def test_create_trip_request_rejects_more_than_ten_participants() -> None:
+    with pytest.raises(ValidationError):
+        CreateTripRequest(region="Busan", participantCount=11, durationDays=2)
 
 
 def test_create_trip_with_unknown_travel_area_id_returns_400(monkeypatch) -> None:

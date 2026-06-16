@@ -9,6 +9,7 @@ TripRole = Literal["owner", "editor", "viewer"]
 TripStatus = Literal["draft", "confirmed"]
 RecommendationSourceType = Literal["freshCandidate", "savedSummary"]
 InviteEmailDeliveryStatus = Literal["sent", "notConfigured", "failed"]
+MAX_TRIP_PARTICIPANTS = 10
 
 
 class ItineraryPlace(BaseModel):
@@ -38,7 +39,7 @@ class CreateTripRequest(BaseModel):
     title: str | None = Field(default=None, max_length=100)
     region: str | None = None
     travelAreaId: str | None = Field(default=None, max_length=120)
-    participantCount: int = Field(default=1, ge=1, le=6)
+    participantCount: int = Field(default=1, ge=1, le=MAX_TRIP_PARTICIPANTS)
     style: str | None = None
     description: str | None = Field(default=None, max_length=500)
     policySlug: str | None = None

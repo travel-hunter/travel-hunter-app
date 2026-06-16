@@ -815,7 +815,7 @@ Frontend behavior: `/trips` does not expose trip confirmation controls or draft/
 ```
 
 - `durationDays`: 2~5 범위
-- `participantCount`: 1~6. Planned travel party size, stored separately from real member/invite list `people`.
+- `participantCount`: 1~10. Planned travel party size, stored separately from real member/invite list `people`.
 - `startDate`/`endDate`: 함께 제공하거나 모두 생략. 기간은 2~5일.
 
 **Response 200** → `Trip`

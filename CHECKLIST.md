@@ -18,6 +18,7 @@
 
 ## Latest Validations
 
+- 2026-06-16 trip participant limit branch passed: `/home/hp/projects/travel-hunter-app/backend/.venv/bin/python -m pytest tests/test_trip_db_service.py -q` from the isolated worktree backend (68 passed); `npx vitest run src/app/__tests__/trip-create.test.tsx` from `frontend` (16 passed); `npm run typecheck` from `frontend`; `npm ci` in the isolated worktree frontend reported 0 vulnerabilities.
 - 2026-06-16 PR #55 publication/merge passed: GitHub `Backend fast lane` and `Frontend DB-backed fast lane` completed successfully; PR #55 was marked ready and merged into `develop` as `45c629256107e99700abea0e80b39d569404e002`.
 - 2026-06-16 development-server redeploy passed at `45c629256107e99700abea0e80b39d569404e002`: server repo was clean `develop`, `docker compose --env-file deploy/.env.prod -f compose.tunnel.yaml config` completed without printing secrets, backend/frontend images built, frontend `npm ci` reported 0 vulnerabilities, frontend build used Vite `8.0.16`, Alembic `upgrade head` completed, and backend/db containers were healthy.
 - 2026-06-16 development-server smoke passed: `https://dev.travel-hunter.co.kr/api/health`, `/api/profile-options`, URL-encoded `/api/recommendations/regions?style=맛집&region=부산&limit=3`, `/login`, `/signup`, `/signup/verify`, and `/policies` returned 200 via curl; browser smoke confirmed unauthenticated `/home` redirects to login, seed login reaches `/home`, authenticated `/policies` renders policy content, and `/signup/verify` renders verification copy.
@@ -27,6 +28,7 @@
 
 ## Remaining Risks
 
+- Full `npm test -- trip-create.test.tsx --run` in the isolated worktree could not start because the test wrapper attempted to bind compose PostgreSQL to `0.0.0.0:55432`, which was already allocated by another local session; the changed UI test was run directly with Vitest instead.
 - Production `travel-hunter.co.kr` now resolves to Cloudflare addresses, but HTTPS returns Cloudflare 530; the root production hostname is not yet proven to route to a healthy origin/tunnel.
 - Production `api.travel-hunter.co.kr` still does not resolve from local DNS probes, so API public smoke cannot start.
 - Cloudflare API/token/cert authority for production DNS/tunnel changes is not present in the current local environment or server key-name probe; only the dev runtime tunnel token key exists on the server, and its value was not printed.

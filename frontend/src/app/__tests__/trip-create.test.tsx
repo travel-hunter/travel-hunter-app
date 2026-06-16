@@ -228,7 +228,7 @@ describe("Travel Hunter app — trip creation", () => {
     }
   });
 
-  it("keeps trip participant selection between 1 and 6 on the date step", async () => {
+  it("keeps trip participant selection between 1 and 10 on the date step", async () => {
     await login();
     cleanup();
     const user = userEvent.setup();
@@ -254,11 +254,11 @@ describe("Travel Hunter app — trip creation", () => {
       });
       expect(decrease).toBeDisabled();
 
-      for (let count = 0; count < 5; count += 1) {
+      for (let count = 0; count < 9; count += 1) {
         await user.click(increase);
       }
 
-      expect(screen.getAllByText("6명").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("10명").length).toBeGreaterThan(0);
       expect(increase).toBeDisabled();
     } finally {
       travelAreasSpy.mockRestore();
