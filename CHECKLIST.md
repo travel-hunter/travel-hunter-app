@@ -4,7 +4,7 @@
 
 - Latest validated scope: local `develop` reconciliation onto `origin/develop`, development-server stale-build recovery on `dev.travel-hunter.co.kr`, and frontend release-gate refresh after Vite/Vitest audit remediation.
 - Last validation date: 2026-06-16.
-- Current release posture: the development server is restored to clean `origin/develop` at `9169990aac582e4608648761b8633e56a429cbd5`; the local worktree now contains validated frontend dependency/test updates and recovery docs that still need branch-protection-safe publication before any dev-server redeploy. Production release remains blocked on external DNS/Cloudflare/provider authority before any production stack mutation.
+- Current release posture: the development server is restored to clean `origin/develop` at `9169990aac582e4608648761b8633e56a429cbd5`; the validated frontend dependency/test updates and recovery docs are published through draft PR #55 (`fix/dev-recovery-audit-20260616` -> `develop`) and still need review/merge before any dev-server redeploy. Production release remains blocked on external DNS/Cloudflare/provider authority before any production stack mutation.
 - Keep this file slim: current status, recent validation evidence, and active risks only. Historical detail belongs in git history, source-specific docs, or `.omx/evidence/*`.
 
 ## Current Source Documents
@@ -27,8 +27,8 @@
 
 ## Remaining Risks
 
-- The local release-gate fix, recovery docs, and frontend audit remediation are not yet published to a remote branch or merged to `origin/develop`; publication must respect repository branch protection.
-- The development server is intentionally clean at `origin/develop` and does not include the local frontend audit remediation until the remote publication path is complete and a new dev-server redeploy is performed.
+- Draft PR #55 publishes the local release-gate fix, recovery docs, and frontend audit remediation, but it is not yet merged to `origin/develop`; merge must follow repository branch protection and CI/review gates.
+- The development server is intentionally clean at `origin/develop` and does not include PR #55 until it is merged and a new dev-server redeploy is performed.
 - Production DNS for `travel-hunter.co.kr` and `api.travel-hunter.co.kr` is still unresolved from local/remote probes.
 - Cloudflare API/token/cert authority is not present in the current local or server environment; production public routing and provider console changes cannot be executed by the agent until that authority is provided securely or the user applies those console changes.
 - Existing dev runtime env has required secret keys, but domain/redirect values are dev-domain scoped; production env must use production-domain values and a production-confirmed Cloudflare tunnel/token before stack start.
