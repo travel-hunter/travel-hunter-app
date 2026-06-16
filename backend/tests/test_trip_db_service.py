@@ -94,6 +94,57 @@ def make_trip() -> Trip:
     return trip
 
 
+def make_stay_policy() -> Policy:
+    return Policy(
+        id=88,
+        slug="travelmonth-88",
+        title="2026 대한민국 숙박세일 페스타 숙박 할인",
+        benefit_detail="2/3/5/7만원 할인권",
+        benefit_amount=70000,
+        region="비수도권 인구감소지역",
+        start_date=date(2026, 6, 11),
+        end_date=date(2026, 7, 31),
+        source_category="stay_discount",
+        policy_type="숙박",
+        external_source_record_id=88,
+        verification_status="fresh",
+        status="active",
+    )
+
+
+def make_stay_record() -> ExternalSourceRecord:
+    return ExternalSourceRecord(
+        id=88,
+        source_name="대한민국 숙박세일 페스타",
+        source_type="official_campaign",
+        source_category="stay_discount",
+        external_id="stay-discount",
+        canonical_key="stay-discount",
+        detail_url="https://ktostay.visitkorea.or.kr/",
+        collected_page_url="https://ktostay.visitkorea.or.kr/",
+        title="2026 대한민국 숙박세일 페스타 숙박 할인",
+        organizer_text="문화체육관광부, 한국관광공사",
+        region="비수도권 인구감소지역",
+        is_nationwide=False,
+        status="active",
+        start_date=date(2026, 6, 11),
+        end_date=date(2026, 7, 31),
+        benefit_text="2/3/5/7만원 할인권",
+        benefit_value_text="2/3/5/7만원 할인권",
+        extracted_amount_krw=70000,
+        tags=["숙박", "휴식"],
+        inferred_travel_styles=["휴식"],
+        freshness_status="fresh",
+        raw_payload={
+            "eligibleAreas": [
+                {"sido": "강원", "cities": ["고성군", "삼척시"]},
+                {"sido": "경남", "cities": ["고성군"]},
+            ],
+            "eligibleAreaCount": 3,
+        },
+    )
+
+
 def test_trip_to_api_includes_place_map_metadata(monkeypatch) -> None:
     trip = make_trip()
     day = TripDay(id=10, trip_id=7, day_number=1, date=date(2026, 7, 12))
@@ -737,6 +788,72 @@ def test_remove_policy_from_trip_is_idempotent_when_link_missing(monkeypatch) ->
     assert result == {"tripId": "7", "policyId": "fixture-policy", "added": False}
     assert removed_links == []
     assert fake_db.commits == 0
+
+
+def test_add_policy_to_trip_resolves_stay_discount_alias_to_canonical(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    stay_policy = make_stay_policy()
+    stay_record = make_stay_record()
+    added_links: list[dict[str, int]] = []
+
+    monkeypatch.setattr(trip_service.trip_repository, "get_accessible_trip_by_id", lambda *_args, **_kwargs: trip)
+    monkeypatch.setattr(trip_service.policy_repository, "list_policies", lambda db: [stay_policy] if db is fake_db else [])
+    monkeypatch.setattr(
+        trip_service.external_source_repository,
+        "get_external_source_record_by_id",
+        lambda db, record_id: stay_record if db is fake_db and record_id == 88 else None,
+    )
+    monkeypatch.setattr(trip_service.policy_repository, "get_policy_by_slug", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(trip_service.trip_repository, "get_trip_policy", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "add_trip_policy",
+        lambda _db, **kwargs: added_links.append(kwargs),
+    )
+
+    result = trip_service.add_policy_to_trip(fake_db, user, "7", "stay-discount-gangwon-goseong")
+
+    assert result == {"tripId": "7", "policyId": "stay-discount-gangwon-goseong", "added": True}
+    assert added_links == [{"trip_id": 7, "policy_id": 88}]
+    assert fake_db.commits == 1
+
+
+def test_remove_policy_from_trip_resolves_stay_discount_alias_to_canonical(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    stay_policy = make_stay_policy()
+    stay_record = make_stay_record()
+    link = TripPolicy(id=100, trip_id=7, policy_id=88)
+    link.policy = stay_policy
+    removed_links: list[TripPolicy] = []
+
+    monkeypatch.setattr(trip_service.trip_repository, "get_accessible_trip_by_id", lambda *_args, **_kwargs: trip)
+    monkeypatch.setattr(trip_service.policy_repository, "list_policies", lambda db: [stay_policy] if db is fake_db else [])
+    monkeypatch.setattr(
+        trip_service.external_source_repository,
+        "get_external_source_record_by_id",
+        lambda db, record_id: stay_record if db is fake_db and record_id == 88 else None,
+    )
+    monkeypatch.setattr(trip_service.policy_repository, "get_policy_by_slug", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_trip_policy",
+        lambda _db, **kwargs: link if kwargs["trip_id"] == 7 and kwargs["policy_id"] == 88 else None,
+    )
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "remove_trip_policy",
+        lambda _db, removed_link: removed_links.append(removed_link),
+    )
+
+    result = trip_service.remove_policy_from_trip(fake_db, user, "7", "stay-discount-gangwon-samcheok")
+
+    assert result == {"tripId": "7", "policyId": "stay-discount-gangwon-samcheok", "added": False}
+    assert removed_links == [link]
+    assert fake_db.commits == 1
 
 
 def test_add_place_to_trip_day_persists_place_and_returns_updated_trip(monkeypatch) -> None:
@@ -1627,6 +1744,10 @@ def install_create_trip_stubs(monkeypatch, *, policy: Policy | None = None):
 
     def add_trip_policy_stub(_db, **kwargs):
         captured["add_trip_policy"] = kwargs
+        if policy is not None and kwargs["policy_id"] == policy.id:
+            link = TripPolicy(id=99, trip_id=kwargs["trip_id"], policy_id=policy.id)
+            link.policy = policy
+            created_trip.policies = [link]
 
     monkeypatch.setattr(trip_service.trip_repository, "add_trip_policy", add_trip_policy_stub)
     return captured
@@ -2087,6 +2208,30 @@ def test_create_trip_links_policy_when_policy_slug_is_present(monkeypatch) -> No
     assert captured["add_trip_policy"] == {"trip_id": 11, "policy_id": 3}
 
 
+def test_create_trip_with_stay_discount_alias_links_canonical_and_echoes_alias(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    stay_policy = make_stay_policy()
+    stay_record = make_stay_record()
+    captured = install_create_trip_stubs(monkeypatch, policy=stay_policy)
+    monkeypatch.setattr(trip_service.policy_repository, "list_policies", lambda db: [stay_policy] if db is fake_db else [])
+    monkeypatch.setattr(
+        trip_service.external_source_repository,
+        "get_external_source_record_by_id",
+        lambda db, record_id: stay_record if db is fake_db and record_id == 88 else None,
+    )
+
+    payload = trip_service.create_trip(
+        fake_db,
+        user,
+        CreateTripRequest(policySlug="stay-discount-gyeongnam-goseong"),
+    )
+
+    assert captured["add_trip_policy"] == {"trip_id": 11, "policy_id": 88}
+    assert payload["linkedPolicies"][0]["slug"] == "stay-discount-gyeongnam-goseong"
+    assert payload["linkedPolicies"][0]["region"] == "경남 고성군"
+
+
 def test_create_trip_rejects_unknown_policy_slug(monkeypatch) -> None:
     fake_db = FakeDb()
     user = make_user()
@@ -2299,8 +2444,74 @@ def test_get_trip_recommendations_use_date_category_and_fresh_external_gate(monk
     assert payload is not None
     assert [policy["slug"] for policy in payload["recommendedPolicies"]] == [
         "travelmonth-local-half",
-        "travelmonth-stay",
     ]
+
+
+def test_trip_recommendation_candidates_expand_stay_discount_aliases(monkeypatch) -> None:
+    fake_db = object()
+    stay_policy = make_stay_policy()
+    stay_record = make_stay_record()
+
+    monkeypatch.setattr(trip_service.policy_repository, "list_policies", lambda db: [stay_policy] if db is fake_db else [])
+    monkeypatch.setattr(
+        trip_service.external_source_repository,
+        "get_external_source_record_by_id",
+        lambda db, record_id: stay_record if db is fake_db and record_id == 88 else None,
+    )
+
+    candidates = trip_service._list_recommended_policy_candidates(fake_db)
+
+    assert [candidate["slug"] for candidate in candidates] == [
+        "stay-discount-gangwon-goseong",
+        "stay-discount-gangwon-samcheok",
+        "stay-discount-gyeongnam-goseong",
+    ]
+    assert all(candidate["canonicalSlug"] == "travelmonth-88" for candidate in candidates)
+    assert "travelmonth-88" not in [candidate["slug"] for candidate in candidates]
+
+
+def test_trip_recommendation_candidates_hide_stay_canonical_when_alias_payload_missing(monkeypatch) -> None:
+    fake_db = object()
+    stay_policy = make_stay_policy()
+    stay_record = make_stay_record()
+    stay_record.raw_payload = {}
+
+    monkeypatch.setattr(trip_service.policy_repository, "list_policies", lambda db: [stay_policy] if db is fake_db else [])
+    monkeypatch.setattr(
+        trip_service.external_source_repository,
+        "get_external_source_record_by_id",
+        lambda db, record_id: stay_record if db is fake_db and record_id == 88 else None,
+    )
+
+    assert trip_service._list_recommended_policy_candidates(fake_db) == []
+
+
+def test_trip_recommendations_do_not_show_stay_aliases_when_canonical_linked(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    trip = make_trip()
+    stay_policy = make_stay_policy()
+    stay_record = make_stay_record()
+    trip.region = "강원"
+    trip.travel_area_id = "gangwon-sokcho-goseong-yangyang"
+    trip.policies[0].policy = stay_policy
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip if db is fake_db and trip_id == 7 and user_id == 1 else None,
+    )
+    monkeypatch.setattr(trip_service.policy_repository, "list_policies", lambda db: [stay_policy] if db is fake_db else [])
+    monkeypatch.setattr(
+        trip_service.external_source_repository,
+        "get_external_source_record_by_id",
+        lambda db, record_id: stay_record if db is fake_db and record_id == 88 else None,
+    )
+
+    payload = trip_service.get_trip("7", fake_db, user)
+
+    assert payload is not None
+    assert payload["recommendedPolicies"] == []
 
 
 def test_recommended_policies_use_candidate_style_tags_for_rule_score() -> None:

@@ -17,7 +17,7 @@ The team implementation must cover these benefit families and connections:
 | Area | Expected result | Boundary checks |
 | --- | --- | --- |
 | `stay_discount` / 숙박세일 페스타 | Official-like stay benefit HTML parses into active/fresh `ExternalBenefitSource` rows, promotes to public `policies`, classifies as `숙박`, and can appear in trip recommendations. | Add the source category in schema literals, collector parser/url dispatch, repository promotion/recommendation allowlists, classifier boosts, admin/ops quality filters, contract docs, and tests together. |
-| `local_half_trip` / 대한민국 반값여행 | June/July application-status variants are classified as active/scheduled/ended without losing the travel-period text needed for recommendation date matching. | Preserve application period vs travel period in `raw_payload`; do not expose scheduled/ended/stale rows as public active policies. |
+| `local_half_trip` / 대한민국 반값여행 | June/July application-status variants are classified as active/scheduled/ended without losing the travel-period text needed for recommendation date matching. | Preserve application period vs travel period in `raw_payload`; expose scheduled rows in the public policy list, but keep ended/stale rows hidden. |
 | 여행가는 달 benefits | Modal-only and anchor+modal records merge into one stable canonical key with title, organizer, period, benefit, tags, detail URL, and confidence/freshness handling. | Prevent duplicate promotions and keep parser failures isolated to per-source `partial_success`. |
 | Rule-based trip recommendation | Matching policies rank deterministically by region, trip-date intersection, category, and travel-style/tag signals only. | No AI/LLM calls or semantic judgment. Keep DTO stable unless API contract, frontend types, fixtures, and evals are updated in the same change. |
 
@@ -40,8 +40,8 @@ Run the narrowest commands that prove the changed implementation, then keep this
 | Claim | Minimum local evidence |
 | --- | --- |
 | Parser/source expansion works | Backend parser tests for stay discount, dgtourcard status variants, TravelMonth modal/detail merge; collection-service test with `stay_discount` source result. |
-| Promotion/public exposure is safe | Policy normalization and external-source repository tests proving active/fresh rows promote, scheduled/ended/stale rows hide, and detail fallback matches public allowlists. |
-| Recommendations are deterministic | Trip service tests proving matching region/date/category/style ranking, linked-policy exclusion, stale/ended/scheduled exclusion, stable tie ordering, and no AI/LLM/external API call. |
+| Promotion/public exposure is safe | Policy normalization and external-source repository tests proving active/fresh and scheduled local_half_trip rows promote, ended/stale rows hide, and detail fallback matches public allowlists. |
+| Recommendations are deterministic | Trip service tests proving matching region/date/category/style ranking, linked-policy exclusion, stale/ended exclusion, stable tie ordering, and no AI/LLM/external API call. |
 | API/frontend contract remains aligned | API contract docs/evals JSON validation; frontend typecheck/build and trip/admin tests if DTOs, fixtures, or display change. |
 | Hygiene | `git diff --check`, UTF-8 replacement-character scan for Korean-bearing docs, and Alembic SQL generation if schema changes. |
 

@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from typing import Literal
 from sqlalchemy.orm import Session
@@ -10,6 +10,7 @@ from app.models import Policy as PolicyModel
 from app.repositories import external_sources as external_source_repository
 from app.repositories import policies as policy_repository
 from app.services.policy_category_classifier import classify_external_policy_category
+from app.services import stay_discount_aliases
 
 
 LEGACY_CATEGORY_MAP = {
@@ -84,6 +85,42 @@ def policy_to_api(policy: PolicyModel) -> dict[str, object]:
     }
 
 
+def _policy_to_stay_discount_alias_api(
+    policy: PolicyModel,
+    alias_area: stay_discount_aliases.StayDiscountAliasArea,
+) -> dict[str, object]:
+    payload = policy_to_api(policy)
+    region = f"{alias_area.sido} {alias_area.city}"
+    payload.update(
+        {
+            "id": alias_area.slug,
+            "slug": alias_area.slug,
+            "label": alias_area.sido[:2],
+            "title": f"{policy.title} - {region}",
+            "region": region,
+            "category": "숙박",
+            "sourceType": "external",
+        }
+    )
+    payload.pop("actionStatus", None)
+    return payload
+
+
+def _policy_detail_with_alias(
+    policy: PolicyModel,
+    alias_area: stay_discount_aliases.StayDiscountAliasArea,
+) -> dict[str, object]:
+    payload = policy_to_api(policy)
+    region = f"{alias_area.sido} {alias_area.city}"
+    payload["id"] = alias_area.slug
+    payload["slug"] = alias_area.slug
+    payload["title"] = f"{policy.title} - {region}"
+    payload["region"] = region
+    payload["category"] = "숙박"
+    payload.pop("actionStatus", None)
+    return payload
+
+
 def external_policy_slug(record: ExternalSourceRecord) -> str:
     return f"{external_source_repository.EXTERNAL_POLICY_SLUG_PREFIX}{record.id}"
 
@@ -135,14 +172,32 @@ def external_source_record_to_policy_api(
 def list_policies(db: Session | None = None) -> list[dict[str, object]]:
     if db is None:
         raise RuntimeError("DB session is required.")
-    return [
-        policy_to_api(policy) for policy in policy_repository.list_policies(db)
-    ]
+    payloads: list[dict[str, object]] = []
+    for policy in policy_repository.list_policies(db):
+        if stay_discount_aliases.is_stay_discount_canonical_policy(policy):
+            alias_areas = stay_discount_aliases.alias_areas_for_policy(db, policy)
+            if alias_areas:
+                payloads.extend(
+                    _policy_to_stay_discount_alias_api(policy, area)
+                    for area in alias_areas
+                )
+            continue
+        payloads.append(policy_to_api(policy))
+    return payloads
 
 
 def get_policy(policy_slug: str, db: Session | None = None) -> dict[str, object] | None:
     if db is None:
         raise RuntimeError("DB session is required.")
+
+    alias_resolution = stay_discount_aliases.resolve_stay_discount_alias_slug(db, policy_slug)
+    if alias_resolution is not None:
+        policy = alias_resolution.canonical_policy
+        if (getattr(policy, "status", "active") or "active") != "active":
+            return None
+        if alias_resolution.alias_area is None:
+            return policy_to_api(policy)
+        return _policy_detail_with_alias(policy, alias_resolution.alias_area)
 
     try:
         policy = policy_repository.get_policy_by_slug_any_status(db, policy_slug)
@@ -173,7 +228,12 @@ def save_policy(
     if user is None:
         raise RuntimeError("User is required.")
 
-    policy = policy_repository.get_policy_by_slug(db, policy_slug)
+    alias_resolution = stay_discount_aliases.resolve_stay_discount_alias_slug(db, policy_slug)
+    policy = (
+        alias_resolution.canonical_policy
+        if alias_resolution is not None
+        else policy_repository.get_policy_by_slug(db, policy_slug)
+    )
     if policy is None:
         return None
 
@@ -276,7 +336,12 @@ def remove_saved_policy(
     if user is None:
         raise RuntimeError("User is required.")
 
-    policy = policy_repository.get_policy_by_slug(db, policy_slug)
+    alias_resolution = stay_discount_aliases.resolve_stay_discount_alias_slug(db, policy_slug)
+    policy = (
+        alias_resolution.canonical_policy
+        if alias_resolution is not None
+        else policy_repository.get_policy_by_slug(db, policy_slug)
+    )
     if policy is None:
         return None
 

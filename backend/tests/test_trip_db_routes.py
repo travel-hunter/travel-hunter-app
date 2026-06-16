@@ -165,7 +165,7 @@ def test_db_trip_create_route_rejects_out_of_range_participant_count() -> None:
     try:
         responses = [
             client.post("/api/trips", json={"participantCount": 0}),
-            client.post("/api/trips", json={"participantCount": 7}),
+            client.post("/api/trips", json={"participantCount": 11}),
         ]
     finally:
         clear_overrides()

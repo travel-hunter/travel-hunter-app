@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.models import ExternalSourceRecord
 from app.repositories import external_sources as external_source_repository
 from app.schemas.recommendations import RegionRecommendation
+from app.services import stay_discount_aliases
 
 
 ENDING_SOON_DAYS = 14
@@ -40,7 +41,7 @@ def recommend_regions(
     regional_stats: dict[str, _RegionStats] = {}
     nationwide_stats = _RegionStats(region=NATIONWIDE_REGION, nationwide=True)
 
-    for record in records:
+    for record in _iter_recommendation_records(records):
         target = nationwide_stats if _is_nationwide(record) else _stats_for_region(regional_stats, record.region)
         if target is None:
             continue
@@ -73,13 +74,22 @@ def _stats_for_region(
     return stats_by_region[region]
 
 
-def _is_nationwide(record: ExternalSourceRecord) -> bool:
+def _iter_recommendation_records(records: list[ExternalSourceRecord]):
+    for record in records:
+        alias_records = stay_discount_aliases.alias_records_for_record(record)
+        if alias_records:
+            yield from alias_records
+        elif record.source_category != stay_discount_aliases.SOURCE_CATEGORY:
+            yield record
+
+
+def _is_nationwide(record) -> bool:
     return bool(record.is_nationwide) or record.region == NATIONWIDE_REGION
 
 
 def _add_record(
     stats: _RegionStats,
-    record: ExternalSourceRecord,
+    record,
     *,
     today: date,
     style: str | None,

@@ -13,6 +13,7 @@ from app.schemas.recommendations import (
     TravelAreaRecommendation,
     TravelAreaRecommendationResponse,
 )
+from app.services import stay_discount_aliases
 
 
 ENDING_SOON_DAYS = 14
@@ -92,8 +93,9 @@ def recommend_travel_areas(
             )
 
     records = external_source_repository.list_regional_benefit_recommendation_records(db)
+    recommendation_records = list(_iter_recommendation_records(records))
     run_date = today or date.today()
-    ranked = [_rank_area(area, records, style=style, today=run_date) for area in areas]
+    ranked = [_rank_area(area, recommendation_records, style=style, today=run_date) for area in areas]
     ranked.sort(key=_ranking_key, reverse=True)
 
     return TravelAreaRecommendationResponse(
@@ -107,7 +109,7 @@ def recommend_travel_areas(
 
 def _rank_area(
     area: TravelArea,
-    records: list[ExternalSourceRecord],
+    records: list[object],
     *,
     style: str | None,
     today: date,
@@ -149,7 +151,7 @@ def _fold(value: str) -> str:
 
 def _stats_for_area(
     area: TravelArea,
-    records: list[ExternalSourceRecord],
+    records: list[object],
     *,
     style: str | None,
     today: date,
@@ -192,9 +194,22 @@ def _stats_for_area(
     )
 
 
-def _record_match_kind(area: TravelArea, record: ExternalSourceRecord) -> str | None:
+def _iter_recommendation_records(records: list[ExternalSourceRecord]):
+    for record in records:
+        alias_records = stay_discount_aliases.alias_records_for_record(record)
+        if alias_records:
+            yield from alias_records
+        elif record.source_category != stay_discount_aliases.SOURCE_CATEGORY:
+            yield record
+
+
+def _record_match_kind(area: TravelArea, record) -> str | None:
     if _is_nationwide(record):
         return "nationwide"
+    if getattr(record, "source_category", None) == stay_discount_aliases.SOURCE_CATEGORY and record.city:
+        if record.region != area.sido:
+            return None
+        return "city" if _normalize_city(record.city) in {_normalize_city(city) for city in area.included_cities} else None
     if record.city and _normalize_city(record.city) in {_normalize_city(city) for city in area.included_cities}:
         return "city"
     if record.region == area.sido:
@@ -204,15 +219,15 @@ def _record_match_kind(area: TravelArea, record: ExternalSourceRecord) -> str | 
     return None
 
 
-def _is_nationwide(record: ExternalSourceRecord) -> bool:
+def _is_nationwide(record) -> bool:
     return bool(record.is_nationwide) or record.region == NATIONWIDE_REGION
 
 
 def _normalize_city(value: str) -> str:
-    return value.strip().removesuffix("?").removesuffix("?").removesuffix("?")
+    return value.strip().removesuffix("특별시").removesuffix("광역시").removesuffix("시").removesuffix("군").removesuffix("구")
 
 
-def _contains_city_text(area: TravelArea, record: ExternalSourceRecord) -> bool:
+def _contains_city_text(area: TravelArea, record) -> bool:
     text = " ".join(
         value or ""
         for value in (
@@ -226,7 +241,7 @@ def _contains_city_text(area: TravelArea, record: ExternalSourceRecord) -> bool:
     return any(city and city in text for city in area.included_cities)
 
 
-def _style_matches(record: ExternalSourceRecord, style: str | None) -> bool:
+def _style_matches(record, style: str | None) -> bool:
     normalized_style = _normalize(style)
     if normalized_style is None:
         return False

@@ -36,6 +36,22 @@ CITY_REGION = {
     "고창": "전북",
 }
 
+_VOID_TAGS = {
+    "area",
+    "base",
+    "br",
+    "col",
+    "embed",
+    "hr",
+    "img",
+    "input",
+    "link",
+    "meta",
+    "source",
+    "track",
+    "wbr",
+}
+
 
 class _DgTourCardHtmlParser(HTMLParser):
     def __init__(self) -> None:
@@ -45,10 +61,34 @@ class _DgTourCardHtmlParser(HTMLParser):
         self._current: dict[str, object] | None = None
         self._capture_heading = False
         self._capture_paragraph = False
+        self._current_data: dict[str, object] | None = None
+        self._data_depth = 0
+        self._data_field: str | None = None
+        self._data_buffer: list[str] = []
+        self._data_label: str | None = None
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attr_map = {key: value for key, value in attrs if key}
-        if attr_map.get("data-trvid") and (
+        if tag == "aside" and attr_map.get("data-trvid") and attr_map.get("data-sttsnm"):
+            self._finish_current()
+            self._current_data = dict(attr_map)
+            self._current_data["raw"] = ""
+            self._current_data["field_values"] = {}
+            self._data_depth = 1
+            self._data_field = None
+            self._data_buffer = []
+            self._data_label = None
+            return
+
+        if self._current_data is not None:
+            if tag not in _VOID_TAGS:
+                self._data_depth += 1
+            if tag in {"dt", "dd"}:
+                self._data_field = tag
+                self._data_buffer = []
+            return
+
+        if tag == "a" and attr_map.get("data-trvid") and (
             attr_map.get("data-town")
             or attr_map.get("data-trvnm")
             or attr_map.get("data-sttsnm")
@@ -70,6 +110,32 @@ class _DgTourCardHtmlParser(HTMLParser):
             self._current["detail_url"] = attr_map["href"]
 
     def handle_endtag(self, tag: str) -> None:
+        if self._current_data is not None:
+            if tag == "dt" and self._data_field == "dt":
+                self._data_label = _clean_label(" ".join(self._data_buffer))
+                self._data_field = None
+                self._data_buffer = []
+            elif tag == "dd" and self._data_field == "dd":
+                value = normalize_text(" ".join(self._data_buffer))
+                if self._data_label and value:
+                    field_values = self._current_data.setdefault("field_values", {})
+                    if isinstance(field_values, dict):
+                        existing = normalize_text(str(field_values.get(self._data_label) or ""))
+                        field_values[self._data_label] = normalize_text(f"{existing} {value}")
+                self._data_field = None
+                self._data_buffer = []
+
+            if tag not in _VOID_TAGS:
+                self._data_depth -= 1
+            if self._data_depth <= 0:
+                self.data_records.append(self._current_data)
+                self._current_data = None
+                self._data_depth = 0
+                self._data_field = None
+                self._data_buffer = []
+                self._data_label = None
+            return
+
         if tag in {"h2", "h3"}:
             self._capture_heading = False
         elif tag == "p":
@@ -77,7 +143,14 @@ class _DgTourCardHtmlParser(HTMLParser):
 
     def handle_data(self, data: str) -> None:
         text = normalize_text(data)
-        if not text or self._current is None:
+        if not text:
+            return
+        if self._current_data is not None:
+            self._current_data["raw"] = normalize_text(f"{self._current_data.get('raw', '')} {text}")
+            if self._data_field in {"dt", "dd"}:
+                self._data_buffer.append(text)
+            return
+        if self._current is None:
             return
         self._current["raw"] = normalize_text(f"{self._current.get('raw', '')} {text}")
         if self._capture_heading:
@@ -89,6 +162,9 @@ class _DgTourCardHtmlParser(HTMLParser):
 
     def close(self) -> None:
         super().close()
+        if self._current_data is not None:
+            self.data_records.append(self._current_data)
+            self._current_data = None
         self._finish_current()
 
     def _finish_current(self) -> None:
@@ -146,26 +222,53 @@ def _record_from_data_attrs(
     if city not in CITY_REGION:
         return None
     status_text = normalize_text(str(raw_record.get("data-sttsnm") or ""))
+    field_values = raw_record.get("field_values")
+    if not isinstance(field_values, dict):
+        field_values = {}
     application_period = _period_from_dates(
         raw_record.get("data-evtbgndt"),
         raw_record.get("data-evtenddt"),
     )
+    detailed_application_text = _field_value(field_values, "신청기간") or _field_value(
+        field_values,
+        "신청접수",
+    )
+    trip_period = _trip_period_from_text(detailed_application_text)
+    local_currency = _field_value(field_values, "지역화폐")
+    notes = _field_value(field_values, "특이사항")
+    contact_text = _field_value(field_values, "문의전화")
     start_date, end_date = _parse_application_period(application_period)
     detail_url = _absolute_detail_url(raw_record.get("data-link"), collected_page_url)
     status = _status_from(status_text, application_period, start_date, end_date, today)
-    raw_text = normalize_text(" ".join(str(value or "") for value in raw_record.values()))
+    raw_text = normalize_text(
+        str(raw_record.get("raw") or " ".join(str(value or "") for value in raw_record.values()))
+    )
+    raw_payload = dict(raw_record)
+    raw_payload.pop("raw", None)
+    if detailed_application_text:
+        raw_payload["applicationDetail"] = detailed_application_text
+    if application_period:
+        raw_payload["applicationPeriod"] = application_period
+    if trip_period:
+        raw_payload["tripPeriod"] = trip_period
+    if local_currency:
+        raw_payload["localCurrency"] = local_currency
+    if notes:
+        raw_payload["notes"] = notes
+    if contact_text:
+        raw_payload["contact"] = contact_text
     return _build_record(
         city=city,
         status_text=status_text,
         application_period=application_period,
-        trip_period=None,
-        contact_text=None,
+        trip_period=trip_period,
+        contact_text=contact_text,
         detail_url=detail_url,
         start_date=start_date,
         end_date=end_date,
         status=status,
         raw_text=raw_text,
-        raw_payload=dict(raw_record),
+        raw_payload=raw_payload,
         fetched_at=fetched_at,
     )
 
@@ -229,9 +332,7 @@ def _build_record(
     raw_payload: dict[str, object],
     fetched_at: datetime,
 ) -> ExternalBenefitSource:
-    canonical_text = "|".join(
-        [SOURCE_CATEGORY, city, application_period or "", trip_period or ""]
-    )
+    canonical_text = "|".join([SOURCE_CATEGORY, city, application_period or "", ""])
     return ExternalBenefitSource(
         source_name=SOURCE_NAME,
         source_type="official_campaign",
@@ -274,11 +375,41 @@ def _city_from_data_attrs(raw_record: dict[str, object]) -> str:
     city = normalize_text(str(raw_record.get("data-town") or ""))
     if city:
         return city.removesuffix("시").removesuffix("군")
+    district = normalize_text(str(raw_record.get("data-signgucdnm") or ""))
+    if district:
+        return district.removesuffix("시").removesuffix("군")
     title = normalize_text(str(raw_record.get("data-trvnm") or ""))
     for known_city in CITY_REGION:
         if known_city in title:
             return known_city
     return ""
+
+
+def _clean_label(value: str) -> str:
+    return normalize_text(value).rstrip(":：").strip()
+
+
+def _field_value(values: dict[object, object], label: str) -> str | None:
+    for key, value in values.items():
+        if normalize_text(str(key)) == label:
+            return normalize_text(str(value))
+    return None
+
+
+def _trip_period_from_text(value: str | None) -> str | None:
+    if not value:
+        return None
+    text = normalize_text(value)
+    label_match = re.search(r"(?:여행기간|여행일정)\s*[:：]?\s*(.+)", text)
+    if label_match:
+        candidate = label_match.group(1)
+        candidate = re.split(
+            r"\s+[-–]\s+|\s+[-–](?=\d|[가-힣])|●|\(",
+            candidate,
+            maxsplit=1,
+        )[0]
+        return normalize_text(candidate)
+    return None
 
 
 def _period_from_dates(start_value: object, end_value: object) -> str | None:

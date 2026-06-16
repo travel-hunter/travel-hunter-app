@@ -13,6 +13,7 @@ from app.repositories.external_sources import (
     get_external_source_record_by_policy_slug,
     list_external_source_records,
     list_policy_deactivation_records,
+    list_policy_promotion_records,
     upsert_external_source_records,
 )
 from app.schemas.external_sources import ExternalBenefitSource
@@ -140,6 +141,46 @@ def test_policy_slug_fallback_excludes_non_active_or_non_fresh_records(db: Sessi
     ] == [None, None, None, None]
 
 
+def test_policy_promotion_records_include_scheduled_local_half_trip(
+    db: Session,
+) -> None:
+    upsert_external_source_records(
+        db,
+        [
+            make_source(
+                source_category="local_half_trip",
+                canonical_key="scheduled-half-trip",
+                external_id="scheduled-half-trip",
+                status="scheduled",
+                freshness_status="unknown",
+            ),
+            make_source(
+                source_category="local_half_trip",
+                canonical_key="ended-half-trip",
+                external_id="ended-half-trip",
+                status="ended",
+                freshness_status="unknown",
+            ),
+            make_source(
+                source_category="stay_discount",
+                canonical_key="scheduled-stay",
+                external_id="scheduled-stay",
+                status="scheduled",
+                freshness_status="unknown",
+            ),
+        ],
+    )
+
+    promoted = list_policy_promotion_records(db)
+    deactivated = list_policy_deactivation_records(db)
+
+    assert [record.canonical_key for record in promoted] == ["scheduled-half-trip"]
+    assert [record.canonical_key for record in deactivated] == [
+        "ended-half-trip",
+        "scheduled-stay",
+    ]
+
+
 def test_policy_slug_fallback_allows_active_fresh_stay_discount(db: Session) -> None:
     rows = upsert_external_source_records(
         db,
@@ -156,6 +197,23 @@ def test_policy_slug_fallback_allows_active_fresh_stay_discount(db: Session) -> 
 
     assert found is not None
     assert found.source_category == "stay_discount"
+
+
+def test_policy_slug_fallback_excludes_active_fresh_regional_benefit(
+    db: Session,
+) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                source_category="regional_benefit",
+                external_id="regional-1",
+                canonical_key="regional-1",
+            )
+        ],
+    )
+
+    assert get_external_source_record_by_policy_slug(db, f"travelmonth-{rows[0].id}") is None
 
 
 def test_policy_slug_fallback_excludes_active_fresh_traffic_benefit(db: Session) -> None:
@@ -188,4 +246,9 @@ def test_list_policy_deactivation_records_returns_non_active_or_non_fresh_record
 
     records = list_policy_deactivation_records(db)
 
-    assert [record.canonical_key for record in records] == ["ended", "unknown", "stale"]
+    assert [record.canonical_key for record in records] == [
+        "active",
+        "ended",
+        "unknown",
+        "stale",
+    ]

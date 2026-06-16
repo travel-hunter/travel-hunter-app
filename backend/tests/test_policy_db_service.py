@@ -383,3 +383,216 @@ def test_policy_to_api_source_type_normalized_to_internal_external() -> None:
     assert policy_service.policy_to_api(policy_with_unknown_source)["sourceType"] == "external"
     assert policy_service.policy_to_api(policy_with_internal_source)["sourceType"] == "internal"
     assert policy_service.policy_to_api(policy_with_external_record)["sourceType"] == "external"
+
+
+def make_stay_policy() -> PolicyModel:
+    policy = PolicyModel(
+        id=88,
+        slug="travelmonth-88",
+        title="2026 대한민국 숙박세일 페스타 숙박 할인",
+        organization="문화체육관광부, 한국관광공사",
+        policy_type="숙박",
+        description="숙박 할인권 안내",
+        benefit_amount=70000,
+        benefit_detail="2/3/5/7만원 할인권",
+        target_condition="발급기간: 2026.6.11~7.31\n사용방법: 참여 온라인 여행사에서 발급",
+        region="비수도권 인구감소지역",
+        end_date=date(2026, 7, 31),
+        official_url="https://ktostay.visitkorea.or.kr/",
+        apply_url=None,
+        policy_comment="비수도권 인구감소지역 85개 지자체 숙박 할인",
+        source_type="official_campaign",
+        source_category="stay_discount",
+        external_source_record_id=88,
+        verification_status="fresh",
+        status="active",
+    )
+    policy.documents = []
+    return policy
+
+
+def make_stay_record() -> ExternalSourceRecord:
+    return ExternalSourceRecord(
+        id=88,
+        source_name="대한민국 숙박세일 페스타",
+        source_type="official_campaign",
+        source_category="stay_discount",
+        external_id="stay-discount",
+        canonical_key="stay-discount",
+        detail_url="https://ktostay.visitkorea.or.kr/",
+        collected_page_url="https://ktostay.visitkorea.or.kr/",
+        title="2026 대한민국 숙박세일 페스타 숙박 할인",
+        organizer_text="문화체육관광부, 한국관광공사",
+        region="비수도권 인구감소지역",
+        is_nationwide=False,
+        status="active",
+        end_date=date(2026, 7, 31),
+        benefit_text="2/3/5/7만원 할인권",
+        benefit_value_text="2/3/5/7만원 할인권",
+        extracted_amount_krw=70000,
+        tags=["숙박", "인구감소지역"],
+        inferred_travel_styles=["휴식"],
+        confidence=90,
+        field_completeness=90,
+        freshness_status="fresh",
+        raw_payload={
+            "eligibleAreas": [
+                {"sido": "강원", "cities": ["고성군", "삼척시"]},
+                {"sido": "경남", "cities": ["고성군"]},
+            ],
+            "eligibleAreaCount": 3,
+        },
+    )
+
+
+def test_stay_discount_list_projects_aliases_and_hides_canonical(monkeypatch) -> None:
+    fake_db = object()
+    canonical = make_stay_policy()
+    record = make_stay_record()
+
+    monkeypatch.setattr(policy_service.policy_repository, "list_policies", lambda db: [canonical] if db is fake_db else [])
+    monkeypatch.setattr(
+        policy_service.external_source_repository,
+        "get_external_source_record_by_id",
+        lambda db, record_id: record if db is fake_db and record_id == 88 else None,
+    )
+
+    payload = policy_service.list_policies(fake_db)
+
+    assert [item["slug"] for item in payload] == [
+        "stay-discount-gangwon-goseong",
+        "stay-discount-gangwon-samcheok",
+        "stay-discount-gyeongnam-goseong",
+    ]
+    assert all(item["sourceType"] == "external" for item in payload)
+    assert all(item["category"] == "숙박" for item in payload)
+    assert all(item.get("actionStatus") is None for item in payload)
+    assert "travelmonth-88" not in [item["slug"] for item in payload]
+
+
+def test_stay_discount_list_hides_canonical_when_alias_payload_missing(monkeypatch) -> None:
+    fake_db = object()
+    canonical = make_stay_policy()
+    record = make_stay_record()
+    record.raw_payload = {}
+
+    monkeypatch.setattr(policy_service.policy_repository, "list_policies", lambda db: [canonical] if db is fake_db else [])
+    monkeypatch.setattr(
+        policy_service.external_source_repository,
+        "get_external_source_record_by_id",
+        lambda db, record_id: record if db is fake_db and record_id == 88 else None,
+    )
+
+    assert policy_service.list_policies(fake_db) == []
+
+
+def test_stay_discount_alias_detail_echoes_alias_slug(monkeypatch) -> None:
+    fake_db = object()
+    canonical = make_stay_policy()
+    record = make_stay_record()
+
+    monkeypatch.setattr(policy_service.policy_repository, "list_policies", lambda db: [canonical] if db is fake_db else [])
+    monkeypatch.setattr(
+        policy_service.external_source_repository,
+        "get_external_source_record_by_id",
+        lambda db, record_id: record if db is fake_db and record_id == 88 else None,
+    )
+    monkeypatch.setattr(policy_service.policy_repository, "get_policy_by_slug_any_status", lambda *_args: None)
+    monkeypatch.setattr(policy_service.external_source_repository, "get_external_source_record_by_policy_slug", lambda *_args: None)
+
+    detail = policy_service.get_policy("stay-discount-gyeongnam-goseong", fake_db)
+
+    assert detail is not None
+    assert detail["slug"] == "stay-discount-gyeongnam-goseong"
+    assert detail["id"] == "stay-discount-gyeongnam-goseong"
+    assert detail["region"] == "경남 고성군"
+    assert detail["officialUrl"] == "https://ktostay.visitkorea.or.kr/"
+    assert detail.get("actionStatus") is None
+
+
+def test_stay_discount_alias_save_uses_canonical_policy_id_and_echoes_alias(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    canonical = make_stay_policy()
+    record = make_stay_record()
+    added_rows: list[dict[str, int]] = []
+
+    monkeypatch.setattr(policy_service.policy_repository, "list_policies", lambda db: [canonical] if db is fake_db else [])
+    monkeypatch.setattr(
+        policy_service.external_source_repository,
+        "get_external_source_record_by_id",
+        lambda db, record_id: record if db is fake_db and record_id == 88 else None,
+    )
+    monkeypatch.setattr(policy_service.policy_repository, "get_policy_by_slug", lambda *_args: None)
+    monkeypatch.setattr(policy_service.policy_repository, "get_saved_policy", lambda *_args, **_kwargs: None)
+
+    def add_saved_policy_stub(_db, **kwargs):
+        added_rows.append(kwargs)
+        return UserSavedPolicy(id=1, **kwargs)
+
+    monkeypatch.setattr(policy_service.policy_repository, "add_saved_policy", add_saved_policy_stub)
+
+    payload = policy_service.save_policy("stay-discount-gyeongnam-goseong", fake_db, user)
+
+    assert payload == {"policyId": "stay-discount-gyeongnam-goseong", "saved": True}
+    assert added_rows == [{"user_id": 7, "policy_id": 88}]
+    assert fake_db.commits == 1
+
+
+def test_stay_discount_alias_save_deduplicates_canonical_saved_policy(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    canonical = make_stay_policy()
+    record = make_stay_record()
+    added_rows: list[dict[str, int]] = []
+
+    monkeypatch.setattr(policy_service.policy_repository, "list_policies", lambda db: [canonical] if db is fake_db else [])
+    monkeypatch.setattr(
+        policy_service.external_source_repository,
+        "get_external_source_record_by_id",
+        lambda db, record_id: record if db is fake_db and record_id == 88 else None,
+    )
+    monkeypatch.setattr(
+        policy_service.policy_repository,
+        "get_saved_policy",
+        lambda *_args, **_kwargs: UserSavedPolicy(id=1, user_id=7, policy_id=88),
+    )
+    monkeypatch.setattr(
+        policy_service.policy_repository,
+        "add_saved_policy",
+        lambda _db, **kwargs: added_rows.append(kwargs),
+    )
+
+    payload = policy_service.save_policy("stay-discount-gangwon-goseong", fake_db, user)
+
+    assert payload == {"policyId": "stay-discount-gangwon-goseong", "saved": True}
+    assert added_rows == []
+    assert fake_db.commits == 0
+
+
+def test_stay_discount_alias_remove_uses_canonical_policy_id_and_echoes_alias(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    canonical = make_stay_policy()
+    record = make_stay_record()
+    removed_rows: list[dict[str, int]] = []
+
+    monkeypatch.setattr(policy_service.policy_repository, "list_policies", lambda db: [canonical] if db is fake_db else [])
+    monkeypatch.setattr(
+        policy_service.external_source_repository,
+        "get_external_source_record_by_id",
+        lambda db, record_id: record if db is fake_db and record_id == 88 else None,
+    )
+    monkeypatch.setattr(policy_service.policy_repository, "get_policy_by_slug", lambda *_args: None)
+
+    def remove_saved_policy_stub(_db, **kwargs):
+        removed_rows.append(kwargs)
+        return True
+
+    monkeypatch.setattr(policy_service.policy_repository, "remove_saved_policy", remove_saved_policy_stub)
+
+    payload = policy_service.remove_saved_policy("stay-discount-gangwon-samcheok", fake_db, user)
+
+    assert payload == {"policyId": "stay-discount-gangwon-samcheok", "saved": False}
+    assert removed_rows == [{"user_id": 7, "policy_id": 88}]
+    assert fake_db.commits == 1

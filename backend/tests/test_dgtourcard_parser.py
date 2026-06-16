@@ -141,3 +141,87 @@ def test_parse_dgtourcard_benefits_handles_june_july_status_variants() -> None:
     assert [record.status for record in after_start] == ["scheduled", "active", "ended"]
     assert after_start[1].start_date == date(2026, 6, 16)
     assert after_start[1].raw_payload["tripPeriod"] == "2026.07.01~2026.07.31"
+
+
+def test_parse_dgtourcard_benefits_reads_current_detail_aside_fields() -> None:
+    html = """
+    <html><body>
+    <aside class="cl-posi-detail step-7"
+        data-trvid="7"
+        data-mtpcdocdnm="전라남도"
+        data-signgucdnm="강진군"
+        data-trvnm="2026-전라남도 강진"
+        data-link="https://www.gangjintour.com/"
+        data-evtbgndt="2026-06-10"
+        data-evtenddt="2026-08-31"
+        data-sttscd="ONGOING"
+        data-sttsnm="신청접수중">
+      <h2><em>강진</em><span>신청접수중</span></h2>
+      <dl>
+        <dt>신청기간 : </dt>
+        <dd>2026.06.10-2026.08.31<br>● 여행기간 : 6.10~8.31<br>- 6.10(수) 9시부터</dd>
+      </dl>
+      <dl><dt>지역화폐 : </dt><dd>chak 앱(모바일 강진사랑상품권)</dd></dl>
+      <dl><dt>특이사항 : </dt><dd>강진군 관광지 2개소 이상 방문</dd></dl>
+      <dl><dt>문의전화 :</dt><dd><a href="tel:061-433-3349">061-433-3349</a></dd></dl>
+    </aside>
+    </body></html>
+    """
+
+    records = parse_dgtourcard_benefits(
+        html,
+        collected_page_url="https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+        fetched_at=datetime(2026, 6, 16, tzinfo=UTC),
+        today=date(2026, 6, 16),
+    )
+
+    assert len(records) == 1
+    record = records[0]
+    assert record.city == "강진"
+    assert record.status == "active"
+    assert record.detail_url == "https://www.gangjintour.com/"
+    assert record.start_date == date(2026, 6, 10)
+    assert record.end_date == date(2026, 8, 31)
+    assert record.raw_payload["applicationDetail"].startswith("2026.06.10-2026.08.31")
+    assert record.raw_payload["tripPeriod"] == "6.10~8.31"
+    assert record.raw_payload["localCurrency"] == "chak 앱(모바일 강진사랑상품권)"
+    assert record.raw_payload["notes"] == "강진군 관광지 2개소 이상 방문"
+    assert record.contact_text == "061-433-3349"
+
+
+def test_parse_dgtourcard_benefits_keeps_canonical_key_stable_when_trip_period_detail_changes() -> None:
+    first_html = """
+    <html><body>
+    <aside data-trvid="7" data-signgucdnm="강진군" data-trvnm="2026-전라남도 강진"
+        data-link="https://www.gangjintour.com/" data-evtbgndt="2026-06-10"
+        data-evtenddt="2026-08-31" data-sttsnm="신청접수중">
+      <dl><dt>신청기간 : </dt><dd>2026.06.10-2026.08.31<br>● 여행기간 : 6.10~8.31</dd></dl>
+    </aside>
+    </body></html>
+    """
+    changed_trip_period_html = """
+    <html><body>
+    <aside data-trvid="7" data-signgucdnm="강진군" data-trvnm="2026-전라남도 강진"
+        data-link="https://www.gangjintour.com/" data-evtbgndt="2026-06-10"
+        data-evtenddt="2026-08-31" data-sttsnm="신청접수중">
+      <dl><dt>신청기간 : </dt><dd>2026.06.10-2026.08.31<br>● 여행기간 : 7.1~8.31</dd></dl>
+    </aside>
+    </body></html>
+    """
+
+    first_records = parse_dgtourcard_benefits(
+        first_html,
+        collected_page_url="https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+        fetched_at=datetime(2026, 6, 16, tzinfo=UTC),
+        today=date(2026, 6, 16),
+    )
+    changed_records = parse_dgtourcard_benefits(
+        changed_trip_period_html,
+        collected_page_url="https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+        fetched_at=datetime(2026, 6, 16, tzinfo=UTC),
+        today=date(2026, 6, 16),
+    )
+
+    assert first_records[0].canonical_key == changed_records[0].canonical_key
+    assert first_records[0].raw_payload["tripPeriod"] == "6.10~8.31"
+    assert changed_records[0].raw_payload["tripPeriod"] == "7.1~8.31"
