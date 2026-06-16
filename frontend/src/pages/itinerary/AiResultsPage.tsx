@@ -176,7 +176,7 @@ function recommendationCompactCategoryLabel(item: Recommendation): string {
 }
 
 function compactDayLabel(dayNumber: number): string {
-  return `D${dayNumber}`;
+  return `Day ${dayNumber}`;
 }
 
 export function AiResultsPage() {

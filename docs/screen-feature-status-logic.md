@@ -197,7 +197,7 @@ Kakao Local provider가 없거나 외부 후보가 충분하지 않으면 내장
 | 후보 목록 | 추천 응답의 `categoryGroup`을 기준으로 `숙소`, `맛집`, `명소`, `기타`로 묶는다. |
 | 출처 안내 | 추천 응답의 `sourceType`을 기준으로 새 Kakao 후보, 혼합 결과, 저장된 추천 요약 fallback을 banner와 badge로 표시한다. |
 | 이미 추가됨 표시 | 현재 trip의 기존 장소명과 후보 제목을 정규화해 비교하고, 이미 있으면 `이미 추가됨`으로 표시한다. |
-| Day 선택 | 후보의 `suggestedDay`가 있으면 해당 Day를 기본값으로 쓰고, 없으면 Day 1 또는 현재 일정의 첫 Day를 사용한다. 사용자는 inline Day selector에서 추가할 Day를 바꿀 수 있다. |
+| Day 선택 | 후보의 `suggestedDay`가 있으면 해당 Day를 기본값으로 쓰고, 없으면 Day 1 또는 현재 일정의 첫 Day를 사용한다. 사용자는 inline Day selector에서 추가할 Day를 바꿀 수 있고, 7일 일정까지 `Day 1`~`Day 7` 형식으로 표시한다. |
 | 저장 payload | 후보 제목, 설명, 주소, 좌표, category code, place URL, source provider, external place id를 장소 추가 API로 전달한다. |
 | 추천 기준 sheet | 정책 조건, 이동 거리, 예산, 여행 스타일을 함께 본다는 제품 설명을 제공한다. 현재 실제 코드에서 정량 이동시간/예산 최적화가 완성된 것은 아니므로 발표 시에는 “추천 기준 설명 UI”로 구분하는 편이 정확하다. |
 
