@@ -11,6 +11,7 @@ from app.repositories import external_sources as external_source_repository
 from app.repositories import policies as policy_repository
 from app.services.policy_category_classifier import classify_external_policy_category
 from app.services import stay_discount_aliases
+from app.services import local_half_trip_display
 
 
 LEGACY_CATEGORY_MAP = {
@@ -64,12 +65,17 @@ def policy_to_api(policy: PolicyModel) -> dict[str, object]:
     category = _normalize_policy_category(policy.policy_type)
     source_type = _normalize_policy_source_type(policy)
 
+    title = local_half_trip_display.policy_title(
+        policy.title,
+        policy.source_category,
+    )
+
     return {
         "id": slug,
         "slug": slug,
         "label": str(display.get("label", slug[:2].upper())),
         "tag": str(display.get("tag", benefit_prefix or category)),
-        "title": policy.title,
+        "title": title,
         "org": policy.organization or "",
         "region": policy.region,
         "deadline": policy.end_date.isoformat() if policy.end_date else "",
@@ -145,12 +151,18 @@ def external_source_record_to_policy_api(
     if len(summary) > 180:
         summary = f"{summary[:177].rstrip()}..."
 
+    title = local_half_trip_display.policy_title(
+        record.title,
+        record.source_category,
+        record.city,
+    )
+
     return {
         "id": external_policy_slug(record),
         "slug": external_policy_slug(record),
         "label": _external_policy_label(record),
         "tag": tag,
-        "title": record.title,
+        "title": title,
         "org": record.organizer_text or record.source_name,
         "region": record.region or "전국",
         "deadline": record.end_date.isoformat() if record.end_date else "",

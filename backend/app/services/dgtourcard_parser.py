@@ -6,6 +6,7 @@ from html.parser import HTMLParser
 from urllib.parse import urljoin, urlparse
 
 from app.schemas.external_sources import ExternalBenefitSource
+from app.services.local_half_trip_display import title_with_city_prefix
 from app.services.travelmonth_normalizer import normalize_text, parse_period, stable_hash
 
 
@@ -342,7 +343,7 @@ def _build_record(
         canonical_key=stable_hash(canonical_text),
         detail_url=detail_url,
         collected_page_url=SOURCE_URL,
-        title=f"{city} 대한민국 반값여행 지원",
+        title=title_with_city_prefix("대한민국 반값여행 지원", city),
         organizer_text=f"{city} 지자체",
         organizers=[f"{city} 지자체", "한국관광공사"],
         region=CITY_REGION[city],

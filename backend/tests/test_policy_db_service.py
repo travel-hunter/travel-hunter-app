@@ -52,6 +52,19 @@ def test_policy_to_api_preserves_contract_shape() -> None:
     assert payload["category"] == "지역할인"
 
 
+def test_local_half_trip_policy_title_uses_bracketed_city_prefix() -> None:
+    policy = make_policy()
+    policy.slug = "travelmonth-101"
+    policy.title = "합천 대한민국 반값여행 지원"
+    policy.region = "경남"
+    policy.source_category = "local_half_trip"
+
+    payload = policy_service.policy_to_api(policy)
+
+    assert payload["title"] == "[합천] 대한민국 반값여행 지원"
+    assert payload["region"] == "경남"
+
+
 def test_db_policy_service_uses_repository_boundary(monkeypatch) -> None:
     fake_db = object()
     policy = make_policy()
@@ -171,6 +184,28 @@ def test_db_policy_detail_resolves_collected_external_benefit_slug(monkeypatch) 
     assert detail["slug"] == "travelmonth-58"
     assert detail["sourceType"] == "external"
     assert detail["actionStatus"] == "infoOnly"
+
+
+def test_local_half_trip_raw_fallback_title_uses_bracketed_city_prefix(monkeypatch) -> None:
+    fake_db = object()
+    external_record = make_external_record()
+    external_record.source_category = "local_half_trip"
+    external_record.source_name = "대한민국 반값여행"
+    external_record.title = "합천 대한민국 반값여행 지원"
+    external_record.region = "경남"
+    external_record.city = "합천"
+
+    monkeypatch.setattr(policy_service.policy_repository, "get_policy_by_slug_any_status", lambda *_args: None)
+    monkeypatch.setattr(
+        policy_service.external_source_repository,
+        "get_external_source_record_by_policy_slug",
+        lambda db, slug: external_record if db is fake_db and slug == "travelmonth-58" else None,
+    )
+
+    detail = policy_service.get_policy("travelmonth-58", fake_db)
+
+    assert detail is not None
+    assert detail["title"] == "[합천] 대한민국 반값여행 지원"
 
 
 def test_external_policy_category_uses_official_source_not_travel_styles() -> None:

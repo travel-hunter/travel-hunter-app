@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- Latest validated scope: 숙박세일 페스타 alias 정책카드 표시를 반값여행 카드와 맞춰 제목은 `[고성] 2026 대한민국 숙박세일 페스타 숙박 할인`, 지역 메타/필터는 광역자치단체(`강원`, `경남` 등)로 반환하도록 조정.
+- Latest validated scope: 숙박세일 페스타 alias 및 대한민국 반값여행 정책카드 제목/지역 표시 정렬. 숙박세일은 `[고성] 2026 대한민국 숙박세일 페스타 숙박 할인`, 반값여행은 `[합천] 대한민국 반값여행 지원` 형식으로 표시한다.
 - Last validation date: 2026-06-16.
 - Current release posture: `origin/develop` includes PR #55 merge commit `45c629256107e99700abea0e80b39d569404e002`; the development server was reset to that SHA, rebuilt, migrated, and smoked successfully. Production release remains blocked on external DNS/Cloudflare/provider authority before any production stack mutation.
 - Keep this file slim: current status, recent validation evidence, and active risks only. Historical detail belongs in git history, source-specific docs, or `.omx/evidence/*`.
@@ -18,6 +18,7 @@
 
 ## Latest Validations
 
+- 2026-06-16 대한민국 반값여행 title prefix alignment passed: backend `.venv/bin/python -m pytest tests/test_policy_db_service.py tests/test_dgtourcard_parser.py tests/test_trip_db_service.py tests/test_policy_normalization.py -q` passed (`118 passed, 1 upstream deprecation warning`); frontend `npm run typecheck` passed; API golden JSON parse passed; `git diff --check`, `git diff --check -- CHECKLIST.md`, and changed-files UTF-8 `U+FFFD` scan passed. Local Docker backend was rebuilt/restarted, became healthy, `/api/health` returned connected, and `/api/policies` returned 13 대한민국 반값여행 rows with bracketed titles such as `[제천] 대한민국 반값여행 지원`.
 - 2026-06-16 숙박세일 페스타 alias 표시 정렬 passed: backend `.venv/bin/python -m pytest tests/test_policy_db_service.py tests/test_trip_db_service.py tests/test_region_recommendations.py tests/test_travel_areas.py -q` passed (`117 passed`); frontend `npm run typecheck` passed; API golden JSON parse passed; `git diff --check` and changed-files UTF-8 `U+FFFD` scan passed. Local Docker backend was rebuilt/restarted, became healthy, `/health` and `/api/health` returned connected, and `/api/policies` returned `stay-discount-gangwon-goseong` as title `[고성] 2026 대한민국 숙박세일 페스타 숙박 할인` with region `강원`.
 - 2026-06-16 trip planning UX integration passed after merging `trip-member-limit-10`, `ai-day-labels-day-prefix`, and `trip-duration-seven-days`: backend `.venv/bin/python -m pytest tests/test_trip_db_service.py tests/test_trip_db_routes.py -q` passed (`101 passed, 1 upstream deprecation warning`); frontend `npx vitest run src/app/__tests__/trip-create.test.tsx src/app/__tests__/ai-results.test.tsx` passed (`23 passed`); frontend `npm run typecheck` passed. Final integrated limits are `participantCount` 1~10, trip duration/date range 2~7 days, and AI candidate Day selector labels `Day 1`~`Day 7`.
 - 2026-06-16 PR #55 publication/merge passed: GitHub `Backend fast lane` and `Frontend DB-backed fast lane` completed successfully; PR #55 was marked ready and merged into `develop` as `45c629256107e99700abea0e80b39d569404e002`.

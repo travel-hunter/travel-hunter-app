@@ -2446,6 +2446,7 @@ def test_get_trip_recommendations_use_date_category_and_fresh_external_gate(monk
     assert [policy["slug"] for policy in payload["recommendedPolicies"]] == [
         "travelmonth-local-half",
     ]
+    assert payload["recommendedPolicies"][0]["title"] == "[속초] 대한민국 반값여행 지원"
 
 
 def test_trip_recommendation_candidates_expand_stay_discount_aliases(monkeypatch) -> None:

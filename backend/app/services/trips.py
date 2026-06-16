@@ -26,6 +26,7 @@ from app.schemas.trip import (
 )
 from app.services import email as email_service
 from app.services import itinerary_recommendations
+from app.services import local_half_trip_display
 from app.services import stay_discount_aliases
 from app.services.kakao_local import KakaoLocalClient
 
@@ -195,7 +196,7 @@ def _linked_policies(
         slug = policy.slug or str(policy.id)
         alias_area = alias_overrides.get(slug)
         region = policy.region or ""
-        title = policy.title
+        title = local_half_trip_display.policy_title(policy.title, policy.source_category)
         if alias_area is not None:
             slug = alias_area.slug
             region = alias_area.sido
@@ -216,9 +217,10 @@ def _linked_policies(
 def _policy_to_trip_policy_candidate(policy: Policy) -> dict[str, object]:
     slug = policy.slug or str(policy.id)
     amount = policy.benefit_detail or _format_saving(policy.benefit_amount or 0)
+    title = local_half_trip_display.policy_title(policy.title, policy.source_category)
     return {
         "slug": slug,
-        "title": policy.title,
+        "title": title,
         "amount": amount,
         "region": policy.region or "",
         "benefitAmount": policy.benefit_amount or 0,
@@ -256,9 +258,10 @@ def _stay_alias_to_trip_policy_candidate(
 
 
 def _external_source_record_to_trip_policy_candidate(record: ExternalSourceRecord) -> dict[str, object]:
+    title = local_half_trip_display.policy_title(record.title, record.source_category, record.city)
     return {
         "slug": f"{external_source_repository.EXTERNAL_POLICY_SLUG_PREFIX}{record.id}",
-        "title": record.title,
+        "title": title,
         "amount": record.benefit_value_text or record.benefit_text,
         "region": record.region or (NATIONWIDE_REGION if record.is_nationwide else ""),
         "benefitAmount": record.extracted_amount_krw or 0,

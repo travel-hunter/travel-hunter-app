@@ -74,7 +74,7 @@ def test_parse_dgtourcard_benefits_reads_official_data_attributes() -> None:
     ]
     assert records[1].source_category == "local_half_trip"
     assert records[1].source_name == "대한민국 반값여행"
-    assert records[1].title == "하동 대한민국 반값여행 지원"
+    assert records[1].title == "[하동] 대한민국 반값여행 지원"
     assert records[1].region == "경남"
     assert records[1].freshness_status == "fresh"
     assert records[1].benefit_value_text == "최대 20만원 환급"
