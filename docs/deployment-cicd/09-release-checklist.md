@@ -9,9 +9,10 @@
 - 서버 repo 경로: `/home/deploy/travel-hunter-app`
 - compose 파일: `compose.tunnel.yaml`
 - 서버 runtime env: `/home/deploy/travel-hunter-app/deploy/.env.prod` (`chmod 600`, gitignored, 값 출력 금지)
-- 배포 SHA: `9169990aac582e4608648761b8633e56a429cbd5`
+- 배포 SHA: `45c629256107e99700abea0e80b39d569404e002`
 - 개발 도메인: `https://dev.travel-hunter.co.kr`
 - 2026-06-16 복구 기준: 서버 dirty worktree 백업 `/home/deploy/.travel-hunter-recovery/20260616T011723Z` 보존 후 clean `develop`@`9169990aac582e4608648761b8633e56a429cbd5`로 reset/rebuild/migration/smoke 완료.
+- 2026-06-16 재배포 기준: PR #55 merge 후 clean `develop`@`45c629256107e99700abea0e80b39d569404e002`로 reset/rebuild/migration/smoke 완료. 현재 계약 기준 API smoke는 `/api/profile-options`와 `/api/recommendations/regions`를 사용한다.
 
 남은 개발 서버 smoke 값은 repo 밖의 서버 전용 파일에만 둔다.
 
