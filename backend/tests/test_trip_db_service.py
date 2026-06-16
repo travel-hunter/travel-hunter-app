@@ -2229,7 +2229,8 @@ def test_create_trip_with_stay_discount_alias_links_canonical_and_echoes_alias(m
 
     assert captured["add_trip_policy"] == {"trip_id": 11, "policy_id": 88}
     assert payload["linkedPolicies"][0]["slug"] == "stay-discount-gyeongnam-goseong"
-    assert payload["linkedPolicies"][0]["region"] == "경남 고성군"
+    assert payload["linkedPolicies"][0]["title"] == "[고성] 2026 대한민국 숙박세일 페스타 숙박 할인"
+    assert payload["linkedPolicies"][0]["region"] == "경남"
 
 
 def test_create_trip_rejects_unknown_policy_slug(monkeypatch) -> None:
@@ -2467,6 +2468,12 @@ def test_trip_recommendation_candidates_expand_stay_discount_aliases(monkeypatch
         "stay-discount-gyeongnam-goseong",
     ]
     assert all(candidate["canonicalSlug"] == "travelmonth-88" for candidate in candidates)
+    assert [candidate["title"] for candidate in candidates] == [
+        "[고성] 2026 대한민국 숙박세일 페스타 숙박 할인",
+        "[삼척] 2026 대한민국 숙박세일 페스타 숙박 할인",
+        "[고성] 2026 대한민국 숙박세일 페스타 숙박 할인",
+    ]
+    assert [candidate["region"] for candidate in candidates] == ["강원", "강원", "경남"]
     assert "travelmonth-88" not in [candidate["slug"] for candidate in candidates]
 
 

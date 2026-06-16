@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- Latest validated scope: local 지역사랑 휴가지원/대한민국 반값여행 준비중 지역 공개 노출 plus 숙박세일 페스타 `ktostay` 수집, 85개 비수도권 인구감소지역 alias 목록/상세/저장/일정/추천 hybrid 처리.
+- Latest validated scope: 숙박세일 페스타 alias 정책카드 표시를 반값여행 카드와 맞춰 제목은 `[고성] 2026 대한민국 숙박세일 페스타 숙박 할인`, 지역 메타/필터는 광역자치단체(`강원`, `경남` 등)로 반환하도록 조정.
 - Last validation date: 2026-06-16.
 - Current release posture: `origin/develop` includes PR #55 merge commit `45c629256107e99700abea0e80b39d569404e002`; the development server was reset to that SHA, rebuilt, migrated, and smoked successfully. Production release remains blocked on external DNS/Cloudflare/provider authority before any production stack mutation.
 - Keep this file slim: current status, recent validation evidence, and active risks only. Historical detail belongs in git history, source-specific docs, or `.omx/evidence/*`.
@@ -18,6 +18,7 @@
 
 ## Latest Validations
 
+- 2026-06-16 숙박세일 페스타 alias 표시 정렬 passed: backend `.venv/bin/python -m pytest tests/test_policy_db_service.py tests/test_trip_db_service.py tests/test_region_recommendations.py tests/test_travel_areas.py -q` passed (`117 passed`); frontend `npm run typecheck` passed; API golden JSON parse passed; `git diff --check` and changed-files UTF-8 `U+FFFD` scan passed. Local Docker backend was rebuilt/restarted, became healthy, `/health` and `/api/health` returned connected, and `/api/policies` returned `stay-discount-gangwon-goseong` as title `[고성] 2026 대한민국 숙박세일 페스타 숙박 할인` with region `강원`.
 - 2026-06-16 trip planning UX integration passed after merging `trip-member-limit-10`, `ai-day-labels-day-prefix`, and `trip-duration-seven-days`: backend `.venv/bin/python -m pytest tests/test_trip_db_service.py tests/test_trip_db_routes.py -q` passed (`101 passed, 1 upstream deprecation warning`); frontend `npx vitest run src/app/__tests__/trip-create.test.tsx src/app/__tests__/ai-results.test.tsx` passed (`23 passed`); frontend `npm run typecheck` passed. Final integrated limits are `participantCount` 1~10, trip duration/date range 2~7 days, and AI candidate Day selector labels `Day 1`~`Day 7`.
 - 2026-06-16 PR #55 publication/merge passed: GitHub `Backend fast lane` and `Frontend DB-backed fast lane` completed successfully; PR #55 was marked ready and merged into `develop` as `45c629256107e99700abea0e80b39d569404e002`.
 - 2026-06-16 local 숙박세일 페스타 hybrid policy implementation passed: live `https://ktostay.visitkorea.or.kr/` collection parsed/upserted 1 `stay_discount` source after traffic source returned expected optional 404; DB has 1 canonical stay policy, 85 `raw_payload.eligibleAreas`, `/api/policies` returns 85 `stay-discount-*` aliases and 0 canonical stay rows, and alias detail resolves. Backend image was rebuilt/restarted locally; `/api/health` returned connected and `/api/policies` smoke returned 98 total policies with 85 stay aliases. Final local gate passed: targeted backend tests (`115 passed` after fail-closed canonical fallback fix), full backend `pytest` (`486 passed, 1 warning`), Alembic SQL generation (`513` lines), frontend `npm run typecheck` + `npm test -- --run` (`18` files / `162` tests), API golden JSON parse, UTF-8 `U+FFFD` check, `git diff --check`, independent `code-reviewer` APPROVE, and `architect` CLEAR.

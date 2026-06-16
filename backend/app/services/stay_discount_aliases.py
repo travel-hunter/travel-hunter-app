@@ -152,6 +152,17 @@ def alias_slug_for_area(sido: str, city: str) -> str:
     return f"{ALIAS_PREFIX}-{_slug_part(sido, _SIDO_SLUGS)}-{_slug_part(city, _CITY_SLUGS)}"
 
 
+def display_city_name(city: str) -> str:
+    city = city.strip()
+    if len(city) > 1 and city.endswith(("시", "군")):
+        return city[:-1]
+    return city
+
+
+def alias_title(base_title: str, alias_area: StayDiscountAliasArea) -> str:
+    return f"[{display_city_name(alias_area.city)}] {base_title}"
+
+
 def alias_areas_from_payload(raw_payload: object) -> list[StayDiscountAliasArea]:
     if not isinstance(raw_payload, dict):
         return []
@@ -202,7 +213,7 @@ def alias_records_for_record(record: ExternalSourceRecord | None) -> list[StayDi
     return [
         StayDiscountAliasRecord(
             source_category=SOURCE_CATEGORY,
-            title=f"{record.title} - {alias.sido} {alias.city}",
+            title=alias_title(record.title, alias),
             organizer_text=record.organizer_text,
             benefit_text=record.benefit_text,
             raw_list_text=record.raw_list_text,

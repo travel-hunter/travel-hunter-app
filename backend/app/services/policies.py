@@ -90,14 +90,13 @@ def _policy_to_stay_discount_alias_api(
     alias_area: stay_discount_aliases.StayDiscountAliasArea,
 ) -> dict[str, object]:
     payload = policy_to_api(policy)
-    region = f"{alias_area.sido} {alias_area.city}"
     payload.update(
         {
             "id": alias_area.slug,
             "slug": alias_area.slug,
             "label": alias_area.sido[:2],
-            "title": f"{policy.title} - {region}",
-            "region": region,
+            "title": stay_discount_aliases.alias_title(policy.title, alias_area),
+            "region": alias_area.sido,
             "category": "숙박",
             "sourceType": "external",
         }
@@ -111,11 +110,10 @@ def _policy_detail_with_alias(
     alias_area: stay_discount_aliases.StayDiscountAliasArea,
 ) -> dict[str, object]:
     payload = policy_to_api(policy)
-    region = f"{alias_area.sido} {alias_area.city}"
     payload["id"] = alias_area.slug
     payload["slug"] = alias_area.slug
-    payload["title"] = f"{policy.title} - {region}"
-    payload["region"] = region
+    payload["title"] = stay_discount_aliases.alias_title(policy.title, alias_area)
+    payload["region"] = alias_area.sido
     payload["category"] = "숙박"
     payload.pop("actionStatus", None)
     return payload

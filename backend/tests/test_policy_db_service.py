@@ -464,6 +464,12 @@ def test_stay_discount_list_projects_aliases_and_hides_canonical(monkeypatch) ->
         "stay-discount-gangwon-samcheok",
         "stay-discount-gyeongnam-goseong",
     ]
+    assert [item["title"] for item in payload] == [
+        "[고성] 2026 대한민국 숙박세일 페스타 숙박 할인",
+        "[삼척] 2026 대한민국 숙박세일 페스타 숙박 할인",
+        "[고성] 2026 대한민국 숙박세일 페스타 숙박 할인",
+    ]
+    assert [item["region"] for item in payload] == ["강원", "강원", "경남"]
     assert all(item["sourceType"] == "external" for item in payload)
     assert all(item["category"] == "숙박" for item in payload)
     assert all(item.get("actionStatus") is None for item in payload)
@@ -505,7 +511,8 @@ def test_stay_discount_alias_detail_echoes_alias_slug(monkeypatch) -> None:
     assert detail is not None
     assert detail["slug"] == "stay-discount-gyeongnam-goseong"
     assert detail["id"] == "stay-discount-gyeongnam-goseong"
-    assert detail["region"] == "경남 고성군"
+    assert detail["title"] == "[고성] 2026 대한민국 숙박세일 페스타 숙박 할인"
+    assert detail["region"] == "경남"
     assert detail["officialUrl"] == "https://ktostay.visitkorea.or.kr/"
     assert detail.get("actionStatus") is None
 

@@ -198,8 +198,8 @@ def _linked_policies(
         title = policy.title
         if alias_area is not None:
             slug = alias_area.slug
-            region = f"{alias_area.sido} {alias_area.city}"
-            title = f"{policy.title} - {region}"
+            region = alias_area.sido
+            title = stay_discount_aliases.alias_title(policy.title, alias_area)
         amount = policy.benefit_detail or _format_saving(policy.benefit_amount or 0)
         linked.append(
             {
@@ -237,14 +237,13 @@ def _stay_alias_to_trip_policy_candidate(
     alias_area: stay_discount_aliases.StayDiscountAliasArea,
 ) -> dict[str, object]:
     amount = policy.benefit_detail or _format_saving(policy.benefit_amount or 0)
-    region = f"{alias_area.sido} {alias_area.city}"
     return {
         "slug": alias_area.slug,
         "canonicalSlug": policy.slug or str(policy.id),
         "canonicalPolicyId": policy.id,
-        "title": f"{policy.title} - {region}",
+        "title": stay_discount_aliases.alias_title(policy.title, alias_area),
         "amount": amount,
-        "region": region,
+        "region": alias_area.sido,
         "benefitAmount": policy.benefit_amount or 0,
         "startDate": policy.start_date,
         "endDate": policy.end_date,
