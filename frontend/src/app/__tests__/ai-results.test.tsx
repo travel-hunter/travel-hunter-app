@@ -324,10 +324,12 @@ describe("Travel Hunter app — AI results", () => {
         within(dayPopover).queryByRole("button", { name: "취소" }),
       ).not.toBeInTheDocument();
       expect(
-        within(dayPopover).getByRole("button", { name: "D2" }),
+        within(dayPopover).getByRole("button", { name: "Day 2" }),
       ).toHaveAttribute("aria-pressed", "true");
 
-      await user.click(within(dayPopover).getByRole("button", { name: "D3" }));
+      await user.click(
+        within(dayPopover).getByRole("button", { name: "Day 3" }),
+      );
       expect(addPlaceSpy).not.toHaveBeenCalled();
       await user.click(
         within(dayPopover).getByRole("button", { name: "Day 3에 추가" }),
