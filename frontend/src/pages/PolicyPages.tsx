@@ -1,4 +1,4 @@
-﻿import { ChevronLeft, Heart, Share2 } from "lucide-react";
+import { ChevronLeft, Heart, Share2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { appDataApi, type LinkedTripPolicy, type Policy, type PolicyCategory, type Trip } from "../api";
@@ -22,7 +22,11 @@ function policyTripErrorMessage(error: unknown): string {
 
 function getPolicyTripRegionQuery(policy: Pick<Policy, "region" | "title">): string | null {
   const bracketedRegion = /^\s*\[([^\]]+)\]/.exec(policy.title)?.[1]?.trim();
-  if (bracketedRegion) return bracketedRegion;
+  if (bracketedRegion && bracketedRegion !== "전국") return bracketedRegion;
+
+  const titleLocalRegion = /^\s*([가-힣]{2,}(?:[·∙][가-힣]{2,})?)\s+디지털관광주민증\s+혜택/.exec(policy.title)?.[1]?.trim();
+  if (titleLocalRegion && titleLocalRegion !== "전국") return titleLocalRegion;
+
   const region = policy.region.trim();
   return region && region !== "전국" ? region : null;
 }
