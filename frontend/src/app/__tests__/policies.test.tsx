@@ -642,6 +642,44 @@ describe("Travel Hunter app — policies & trip picker", () => {
     }
   });
 
+  it("passes a title-local municipality to new-trip creation for digital resident policies", async () => {
+    const dgtourPolicy: Policy = {
+      ...examplePolicyDetail,
+      id: "dgtour-yeonggwang",
+      slug: "dgtour-yeonggwang",
+      title: "영광 디지털관광주민증 혜택",
+      org: "한국관광공사",
+      region: "전남",
+      sourceType: "internal",
+    };
+    const getPolicySpy = vi
+      .spyOn(appDataApi, "getPolicy")
+      .mockResolvedValue(dgtourPolicy);
+    const listTripsSpy = vi
+      .spyOn(appDataApi, "listTrips")
+      .mockResolvedValue([{ ...getPreviewTrip(), id: "301", title: "기존 전남 일정" }]);
+
+    try {
+      await login();
+      cleanup();
+      renderAppRoute("/policies/dgtour-yeonggwang");
+
+      await userEvent.setup().click(
+        await screen.findByRole("button", {
+          name: /내 일정에 담기|일정에 담김/,
+        }),
+      );
+
+      expect(await screen.findByRole("link", { name: "새 일정에 담기" })).toHaveAttribute(
+        "href",
+        "/trips/new?policySlug=dgtour-yeonggwang&region=%EC%98%81%EA%B4%91",
+      );
+    } finally {
+      getPolicySpy.mockRestore();
+      listTripsSpy.mockRestore();
+    }
+  });
+
   it("shows all saved trips in the policy trip picker", async () => {
     const trips: Trip[] = [
       {
