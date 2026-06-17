@@ -107,7 +107,7 @@ describe("Travel Hunter app — AI results", () => {
         "ai-candidate-card-kakao_local:spot-1",
       );
       expect(within(candidateCard).getByText("전망대")).toBeInTheDocument();
-      expect(within(candidateCard).getByText("Kakao Local")).toBeInTheDocument();
+      expect(within(candidateCard).queryByText("Kakao Local")).not.toBeInTheDocument();
       expect(
         within(candidateCard).queryByText("강원 속초시 해안로 1"),
       ).not.toBeInTheDocument();
@@ -162,10 +162,10 @@ describe("Travel Hunter app — AI results", () => {
       const candidateCard = await screen.findByTestId(
         "ai-candidate-card-saved-summary-1",
       );
-      expect(within(candidateCard).getByText("저장 요약")).toBeInTheDocument();
+      expect(within(candidateCard).queryByText("저장 요약")).not.toBeInTheDocument();
       expect(
         screen.getByRole("region", { name: "선택 후보 요약" }),
-      ).toHaveTextContent("저장 요약");
+      ).not.toHaveTextContent("저장 요약");
     } finally {
       listRecommendationsSpy.mockRestore();
       getTripSpy.mockRestore();

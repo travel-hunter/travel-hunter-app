@@ -48,11 +48,6 @@ function recommendationSourceType(item: Recommendation): RecommendationSourceTyp
   return "savedSummary";
 }
 
-function recommendationSourceLabel(item: Recommendation): string {
-  if (recommendationSourceType(item) === "savedSummary") return "저장 요약";
-  if (item.sourceProvider === "kakao_local") return "Kakao Local";
-  return "새 후보";
-}
 
 function recommendationSourceNotice(recommendations: Recommendation[]): {
   tone: "fresh" | "mixed" | "fallback";
@@ -431,9 +426,6 @@ export function AiResultsPage() {
                     {selectedSummaryCandidate ? (
                       <>
                         <h2>{selectedSummaryCandidate.title}</h2>
-                        <span className="ai-source-chip">
-                          {recommendationSourceLabel(selectedSummaryCandidate)}
-                        </span>
                         <p className="meta">
                           {recommendationLocationLabel(selectedSummaryCandidate)}
                         </p>
@@ -523,9 +515,6 @@ export function AiResultsPage() {
                                   <strong>{item.title}</strong>
                                   <span className="ai-candidate-review">
                                     {recommendationCompactCategoryLabel(item)}
-                                  </span>
-                                  <span className="ai-source-chip">
-                                    {recommendationSourceLabel(item)}
                                   </span>
                                 </span>
                               </button>
