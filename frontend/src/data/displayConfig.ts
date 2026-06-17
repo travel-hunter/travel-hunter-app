@@ -223,7 +223,25 @@ export function getPolicyVisual(policy: Pick<Policy, "slug"> & PolicyMoodSource)
   return { emoji, from: "#f2f7ff", to: "#b9d4ff" };
 }
 
-export const tripCreateRegions = ["제주", "부산", "강원", "경주", "서울", "전남", "경북", "강릉"] as const;
+export const tripCreateRegions = [
+  "제주",
+  "부산",
+  "서울",
+  "대구",
+  "인천",
+  "광주",
+  "대전",
+  "울산",
+  "세종",
+  "경기",
+  "강원",
+  "충북",
+  "충남",
+  "전북",
+  "전남",
+  "경북",
+  "경남",
+] as const;
 
 export type TripCreatePrimaryRegion = {
   label: string;
@@ -236,15 +254,20 @@ export const tripCreatePrimaryRegions: TripCreatePrimaryRegion[] = [
   { label: "제주", value: "제주", emoji: "🏝️", description: "섬, 바다, 자연" },
   { label: "부산", value: "부산", emoji: "🌉", description: "바다, 도시, 맛집" },
   { label: "서울", value: "서울", emoji: "🏙️", description: "도시, 전시, 미식" },
-  { label: "강원", value: "강원", emoji: "🏔️", description: "바다, 산, 드라이브" },
-  { label: "전남", value: "전남", emoji: "🌊", description: "섬, 바다, 정원" },
-  { label: "경남", value: "경남", emoji: "🛥️", description: "남해, 섬, 드라이브" },
-  { label: "경북", value: "경북", emoji: "🏞️", description: "역사, 바다, 전통" },
-  { label: "전북", value: "전북", emoji: "🍲", description: "한옥, 미식, 역사" },
-  { label: "충남", value: "충남", emoji: "🌅", description: "서해, 역사, 온천" },
-  { label: "충북", value: "충북", emoji: "🌿", description: "호수, 산, 힐링" },
-  { label: "경기", value: "경기", emoji: "🚲", description: "근교, 자연, 가족" },
+  { label: "대구", value: "대구", emoji: "🌆", description: "근대골목, 미식, 야경" },
   { label: "인천", value: "인천", emoji: "⛴️", description: "섬, 항구, 강화" },
+  { label: "광주", value: "광주", emoji: "🎨", description: "예술, 역사, 무등산" },
+  { label: "대전", value: "대전", emoji: "🔭", description: "과학, 온천, 미식" },
+  { label: "울산", value: "울산", emoji: "🌅", description: "바다, 강, 일출" },
+  { label: "세종", value: "세종", emoji: "🌳", description: "호수, 수목원, 가족" },
+  { label: "경기", value: "경기", emoji: "🚲", description: "근교, 자연, 가족" },
+  { label: "강원", value: "강원", emoji: "🏔️", description: "바다, 산, 드라이브" },
+  { label: "충북", value: "충북", emoji: "🌿", description: "호수, 산, 힐링" },
+  { label: "충남", value: "충남", emoji: "🌊", description: "서해, 역사, 온천" },
+  { label: "전북", value: "전북", emoji: "🍲", description: "한옥, 미식, 역사" },
+  { label: "전남", value: "전남", emoji: "🌊", description: "섬, 바다, 정원" },
+  { label: "경북", value: "경북", emoji: "🏞️", description: "역사, 바다, 전통" },
+  { label: "경남", value: "경남", emoji: "🛥️", description: "남해, 섬, 드라이브" },
 ];
 
 export const tripCreatePrimaryRegionValues = tripCreatePrimaryRegions.map((region) => region.value);
@@ -252,6 +275,11 @@ export const tripCreatePrimaryRegionValues = tripCreatePrimaryRegions.map((regio
 export const tripRegionEmoji: Record<string, string> = {
   제주: "🏝️",
   부산: "🌉",
+  대구: "🌆",
+  광주: "🎨",
+  대전: "🔭",
+  울산: "🌅",
+  세종: "🌳",
   강원: "🏔️",
   경주: "🏛️",
   서울: "🏙️",
