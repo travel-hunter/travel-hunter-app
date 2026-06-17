@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from urllib.parse import quote, unquote
 
 
 @dataclass(frozen=True)
@@ -14,6 +15,42 @@ class TravelArea:
     styles: tuple[str, ...]
     summary: str
     priority: int
+
+
+POLICY_REGION_AREA_ID_PREFIX = "policy-region:"
+
+
+def make_policy_region_area_id(sido: str, city: str) -> str:
+    return f"{POLICY_REGION_AREA_ID_PREFIX}{quote(sido.strip(), safe='')}:{quote(city.strip(), safe='')}"
+
+
+def make_policy_region_area(sido: str, city: str) -> TravelArea:
+    normalized_sido = sido.strip()
+    normalized_city = city.strip().removesuffix("시").removesuffix("군").removesuffix("구")
+    return TravelArea(
+        make_policy_region_area_id(normalized_sido, normalized_city),
+        normalized_city,
+        normalized_sido,
+        (normalized_city,),
+        (f"{normalized_city}시", f"{normalized_city}군", f"{normalized_city}구"),
+        ("정책 혜택", "지역 여행", normalized_sido),
+        ("지역 여행", "혜택", "맛집"),
+        f"{normalized_city} 정책 혜택과 연결되는 {normalized_sido} 여행 지역입니다.",
+        60,
+    )
+
+
+def _policy_region_area_from_id(area_id: str) -> TravelArea | None:
+    if not area_id.startswith(POLICY_REGION_AREA_ID_PREFIX):
+        return None
+    encoded_parts = area_id.removeprefix(POLICY_REGION_AREA_ID_PREFIX).split(":", 1)
+    if len(encoded_parts) != 2:
+        return None
+    sido = unquote(encoded_parts[0]).strip()
+    city = unquote(encoded_parts[1]).strip()
+    if not sido or not city:
+        return None
+    return make_policy_region_area(sido, city)
 
 
 TRAVEL_AREAS: tuple[TravelArea, ...] = (
@@ -59,4 +96,4 @@ def get_travel_area(area_id: str | None) -> TravelArea | None:
     if not area_id:
         return None
     normalized = area_id.strip()
-    return next((area for area in TRAVEL_AREAS if area.id == normalized), None)
+    return next((area for area in TRAVEL_AREAS if area.id == normalized), None) or _policy_region_area_from_id(normalized)
