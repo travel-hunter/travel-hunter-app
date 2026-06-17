@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from sqlalchemy import or_, select
+from sqlalchemy import and_, not_, or_, select
 from sqlalchemy.orm import Session
 
 from app.models import ExternalSourceRecord
@@ -11,19 +11,20 @@ from app.schemas.external_sources import ExternalBenefitSource
 
 EXTERNAL_POLICY_SLUG_PREFIX = "travelmonth-"
 POLICY_PROMOTION_SOURCE_CATEGORIES = (
-    "regional_benefit",
     "local_half_trip",
     "stay_discount",
 )
 POLICY_DEACTIVATION_SOURCE_CATEGORIES = (
     *POLICY_PROMOTION_SOURCE_CATEGORIES,
+    "regional_benefit",
     "traffic_benefit",
 )
 RECOMMENDATION_SOURCE_CATEGORIES = (
-    "regional_benefit",
     "local_half_trip",
     "stay_discount",
 )
+LOCAL_HALF_TRIP_PUBLIC_STATUSES = ("active", "scheduled")
+LOCAL_HALF_TRIP_PUBLIC_FRESHNESS_STATUSES = ("fresh", "unknown")
 
 
 def _assign_record(
@@ -109,8 +110,7 @@ def list_policy_promotion_records(
     statement = (
         select(ExternalSourceRecord)
         .where(ExternalSourceRecord.source_category.in_(POLICY_PROMOTION_SOURCE_CATEGORIES))
-        .where(ExternalSourceRecord.status == "active")
-        .where(ExternalSourceRecord.freshness_status == "fresh")
+        .where(_policy_public_condition())
         .order_by(ExternalSourceRecord.id)
     )
     return list(db.scalars(statement).all())
@@ -125,13 +125,27 @@ def list_policy_deactivation_records(
         .where(
             or_(
                 ExternalSourceRecord.source_category.not_in(POLICY_PROMOTION_SOURCE_CATEGORIES),
-                ExternalSourceRecord.status != "active",
-                ExternalSourceRecord.freshness_status != "fresh",
+                not_(_policy_public_condition()),
             )
         )
         .order_by(ExternalSourceRecord.id)
     )
     return list(db.scalars(statement).all())
+
+
+def _policy_public_condition():
+    return or_(
+        and_(
+            ExternalSourceRecord.source_category == "local_half_trip",
+            ExternalSourceRecord.status.in_(LOCAL_HALF_TRIP_PUBLIC_STATUSES),
+            ExternalSourceRecord.freshness_status.in_(LOCAL_HALF_TRIP_PUBLIC_FRESHNESS_STATUSES),
+        ),
+        and_(
+            ExternalSourceRecord.source_category == "stay_discount",
+            ExternalSourceRecord.status == "active",
+            ExternalSourceRecord.freshness_status == "fresh",
+        ),
+    )
 
 
 def get_external_source_record_by_policy_slug(
@@ -149,7 +163,6 @@ def get_external_source_record_by_policy_slug(
         .where(
             ExternalSourceRecord.source_category.in_(
                 (
-                    "regional_benefit",
                     "local_half_trip",
                     "stay_discount",
                 )
@@ -159,6 +172,15 @@ def get_external_source_record_by_policy_slug(
         .where(ExternalSourceRecord.freshness_status == "fresh")
     )
     return db.scalar(statement)
+
+
+def get_external_source_record_by_id(
+    db: Session,
+    record_id: int | None,
+) -> ExternalSourceRecord | None:
+    if record_id is None or not hasattr(db, "get"):
+        return None
+    return db.get(ExternalSourceRecord, record_id)
 
 
 def list_external_source_records_by_category(

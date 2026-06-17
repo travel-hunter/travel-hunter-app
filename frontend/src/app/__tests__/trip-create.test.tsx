@@ -37,7 +37,7 @@ describe("Travel Hunter app — trip creation", () => {
       ...getPreviewTrip(),
       id: "44",
       title: "부산 맛집 여행",
-      dates: "2026.07.12 - 07.15",
+      dates: "2026.07.12 - 07.18",
       participantCount: 3,
       days: {
         1: [
@@ -155,6 +155,7 @@ describe("Travel Hunter app — trip creation", () => {
       expect(
         screen.getByRole("heading", { name: "코스 취향 선택" }),
       ).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "휴식" }));
       await waitFor(() =>
         expect(screen.getByRole("button", { name: "휴식" })).toHaveAttribute(
           "aria-pressed",
@@ -169,9 +170,9 @@ describe("Travel Hunter app — trip creation", () => {
         target: { value: "2026-07-12" },
       });
       fireEvent.change(screen.getByLabelText("도착일"), {
-        target: { value: "2026-07-15" },
+        target: { value: "2026-07-18" },
       });
-      expect(screen.getByText("총 4일 여행")).toBeInTheDocument();
+      expect(screen.getByText("총 7일 여행")).toBeInTheDocument();
       await user.click(
         screen.getByRole("button", { name: "여행 인원 1명 늘리기" }),
       );
@@ -200,7 +201,7 @@ describe("Travel Hunter app — trip creation", () => {
             style: expect.any(String),
             policySlug: examplePolicySlug,
             startDate: "2026-07-12",
-            endDate: "2026-07-15",
+            endDate: "2026-07-18",
           }),
         ),
       );
@@ -228,7 +229,7 @@ describe("Travel Hunter app — trip creation", () => {
     }
   });
 
-  it("keeps trip participant selection between 1 and 6 on the date step", async () => {
+  it("keeps trip participant selection between 1 and 10 on the date step", async () => {
     await login();
     cleanup();
     const user = userEvent.setup();
@@ -254,11 +255,11 @@ describe("Travel Hunter app — trip creation", () => {
       });
       expect(decrease).toBeDisabled();
 
-      for (let count = 0; count < 5; count += 1) {
+      for (let count = 0; count < 9; count += 1) {
         await user.click(increase);
       }
 
-      expect(screen.getAllByText("6명").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("10명").length).toBeGreaterThan(0);
       expect(increase).toBeDisabled();
     } finally {
       travelAreasSpy.mockRestore();

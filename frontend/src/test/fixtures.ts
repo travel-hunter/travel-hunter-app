@@ -2,24 +2,27 @@ import type { Policy, TravelAreaRecommendationResponse, Trip, User } from "../ap
 
 export const testEmail = "test.user@example.com";
 export const testPassword = "password123";
-export const examplePolicySlug = "dgtour-\uC601\uAD11-8";
+export const examplePolicySlug = "travelmonth-24";
 export const examplePolicyPath = `/policies/${encodeURIComponent(examplePolicySlug)}`;
 export const examplePolicyTitle =
-  "\uC601\uAD11 \uB514\uC9C0\uD138\uAD00\uAD11\uC8FC\uBBFC\uC99D \uD61C\uD0DD";
+  "[\uC601\uAD11] \uB300\uD55C\uBBFC\uAD6D \uBC18\uAC12\uC5EC\uD589 \uC9C0\uC6D0";
 export const examplePolicyDetail: Policy = {
   id: examplePolicySlug,
   slug: examplePolicySlug,
-  label: "MY",
-  tag: "지역할인",
+  label: "전남",
+  tag: "최대 20만원",
   title: examplePolicyTitle,
-  org: "한국관광공사",
-  region: "경남",
-  deadline: "2026-12-31",
-  amount: "디지털관광주민증 혜택",
-  summary: "디지털관광주민증 소지자 대상 영광 지역 방문 혜택을 제공합니다.",
+  org: "영광 지자체",
+  region: "전남",
+  deadline: "2026-08-31",
+  amount: "최대 20만원",
+  summary: "숙박, 식사, 체험 등 여행 중 사용한 금액의 50%를 환급받을 수 있습니다.",
   match: 75,
   category: "지역할인",
-  requirements: ["디지털관광주민증 발급자", "영광 방문"],
+  requirements: [
+    "디지털관광주민증 발급 또는 지역별 신청 조건 확인",
+    "영광 방문",
+  ],
   documents: ["디지털관광주민증"],
   officialUrl: "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
   applyUrl: null,
@@ -155,6 +158,76 @@ export function getJejuTravelAreaResponse(): TravelAreaRecommendationResponse {
   };
 }
 
+export function getNationwideTravelAreaResponse(): TravelAreaRecommendationResponse {
+  const broadRegions = [
+    ["서울", "seoul-all"],
+    ["부산", "busan-all"],
+    ["대구", "daegu-all"],
+    ["인천", "incheon-ganghwa"],
+    ["광주", "gwangju-all"],
+    ["대전", "daejeon-all"],
+    ["울산", "ulsan-all"],
+    ["세종", "sejong-all"],
+    ["경기", "gyeonggi-gapyeong-yangpyeong"],
+    ["강원", "gangwon-sokcho-goseong-yangyang"],
+    ["충북", "chungbuk-danyang-jecheon"],
+    ["충남", "chungnam-gongju-buyeo"],
+    ["전북", "jeonbuk-jeonju-wanju"],
+    ["전남", "jeonnam-yeosu-suncheon"],
+    ["경북", "gyeongbuk-gyeongju"],
+    ["경남", "gyeongnam-tongyeong-geoje-goseong"],
+    ["제주", "jeju-all"],
+  ] as const;
+
+  return {
+    mode: "nationwide",
+    sido: null,
+    query: null,
+    emptyReason: null,
+    items: broadRegions.map(([sido, travelAreaId], index) => ({
+      travelAreaId,
+      travelAreaName: `${sido} 전체`,
+      sido,
+      includedCities: [sido],
+      summary: `${sido} 대표 여행권역`,
+      tags: ["대표", "여행"],
+      reason: `${sido} 기본 여행권역`,
+      policyCount: 3,
+      localPolicyCount: 2,
+      nationwidePolicyCount: 1,
+      endingSoonCount: 0,
+      estimatedValueKrw: 50000 + index * 1000,
+      score: 100 - index,
+    })),
+  };
+}
+
+export function getYeonggwangTravelAreaResponse(): TravelAreaRecommendationResponse {
+  return {
+    mode: "search",
+    sido: "전남",
+    query: "영광",
+    emptyReason: null,
+    items: [
+      {
+        travelAreaId: "policy-region:%EC%A0%84%EB%82%A8:%EC%98%81%EA%B4%91",
+        travelAreaName: "영광",
+        sido: "전남",
+        includedCities: ["영광"],
+        summary: "영광 정책 혜택과 연결되는 전남 여행 지역입니다.",
+        tags: ["정책 혜택", "지역 여행", "전남"],
+        reason: "영광에 포함된 도시 혜택이 있어 여행 동선과 잘 맞아요.",
+        policyCount: 1,
+        localPolicyCount: 1,
+        nationwidePolicyCount: 0,
+        endingSoonCount: 0,
+        estimatedValueKrw: 200000,
+        score: 58,
+      },
+    ],
+  };
+}
+
 export function getGyeongjuTravelAreaResponse(): TravelAreaRecommendationResponse {
   return {
     mode: "search",
@@ -222,6 +295,7 @@ export function getPreviewUser(): User {
     persona: "family",
     savedAmount: 0,
     onboardingCompleted: true,
+    nicknameSetupCompleted: true,
     socialAccounts: [],
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",

@@ -13,13 +13,14 @@ type ProfileSetupField = "region" | "style" | "budget";
 export function ProfileSetupPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { profile, updateProfile, saveProfile } = useSession();
+  const { profile, updateProfile, saveProfile, skipProfileSetup } = useSession();
   const { data: profileOptions, error: profileOptionsError, isLoading: profileOptionsLoading } = useAsyncResource(
     () => appDataApi.getProfileOptions(),
     [],
   );
   const [stepIndex, setStepIndex] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSkipping, setIsSkipping] = useState(false);
   const [error, setError] = useState("");
 
   const steps = [
@@ -101,14 +102,14 @@ export function ProfileSetupPage() {
 
   const finishLater = async () => {
     setError("");
-    setIsSaving(true);
+    setIsSkipping(true);
     try {
-      await saveProfile(profile);
+      await skipProfileSetup();
       navigate(redirect ?? "/home");
     } catch {
-      setError("맞춤 추천 설정을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.");
+      setError("나중에 설정 상태를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.");
     } finally {
-      setIsSaving(false);
+      setIsSkipping(false);
     }
   };
 
@@ -142,11 +143,11 @@ export function ProfileSetupPage() {
             {error}
           </p>
         )}
-        <Button full disabled={isSaving} onClick={next}>
+        <Button full disabled={isSaving || isSkipping} onClick={next}>
           {isSaving ? "저장 중입니다" : stepIndex === steps.length - 1 ? "추천 홈 보기" : "다음"}
         </Button>
-        <Button full variant="ghost" disabled={isSaving} onClick={finishLater}>
-          나중에 설정
+        <Button full variant="ghost" disabled={isSaving || isSkipping} onClick={finishLater}>
+          {isSkipping ? "건너뛰는 중입니다" : "나중에 설정"}
         </Button>
       </div>
     </section>

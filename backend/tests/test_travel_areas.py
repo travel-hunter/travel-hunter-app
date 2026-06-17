@@ -41,7 +41,7 @@ def make_source(
     *,
     region: str,
     title: str,
-    source_category: str = "regional_benefit",
+    source_category: str = "local_half_trip",
     city: str | None = None,
     amount: int | None = None,
     end_date: date | None = None,
@@ -49,16 +49,17 @@ def make_source(
     is_nationwide: bool = False,
     status: str = "active",
     freshness_status: str = "fresh",
+    raw_payload: dict[str, object] | None = None,
 ) -> ExternalBenefitSource:
     return ExternalBenefitSource(
-        source_name="travelmonth",
+        source_name="대한민국 반값여행",
         source_type="official_campaign",
-        source_url="https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
+        source_url="https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
         source_category=source_category,
         external_id=canonical_key,
         canonical_key=canonical_key,
         detail_url=None,
-        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
+        collected_page_url="https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
         title=title,
         organizer_text=f"{region} 관광",
         organizers=[f"{region} 관광"],
@@ -81,7 +82,7 @@ def make_source(
         field_completeness=95,
         raw_list_text=title,
         raw_detail_text=title,
-        raw_payload={"periodText": "2026-05-01 ~ 2026-05-31"},
+        raw_payload=raw_payload or {"periodText": "2026-05-01 ~ 2026-05-31"},
         last_fetched_at=FETCHED_AT,
         last_verified_at=FETCHED_AT,
         freshness_status=freshness_status,
@@ -195,3 +196,58 @@ def test_ending_soon_and_nationwide_counts_are_reflected(db: Session) -> None:
     assert result.items[0].nationwidePolicyCount == 1
     assert result.items[0].endingSoonCount == 1
     assert result.items[0].score > 0
+
+
+def test_stay_discount_alias_areas_match_travel_area_cities(db: Session) -> None:
+    upsert_external_source_records(
+        db,
+        [
+            make_source(
+                "stay-discount",
+                source_category="stay_discount",
+                region="비수도권 인구감소지역",
+                title="2026 대한민국 숙박세일 페스타 숙박 할인",
+                amount=70000,
+                tags=["숙박"],
+                raw_payload={
+                    "eligibleAreas": [
+                        {"sido": "강원", "cities": ["고성군", "삼척시"]},
+                        {"sido": "경남", "cities": ["고성군"]},
+                    ],
+                    "eligibleAreaCount": 3,
+                },
+            ),
+        ],
+    )
+
+    gangwon = recommend_travel_areas(db, query="고성", sido="강원", today=date(2026, 6, 16))
+    gyeongnam = recommend_travel_areas(db, query="고성", sido="경남", today=date(2026, 6, 16))
+
+    assert gangwon.items[0].travelAreaId == "gangwon-sokcho-goseong-yangyang"
+    assert gangwon.items[0].localPolicyCount == 1
+    assert gangwon.items[0].estimatedValueKrw == 70000
+    assert gyeongnam.items[0].travelAreaId == "gyeongnam-tongyeong-geoje-goseong"
+    assert gyeongnam.items[0].localPolicyCount == 1
+
+
+def test_travel_areas_hide_stay_canonical_when_alias_payload_missing(db: Session) -> None:
+    upsert_external_source_records(
+        db,
+        [
+            make_source(
+                "stay-discount",
+                source_category="stay_discount",
+                region="비수도권 인구감소지역",
+                title="2026 대한민국 숙박세일 페스타 숙박 할인",
+                amount=70000,
+                tags=["숙박"],
+                raw_payload={},
+            ),
+        ],
+    )
+
+    result = recommend_travel_areas(db, query="고성", sido="강원", today=date(2026, 6, 16))
+
+    assert result.items[0].travelAreaId == "gangwon-sokcho-goseong-yangyang"
+    assert result.items[0].localPolicyCount == 0
+    assert result.items[0].estimatedValueKrw == 0

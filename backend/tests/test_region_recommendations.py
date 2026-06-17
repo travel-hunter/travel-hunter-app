@@ -41,10 +41,10 @@ def make_source(
     *,
     region: str,
     title: str,
-    source_name: str = "여행가는 달",
-    source_category: str = "regional_benefit",
-    source_url: str = "https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
-    collected_page_url: str = "https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
+    source_name: str = "대한민국 반값여행",
+    source_category: str = "local_half_trip",
+    source_url: str = "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+    collected_page_url: str = "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
     city: str | None = None,
     amount: int | None = None,
     end_date: date | None = None,
@@ -52,6 +52,7 @@ def make_source(
     is_nationwide: bool = False,
     status: str = "active",
     freshness_status: str = "fresh",
+    raw_payload: dict[str, object] | None = None,
 ) -> ExternalBenefitSource:
     return ExternalBenefitSource(
         source_name=source_name,
@@ -84,7 +85,7 @@ def make_source(
         field_completeness=95,
         raw_list_text=title,
         raw_detail_text=title,
-        raw_payload={"periodText": "2026-05-01 ~ 2026-05-31"},
+        raw_payload=raw_payload or {"periodText": "2026-05-01 ~ 2026-05-31"},
         last_fetched_at=FETCHED_AT,
         last_verified_at=FETCHED_AT,
         freshness_status=freshness_status,
@@ -249,7 +250,9 @@ def test_region_recommendations_include_half_trip_and_exclude_traffic(db: Sessio
     assert recommendations[0].policyCount == 1
 
 
-def test_region_recommendations_read_records_created_by_travelmonth_collection(db: Session) -> None:
+def test_region_recommendations_exclude_legacy_regional_benefit_collection(
+    db: Session,
+) -> None:
     from app.services.travelmonth_collection import collect_regional_benefits_from_html
 
     fixture_path = Path(__file__).parent / "fixtures" / "travelmonth_benefit_sample.html"
@@ -271,5 +274,57 @@ def test_region_recommendations_read_records_created_by_travelmonth_collection(d
 
     assert result.parsed_count > 0
     assert result.created_or_updated_count > 0
-    assert recommendations
-    assert recommendations[0].policyCount > 0
+    assert recommendations == []
+
+
+def test_region_recommendations_expand_stay_discount_alias_areas(db: Session) -> None:
+    upsert_external_source_records(
+        db,
+        [
+            make_source(
+                "stay-discount",
+                source_name="대한민국 숙박세일 페스타",
+                source_category="stay_discount",
+                source_url="https://ktostay.visitkorea.or.kr/",
+                collected_page_url="https://ktostay.visitkorea.or.kr/",
+                region="비수도권 인구감소지역",
+                title="2026 대한민국 숙박세일 페스타 숙박 할인",
+                amount=70000,
+                raw_payload={
+                    "eligibleAreas": [
+                        {"sido": "강원", "cities": ["고성군", "삼척시"]},
+                        {"sido": "경남", "cities": ["고성군"]},
+                    ],
+                    "eligibleAreaCount": 3,
+                },
+            ),
+        ],
+    )
+
+    recommendations = recommend_regions(db, today=date(2026, 6, 16), limit=3)
+
+    assert [item.region for item in recommendations] == ["강원", "경남"]
+    assert recommendations[0].policyCount == 2
+    assert recommendations[0].estimatedValueKrw == 140000
+    assert recommendations[1].policyCount == 1
+
+
+def test_region_recommendations_hide_stay_canonical_when_alias_payload_missing(db: Session) -> None:
+    upsert_external_source_records(
+        db,
+        [
+            make_source(
+                "stay-discount",
+                source_name="대한민국 숙박세일 페스타",
+                source_category="stay_discount",
+                source_url="https://ktostay.visitkorea.or.kr/",
+                collected_page_url="https://ktostay.visitkorea.or.kr/",
+                region="비수도권 인구감소지역",
+                title="2026 대한민국 숙박세일 페스타 숙박 할인",
+                amount=70000,
+                raw_payload={},
+            ),
+        ],
+    )
+
+    assert recommend_regions(db, today=date(2026, 6, 16), limit=3) == []

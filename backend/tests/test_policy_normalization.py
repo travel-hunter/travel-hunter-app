@@ -23,7 +23,7 @@ def make_source(**overrides) -> ExternalBenefitSource:
         "source_name": "여행가는 달",
         "source_type": "official_campaign",
         "source_url": "https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
-        "source_category": "regional_benefit",
+        "source_category": "local_half_trip",
         "external_id": "external-1",
         "canonical_key": "canonical-1",
         "detail_url": "https://example.com/detail",
@@ -110,12 +110,42 @@ def test_promotes_active_fresh_external_record_to_policy(db: Session) -> None:
     assert policy.region == "Busan"
     assert policy.benefit_amount == 50000
     assert policy.external_source_record_id == rows[0].id
-    assert policy.source_category == "regional_benefit"
+    assert policy.source_category == "local_half_trip"
     assert policy.verification_status == "fresh"
 
     from app.services.policies import policy_to_api
 
     assert policy_to_api(policy)["sourceType"] == "external"
+
+
+def test_promotes_scheduled_local_half_trip_to_public_policy(db: Session) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                title="밀양 대한민국 반값여행 지원",
+                region="경남",
+                city="밀양",
+                canonical_key="miryang-scheduled",
+                external_id="miryang-scheduled",
+                status="scheduled",
+                status_text="준비중",
+                freshness_status="unknown",
+            )
+        ],
+    )
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+
+    result = promote_external_benefits_to_policies(db)
+
+    policy = get_policy_by_slug(db, f"travelmonth-{rows[0].id}")
+    assert result.promoted_count == 1
+    assert policy is not None
+    assert policy.status == "active"
+    assert policy.title == "밀양 대한민국 반값여행 지원"
+    assert policy.source_category == "local_half_trip"
+    assert policy.verification_status == "unknown"
 
 
 def test_promotion_is_idempotent_by_external_source_record_id(db: Session) -> None:
@@ -154,7 +184,7 @@ def test_promotion_reclassifies_existing_policy_type(db: Session) -> None:
 
     assert result.promoted_count == 1
     assert second.promoted_count == 1
-    assert policy.policy_type == "교통"
+    assert policy.policy_type == "여행상품"
 
 
 def test_promotion_derives_missing_percent_value_from_title(db: Session) -> None:
@@ -320,6 +350,52 @@ def test_promotes_half_trip_but_keeps_traffic_benefit_legacy_only(db: Session) -
     assert policies[0].policy_type == "지역할인"
     assert policies[0].source_category == "local_half_trip"
     assert policies[0].official_url == half_trip.detail_url
+
+
+def test_hides_legacy_regional_benefit_instead_of_promoting_duplicate_policy(
+    db: Session,
+) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                canonical_key="legacy-regional",
+                external_id="legacy-regional",
+                title="여행가는 달 지역사랑 휴가지원 - 제천",
+                source_category="regional_benefit",
+                source_url="https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
+                collected_page_url=(
+                    "https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do"
+                ),
+                detail_url="https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+                region="충북",
+                city="제천",
+            )
+        ],
+    )
+    legacy_policy = Policy(
+        slug=f"travelmonth-{rows[0].id}",
+        title="여행가는 달 지역사랑 휴가지원 - 제천",
+        organization="한국관광공사",
+        policy_type="지역할인",
+        description="Legacy regional duplicate",
+        benefit_detail="Legacy regional duplicate",
+        target_condition="Legacy regional duplicate",
+        region="충북",
+        status="active",
+        source_category="regional_benefit",
+        external_source_record_id=rows[0].id,
+    )
+    db.add(legacy_policy)
+    db.flush()
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+
+    result = promote_external_benefits_to_policies(db)
+
+    assert result.promoted_count == 0
+    assert legacy_policy.status == "hidden"
+    assert db.query(Policy).filter(Policy.external_source_record_id == rows[0].id).count() == 1
 
 
 def test_hides_promoted_local_half_trip_when_source_becomes_ended_or_unknown(

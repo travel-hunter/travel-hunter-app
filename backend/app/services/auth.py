@@ -68,6 +68,7 @@ def user_to_api(user: UserModel) -> dict[str, object]:
         "persona": "Travel Hunter 사용자",
         "savedAmount": 0,
         "onboardingCompleted": bool(user.onboarding_completed),
+        "nicknameSetupCompleted": bool(user.nickname_setup_completed),
         "socialAccounts": social_accounts,
         "createdAt": _iso_datetime(user.created_at),
         "updatedAt": _iso_datetime(user.updated_at),
@@ -144,6 +145,7 @@ def complete_signup(db: Session, request: SignupCompleteRequest) -> AuthResult:
         email=pending.email,
         nickname=nicknames.generate_random_nickname(),
         password_hash=security.hash_password(request.password),
+        nickname_setup_completed=True,
     )
     pending_signup_repository.delete_pending_signup(db, pending)
     result = _issue_tokens(db, user)

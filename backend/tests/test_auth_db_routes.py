@@ -19,6 +19,8 @@ def make_user() -> UserModel:
         email="test.user@example.com",
         nickname="Test User",
         onboarding_completed=True,
+        nickname_setup_completed=True,
+        profile_setup_skipped=False,
         created_at=datetime(2026, 5, 4, 0, 0, 0),
         updated_at=datetime(2026, 5, 4, 0, 0, 0),
     )
@@ -179,6 +181,7 @@ def test_db_me_returns_current_user(monkeypatch) -> None:
     assert response.status_code == 200
     assert response.json()["id"] == "1"
     assert response.json()["email"] == "test.user@example.com"
+    assert response.json()["nicknameSetupCompleted"] is True
     assert response.json()["socialAccounts"] == []
 
 

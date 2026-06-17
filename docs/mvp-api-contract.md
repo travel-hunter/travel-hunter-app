@@ -77,7 +77,7 @@ DB 연결 상태 포함 서버 헬스 확인. 인증 불필요.
 
 ### POST /ops/external-collection/run
 
-공식 외부 혜택 수집을 관리자 수동 실행으로 1회 수행한다. configured source(`regional_benefit`, `local_half_trip`, `stay_discount`)를 live fetch하고, `traffic_benefit`은 제거/404 가능성이 있는 optional legacy source로 취급하며, parser 결과를 `external_source_records`에 upsert한 뒤 active/fresh 레코드를 `policies`로 승격한다. 관리자 Bearer 인증이 필요하다.
+공식 외부 혜택 수집을 관리자 수동 실행으로 1회 수행한다. configured source를 live fetch하고 parser 결과를 `external_source_records`에 upsert한 뒤, public 대상인 `local_half_trip` 신청접수중/준비중 레코드와 active/fresh `stay_discount` 레코드만 `policies`로 승격한다. `regional_benefit`은 `vacation-benefit.do` 요약/legacy source evidence로 보존하되 대한민국 반값여행(`local_half_trip`)과 동일 정책으로 판단해 public 정책/추천/상세 fallback에서는 제외한다. `traffic_benefit`은 제거/404 가능성이 있는 optional legacy source로 취급한다. 관리자 Bearer 인증이 필요하다.
 
 **Response 200**
 ```json
@@ -89,7 +89,7 @@ DB 연결 상태 포함 서버 헬스 확인. 인증 불필요.
   "outcome": "success",
   "sources": [
     {
-      "sourceCategory": "regional_benefit",
+      "sourceCategory": "local_half_trip",
       "parsedCount": 42,
       "createdOrUpdatedCount": 42,
       "outcome": "success",
@@ -114,14 +114,14 @@ DB 연결 상태 포함 서버 헬스 확인. 인증 불필요.
 |------|------|-------------|
 | style | string, optional | 추천 preview에 전달할 취향 보정 값 |
 | region | string, optional | 추천 preview에 전달할 최종 tie-breaker 지역 |
-| sourceCategory | string, optional | `regional_benefit`, `traffic_benefit`, `local_half_trip` 같은 외부 수집 source category 필터 |
+| sourceCategory | string, optional | `local_half_trip`, `stay_discount`, legacy `regional_benefit`/`traffic_benefit` 같은 외부 수집 source category 필터 |
 | limit | number, optional | 추천 preview 개수. 기본 3, 1~10 |
 
 **Response 200**
 ```json
 {
   "sourceName": "여행가는 달",
-  "sourceCategory": "regional_benefit",
+  "sourceCategory": "local_half_trip",
   "totalRecords": 58,
   "freshRecords": 58,
   "activeRecords": 58,
@@ -389,6 +389,7 @@ Account linking policy:
   "persona": "탐험가",
   "savedAmount": 0,
   "onboardingCompleted": false,
+  "nicknameSetupCompleted": false,
   "socialAccounts": [],
   "createdAt": "2026-05-19T00:00:00",
   "updatedAt": "2026-05-19T00:00:00"
@@ -429,6 +430,20 @@ Account linking policy:
 
 ---
 
+### POST /me/profile/skip
+
+프로필 설정 단계를 건너뛰고 온보딩을 완료 처리한다.
+
+**Response 200**
+```json
+{
+  "skipped": true,
+  "onboardingCompleted": true
+}
+```
+
+---
+
 ### GET /me/nickname-suggestion
 
 서버가 랜덤 닉네임 후보를 생성해 반환.
@@ -452,6 +467,8 @@ Account linking policy:
 - `nickname`: 2~20자, `[가-힣a-zA-Z0-9_]`만 허용
 
 **Response 200** → `User`
+
+- 성공 시 `nicknameSetupCompleted=true` 로 전환되어 다음 로그인부터는 `/nickname-setup` 이 아니라 `/profile-setup` 또는 완료 상태로 진행된다.
 
 **Errors**
 - 409: 닉네임 이미 사용 중
@@ -690,7 +707,7 @@ Account linking policy:
 
 ### GET /policies
 
-전체 정책 목록. 인증 불필요. DB `policies` 레코드만 `Policy` DTO로 반환한다. TravelMonth, 대한민국 반값여행 등 공식 외부 수집 레코드(`external_source_records`)는 수집/검증 원문 근거로 보존하고, active/fresh `regional_benefit`, `local_half_trip`, `stay_discount` 항목은 collection normalization service가 `policies`로 승격한다. `traffic_benefit`은 legacy/optional 수집 근거로 보존될 수 있지만 public 정책 승격 대상에서는 제외한다. 승격된 외부 정책은 기존 호환 slug `travelmonth-{externalSourceRecordId}`를 사용한다. 디지털관광주민증/대한민국 반값여행 계열(`local_half_trip`)은 공식 페이지의 지역별 상태가 `신청접수중`인 active/fresh 항목만 public 정책으로 노출하고, 준비중/마감/unknown 또는 stale 항목은 기존 연결 보호를 위해 `policies.status = "hidden"`으로 내려 사용자 목록에서 제외한다.
+전체 정책 목록. 인증 불필요. DB `policies` 레코드만 `Policy` DTO로 반환한다. TravelMonth, 대한민국 반값여행 등 공식 외부 수집 레코드(`external_source_records`)는 수집/검증 원문 근거로 보존하고, `local_half_trip` 신청접수중/준비중 항목과 active/fresh `stay_discount` 항목만 collection normalization service가 `policies`로 승격한다. `regional_benefit`은 대한민국 반값여행과 같은 정책의 legacy 요약 source로 보고 public 정책 승격/추천/상세 fallback에서 제외하며, 기존 승격 정책은 `hidden`으로 내린다. `traffic_benefit`은 legacy/optional 수집 근거로 보존될 수 있지만 public 정책 승격 대상에서는 제외한다. `local_half_trip` 같은 지역별 외부 정책은 기존 호환 slug `travelmonth-{externalSourceRecordId}`를 사용한다. `stay_discount`는 공식 `https://ktostay.visitkorea.or.kr/`의 비수도권 인구감소지역 85개 지자체를 `raw_payload.eligibleAreas`에 저장하고, 목록/검색/지역 추천에서는 canonical `travelmonth-{externalSourceRecordId}` 1건을 숨긴 뒤 `stay-discount-{sidoSlug}-{citySlug}` 지역 alias 85건으로 투영한다. alias DTO는 제목을 `[고성] 2026 대한민국 숙박세일 페스타 숙박 할인`처럼 시/군 단위 접두어로 표시하고, `region`은 정책 목록 메타/필터가 반값여행 카드와 맞도록 광역자치단체(`강원`, `경남` 등)만 담는다. 숙박세일 상세/alias 응답의 `summary`, `amount`, `requirements`는 원문 반복 문구 대신 2만/3만/5만/7만원 할인 조건과 발급·입실 기간을 항목화한 정리본으로 반환한다. 저장/일정 연결 가능 상태이므로 `actionStatus`를 생략하거나 `null`로 둔다. 대한민국 반값여행 계열(`local_half_trip`)은 공식 페이지의 지역별 상태가 `신청접수중` 또는 `준비중`인 항목을 public 정책으로 노출하고, 제목은 `[합천] 대한민국 반값여행 지원`처럼 지자체명을 대괄호 접두어로 표시한다. 공식 디지털 관광주민증 seed 정책은 `docs/디지털관광주민증.xlsx`의 `지원내용`, `신청기간`, `확인 필요 사항`, `필요 서류` 값을 그대로 정책 본문으로 사용하고, KTO 공식 운영 지자체 목록(`https://korean.visitkorea.or.kr/dgtourcard/biz/main/main.do`)에 있는 지역만 `digital_tourism_card` 성격의 `dgtour-{city}-{n}` 별도 정책으로 유지한다. 제목은 `[지역명] 디지털 관광주민증 혜택` 형식으로 표시하고, 같은 지자체 반값여행 정책과 제목/요약/공식 URL을 섞지 않는다. `[강진]`처럼 지역 상세 페이지가 비었거나 공식 운영 지자체 목록에 없는 기존 dgtour 정책은 삭제하지 않고 `policies.status = "hidden"`으로 내려 public 목록/상세/저장 가능 대상에서 제외한다. `준비중` 항목은 원천 `freshness_status`가 `unknown`이어도 정책 목록/상세에 표시하며, 마감/unknown 상태 또는 stale 항목은 기존 연결 보호를 위해 `policies.status = "hidden"`으로 내려 사용자 목록에서 제외한다.
 
 **Response 200** → `Policy[]`
 ```json
@@ -721,14 +738,14 @@ Account linking policy:
 `category` 허용 값: `"교통" | "숙박" | "여행상품" | "지역할인" | "이벤트" | "기타"`
 `sourceType` 허용 값은 `"internal" | "external"`이며 API 호환과 내부 진단을 위해 유지한다. 사용자 화면은 `internal/external` 같은 구현 구분 문구를 노출하지 않는다. 사용자에게 노출되는 모든 정책은 정규화된 `policies` 레코드이므로 저장/일정 연결 동작을 동일하게 지원한다.
 `actionStatus`는 생략 또는 `null`이면 저장/일정 연결 가능 상태로 간주한다. migration gap 동안 상세 조회만 허용되는 raw fallback 정책은 `"infoOnly"`를 반환하며, 프론트엔드는 저장/일정 연결 action을 차단하고 공식 원문 확인 안내만 제공한다.
-`external_source_records.source_category` 중 정책 승격 대상은 `regional_benefit`, `local_half_trip`, `stay_discount`이다. `traffic_benefit`은 optional legacy source로 남기며 목적지/지역 추천 점수와 public 정책 승격에서 제외한다. 목적지/지역 추천 점수에는 `traffic_benefit`을 제외하고, 일정 상세 정책 추천은 정규화된 active/fresh 정책에 대해 지역/일정 날짜/카테고리/여행 스타일 태그만 사용하는 deterministic scoring을 적용한다.
+`external_source_records.source_category` 중 정책 승격 대상은 `local_half_trip`, `stay_discount`이다. `local_half_trip`은 신청접수중과 준비중을 모두 공개 승격 대상으로 본다. `stay_discount`는 하나의 canonical 정책으로 저장/중복 방지하고, public 목록과 추천 후보에서만 eligible area alias로 확장한다. `regional_benefit`과 `traffic_benefit`은 legacy source evidence로 남기며 목적지/지역 추천 점수와 public 정책 승격에서 제외한다. 일정 상세 정책 추천은 정규화된 공개 정책 및 `stay_discount` alias 후보에 대해 지역/일정 날짜/카테고리/여행 스타일 태그만 사용하는 deterministic scoring을 적용한다.
 외부 수집 정책의 `category`는 `external_source_records`의 제목, 혜택 본문, 태그, 출처 URL, source category를 점수화한 deterministic classifier 결과다. 단순 source URL/source category 매핑이 아니며, 동점이면 `교통 > 숙박 > 여행상품 > 이벤트 > 지역할인 > 기타` 우선순위를 따른다.
 
 ---
 
 ### GET /policies/{policy_slug}
 
-정책 상세. `travelmonth-{externalSourceRecordId}` slug는 정규화된 TravelMonth 정책 상세로 해석한다. migration gap 동안 상세 조회만 기존 raw `external_source_records` fallback을 사용할 수 있지만, 목록/추천/저장/일정 연결 경로는 정규화된 `policies` 기준이다. raw fallback은 active/fresh `regional_benefit`, `local_half_trip`, `stay_discount`만 허용하며, `traffic_benefit`이나 non-active/non-fresh source는 상세 404와 동일하게 처리한다. `local_half_trip`의 지역별 상세 URL이 확인된 경우 `officialUrl`은 generic `tour50.do`보다 해당 지역 안내/신청 페이지를 우선한다.
+정책 상세. `policies.status != "active"`인 정책은 기존 행을 보존하더라도 public 상세에서 404로 처리한다. `travelmonth-{externalSourceRecordId}` slug는 정규화된 TravelMonth 정책 상세로 해석한다. 기존 `dgtour-{city}-{n}` 상세 slug가 같은 지자체의 승격된 `local_half_trip` 정책과 중복되면 `307`로 최신 `/api/policies/travelmonth-{externalSourceRecordId}`에 리다이렉트해 구버전 상세 내용이 다시 노출되지 않게 한다. 단, 활성 `dgtour-*` 정책이 `digital_tourism_card`처럼 반값여행이 아닌 별도 공식 디지털 관광주민증 정책으로 정리되어 있으면 redirect하지 않고 `[지역명] 디지털 관광주민증 혜택` 상세를 반환한다. `stay-discount-{sidoSlug}-{citySlug}` slug는 숙박세일 canonical 정책 상세로 해석하되 응답의 `id`, `slug`는 요청 alias를 echo하고, `title`은 `[고성] ...` 지역 접두어 형식, `region`은 광역자치단체 단위로 반환하며, `summary`/`requirements`는 중복 원문 대신 결제 금액별 할인 조건과 발급·입실 기간을 항목화한다. 저장, 삭제, 일정 연결은 내부적으로 canonical `policies.id`를 사용해 중복 저장/중복 연결을 방지하고, mutation 응답의 `policyId`는 요청 alias를 echo한다. migration gap 동안 상세 조회만 기존 raw `external_source_records` fallback을 사용할 수 있지만, 목록/추천/저장/일정 연결 경로는 정규화된 `policies` 기준이다. raw fallback은 active/fresh `local_half_trip`, `stay_discount`만 허용하며, `regional_benefit`, `traffic_benefit`, non-active/non-fresh source는 상세 404와 동일하게 처리한다. `local_half_trip`의 지역별 상세 URL이 확인된 경우 `officialUrl`은 generic `tour50.do`보다 해당 지역 안내/신청 페이지를 우선하며, 제목은 `[합천] 대한민국 반값여행 지원`처럼 지자체명을 대괄호 접두어로 표시한다.
 
 **Response 200** → `Policy`
 
@@ -814,9 +831,9 @@ Frontend behavior: `/trips` does not expose trip confirmation controls or draft/
 }
 ```
 
-- `durationDays`: 2~5 범위
-- `participantCount`: 1~6. Planned travel party size, stored separately from real member/invite list `people`.
-- `startDate`/`endDate`: 함께 제공하거나 모두 생략. 기간은 2~5일.
+- `durationDays`: 2~7 범위
+- `participantCount`: 1~10. Planned travel party size, stored separately from real member/invite list `people`.
+- `startDate`/`endDate`: 함께 제공하거나 모두 생략. 기간은 2~7일.
 
 **Response 200** → `Trip`
 
@@ -1213,6 +1230,7 @@ SOLAPI 발송 결과 webhook 수신. `X-Solapi-Secret` 헤더로 검증.
 | persona | string | 여행 유형 |
 | savedAmount | number | 예상 절약 금액 |
 | onboardingCompleted | boolean | 온보딩 완료 여부 |
+| nicknameSetupCompleted | boolean | 닉네임 확인 단계 완료 여부 |
 | socialAccounts | SocialAccount[] | 연결된 소셜 계정 |
 | createdAt | string (ISO 8601) | 가입일 |
 | updatedAt | string (ISO 8601) | 최종 수정일 |
@@ -1261,7 +1279,7 @@ SOLAPI 발송 결과 webhook 수신. `X-Solapi-Secret` 헤더로 검증.
 | participantCount | number | Planned travel party size, separate from real member/invite list `people`. |
 | expectedSaving | string | 예상 절약 금액 표시 |
 | linkedPolicies | LinkedTripPolicy[] | 연결된 정책 목록 |
-| recommendedPolicies | LinkedTripPolicy[] | 일정 지역에 맞춰 추천된 정규화 정책 및 active/fresh TravelMonth/반값여행/숙박세일 혜택 목록. 이미 연결된 정규화 정책은 제외하며 각 항목은 `/policies/{slug}` 상세로 이동 가능하다. 추천 순서는 지역, 일정 날짜 겹침, 정책 카테고리, 여행 스타일 텍스트/태그만 사용하며 AI/LLM 판단을 사용하지 않는다. |
+| recommendedPolicies | LinkedTripPolicy[] | 일정 지역에 맞춰 추천된 정규화 정책 및 공개 TravelMonth/반값여행/숙박세일 혜택 목록. 기본적으로 일정의 실제 시/군/구와 정책 지자체가 일치해야 하며, `서울 전체` 같은 광역 전체 여행만 해당 광역 내부 자치구 정책을 예외로 허용한다. 광역자치단체만 같은 정책은 추천하지 않는다. 숙박세일은 canonical 1건을 직접 추천하지 않고 `raw_payload.eligibleAreas`에서 파생한 지역 alias 후보만 추천한다. 이미 연결된 정규화 정책은 canonical id/slug 기준으로 제외하며 각 항목은 `/policies/{slug}` 상세로 이동 가능하다. 추천 순서는 지역, 일정 날짜 겹침, 정책 카테고리, 여행 스타일 텍스트/태그만 사용하며 AI/LLM 판단을 사용하지 않는다. |
 | days | object | `{ [dayNumber]: ItineraryPlace[] }` |
 | currentUserRole | string | `"owner" \| "editor" \| "viewer"` |
 
@@ -1321,7 +1339,7 @@ Request priority:
 query > sido > mode=nationwide > default nationwide
 ```
 
-When `query` and `sido` are both provided, `sido` limits the search scope.
+When `query` and `sido` are both provided, `sido` limits the search scope. The static v1 travel-area catalog provides at least one broad candidate for every 17개 광역시도 (`서울`, `부산`, `대구`, `인천`, `광주`, `대전`, `울산`, `세종`, `경기`, `강원`, `충북`, `충남`, `전북`, `전남`, `경북`, `경남`, `제주`). If the requested city is not covered by the static catalog but is present in collected regional policy records, or `sido + query` names a future policy locality, the backend can synthesize a single-city travel area. Its `travelAreaId` uses `policy-region:{urlencoded-sido}:{urlencoded-city}` and should be treated as an opaque id by clients.
 
 Response 200:
 
@@ -1355,7 +1373,7 @@ Response 200:
 
 | value | meaning |
 |---|---|
-| `unsupported_sido` | The requested `sido` does not exist in the v1 travel-area catalog. |
+| `unsupported_sido` | The requested `sido` is outside the supported 17개 광역시도 catalog. |
 | `no_match` | The search query does not match any travel area. |
 | `null` | Normal response. |
 
@@ -1381,7 +1399,7 @@ Rules:
 
 | input | behavior |
 |---|---|
-| `travelAreaId` present and valid | Resolve backend travel-area catalog, store `trips.travel_area_id`, and use the travel-area display name as `trips.region`. |
+| `travelAreaId` present and valid | Resolve backend travel-area catalog, including dynamic `policy-region:{urlencoded-sido}:{urlencoded-city}` ids, store `trips.travel_area_id`, and use the travel-area display name as `trips.region`. |
 | `travelAreaId` present and invalid | Return 400 with `Travel area not found`. |
 | `travelAreaId` absent and `region` present | Preserve legacy region-only trip creation behavior. |
 

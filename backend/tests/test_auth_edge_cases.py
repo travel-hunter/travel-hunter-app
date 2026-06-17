@@ -278,6 +278,7 @@ def test_kakao_unverified_email_does_not_link_existing_email_user(monkeypatch) -
     assert user is created_user
     assert calls["lookups"] == []
     assert calls["created"]["email"] == KAKAO_PLACEHOLDER_EMAIL
+    assert calls["created"]["nickname_setup_completed"] is False
 
 
 def test_existing_kakao_placeholder_email_upgrades_to_verified_email(monkeypatch) -> None:

@@ -290,6 +290,7 @@ def _find_or_create_user(
             email=normalized_email,
             nickname=profile.nickname or f"{provider} 사용자",
             password_hash=None,
+            nickname_setup_completed=False,
         )
 
     user_repository.create_social_account(

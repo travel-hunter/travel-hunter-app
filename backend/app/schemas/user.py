@@ -21,6 +21,7 @@ class User(BaseModel):
     persona: str
     savedAmount: int
     onboardingCompleted: bool
+    nicknameSetupCompleted: bool
     socialAccounts: list[SocialAccount]
     createdAt: str
     updatedAt: str
@@ -42,6 +43,11 @@ class ProfileOptions(BaseModel):
     regions: list[str]
     travelStyles: list[str]
     budgets: list[str]
+
+
+class ProfileSkipResponse(BaseModel):
+    skipped: bool
+    onboardingCompleted: bool
 
 
 class NotificationSettings(BaseModel):

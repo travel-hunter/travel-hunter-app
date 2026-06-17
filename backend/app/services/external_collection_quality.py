@@ -8,13 +8,12 @@ from sqlalchemy.orm import Session
 
 from app.models import ExternalSourceRecord
 from app.repositories import external_sources as external_source_repository
-from app.schemas.external_sources import TravelMonthRegionalBenefitSource
 from app.schemas.ops import ExternalCollectionQualityReport, ExternalCollectionRegionQuality
 from app.services.region_recommendations import NATIONWIDE_REGION, recommend_regions
 
 
-SOURCE_CATEGORY = "regional_benefit"
-SOURCE_NAME = TravelMonthRegionalBenefitSource.model_fields["source_name"].default
+SOURCE_CATEGORY = "local_half_trip"
+SOURCE_NAME = "대한민국 반값여행"
 ENDING_SOON_DAYS = 14
 
 

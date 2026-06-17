@@ -2,9 +2,9 @@
 
 ## Current Status
 
-- Latest validated scope: PR #55 merge to `develop`, development-server redeploy on `dev.travel-hunter.co.kr`, and frontend release-gate refresh after Vite/Vitest audit remediation.
-- Last validation date: 2026-06-16.
-- Current release posture: `origin/develop` includes PR #55 merge commit `45c629256107e99700abea0e80b39d569404e002`; the development server was reset to that SHA, rebuilt, migrated, and smoked successfully. Production release remains blocked on external DNS/Cloudflare/provider authority before any production stack mutation.
+- Latest validated scope: social OAuth onboarding now has an explicit two-step gate in local code: new social users must complete `/nickname-setup` before `/profile-setup`, profile save completes onboarding, and `나중에 설정` records a durable skip state while still completing onboarding. The local backend now persists `users.nickname_setup_completed` and `users.profile_setup_skipped`, and the frontend onboarding guard routes by explicit onboarding state instead of forcing every social account back to `/nickname-setup`.
+- Last validation date: 2026-06-17.
+- Current release posture: onboarding fix is implemented locally and deployed to `https://dev.travel-hunter.co.kr` with backend/frontend rebuild + Alembic migration. Production deployment remains out of scope for this task.
 - Keep this file slim: current status, recent validation evidence, and active risks only. Historical detail belongs in git history, source-specific docs, or `.omx/evidence/*`.
 
 ## Current Source Documents
@@ -18,20 +18,13 @@
 
 ## Latest Validations
 
-- 2026-06-16 PR #55 publication/merge passed: GitHub `Backend fast lane` and `Frontend DB-backed fast lane` completed successfully; PR #55 was marked ready and merged into `develop` as `45c629256107e99700abea0e80b39d569404e002`.
-- 2026-06-16 development-server redeploy passed at `45c629256107e99700abea0e80b39d569404e002`: server repo was clean `develop`, `docker compose --env-file deploy/.env.prod -f compose.tunnel.yaml config` completed without printing secrets, backend/frontend images built, frontend `npm ci` reported 0 vulnerabilities, frontend build used Vite `8.0.16`, Alembic `upgrade head` completed, and backend/db containers were healthy.
-- 2026-06-16 development-server smoke passed: `https://dev.travel-hunter.co.kr/api/health`, `/api/profile-options`, URL-encoded `/api/recommendations/regions?style=맛집&region=부산&limit=3`, `/login`, `/signup`, `/signup/verify`, and `/policies` returned 200 via curl; browser smoke confirmed unauthenticated `/home` redirects to login, seed login reaches `/home`, authenticated `/policies` renders policy content, and `/signup/verify` renders verification copy.
-- 2026-06-16 server source-boundary passed: server repo branch is `develop`, HEAD is `45c629256107e99700abea0e80b39d569404e002`, `git status --short` is clean, and server `frontend/package.json` contains `vite:^8.0.16`, `vitest:^4.1.9`, and `@vitejs/plugin-react:^6.0.2`.
-- 2026-06-16 local frontend release-gate refresh passed before PR #55 merge: `npm run --prefix frontend typecheck`; `npm --prefix frontend test` (18 files / 162 tests); `npm --prefix frontend audit --audit-level=high` (0 vulnerabilities); `npm run --prefix frontend build`; `npm run --prefix frontend test:e2e` (10 Playwright backend-mode tests); staged diff/UTF-8 checks.
-- 2026-06-16 local branch reconciliation and stale-build recovery passed: dirty server state was backed up under `/home/deploy/.travel-hunter-recovery/20260616T011723Z`; backup branch `backup/develop-local-20260616T013555Z` and patch `.omx/evidence/local-recovery-docs-before-reconcile-20260616T013555Z.patch` preserve pre-reconcile local docs state.
+- 2026-06-17 onboarding-state verification rerun passed after final review-gate fix: `cd backend && ./.venv/bin/python -m pytest tests/test_profile_db_routes.py tests/test_profile_db_service.py tests/test_auth_db_routes.py tests/test_auth_db_service.py tests/test_auth_edge_cases.py` (`78 passed, 1 upstream warning`); `cd frontend && npm run typecheck`; `cd frontend && npm test -- src/app/__tests__/onboarding.test.ts src/app/__tests__/auth.test.tsx src/app/__tests__/invite-oauth.test.tsx` (`32 passed`); `cd backend && ./.venv/bin/alembic upgrade head --sql`; `docker compose -f compose.yaml config`; and `curl -fsS -A 'Mozilla/5.0' https://dev.travel-hunter.co.kr/api/health` (`{"status":"ok","service":"travel-hunter-backend","environment":"staging","database":"connected"}`).
+- 2026-06-17 final review-gate migration hardening added `backend/alembic/versions/0021_legacy_social_nickname.py` so pre-existing social users with `onboarding_completed = false` are backfilled into the nickname-confirmation step instead of silently skipping it.
 
 ## Remaining Risks
 
-- Production `travel-hunter.co.kr` now resolves to Cloudflare addresses, but HTTPS returns Cloudflare 530; the root production hostname is not yet proven to route to a healthy origin/tunnel.
-- Production `api.travel-hunter.co.kr` still does not resolve from local DNS probes, so API public smoke cannot start.
-- Cloudflare API/token/cert authority for production DNS/tunnel changes is not present in the current local environment or server key-name probe; only the dev runtime tunnel token key exists on the server, and its value was not printed.
-- Existing dev runtime env has required secret keys, but domain/redirect values are dev-domain scoped; production env must use production-domain values and production-confirmed Cloudflare tunnel/DNS records before stack start.
-- Production stack deploy, provider callback updates, and public production smoke have not been executed because the Cloudflare/DNS no-go line is still active.
+- Real browser validation for new and pre-existing dev social accounts after the `0021_legacy_social_nickname` backfill is still pending, so the Google/Kakao path is verified by migration/runtime evidence but not yet by an interactive click-through on `dev.travel-hunter.co.kr`.
+- Existing unrelated local worktree changes are still present; any future deploy must keep shipping only the onboarding-related diff and must not clobber the unrelated policy/travel-area work already in progress.
 
 ## Cleanup Policy
 

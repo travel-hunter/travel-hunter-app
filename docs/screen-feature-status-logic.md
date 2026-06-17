@@ -23,11 +23,11 @@
 | 단계 | 개발 상태 | 로직 |
 | --- | --- | --- |
 | 공식 페이지 HTML 가져오기 | 완료 | `httpx.get()`으로 공식 페이지 HTML을 가져온다. 기본 User-Agent는 `Travel Hunter official-source collector/0.1`이다. |
-| 수집 대상 분류 | 완료 | `regional_benefit`, `local_half_trip`, `stay_discount`를 public 정책/추천 입력으로 지원하고, `traffic_benefit`은 optional legacy source evidence로만 유지한다. |
+| 수집 대상 분류 | 완료 | `local_half_trip`, `stay_discount`를 public 정책/추천 입력으로 지원하고, `regional_benefit`과 `traffic_benefit`은 legacy source evidence로만 유지한다. |
 | HTML 파싱 | 완료 | source category별 parser가 HTML에서 제목, 지역, 기간, 혜택 문구, 금액/할인율, 상세 URL 등을 추출한다. |
 | 원천 레코드 저장 | 완료 | `external_source_records` 테이블에 `source_name + source_category + canonical_key` 기준으로 upsert한다. |
-| 정책 테이블 반영 | 완료 | active/fresh 원천 레코드를 `policies` 테이블로 승격한다. 생성되는 slug는 `travelmonth-{external_source_record_id}` 형식이다. |
-| 만료/비활성 처리 | 완료 | 원천 레코드가 active/fresh가 아니면 연결된 정책을 `hidden` 상태로 숨긴다. |
+| 정책 테이블 반영 | 완료 | `local_half_trip` 신청접수중/준비중 레코드와 active/fresh `stay_discount` 원천 레코드를 `policies` 테이블로 승격한다. `local_half_trip` slug는 `travelmonth-{external_source_record_id}` 형식이다. `stay_discount`는 canonical 정책 1건을 승격하되 정책 목록/추천에서는 비수도권 인구감소지역 85개 지자체별 `stay-discount-{sidoSlug}-{citySlug}` alias로 투영한다. |
+| 만료/비활성 처리 | 완료 | 공개 승격 대상이 아닌 마감/unknown/stale 및 legacy source 연결 정책을 `hidden` 상태로 숨긴다. |
 | 커밋 | 완료 | 수집/정규화 후 DB commit을 수행한다. 일부 source가 실패해도 성공한 source가 있으면 `partial_success`로 기록한다. |
 
 ### 자동 실행/수동 실행
@@ -44,7 +44,7 @@
 
 ### 보고용 요약
 
-정책 수집은 “공식 페이지 HTML 수집 → source별 parser로 혜택 추출 → `external_source_records` 원천 테이블 upsert → active/fresh 데이터만 `policies`로 승격 → 만료/비활성 정책 hidden 처리” 순서로 진행된다. 현재 화면에 보이는 정책 목록은 이 수집 로직이 만든 `policies` 테이블의 active 정책을 조회하는 결과이다. 다만 현재 로컬/compose 기본 설정에서는 자동 스케줄러가 꺼져 있으므로, 자동 최신화가 항상 수행되는 운영 상태는 아니다.
+정책 수집은 “공식 페이지 HTML 수집 → source별 parser로 혜택 추출 → `external_source_records` 원천 테이블 upsert → 공개 대상 데이터를 `policies`로 승격 → 만료/비활성/legacy 정책 hidden 처리” 순서로 진행된다. 현재 화면에 보이는 정책 목록은 이 수집 로직이 만든 `policies` 테이블의 active 정책을 조회하는 결과이다. 다만 현재 로컬/compose 기본 설정에서는 자동 스케줄러가 꺼져 있으므로, 자동 최신화가 항상 수행되는 운영 상태는 아니다.
 
 ### 확인 근거
 
@@ -197,7 +197,7 @@ Kakao Local provider가 없거나 외부 후보가 충분하지 않으면 내장
 | 후보 목록 | 추천 응답의 `categoryGroup`을 기준으로 `숙소`, `맛집`, `명소`, `기타`로 묶는다. |
 | 출처 안내 | 추천 응답의 `sourceType`을 기준으로 새 Kakao 후보, 혼합 결과, 저장된 추천 요약 fallback을 banner와 badge로 표시한다. |
 | 이미 추가됨 표시 | 현재 trip의 기존 장소명과 후보 제목을 정규화해 비교하고, 이미 있으면 `이미 추가됨`으로 표시한다. |
-| Day 선택 | 후보의 `suggestedDay`가 있으면 해당 Day를 기본값으로 쓰고, 없으면 Day 1 또는 현재 일정의 첫 Day를 사용한다. 사용자는 inline Day selector에서 추가할 Day를 바꿀 수 있다. |
+| Day 선택 | 후보의 `suggestedDay`가 있으면 해당 Day를 기본값으로 쓰고, 없으면 Day 1 또는 현재 일정의 첫 Day를 사용한다. 사용자는 inline Day selector에서 추가할 Day를 바꿀 수 있고, 7일 일정까지 `Day 1`~`Day 7` 형식으로 표시한다. |
 | 저장 payload | 후보 제목, 설명, 주소, 좌표, category code, place URL, source provider, external place id를 장소 추가 API로 전달한다. |
 | 추천 기준 sheet | 정책 조건, 이동 거리, 예산, 여행 스타일을 함께 본다는 제품 설명을 제공한다. 현재 실제 코드에서 정량 이동시간/예산 최적화가 완성된 것은 아니므로 발표 시에는 “추천 기준 설명 UI”로 구분하는 편이 정확하다. |
 
@@ -263,6 +263,6 @@ Kakao Local provider가 없거나 외부 후보가 충분하지 않으면 내장
 
 ### 2026-06-11 - 정책 수집 로컬 확장
 
-- `stay_discount` source가 숙박세일 페스타 숙박 할인권을 파싱해 `external_source_records`에 저장하고 active/fresh 레코드를 `policies`로 승격한다.
+- `stay_discount` source가 공식 `https://ktostay.visitkorea.or.kr/` 숙박세일 페스타 숙박 할인권과 비수도권 인구감소지역 85개 지자체를 파싱해 `external_source_records.raw_payload.eligibleAreas`에 저장하고 active/fresh canonical 레코드를 `policies`로 승격한다. 정책 목록/검색/지역 추천에서는 canonical을 숨기고 `stay-discount-{sidoSlug}-{citySlug}` alias 85건으로 표시하며, 제목은 `[고성] ...`처럼 시/군 접두어를 붙이고 목록 메타 지역은 `강원` 같은 광역자치단체로 맞춘다. 상세 지원 내용은 원문 반복 대신 결제 금액별 할인 조건과 발급·입실 기간을 항목화한다. 상세/저장/일정 연결은 canonical 정책으로 중복을 방지한다. `local_half_trip`은 준비중 지역도 정책 목록에 표시하고 제목은 `[합천] 대한민국 반값여행 지원`처럼 지자체명을 대괄호 접두어로 맞춘다.
 - 대한민국 반값여행 parser는 `신청접수`, `6월 중 예정`, `6.16 10시부터`, `마감` 같은 6-7월 상태 문구를 구분하고 여행기간을 raw payload에 보존한다.
 - 일정 상세 추천 정책은 지역, 일정 날짜 겹침, 카테고리, 여행 스타일 텍스트만으로 점수화하며 LLM/AI 판단은 사용하지 않는다.

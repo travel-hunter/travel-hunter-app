@@ -29,12 +29,16 @@ def create_user(
     email: str,
     nickname: str,
     password_hash: str | None,
+    nickname_setup_completed: bool = True,
+    profile_setup_skipped: bool = False,
 ) -> User:
     user = User(
         email=email,
         nickname=nickname,
         password_hash=password_hash,
         onboarding_completed=False,
+        nickname_setup_completed=nickname_setup_completed,
+        profile_setup_skipped=profile_setup_skipped,
     )
     db.add(user)
     db.flush()
@@ -119,6 +123,24 @@ def update_user_profile(
     if budget is not None:
         user.travel_budget = budget
     user.onboarding_completed = True
+    user.profile_setup_skipped = False
+    user.updated_at = security.utc_now_naive()
+    db.add(user)
+    db.flush()
+    return user
+
+
+def mark_nickname_setup_completed(db: Session, user: User) -> User:
+    user.nickname_setup_completed = True
+    user.updated_at = security.utc_now_naive()
+    db.add(user)
+    db.flush()
+    return user
+
+
+def mark_profile_setup_skipped(db: Session, user: User) -> User:
+    user.onboarding_completed = True
+    user.profile_setup_skipped = True
     user.updated_at = security.utc_now_naive()
     db.add(user)
     db.flush()

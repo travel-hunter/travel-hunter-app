@@ -38,6 +38,8 @@ def make_user(
         password_hash=security.hash_password(password),
         nickname="Test User",
         onboarding_completed=False,
+        nickname_setup_completed=True,
+        profile_setup_skipped=False,
         created_at=datetime(2026, 5, 4, 0, 0, 0),
         updated_at=datetime(2026, 5, 4, 0, 0, 0),
     )
@@ -149,10 +151,18 @@ def test_complete_signup_creates_user_and_refresh_token(monkeypatch) -> None:
         expires_at=security.utc_now_naive() + timedelta(minutes=30),
     )
 
-    def create_user(_db, *, email: str, nickname: str, password_hash: str) -> UserModel:
+    def create_user(
+        _db,
+        *,
+        email: str,
+        nickname: str,
+        password_hash: str,
+        nickname_setup_completed: bool,
+    ) -> UserModel:
         captured["email"] = email
         captured["nickname"] = nickname
         captured["password_hash"] = password_hash
+        captured["nickname_setup_completed"] = nickname_setup_completed
         user = make_user(email=email)
         user.nickname = nickname
         user.password_hash = password_hash
@@ -183,8 +193,10 @@ def test_complete_signup_creates_user_and_refresh_token(monkeypatch) -> None:
     assert result.access_token
     assert result.refresh_token
     assert result.user["email"] == "test.user@example.com"
+    assert result.user["nicknameSetupCompleted"] is True
     assert captured["email"] == "test.user@example.com"
     assert captured["nickname"] == "알뜰한여행자482"
+    assert captured["nickname_setup_completed"] is True
     assert captured["password_hash"] != "password123"
     assert security.verify_password("password123", str(captured["password_hash"]))
     assert captured["deleted_pending"] is pending

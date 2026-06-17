@@ -16,6 +16,7 @@ import {
   NotificationSettings,
   Policy,
   Profile,
+  ProfileSkipResponse,
   ProfileOptions,
   Recommendation,
   RegionRecommendation,
@@ -200,6 +201,7 @@ export type AppDataApi = {
   getCurrentUser: () => Promise<User>;
   getProfile: () => Promise<Profile>;
   updateProfile: (profile: Partial<Profile>) => Promise<Profile>;
+  skipProfileSetup: () => Promise<ProfileSkipResponse>;
   getContact: () => Promise<ContactInfo>;
   updateContact: (contact: ContactUpdateRequest) => Promise<ContactInfo>;
   requestContactVerification: (request: ContactVerificationRequest) => Promise<ContactVerificationRequestResponse>;

@@ -13,7 +13,7 @@ from app.db.base import Base
 from app.main import app
 from app.models import ExternalSourceRecord, User
 from app.repositories.external_sources import upsert_external_source_records
-from app.schemas.external_sources import ExternalBenefitSource, TravelMonthRegionalBenefitSource, TravelStyle
+from app.schemas.external_sources import ExternalBenefitSource, TravelStyle
 from app.services.external_benefit_collection import (
     ExternalBenefitCollectionResult,
     SourceCollectionResult,
@@ -25,7 +25,7 @@ from app.services.travelmonth_collection import CollectionResult
 
 client = TestClient(app)
 FETCHED_AT = datetime(2026, 5, 21, 9, 0, 0)
-SOURCE_NAME = TravelMonthRegionalBenefitSource.model_fields["source_name"].default
+SOURCE_NAME = "대한민국 반값여행"
 STYLE_FOOD = get_args(TravelStyle)[1]
 STYLE_EXPERIENCE = get_args(TravelStyle)[2]
 
@@ -66,12 +66,12 @@ def make_source(
     return ExternalBenefitSource(
         source_name=SOURCE_NAME,
         source_type="official_campaign",
-        source_url="https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
-        source_category="regional_benefit",
+        source_url="https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+        source_category="local_half_trip",
         external_id=canonical_key,
         canonical_key=canonical_key,
         detail_url=None,
-        collected_page_url="https://korean.visitkorea.or.kr/travelmonth/benefits/vacation-benefit.do",
+        collected_page_url="https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
         title=title,
         organizer_text=f"{region} organizer",
         organizers=[f"{region} organizer"],
@@ -225,7 +225,7 @@ def test_external_collection_run_triggers_live_collection_for_admin(monkeypatch)
             outcome="partial_success",
             sources=[
                 SourceCollectionResult(
-                    source_category="regional_benefit",
+                    source_category="local_half_trip",
                     parsed_count=2,
                     created_or_updated_count=2,
                     outcome="success",
@@ -258,7 +258,7 @@ def test_external_collection_run_triggers_live_collection_for_admin(monkeypatch)
         "outcome": "partial_success",
         "sources": [
             {
-                "sourceCategory": "regional_benefit",
+            "sourceCategory": "local_half_trip",
                 "parsedCount": 2,
                 "createdOrUpdatedCount": 2,
                 "outcome": "success",
@@ -287,7 +287,7 @@ def test_external_collection_quality_report_returns_empty_counts() -> None:
     assert response.status_code == 200
     assert response.json() == {
         "sourceName": SOURCE_NAME,
-        "sourceCategory": "regional_benefit",
+        "sourceCategory": "local_half_trip",
         "totalRecords": 0,
         "freshRecords": 0,
         "activeRecords": 0,

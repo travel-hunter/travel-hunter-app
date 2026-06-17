@@ -4342,6 +4342,8 @@
   font-size: 13px;
   font-weight: 650;
   line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
 }
 
 .prototype-policy-detail-screen .policy-benefit-group li::before {
@@ -4394,6 +4396,8 @@
   color: #26263a;
   font-size: 14px;
   font-weight: 850;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
 }
 
 .prototype-policy-detail-screen .policy-requirement-list em {

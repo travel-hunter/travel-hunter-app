@@ -150,7 +150,7 @@ def test_db_trip_create_route_rejects_out_of_range_duration() -> None:
     install_db_route_dependencies(None, fake_db, user)
 
     try:
-        response = client.post("/api/trips", json={"durationDays": 6})
+        response = client.post("/api/trips", json={"durationDays": 8})
     finally:
         clear_overrides()
 
@@ -165,7 +165,7 @@ def test_db_trip_create_route_rejects_out_of_range_participant_count() -> None:
     try:
         responses = [
             client.post("/api/trips", json={"participantCount": 0}),
-            client.post("/api/trips", json={"participantCount": 7}),
+            client.post("/api/trips", json={"participantCount": 11}),
         ]
     finally:
         clear_overrides()
@@ -183,7 +183,7 @@ def test_db_trip_create_route_rejects_invalid_date_ranges() -> None:
             client.post("/api/trips", json={"startDate": "2026-07-12"}),
             client.post("/api/trips", json={"startDate": "2026-07-12", "endDate": "2026-07-12"}),
             client.post("/api/trips", json={"startDate": "2026-07-15", "endDate": "2026-07-12"}),
-            client.post("/api/trips", json={"startDate": "2026-07-12", "endDate": "2026-07-17"}),
+            client.post("/api/trips", json={"startDate": "2026-07-12", "endDate": "2026-07-19"}),
         ]
     finally:
         clear_overrides()

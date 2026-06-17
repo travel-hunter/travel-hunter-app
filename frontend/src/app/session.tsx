@@ -29,6 +29,7 @@ type SessionContextValue = {
   saveNickname: (nickname: string) => Promise<User>;
   updateProfile: (key: keyof Profile, value: string) => void;
   saveProfile: (profile?: Partial<Profile>) => Promise<Profile>;
+  skipProfileSetup: () => Promise<void>;
   addPolicy: (slug?: string) => void;
   removeAddedPolicy: (slug: string) => void;
   isPolicyAdded: (slug: string) => boolean;
@@ -232,6 +233,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           // Profile persistence already succeeded; stale user metadata can refresh on the next session check.
         }
         return savedProfile;
+      },
+      skipProfileSetup: async () => {
+        await appDataApi.skipProfileSetup();
+        try {
+          const user = await appDataApi.getCurrentUser();
+          const stored = readStoredAuth();
+          if (stored) persistAuth({ accessToken: stored.accessToken, user });
+          setCurrentUser(user);
+        } catch {
+          // Skip persistence already succeeded; stale user metadata can refresh later.
+        }
       },
       addPolicy: (slug?: string) => {
         setAddedPolicy(true);

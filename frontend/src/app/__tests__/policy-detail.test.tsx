@@ -426,6 +426,70 @@ describe("Travel Hunter app — policy detail", () => {
     }
   });
 
+  it("renders cleaned stay discount detail without duplicated raw discount copy", async () => {
+    const stayPolicy: Policy = {
+      id: "stay-discount-gangwon-goseong",
+      slug: "stay-discount-gangwon-goseong",
+      label: "강원",
+      tag: "최대 7만원",
+      title: "[고성] 2026 대한민국 숙박세일 페스타 숙박 할인",
+      org: "문화체육관광부, 한국관광공사",
+      region: "강원",
+      deadline: "2026-07-31",
+      amount: "최대 7만원",
+      summary: "비수도권 인구감소지역 숙박 예약 시 결제 금액과 숙박 조건에 따라 2만~7만원 할인권을 제공합니다.",
+      match: 90,
+      category: "숙박",
+      requirements: [
+        "7만원 미만 국내 숙박상품: 2만원 할인 (1박 이상)",
+        "7만원 이상 국내 숙박상품: 3만원 할인 (1박 이상)",
+        "14만원 미만 국내 숙박상품: 5만원 할인 (연박 이상)",
+        "14만원 이상 국내 숙박상품: 7만원 할인 (연박 이상)",
+        "참여 온라인 여행사에서 매일 오전 10시부터 선착순 발급",
+        "입실기간: 2026.6.11~7.31",
+      ],
+      documents: [],
+      officialUrl: "https://ktostay.visitkorea.or.kr/",
+      applyUrl: null,
+      sourceType: "external",
+    };
+    const getPolicySpy = vi
+      .spyOn(appDataApi, "getPolicy")
+      .mockResolvedValue(stayPolicy);
+
+    try {
+      await login();
+      cleanup();
+      renderAppRoute("/policies/stay-discount-gangwon-goseong");
+
+      const supportSection = await screen.findByRole("region", {
+        name: "지원 내용",
+      });
+      expect(
+        await screen.findByRole("heading", {
+          name: "[고성] 2026 대한민국 숙박세일 페스타 숙박 할인",
+        }),
+      ).toBeInTheDocument();
+      expect(within(supportSection).getByText("최대 7만원")).toBeInTheDocument();
+      expect(
+        within(supportSection).getByText(
+          "비수도권 인구감소지역 숙박 예약 시 결제 금액과 숙박 조건에 따라 2만~7만원 할인권을 제공합니다.",
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("7만원 미만 국내 숙박상품: 2만원 할인 (1박 이상)"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("14만원 이상 국내 숙박상품: 7만원 할인 (연박 이상)"),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText(/7만원 미만\* 국내 숙박상품 예약 시 2만원 할인/),
+      ).not.toBeInTheDocument();
+    } finally {
+      getPolicySpy.mockRestore();
+    }
+  });
+
   it("renders policy detail in prototype-only flow without FAQ accordion", async () => {
     await login();
     cleanup();
