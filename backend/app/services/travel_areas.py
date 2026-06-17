@@ -6,7 +6,7 @@ import re
 
 from sqlalchemy.orm import Session
 
-from app.data.travel_areas import TravelArea, list_travel_areas, make_policy_region_area
+from app.data.travel_areas import TravelArea, list_travel_areas, make_policy_region_area, resolve_municipality_sido
 from app.models import ExternalSourceRecord
 from app.repositories import external_sources as external_source_repository
 from app.repositories import policies as policy_repository
@@ -90,6 +90,10 @@ def recommend_travel_areas(
             areas = [area for area, _count in policy_areas]
             policy_area_counts = {area.id: count for area, count in policy_areas}
         if not areas:
+            fallback_area = _municipality_fallback_area(query=normalized_query, sido=normalized_sido)
+            if fallback_area:
+                areas = [fallback_area]
+        if not areas:
             return TravelAreaRecommendationResponse(
                 mode="search",
                 sido=normalized_sido,
@@ -154,6 +158,17 @@ def _policy_region_areas_for_query(db: Session, *, query: str, sido: str | None)
         counts[key] = counts.get(key, 0) + 1
 
     return [(make_policy_region_area(policy_sido, city), count) for (policy_sido, city), count in sorted(counts.items())]
+
+
+def _municipality_fallback_area(*, query: str | None, sido: str | None) -> TravelArea | None:
+    if not query:
+        return None
+    resolved_sido = resolve_municipality_sido(query, sido=sido)
+    if not resolved_sido:
+        return None
+    if sido and sido != resolved_sido:
+        return None
+    return make_policy_region_area(resolved_sido, query)
 
 
 def _policy_city(policy: object) -> str | None:

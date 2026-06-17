@@ -81,6 +81,7 @@ export function ItineraryCreatePage() {
   const policySlug = searchParams.get("policySlug") ?? undefined;
   const requestedTravelAreaId = normalizeTravelAreaIdParam(searchParams.get("travelAreaId"));
   const requestedRegion = normalizeRegionParam(searchParams.get("region"));
+  const requestedSido = normalizeRegionParam(searchParams.get("sido"));
   const linkablePolicySlug = policySlug;
   const defaultTripDatesRef = useRef(getDefaultTripDateRange());
   const defaultTripStartDate = defaultTripDatesRef.current.startDate;
@@ -91,7 +92,7 @@ export function ItineraryCreatePage() {
   const [selectedRegionDraft, setSelectedRegionDraft] = useState(initialRegion);
   const [selectedTravelArea, setSelectedTravelArea] = useState<SelectedTravelArea | null>(null);
   const [travelAreaChoiceSido, setTravelAreaChoiceSido] = useState<string | null>(
-    requestedTravelAreaId ? null : isBroadTravelAreaRegion(requestedRegion) ? requestedRegion : isBroadTravelAreaRegion(initialRegion) ? initialRegion : null,
+    requestedTravelAreaId ? null : isBroadTravelAreaRegion(requestedRegion) ? requestedRegion : requestedSido || (isBroadTravelAreaRegion(initialRegion) ? initialRegion : null),
   );
   const [travelAreaChoiceQuery, setTravelAreaChoiceQuery] = useState<string | null>(requestedTravelAreaId || !requestedRegion || isBroadTravelAreaRegion(requestedRegion) ? null : requestedRegion);
   const [travelAreaRecommendations, setTravelAreaRecommendations] = useState<TravelAreaRecommendation[]>([]);
@@ -144,7 +145,7 @@ export function ItineraryCreatePage() {
     setSearchParams(nextSearchParams, { replace: true });
   };
 
-  const applyTravelArea = (area: TravelAreaRecommendation, options?: { syncUrl?: boolean }) => {
+  const applyTravelArea = (area: TravelAreaRecommendation, options?: { syncUrl?: boolean; regionParam?: string }) => {
     const previousAutoTitle = generatedTripTitle(selectedRegion, dayCount);
     const nextTravelArea = toSelectedTravelArea(area);
     setSelectedTravelArea(nextTravelArea);
@@ -154,8 +155,12 @@ export function ItineraryCreatePage() {
     updateProfile("region", area.travelAreaName);
     setTitleDraft((current) => (current.trim() === "" || current === previousAutoTitle ? generatedTripTitle(area.travelAreaName, dayCount) : current));
     if (options?.syncUrl) {
-      syncTravelAreaSearchParams({ region: area.sido, travelAreaId: area.travelAreaId });
+      syncTravelAreaSearchParams({ region: options.regionParam ?? area.sido, travelAreaId: area.travelAreaId });
     }
+  };
+
+  const applySingleTravelAreaFromQuery = (area: TravelAreaRecommendation) => {
+    applyTravelArea(area, { syncUrl: true, regionParam: travelAreaChoiceQuery ?? undefined });
   };
 
   useEffect(() => {
@@ -168,12 +173,12 @@ export function ItineraryCreatePage() {
         setTravelAreaChoiceSido(requestedRegion);
         setTravelAreaChoiceQuery(null);
       } else {
-        setTravelAreaChoiceSido(null);
+        setTravelAreaChoiceSido(requestedSido);
         setTravelAreaChoiceQuery(requestedRegion);
       }
       setTitleDraft((current) => (current.trim() === "" || current === previousAutoTitle ? generatedTripTitle(requestedRegion, dayCount) : current));
     }
-  }, [requestedRegion, requestedTravelAreaId]);
+  }, [requestedRegion, requestedSido, requestedTravelAreaId]);
 
   useEffect(() => {
     if (!requestedTravelAreaId) {
@@ -192,7 +197,7 @@ export function ItineraryCreatePage() {
         : hasSelectedTravelAreaInRecommendations
           ? null
         : travelAreaChoiceQuery
-          ? { query: travelAreaChoiceQuery, limit: 20 }
+          ? { query: travelAreaChoiceQuery, sido: travelAreaChoiceSido ?? undefined, limit: 20 }
           : travelAreaChoiceSido
           ? { sido: travelAreaChoiceSido, limit: 20 }
           : null;
@@ -227,12 +232,12 @@ export function ItineraryCreatePage() {
           }
         } else if (selectedTravelArea && !response.items.some((area) => area.travelAreaId === selectedTravelArea.travelAreaId)) {
           if (response.items.length === 1) {
-            applyTravelArea(response.items[0], { syncUrl: true });
+            applySingleTravelAreaFromQuery(response.items[0]);
           } else {
             setSelectedTravelArea(null);
           }
         } else if ((travelAreaChoiceSido || travelAreaChoiceQuery) && !selectedTravelArea && response.items.length === 1) {
-          applyTravelArea(response.items[0], { syncUrl: true });
+          applySingleTravelAreaFromQuery(response.items[0]);
         }
       })
       .catch(() => {

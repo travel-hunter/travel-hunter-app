@@ -228,6 +228,32 @@ export function getYeonggwangTravelAreaResponse(): TravelAreaRecommendationRespo
   };
 }
 
+export function getHapcheonTravelAreaResponse(): TravelAreaRecommendationResponse {
+  return {
+    mode: "search",
+    sido: null,
+    query: "합천",
+    emptyReason: null,
+    items: [
+      {
+        travelAreaId: "policy-region:%EA%B2%BD%EB%82%A8:%ED%95%A9%EC%B2%9C",
+        travelAreaName: "합천",
+        sido: "경남",
+        includedCities: ["합천"],
+        summary: "합천 정책 혜택과 연결되는 경남 여행 지역입니다.",
+        tags: ["정책 혜택", "지역 여행", "경남"],
+        reason: "합천은 정책 혜택, 지역 여행, 경남 테마에 맞는 대표 여행권역이에요.",
+        policyCount: 0,
+        localPolicyCount: 0,
+        nationwidePolicyCount: 0,
+        endingSoonCount: 0,
+        estimatedValueKrw: 0,
+        score: 12,
+      },
+    ],
+  };
+}
+
 export function getGyeongjuTravelAreaResponse(): TravelAreaRecommendationResponse {
   return {
     mode: "search",

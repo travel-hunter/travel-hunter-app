@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- Latest implemented scope: `/trips/new` 여행 지역 선택 회귀 수정으로 17개 광역시도(`서울`, `부산`, `대구`, `인천`, `광주`, `대전`, `울산`, `세종`, `경기`, `강원`, `충북`, `충남`, `전북`, `전남`, `경북`, `경남`, `제주`)가 모두 1단계 지역 버튼과 backend 여행지역 추천 API에서 선택 가능하다.
+- Latest implemented scope: `/trips/new?region=합천`처럼 정적 세부 여행권역에 없는 지자체 진입도 backend municipality→sido 정규화로 `policy-region:{sido}:{city}` fallback 카드를 만들고, frontend가 광역(`경남`) active + 실제 일정 지역(`합천`) 유지 상태로 새 일정을 생성한다. 중복 지명(`고성`, `서구`)은 정책 링크에서 `sido` 힌트로 확정한다.
 - Validation date: 2026-06-17.
 - Current deployment posture: PR #71 is merged to `develop`; local Docker and development server frontend/backend were rebuilt with no-cache and force-recreated from `origin/develop` (`507961a`).
 - Keep this file slim: current status, recent validation evidence, and active risks only. Historical detail belongs in git history, source docs, or `.omx/evidence/*`.
@@ -14,17 +14,16 @@
 
 ## Latest Validations
 
-- Backend targeted regression: `cd backend && .venv/bin/python -m pytest tests/test_travel_areas.py` passed (`13 passed`).
-- Frontend targeted regression: `cd frontend && npx vitest run src/app/__tests__/trip-create.test.tsx` passed (`18 passed`).
-- Frontend typecheck/build: `cd frontend && npm run typecheck` passed; `cd frontend && npm run build` passed.
-- Diff hygiene: `git diff --check` passed before local container rebuild.
-- Local container rebuild: `docker compose build --no-cache frontend backend && docker compose up -d --force-recreate frontend backend` completed; `http://127.0.0.1:4173/trips/` serves `assets/index-BXed6d8A.js` and `assets/index-C20Cq7uB.css`.
-- Runtime API coverage smoke: local `GET /api/recommendations/travel-areas?sido={17개 광역시도}&limit=20` returned at least one item for every expected broad region; missing list was `[]`. Development server internal smoke at `507961a` also returned at least one item for all 17 broad regions and frontend dist serves `assets/index-asAg0sXf.js` / `assets/index-C20Cq7uB.css`.
+- Backend targeted regression: `cd backend && .venv/bin/python -m pytest tests/test_travel_areas.py` passed (`17 passed`).
+- Frontend targeted regression: `cd frontend && npm test -- src/app/__tests__/trip-create.test.tsx src/app/__tests__/policies.test.tsx` passed (`30 passed`).
+- Frontend typecheck: `cd frontend && npm run typecheck` passed.
+- Code review gate: `codex exec ... review --uncommitted` reported no actionable correctness/security/performance/maintainability regressions.
+- Diff hygiene: `git diff --check` passed; changed UTF-8 files have no `U+FFFD` replacement characters.
 
 ## Remaining Risks
 
-- Full frontend suite was not rerun for this region-selector scope; previous unrelated `policy-detail.test.tsx` section-order expectation mismatch may still remain.
-- Production deployment is intentionally not performed for this scope.
+- Full frontend/e2e/build suites were not rerun for this targeted municipality fallback fix.
+- Development server deployment is not yet performed for this scope; deploy after local diff review/commit if requested.
 
 ## Cleanup Policy
 

@@ -16,6 +16,7 @@ import {
   getGangneungTravelAreaResponse,
   getGangwonTravelAreaResponse,
   getGyeongjuTravelAreaResponse,
+  getHapcheonTravelAreaResponse,
   getJejuTravelAreaResponse,
   getPreviewTrip,
   getSokchoTravelAreaResponse,
@@ -393,14 +394,14 @@ describe("Travel Hunter app — trip creation", () => {
 
     try {
       renderAppRoute(
-        `/trips/new?policySlug=${encodeURIComponent(examplePolicySlug)}&region=${encodeURIComponent("영광")}`,
+        `/trips/new?policySlug=${encodeURIComponent(examplePolicySlug)}&region=${encodeURIComponent("영광")}&sido=${encodeURIComponent("전남")}`,
       );
 
       expect(await screen.findByRole("button", { name: /영광/ })).toHaveClass(
         "active",
       );
       expect(travelAreasSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ query: "영광" }),
+        expect.objectContaining({ query: "영광", sido: "전남" }),
       );
       await user.click(screen.getByRole("button", { name: "다음" }));
       await user.click(screen.getByRole("button", { name: "다음" }));
@@ -426,6 +427,62 @@ describe("Travel Hunter app — trip creation", () => {
       travelAreasSpy.mockRestore();
       createTripSpy.mockRestore();
       addPolicySpy.mockRestore();
+      getTripSpy.mockRestore();
+    }
+  });
+
+  it("preselects a fallback municipality card and broad sido from a direct region query", async () => {
+    await login();
+    cleanup();
+    const user = userEvent.setup();
+    const createdTrip: Trip = {
+      ...getPreviewTrip(),
+      id: "51",
+      title: "합천 여행",
+      dates: "2026.06.15 - 06.17",
+      days: { 1: [], 2: [], 3: [] },
+    };
+    const travelAreasSpy = vi
+      .spyOn(appDataApi, "listTravelAreaRecommendations")
+      .mockResolvedValue(getHapcheonTravelAreaResponse());
+    const createTripSpy = vi
+      .spyOn(appDataApi, "createTrip")
+      .mockResolvedValue(createdTrip);
+    const getTripSpy = vi
+      .spyOn(appDataApi, "getTrip")
+      .mockResolvedValue(createdTrip);
+
+    try {
+      renderAppRoute(`/trips/new?region=${encodeURIComponent("합천")}`);
+
+      expect(await screen.findByRole("button", { name: /합천/ })).toHaveClass(
+        "active",
+      );
+      expect(screen.getByRole("button", { name: "경남" })).toHaveClass("active");
+      expect(travelAreasSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ query: "합천" }),
+      );
+      await user.click(screen.getByRole("button", { name: "다음" }));
+      await user.click(screen.getByRole("button", { name: "다음" }));
+      await user.click(screen.getByRole("button", { name: "다음" }));
+      const titleInput = screen.getByRole("textbox", { name: "일정 제목" });
+      await user.clear(titleInput);
+      await user.type(titleInput, "합천 여행");
+      await user.click(screen.getByRole("button", { name: "일정 만들기" }));
+
+      await waitFor(() =>
+        expect(createTripSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: "합천 여행",
+            region: "합천",
+            travelAreaId: "policy-region:%EA%B2%BD%EB%82%A8:%ED%95%A9%EC%B2%9C",
+          }),
+        ),
+      );
+      await waitFor(() => expect(getTripSpy).toHaveBeenCalledWith("51"));
+    } finally {
+      travelAreasSpy.mockRestore();
+      createTripSpy.mockRestore();
       getTripSpy.mockRestore();
     }
   });

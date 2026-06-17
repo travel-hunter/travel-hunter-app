@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import Integer, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.data.travel_areas import get_travel_area, list_travel_areas, make_policy_region_area_id
+from app.data.travel_areas import get_travel_area, list_travel_areas, make_policy_region_area_id, resolve_municipality_sido
 from app.db.base import Base
 from app.models import ExternalSourceRecord, Policy
 from app.repositories.external_sources import upsert_external_source_records
@@ -179,6 +179,62 @@ def test_search_policy_only_municipality_returns_policy_region_area(db: Session)
     assert result.items[0].sido == "전남"
     assert result.items[0].localPolicyCount == 1
     assert get_travel_area(result.items[0].travelAreaId).name == "영광"
+
+
+def test_search_known_municipality_without_policy_rows_returns_static_policy_region_area(db: Session) -> None:
+    result = recommend_travel_areas(db, query="합천", today=date(2026, 5, 26))
+
+    assert result.mode == "search"
+    assert result.emptyReason is None
+    assert result.items[0].travelAreaId == make_policy_region_area_id("경남", "합천")
+    assert result.items[0].travelAreaName == "합천"
+    assert result.items[0].sido == "경남"
+    assert result.items[0].localPolicyCount == 0
+    assert get_travel_area(result.items[0].travelAreaId).sido == "경남"
+
+
+def test_search_known_municipality_fallback_respects_sido_filter(db: Session) -> None:
+    result = recommend_travel_areas(db, query="강진", sido="전남", today=date(2026, 5, 26))
+
+    assert result.emptyReason is None
+    assert result.items[0].travelAreaId == make_policy_region_area_id("전남", "강진")
+
+    mismatched = recommend_travel_areas(db, query="강진", sido="경남", today=date(2026, 5, 26))
+
+    assert mismatched.items == []
+    assert mismatched.emptyReason == "no_match"
+
+
+def test_search_policy_alias_district_uses_sido_filter_for_fallback(db: Session) -> None:
+    result = recommend_travel_areas(db, query="서구", sido="부산", today=date(2026, 5, 26))
+
+    assert result.emptyReason is None
+    assert result.items[0].travelAreaId == make_policy_region_area_id("부산", "서구")
+    assert result.items[0].travelAreaName == "서구"
+    assert result.items[0].sido == "부산"
+
+
+def test_stay_discount_alias_municipality_sidos_are_resolvable_with_hint() -> None:
+    expected_groups = {
+        "강원": ("고성군", "삼척시", "양구군", "양양군", "영월군", "정선군", "철원군", "태백시", "평창군", "홍천군", "화천군", "횡성군"),
+        "경남": ("거창군", "고성군", "남해군", "밀양시", "산청군", "의령군", "창녕군", "하동군", "함안군", "함양군", "합천군"),
+        "경북": ("고령군", "문경시", "봉화군", "상주시", "성주군", "안동시", "영덕군", "영양군", "영주시", "영천시", "울릉군", "울진군", "의성군", "청도군", "청송군"),
+        "대구": ("군위군", "남구", "서구"),
+        "부산": ("동구", "서구", "영도구"),
+        "전남": ("강진군", "고흥군", "곡성군", "구례군", "담양군", "보성군", "신안군", "영광군", "영암군", "완도군", "장성군", "장흥군", "진도군", "함평군", "해남군", "화순군"),
+        "전북": ("고창군", "김제시", "남원시", "무주군", "부안군", "순창군", "임실군", "장수군", "정읍시", "진안군"),
+        "충남": ("공주시", "금산군", "논산시", "보령시", "부여군", "서천군", "예산군", "청양군", "태안군"),
+        "충북": ("괴산군", "단양군", "보은군", "영동군", "옥천군", "제천시"),
+    }
+
+    unresolved = [
+        (sido, city)
+        for sido, cities in expected_groups.items()
+        for city in cities
+        if resolve_municipality_sido(city, sido=sido) != sido
+    ]
+
+    assert unresolved == []
 
 
 def test_search_duplicate_goseong_returns_distinct_sidos(db: Session) -> None:

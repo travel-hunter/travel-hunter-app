@@ -672,7 +672,7 @@ describe("Travel Hunter app — policies & trip picker", () => {
 
       expect(await screen.findByRole("link", { name: "새 일정에 담기" })).toHaveAttribute(
         "href",
-        "/trips/new?policySlug=dgtour-yeonggwang&region=%EC%98%81%EA%B4%91",
+        "/trips/new?policySlug=dgtour-yeonggwang&region=%EC%98%81%EA%B4%91&sido=%EC%A0%84%EB%82%A8",
       );
     } finally {
       getPolicySpy.mockRestore();
@@ -716,7 +716,7 @@ describe("Travel Hunter app — policies & trip picker", () => {
       expect(document.querySelectorAll(".trip-select-row")).toHaveLength(2);
       expect(screen.getByRole("link", { name: "새 일정에 담기" })).toHaveAttribute(
         "href",
-        `/trips/new?policySlug=${examplePolicySlug}&region=%EC%98%81%EA%B4%91`,
+        `/trips/new?policySlug=${examplePolicySlug}&region=%EC%98%81%EA%B4%91&sido=%EC%A0%84%EB%82%A8`,
       );
     } finally {
       listTripsSpy.mockRestore();
