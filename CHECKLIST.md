@@ -4,7 +4,7 @@
 
 - Latest implemented scope: `/ai-results` candidate/source badge cleanup removes the `ai-source-chip` UI from the selected-candidate summary and candidate cards, including the unused source-label helper and CSS.
 - Validation date: 2026-06-17.
-- Current deployment posture: local `develop` source has the UI cleanup; production deployment remains out of scope until the change is pushed/merged and the development server is rebuilt.
+- Current deployment posture: PR #69 is merged to `develop`; the development server was reset to `origin/develop` and rebuilt with no-cache frontend/backend images. Production deployment remains out of scope.
 - Keep this file slim: current status, recent validation evidence, and active risks only. Historical detail belongs in git history, source docs, or `.omx/evidence/*`.
 
 ## Current Source Documents
@@ -18,12 +18,12 @@
 - Typecheck: `cd frontend && npm run typecheck` passed as part of `npm run build`.
 - Targeted frontend regression: `cd frontend && npx vitest run src/app/__tests__/ai-results.test.tsx` passed (`7 passed`).
 - Build and artifact check: `cd frontend && npm run build` passed; `grep -R "ai-source-chip\|recommendationSourceLabel" -n dist` returned no matches.
+- Development-server deployment smoke: server `C307-24` reset to PR #69 `origin/develop` (`53364bf`), `docker compose --env-file deploy/.env.prod -f compose.tunnel.yaml build --no-cache frontend backend` and `up -d --force-recreate backend frontend` completed; backend health returned DB connected; frontend container `dist` grep returned no `ai-source-chip` or `recommendationSourceLabel` strings.
 - Broader frontend test run: `cd frontend && npm test` after the ai-results test update ran `19` files / `169` tests with `18` files and `168` tests passing; the only remaining failure is the unrelated existing `policy-detail.test.tsx` section-order expectation (`신청 대상` not found).
 
 ## Remaining Risks
 
 - Full frontend suite is not green because `src/app/__tests__/policy-detail.test.tsx` still has an unrelated section-order expectation mismatch outside this UI cleanup.
-- Development-server deployment has not yet been performed for this cleanup in this local change set.
 - Production deployment is intentionally not performed for this scope.
 
 ## Cleanup Policy
