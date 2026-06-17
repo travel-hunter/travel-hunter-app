@@ -4,7 +4,7 @@
 
 - Latest implemented scope: policy-detail trip-link flow now carries the selected policy municipality into `/trips/new`, so the new-trip region step preselects the policy travel area (for example `[영광] ...` -> `영광`).
 - Validation date: 2026-06-17.
-- Current deployment posture: fix branch `fix/policy-trip-region-handoff` is deployed to the development server at app commit `1db1712`; production deployment remains out of scope.
+- Current deployment posture: PR #63 is merged to `develop` and the development server is synced to merge commit `a3460c5`; production deployment remains out of scope.
 - Keep this file slim: current status, recent validation evidence, and active risks only. Historical detail belongs in git history, source docs, or `.omx/evidence/*`.
 
 ## Current Source Documents
@@ -18,11 +18,10 @@
 - Typecheck: `cd frontend && npm run typecheck` passed.
 - Full frontend test sweep: `cd frontend && npm test` (`167 passed, 1 failed`). Remaining failure is existing `src/app/__tests__/policy-detail.test.tsx > renders the prototype policy detail section order` expecting `신청 대상` text that is absent from the current rendered policy detail; not in the changed policy-to-trip path.
 - UTF-8 replacement-character check for changed frontend files: passed; `git diff --check`: passed.
-- Development-server deployment smoke: server `C307-24` reset to `1db1712` from `fix/policy-trip-region-handoff`; `docker compose --env-file deploy/.env.prod -f compose.tunnel.yaml config`, `build`, `up -d db`, `run --rm backend alembic upgrade head`, and `up -d` completed; backend and DB containers healthy; `https://dev.travel-hunter.co.kr/api/health` returned `{"status":"ok","service":"travel-hunter-backend","environment":"staging","database":"connected"}`; `https://dev.travel-hunter.co.kr/policies/travelmonth-24` returned HTTP 200; `https://dev.travel-hunter.co.kr/trips/new?policySlug=travelmonth-24&region=%EC%98%81%EA%B4%91` returned HTTP 200.
+- Development-server deployment smoke: server `C307-24` built the fix at `1db1712`, then synced to merged `origin/develop` at `a3460c5`; `docker compose --env-file deploy/.env.prod -f compose.tunnel.yaml config`, `build`, `up -d db`, `run --rm backend alembic upgrade head`, and `up -d` completed; backend and DB containers healthy; `https://dev.travel-hunter.co.kr/api/health` returned `{"status":"ok","service":"travel-hunter-backend","environment":"staging","database":"connected"}`; `https://dev.travel-hunter.co.kr/policies/travelmonth-24` returned HTTP 200; `https://dev.travel-hunter.co.kr/trips/new?policySlug=travelmonth-24&region=%EC%98%81%EA%B4%91` returned HTTP 200 after merge sync.
 
 ## Remaining Risks
 
-- `develop` is protected by GitHub PR rules, so the development server is temporarily ahead of `origin/develop` at the fix branch commit until the PR branch is merged.
 - Production deployment is intentionally not performed for this scope.
 
 ## Cleanup Policy
