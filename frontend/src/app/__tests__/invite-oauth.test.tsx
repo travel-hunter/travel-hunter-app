@@ -430,6 +430,7 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
     const trip: Trip = {
       ...getPreviewTrip(),
       id: "55",
+      currentUserRole: "editor",
       title: "Invite share trip",
     };
     const inviteState = makeInviteState();
@@ -466,6 +467,7 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
     const trip: Trip = {
       ...getPreviewTrip(),
       id: "55",
+      currentUserRole: "editor",
       title: "Invite email trip",
     };
     const inviteState = makeInviteState();
@@ -503,11 +505,11 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
     }
   });
 
-  it("blocks direct friend invite management for non-owner trip members", async () => {
+  it("blocks direct friend invite management for viewer trip members", async () => {
     const trip: Trip = {
       ...getPreviewTrip(),
       id: "55",
-      currentUserRole: "editor",
+      currentUserRole: "viewer",
       title: "Editor member trip",
     };
     const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(trip);
@@ -520,7 +522,9 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
       cleanup();
       renderAppRoute("/friend-invite?tripId=55");
 
-      expect(await screen.findByText("친구 초대는 일정 소유자만 관리할 수 있어요. 일정 상세로 돌아가 현재 권한을 확인해 주세요.")).toBeInTheDocument();
+      expect(
+        await screen.findByText("친구 초대는 일정 owner/editor 멤버만 관리할 수 있어요. 일정 상세로 돌아가 현재 권한을 확인해 주세요."),
+      ).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "초대 링크 활성화" })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "email 초대 보내기" })).not.toBeInTheDocument();
       expect(confirmInviteSpy).not.toHaveBeenCalled();

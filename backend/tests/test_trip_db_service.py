@@ -1598,17 +1598,43 @@ def test_invite_to_api_uses_public_frontend_base_url(monkeypatch) -> None:
     assert payload["inviteUrl"] == "https://travel-hunter.co.kr/invites/abc/accept"
 
 
-def test_confirm_invite_sent_updates_active_invite_role(monkeypatch) -> None:
+def test_get_invite_state_allows_editor(monkeypatch) -> None:
     fake_db = FakeDb()
-    user = make_user()
+    user = make_user(2, "Editor")
     trip = make_trip()
     invite = make_invite()
 
     monkeypatch.setattr(
         trip_service.trip_repository,
-        "get_owned_trip_by_id",
+        "get_accessible_trip_by_id",
         lambda db, trip_id, user_id: trip
-        if db is fake_db and trip_id == 7 and user_id == 1
+        if db is fake_db and trip_id == 7 and user_id == 2
+        else None,
+    )
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_latest_active_invite",
+        lambda db, **kwargs: invite
+        if db is fake_db and kwargs["trip_id"] == 7
+        else None,
+    )
+
+    payload = trip_service.get_invite_state(fake_db, user, "7")
+
+    assert payload is not None
+    assert payload["tripId"] == "7"
+    assert payload["role"] == "editor"
+
+
+def test_confirm_invite_sent_updates_active_invite_role_for_editor(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user(2, "Editor")
+    trip = make_trip()
+    invite = make_invite()
+
+    monkeypatch.setattr(
+        trip_service.trip_repository, "get_accessible_trip_by_id", lambda db, trip_id, user_id: trip
+        if db is fake_db and trip_id == 7 and user_id == 2
         else None,
     )
     monkeypatch.setattr(
@@ -1627,26 +1653,41 @@ def test_confirm_invite_sent_updates_active_invite_role(monkeypatch) -> None:
     assert fake_db.commits == 1
 
 
-def test_confirm_invite_sent_requires_owner(monkeypatch) -> None:
+def test_confirm_invite_sent_rejects_viewer(monkeypatch) -> None:
     fake_db = FakeDb()
-    user = make_user(2, "Editor")
+    user = make_user(2, "Viewer")
+    trip = make_trip()
+    trip.members[0].role = "viewer"
     monkeypatch.setattr(
         trip_service.trip_repository,
-        "get_owned_trip_by_id",
-        lambda *_args, **_kwargs: None,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip
+        if db is fake_db and trip_id == 7 and user_id == 2
+        else None,
     )
 
-    assert trip_service.confirm_invite_sent(fake_db, user, "7", "editor") is None
+    try:
+        trip_service.confirm_invite_sent(fake_db, user, "7", "editor")
+        raise AssertionError("expected TripServiceError")
+    except trip_service.TripServiceError as error:
+        assert error.status_code == 403
+        assert error.detail == "Trip edit permission required"
     assert fake_db.commits == 0
 
 
 def test_send_invite_email_returns_sent_status(monkeypatch) -> None:
     fake_db = FakeDb()
-    user = make_user()
+    user = make_user(2, "Editor")
     trip = make_trip()
     invite = make_invite()
     sent_payload: dict[str, str] = {}
-    monkeypatch.setattr(trip_service.trip_repository, "get_owned_trip_by_id", lambda *_args, **_kwargs: trip)
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip
+        if db is fake_db and trip_id == 7 and user_id == 2
+        else None,
+    )
     monkeypatch.setattr(trip_service.trip_repository, "get_latest_active_invite", lambda *_args, **_kwargs: invite)
     monkeypatch.setattr(
         trip_service.email_service,
@@ -1670,12 +1711,46 @@ def test_send_invite_email_returns_sent_status(monkeypatch) -> None:
     assert fake_db.commits == 1
 
 
+def test_send_invite_email_rejects_viewer(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user(2, "Viewer")
+    trip = make_trip()
+    trip.members[0].role = "viewer"
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip
+        if db is fake_db and trip_id == 7 and user_id == 2
+        else None,
+    )
+
+    try:
+        trip_service.send_invite_email(
+            fake_db,
+            user,
+            "7",
+            SendInviteEmailRequest(email="friend@example.com", role="viewer"),
+        )
+        raise AssertionError("expected TripServiceError")
+    except trip_service.TripServiceError as error:
+        assert error.status_code == 403
+        assert error.detail == "Trip edit permission required"
+
+    assert fake_db.commits == 0
+
+
 def test_send_invite_email_returns_fallback_when_smtp_not_configured(monkeypatch) -> None:
     fake_db = FakeDb()
-    user = make_user()
+    user = make_user(2, "Editor")
     trip = make_trip()
     invite = make_invite()
-    monkeypatch.setattr(trip_service.trip_repository, "get_owned_trip_by_id", lambda *_args, **_kwargs: trip)
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_accessible_trip_by_id",
+        lambda db, trip_id, user_id: trip
+        if db is fake_db and trip_id == 7 and user_id == 2
+        else None,
+    )
     monkeypatch.setattr(trip_service.trip_repository, "get_latest_active_invite", lambda *_args, **_kwargs: invite)
 
     def raise_not_configured(**_kwargs):

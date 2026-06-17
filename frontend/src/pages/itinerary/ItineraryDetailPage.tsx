@@ -654,7 +654,7 @@ export function ItineraryDetailPage() {
             </div>
             <span className="meta">{tripPeople.length}명 참여 중</span>
           </div>
-          {trip.currentUserRole === "owner" && (
+          {canManageTripStatus && (
             <Link className="prototype-invite-pill" to={`/friend-invite?tripId=${encodeURIComponent(trip.id)}`}>
               + 친구 초대
             </Link>

@@ -3,6 +3,7 @@ from __future__ import annotations
 import secrets
 import re
 import logging
+from functools import lru_cache
 import time as monotonic_time
 from datetime import date, datetime, timedelta, time
 from typing import Any
@@ -134,6 +135,7 @@ def _build_external_place_provider() -> KakaoItineraryPlaceProvider | None:
     try:
         return KakaoItineraryPlaceProvider(KakaoLocalClient(settings_obj=settings))
     except Exception:
+        logger.warning("kakao_local_provider_bootstrap_failed", exc_info=True)
         return None
 
 
@@ -214,15 +216,27 @@ def _linked_policies(
     return linked
 
 
-def _policy_to_trip_policy_candidate(policy: Policy) -> dict[str, object]:
+def _policy_to_trip_policy_candidate(
+    policy: Policy,
+    external_record: ExternalSourceRecord | None = None,
+) -> dict[str, object]:
     slug = policy.slug or str(policy.id)
     amount = policy.benefit_detail or _format_saving(policy.benefit_amount or 0)
-    title = local_half_trip_display.policy_title(policy.title, policy.source_category)
+    city = external_record.city if external_record is not None else None
+    title = local_half_trip_display.policy_title(policy.title, policy.source_category, city)
+    local_terms = _candidate_local_terms(
+        title=title,
+        region=policy.region,
+        city=city,
+        source_category=policy.source_category,
+    )
     return {
         "slug": slug,
         "title": title,
         "amount": amount,
         "region": policy.region or "",
+        "sido": policy.region or "",
+        "localTerms": local_terms,
         "benefitAmount": policy.benefit_amount or 0,
         "startDate": policy.start_date,
         "endDate": policy.end_date,
@@ -239,13 +253,22 @@ def _stay_alias_to_trip_policy_candidate(
     alias_area: stay_discount_aliases.StayDiscountAliasArea,
 ) -> dict[str, object]:
     amount = policy.benefit_detail or _format_saving(policy.benefit_amount or 0)
+    title = stay_discount_aliases.alias_title(policy.title, alias_area)
+    local_terms = _candidate_local_terms(
+        title=title,
+        region=alias_area.sido,
+        city=alias_area.city,
+        source_category=policy.source_category,
+    )
     return {
         "slug": alias_area.slug,
         "canonicalSlug": policy.slug or str(policy.id),
         "canonicalPolicyId": policy.id,
-        "title": stay_discount_aliases.alias_title(policy.title, alias_area),
+        "title": title,
         "amount": amount,
         "region": alias_area.sido,
+        "sido": alias_area.sido,
+        "localTerms": local_terms,
         "benefitAmount": policy.benefit_amount or 0,
         "startDate": policy.start_date,
         "endDate": policy.end_date,
@@ -259,11 +282,19 @@ def _stay_alias_to_trip_policy_candidate(
 
 def _external_source_record_to_trip_policy_candidate(record: ExternalSourceRecord) -> dict[str, object]:
     title = local_half_trip_display.policy_title(record.title, record.source_category, record.city)
+    local_terms = _candidate_local_terms(
+        title=title,
+        region=record.region,
+        city=record.city,
+        source_category=record.source_category,
+    )
     return {
         "slug": f"{external_source_repository.EXTERNAL_POLICY_SLUG_PREFIX}{record.id}",
         "title": title,
         "amount": record.benefit_value_text or record.benefit_text,
         "region": record.region or (NATIONWIDE_REGION if record.is_nationwide else ""),
+        "sido": record.region or "",
+        "localTerms": local_terms,
         "benefitAmount": record.extracted_amount_krw or 0,
         "startDate": record.start_date,
         "endDate": record.end_date,
@@ -299,6 +330,51 @@ def _unique_terms(values: list[str]) -> list[str]:
     return terms
 
 
+def _term_variants(value: str | None) -> list[str]:
+    value = (value or "").strip()
+    if not value:
+        return []
+    variants = [value]
+    if len(value) > 1 and value.endswith(("시", "군")):
+        variants.append(value[:-1])
+    return _unique_terms(variants)
+
+
+@lru_cache(maxsize=1)
+def _known_municipal_terms() -> tuple[str, ...]:
+    values: list[str] = []
+    for area in list_travel_areas():
+        for city in area.included_cities:
+            values.extend(_term_variants(city))
+        for alias in area.aliases:
+            if alias.endswith(("시", "군", "구")):
+                values.extend(_term_variants(alias))
+    return tuple(_unique_terms(values))
+
+
+def _candidate_local_terms(
+    *,
+    title: str,
+    region: str | None,
+    city: str | None,
+    source_category: str | None,
+) -> list[str]:
+    values: list[str] = []
+    values.extend(_term_variants(city))
+    if source_category == local_half_trip_display.SOURCE_CATEGORY:
+        values.extend(_term_variants(local_half_trip_display.city_from_title(title)))
+    if title.startswith("[") and "]" in title:
+        values.extend(_term_variants(title[1 : title.index("]")]))
+    title_text = _normalized_text(title)
+    for term in _known_municipal_terms():
+        if _normalized_text(term) in title_text:
+            values.extend(_term_variants(term))
+    region_terms = _split_region_terms(region)
+    if len(region_terms) >= 2:
+        values.extend(_term_variants(region_terms[-1]))
+    return _unique_terms(values)
+
+
 def _trip_policy_match_terms(trip: Trip) -> tuple[list[str], str | None]:
     area = get_travel_area(trip.travel_area_id)
     values: list[str] = []
@@ -312,6 +388,71 @@ def _trip_policy_match_terms(trip: Trip) -> tuple[list[str], str | None]:
     if trip.region:
         values.append(trip.region)
     return _unique_terms(values), area_sido
+
+
+def _trip_local_match_terms(trip: Trip) -> tuple[list[str], str | None, bool]:
+    area = get_travel_area(trip.travel_area_id)
+    values: list[str] = []
+    area_sido = None
+    is_whole_sido_area = False
+    if area is not None:
+        area_sido = area.sido
+        is_whole_sido_area = any(
+            _normalized_text(city) == _normalized_text(area.sido)
+            for city in area.included_cities
+        )
+        for city in area.included_cities:
+            values.extend(_term_variants(city))
+    else:
+        for term in _split_region_terms(trip.region):
+            values.extend(_term_variants(term))
+    return _unique_terms(values), area_sido, is_whole_sido_area
+
+
+def _candidate_sido(candidate: dict[str, object]) -> str:
+    value = str(candidate.get("sido") or candidate.get("region") or "").strip()
+    if _normalized_text(value) == _normalized_text(NATIONWIDE_REGION):
+        return ""
+    return value
+
+
+def _candidate_has_explicit_locality(candidate: dict[str, object]) -> bool:
+    terms = candidate.get("localTerms")
+    return isinstance(terms, list) and any(_normalized_text(term) for term in terms)
+
+
+def _candidate_matches_trip_locality(candidate: dict[str, object], trip: Trip) -> bool:
+    local_terms, area_sido, is_whole_sido_area = _trip_local_match_terms(trip)
+    if not local_terms and not area_sido:
+        return True
+
+    candidate_sido = _normalized_text(_candidate_sido(candidate))
+    normalized_area_sido = _normalized_text(area_sido)
+    candidate_local_terms = (
+        {
+            normalized
+            for term in candidate.get("localTerms", [])
+            if (normalized := _normalized_text(term))
+        }
+        if isinstance(candidate.get("localTerms"), list)
+        else set()
+    )
+    normalized_local_terms = {
+        normalized for term in local_terms if (normalized := _normalized_text(term))
+    }
+
+    if is_whole_sido_area:
+        return (
+            bool(normalized_area_sido)
+            and candidate_sido == normalized_area_sido
+            and _candidate_has_explicit_locality(candidate)
+        )
+
+    if not candidate_local_terms:
+        return False
+    if normalized_area_sido and candidate_sido and candidate_sido != normalized_area_sido:
+        return False
+    return bool(candidate_local_terms & normalized_local_terms)
 
 
 def _known_destination_terms() -> list[str]:
@@ -473,7 +614,13 @@ def _recommended_policies(trip: Trip, candidates: list[dict[str, object]] | None
         and not _is_expired_external_trip_policy_candidate(candidate, trip)
     ]
     trip_region = (trip.region or "").strip()
-    if not trip.travel_area_id:
+    if trip.travel_area_id:
+        available_candidates = [
+            candidate
+            for candidate in available_candidates
+            if _candidate_matches_trip_locality(candidate, trip)
+        ]
+    else:
         region_candidates = [
             candidate
             for candidate in available_candidates
@@ -540,7 +687,15 @@ def _list_recommended_policy_candidates(db: Session) -> list[dict[str, object]]:
             if alias_areas:
                 candidates.extend(_stay_alias_to_trip_policy_candidate(policy, area) for area in alias_areas)
             continue
-        candidates.append(_policy_to_trip_policy_candidate(policy))
+        external_record = (
+            external_source_repository.get_external_source_record_by_id(
+                db,
+                policy.external_source_record_id,
+            )
+            if policy.external_source_record_id is not None
+            else None
+        )
+        candidates.append(_policy_to_trip_policy_candidate(policy, external_record))
     return candidates
 
 
@@ -640,10 +795,12 @@ def _resolve_trip(db: Session, trip_handle: str, user: User) -> Trip | None:
     return None
 
 
-def _resolve_owned_trip(db: Session, trip_handle: str, user: User) -> Trip | None:
-    if NUMERIC_TRIP_ID_PATTERN.fullmatch(trip_handle):
-        return trip_repository.get_owned_trip_by_id(db, int(trip_handle), user.id)
-    return None
+def _resolve_editable_trip(db: Session, trip_handle: str, user: User) -> Trip | None:
+    trip = _resolve_trip(db, trip_handle, user)
+    if trip is None:
+        return None
+    _require_trip_editor(trip, user)
+    return trip
 
 
 def _resolve_required_trip(db: Session, trip_handle: str, user: User) -> Trip:
@@ -1188,7 +1345,7 @@ def get_invite_state(
     user: User,
     trip_handle: str,
 ) -> dict[str, object] | None:
-    trip = _resolve_owned_trip(db, trip_handle, user)
+    trip = _resolve_editable_trip(db, trip_handle, user)
     if trip is None:
         return None
     invite = _ensure_invite(db, trip, user)
@@ -1202,7 +1359,7 @@ def confirm_invite_sent(
     trip_handle: str,
     role: str = "editor",
 ) -> dict[str, object] | None:
-    trip = _resolve_owned_trip(db, trip_handle, user)
+    trip = _resolve_editable_trip(db, trip_handle, user)
     if trip is None:
         return None
     invite = _ensure_invite(db, trip, user, role)
@@ -1216,7 +1373,7 @@ def send_invite_email(
     trip_handle: str,
     payload: SendInviteEmailRequest,
 ) -> dict[str, object] | None:
-    trip = _resolve_owned_trip(db, trip_handle, user)
+    trip = _resolve_editable_trip(db, trip_handle, user)
     if trip is None:
         return None
     invite = _ensure_invite(db, trip, user, payload.role)
