@@ -8491,27 +8491,6 @@ a.prototype-stat-card:active {
   outline-offset: 2px;
 }
 
-.ai-source-chip {
-  display: inline-flex;
-  width: fit-content;
-  max-width: 100%;
-  min-height: 22px;
-  align-items: center;
-  border-radius: 999px;
-  padding: 4px 8px;
-  background: #eef2ff;
-  color: #3730a3;
-  font-size: 11px;
-  font-weight: 950;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.ai-map-selected-summary .ai-source-chip {
-  grid-column: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
 .ai-selected-meta-row {
   display: flex;
