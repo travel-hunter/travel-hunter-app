@@ -4,7 +4,7 @@
 
 - Latest implemented scope: development-server `/api/trips` hotfix restores local-half-trip city extraction so empty trip lists do not fail with a backend 500.
 - Validation date: 2026-06-17.
-- Current deployment posture: hotfix is being prepared for `develop` and development-server rebuild; production deployment remains out of scope.
+- Current deployment posture: hotfix is merged to `develop` and deployed to the development server; production deployment remains out of scope.
 - Keep this file slim: current status, recent validation evidence, and active risks only. Historical detail belongs in git history, source docs, or `.omx/evidence/*`.
 
 ## Current Source Documents
@@ -17,11 +17,11 @@
 - Reproduced the `/api/trips` failure locally before the fix with `AttributeError: module 'app.services.local_half_trip_display' has no attribute 'city_from_title'`.
 - Targeted backend regression: `cd backend && python -m pytest tests/test_trip_db_service.py::test_get_trip_recommendations_use_date_category_and_fresh_external_gate tests/test_policy_db_service.py::test_local_half_trip_policy_title_uses_bracketed_city_prefix -q` (`2 passed`).
 - UTF-8 check for changed Python service file: passed; `git diff --check`: passed.
+- Development-server deployment smoke: server `develop` at `268c318`; Docker backend/frontend rebuilt; Alembic upgrade completed; `https://dev.travel-hunter.co.kr/api/health` returned database connected; authenticated `https://dev.travel-hunter.co.kr/api/trips` returned HTTP 200; `/trips` page returned HTTP 200.
 - Broader backend service check: `cd backend && python -m pytest tests/test_trip_db_service.py tests/test_policy_db_service.py -q` (`99 passed, 1 failed`). The remaining failure is an existing recommendation-order expectation unrelated to this hotfix path.
 
 ## Remaining Risks
 
-- Development-server rebuild and smoke validation still need to be completed after the hotfix is committed and pushed.
 - Production deployment is intentionally not performed for this scope.
 
 ## Cleanup Policy
