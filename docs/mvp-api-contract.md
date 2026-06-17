@@ -1073,7 +1073,7 @@ AI 추천 장소 목록 조회.
 
 ### GET /trips/{trip_id}/invite
 
-초대 링크 상태 조회. owner만 가능.
+초대 링크 상태 조회. owner 또는 editor만 가능.
 
 **Response 200** → `InviteState`
 ```json
@@ -1099,7 +1099,7 @@ AI 추천 장소 목록 조회.
 
 ### POST /trips/{trip_id}/invite
 
-초대 링크 생성 또는 role 업데이트. owner만 가능.
+초대 링크 생성 또는 role 업데이트. owner 또는 editor만 가능.
 
 **Request** (optional)
 ```json
@@ -1117,7 +1117,7 @@ AI 추천 장소 목록 조회.
 
 ### POST /trips/{trip_id}/invite/email
 
-초대 링크를 생성/업데이트한 뒤 email로 전송. owner만 가능. email 본문에는 일정 상세를 포함하지 않고 “트래블헌터 일정 초대입니다 / 로그인 또는 회원가입 후 수락할 수 있습니다 / 초대가 만료됐으면 다시 요청하세요” 수준의 안전 안내와 초대 링크만 포함한다.
+초대 링크를 생성/업데이트한 뒤 email로 전송. owner 또는 editor만 가능. email 본문에는 일정 상세를 포함하지 않고 “트래블헌터 일정 초대입니다 / 로그인 또는 회원가입 후 수락할 수 있습니다 / 초대가 만료됐으면 다시 요청하세요” 수준의 안전 안내와 초대 링크만 포함한다.
 
 **Request**
 ```json
@@ -1156,7 +1156,8 @@ AI 추천 장소 목록 조회.
 - `"failed"`: SMTP 발송 실패. 초대 링크는 유효하므로 프론트는 링크 복사 fallback을 안내한다.
 
 **Errors**
-- 404: 일정 없음 또는 owner가 아님
+- 403: owner/editor 아님
+- 404: 일정 없음
 - 422: email 또는 role 형식 오류
 
 ---

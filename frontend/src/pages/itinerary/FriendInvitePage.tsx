@@ -96,8 +96,7 @@ export function FriendInvitePage() {
 
   const title = trip?.title ?? "제주 3일 여행";
   const inviteUrl = effectiveInviteState?.inviteUrl ?? "";
-  const isOwner = trip?.currentUserRole === "owner";
-  const canManageInvite = Boolean(trip && isOwner);
+  const canManageInvite = trip?.currentUserRole === "owner" || trip?.currentUserRole === "editor";
 
   return (
     <section className="screen">
@@ -112,8 +111,8 @@ export function FriendInvitePage() {
       <div className="content stack padded">
         {(tripLoading || inviteLoading) && <LoadingState label="초대 정보를 불러오는 중입니다" />}
         {(tripError || inviteError) && <ErrorState message={tripError ?? inviteError ?? "초대 정보를 찾지 못했어요."} />}
-        {trip && !isOwner && (
-          <ErrorState message="친구 초대는 일정 소유자만 관리할 수 있어요. 일정 상세로 돌아가 현재 권한을 확인해 주세요." />
+        {trip && !canManageInvite && (
+          <ErrorState message="친구 초대는 일정 owner/editor 멤버만 관리할 수 있어요. 일정 상세로 돌아가 현재 권한을 확인해 주세요." />
         )}
         {canManageInvite && (
           <>

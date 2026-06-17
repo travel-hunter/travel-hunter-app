@@ -75,7 +75,7 @@ describe("Travel Hunter app — trip detail & itinerary", () => {
     }
   });
 
-  it("hides the friend invite entry for non-owner trip members", async () => {
+  it("shows the friend invite entry for editor trip members", async () => {
     const trip: Trip = {
       ...getPreviewTrip(),
       id: "57",
@@ -91,6 +91,29 @@ describe("Travel Hunter app — trip detail & itinerary", () => {
 
       await waitFor(() =>
         expect(screen.getAllByText("편집자 참여 일정").length).toBeGreaterThan(0),
+      );
+      expect(screen.getByRole("link", { name: "+ 친구 초대" })).toBeInTheDocument();
+    } finally {
+      getTripSpy.mockRestore();
+    }
+  });
+
+  it("hides the friend invite entry for viewer trip members", async () => {
+    const trip: Trip = {
+      ...getPreviewTrip(),
+      id: "58",
+      currentUserRole: "viewer",
+      title: "뷰어 참여 일정",
+    };
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(trip);
+
+    try {
+      await login();
+      cleanup();
+      renderAppRoute("/trips/58");
+
+      await waitFor(() =>
+        expect(screen.getAllByText("뷰어 참여 일정").length).toBeGreaterThan(0),
       );
       expect(screen.queryByRole("link", { name: "+ 친구 초대" })).not.toBeInTheDocument();
     } finally {

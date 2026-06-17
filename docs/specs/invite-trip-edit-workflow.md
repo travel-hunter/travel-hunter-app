@@ -19,8 +19,8 @@
 
 ### 2.1 현재 구현 범위
 
-- 일정 owner가 `/friend-invite?tripId={tripId}`에서 viewer/editor 권한을 선택한다.
-- owner가 초대 링크를 활성화하고 복사/공유한다.
+- 일정 owner/editor가 `/friend-invite?tripId={tripId}`에서 viewer/editor 권한을 선택한다.
+- owner/editor가 초대 링크를 활성화하고 복사/공유한다.
 - 초대 URL은 공개 수락 경로 `/invites/{token}/accept`를 사용한다.
 - 초대 수신자는 링크로 진입한다.
 - 비로그인 수신자는 로그인 또는 회원가입 후 원래 초대 링크로 돌아와 수락한다.
@@ -63,22 +63,22 @@
 
 ## 4. 현재 구현: 링크 기반 친구 초대 흐름
 
-### 4.1 Owner가 초대 화면으로 이동
+### 4.1 초대 화면으로 이동
 
-1. owner가 로그인한다.
-2. owner가 `/trips` 또는 홈/마이페이지의 일정 진입점에서 본인 일정을 연다.
-3. owner가 일정 상세 `/trips/{tripId}`에서 친구 초대 CTA를 누른다.
+1. owner/editor가 로그인한다.
+2. owner/editor가 `/trips` 또는 홈/마이페이지의 일정 진입점에서 본인 일정을 연다.
+3. owner/editor가 일정 상세 `/trips/{tripId}`에서 친구 초대 CTA를 누른다.
    - 예시 버튼 문구: `친구 초대`, `같이 일정 보기`, `초대 링크 만들기`.
 4. 프론트엔드는 `/friend-invite?tripId={tripId}`로 이동한다.
 5. 화면 진입 시 프론트엔드는 `AppDataApi`를 통해 현재 초대 상태를 조회한다.
    - API: `GET /api/trips/{tripId}/invite`
-   - 성공 조건: 로그인 사용자이며 해당 일정의 owner.
+   - 성공 조건: 로그인 사용자이며 해당 일정의 owner/editor member.
    - 실패 조건:
      - 미로그인: 로그인 화면으로 이동.
-     - owner가 아님: 권한 없음 안내.
+     - owner/editor 아님: 권한 없음 안내.
      - 일정 없음 또는 접근 불가: not found/접근 불가 안내.
 
-### 4.2 Owner가 권한을 선택한다
+### 4.2 초대 권한을 선택한다
 
 1. 초대 화면은 권한 선택 UI를 보여준다.
 2. 기본 권장값은 `editor`이다. 단, 화면 copy는 권한 차이를 명확히 설명한다.
@@ -94,21 +94,21 @@
 - `링크를 아는 사람이 접근할 수 있으니 신뢰하는 사람에게만 공유하세요.`
 - `현재는 링크 공유 방식이며 email/SMS/Kakao 발송은 지원하지 않아요.`
 
-### 4.3 Owner가 링크를 활성화한다
+### 4.3 초대 링크를 활성화한다
 
-1. owner가 `링크 만들기`, `초대 링크 활성화`, 또는 `공유 링크 만들기` 버튼을 누른다.
+1. owner/editor가 `링크 만들기`, `초대 링크 활성화`, 또는 `공유 링크 만들기` 버튼을 누른다.
 2. 프론트엔드는 선택한 role을 전송한다.
    - API: `POST /api/trips/{tripId}/invite`
    - Request: `{ "role": "viewer" }` 또는 `{ "role": "editor" }`
 3. 백엔드는 다음을 수행한다.
-   - 요청자가 owner인지 확인한다.
+   - 요청자가 owner/editor인지 확인한다.
    - role이 `viewer` 또는 `editor`인지 검증한다.
    - 기존 활성 초대가 있으면 role을 갱신하거나 같은 invite token 상태를 반환한다.
    - 없으면 `trip_invites`에 token과 role을 저장한다.
    - `TRAVEL_HUNTER_PUBLIC_BASE_URL` 기준 `inviteUrl`을 만든다.
 4. 프론트엔드는 반환된 `inviteUrl`을 화면에 표시한다.
    - URL 형태: `https://<domain>/invites/{token}/accept`
-5. owner는 `링크 복사` 또는 OS 공유 기능을 사용해 외부 메신저에 직접 붙여넣는다.
+5. owner/editor는 `링크 복사` 또는 OS 공유 기능을 사용해 외부 메신저에 직접 붙여넣는다.
 
 성공 상태 copy 예시:
 
@@ -121,14 +121,14 @@
 | 실패 | 사용자 안내 | 회복 행동 |
 | --- | --- | --- |
 | 401 미로그인 | `로그인이 필요해요.` | 로그인 후 원래 초대 화면으로 복귀 |
-| 403 owner 아님 | `초대 링크는 일정 소유자만 만들 수 있어요.` | 일정 상세로 돌아가기 |
+| 403 owner/editor 아님 | `초대 링크는 일정 owner/editor 멤버만 만들 수 있어요.` | 일정 상세로 돌아가기 |
 | 404 일정 없음 | `일정을 찾을 수 없어요.` | 일정 목록으로 이동 |
 | 네트워크 오류 | `초대 링크를 만들지 못했어요. 잠시 후 다시 시도해 주세요.` | 재시도 버튼 제공 |
 
-### 4.4 Owner가 권한을 바꾼다
+### 4.4 초대 권한을 바꾼다
 
-1. owner가 같은 초대 화면에서 `보기만 가능`과 `함께 편집 가능` 중 다른 role을 선택한다.
-2. owner가 다시 `저장`, `권한 적용`, 또는 `링크 업데이트`를 누른다.
+1. owner/editor가 같은 초대 화면에서 `보기만 가능`과 `함께 편집 가능` 중 다른 role을 선택한다.
+2. owner/editor가 다시 `저장`, `권한 적용`, 또는 `링크 업데이트`를 누른다.
 3. 프론트엔드는 `POST /api/trips/{tripId}/invite`로 새 role을 전송한다.
 4. 이후 새로 수락하는 사용자는 새 role을 받는다.
 5. 이미 수락해 `trip_members`에 들어간 사용자의 기존 role은 이 동작만으로 자동 변경하지 않는다.
@@ -329,7 +329,7 @@
 | 장소 수정 | 불가 | 불가 | 불가 | 가능 | 가능 |
 | 장소 삭제 | 불가 | 불가 | 불가 | 가능 | 가능 |
 | 장소 이동 | 불가 | 불가 | 불가 | 가능 | 가능 |
-| 초대 링크 생성/role 설정 | 불가 | 불가 | 불가 | 불가 | 가능 |
+| 초대 링크 생성/role 설정 | 불가 | 불가 | 불가 | 가능 | 가능 |
 | 일정 삭제 | 불가 | 불가 | 불가 | 불가 | 가능 |
 
 ## 8. 가까운 다음 개선: email 초대 발송 흐름
@@ -343,13 +343,13 @@
 - SMTP/Brevo 설정이 없거나 발송 실패 시 email 입력 UI는 유지하되 링크 복사 fallback을 안내한다.
 - SMS/Kakao 발송은 포함하지 않는다.
 
-### 8.2 Owner의 email 초대 작업흐름
+### 8.2 owner/editor의 email 초대 작업흐름
 
-1. owner가 `/friend-invite?tripId={tripId}`에 진입한다.
-2. owner가 권한을 선택한다.
+1. owner/editor가 `/friend-invite?tripId={tripId}`에 진입한다.
+2. owner/editor가 권한을 선택한다.
    - `함께 편집 가능(editor)` 또는 `보기만 가능(viewer)`.
-3. owner가 초대 받을 사람의 email 주소를 입력한다.
-4. owner가 `email로 초대 보내기` 버튼을 누른다.
+3. owner/editor가 초대 받을 사람의 email 주소를 입력한다.
+4. owner/editor가 `email로 초대 보내기` 버튼을 누른다.
 5. 프론트엔드는 email 발송 API를 호출한다.
    - API: `POST /api/trips/{tripId}/invite/email`
    - Request 예시: `{ "email": "friend@example.com", "role": "editor" }`
@@ -391,7 +391,7 @@ Email 본문에서도 로그인 전 일정 상세 미리보기는 제공하지 �
 | 잘못된 email 형식 | `email 주소를 확인해 주세요.` | API 호출 전 client 검증 또는 422 | 입력 수정 |
 | SMTP provider 실패 | `email을 보내지 못했어요. 링크를 복사해 직접 보내세요.` | 초대 token은 유지, 실패 로그 기록 | 링크 복사/재시도 |
 | rate limit | `잠시 후 다시 시도해 주세요.` | 과도한 발송 차단 | 시간 후 재시도 |
-| owner 권한 없음 | `초대 email은 일정 소유자만 보낼 수 있어요.` | 403 | 일정 상세로 이동 |
+| owner/editor 권한 없음 | `초대 email은 일정 owner/editor 멤버만 보낼 수 있어요.` | 403 | 일정 상세로 이동 |
 | token 만료/갱신 필요 | `초대 링크를 다시 만든 뒤 보내 주세요.` | 새 token 생성 유도 | 링크 재생성 |
 
 ### 8.5 Email 개선의 acceptance criteria
@@ -407,7 +407,7 @@ Email 본문에서도 로그인 전 일정 상세 미리보기는 제공하지 �
 
 ### 9.1 현재 링크 초대 smoke
 
-1. owner 계정으로 로그인한다.
+1. owner 또는 editor 계정으로 로그인한다.
 2. 일정 하나를 생성하거나 seed 일정에 진입한다.
 3. 일정 상세에서 `친구 초대`를 누른다.
 4. 권한을 `함께 편집 가능`으로 선택한다.
@@ -423,7 +423,7 @@ Email 본문에서도 로그인 전 일정 상세 미리보기는 제공하지 �
 
 ### 9.2 Viewer 권한 smoke
 
-1. owner가 같은 일정에서 role을 `보기만 가능`으로 선택해 링크를 생성한다.
+1. owner 또는 editor가 같은 일정에서 role을 `보기만 가능`으로 선택해 링크를 생성한다.
 2. 다른 계정 또는 신규 가입 계정으로 링크를 수락한다.
 3. 일정 상세에 진입한다.
 4. timeline과 장소 상세는 보이는지 확인한다.
@@ -455,7 +455,7 @@ Email 본문에서도 로그인 전 일정 상세 미리보기는 제공하지 �
 ### 9.5 Email 초대 smoke
 
 1. SMTP/Brevo가 설정된 dev 또는 staging 환경을 준비한다. 로컬 SMTP 미설정 환경에서는 `deliveryStatus=notConfigured`와 링크 복사 fallback만 확인한다.
-2. owner가 초대 화면에서 role과 email을 입력한다.
+2. owner 또는 editor가 초대 화면에서 role과 email을 입력한다.
 3. `email로 초대 보내기`를 누른다.
 4. 발송 성공 안내와 링크 복사 fallback이 함께 보이는지 확인한다.
 5. 수신 inbox에서 email을 확인한다.
