@@ -19,6 +19,120 @@ class TravelArea:
 
 POLICY_REGION_AREA_ID_PREFIX = "policy-region:"
 
+_CITY_SUFFIXES = ("특별시", "광역시", "특별자치시", "특별자치도", "시", "군", "구")
+
+
+def _normalize_municipality(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    if not normalized:
+        return None
+    for suffix in _CITY_SUFFIXES:
+        if normalized.endswith(suffix):
+            if suffix == "구" and len(normalized) <= 2:
+                break
+            normalized = normalized.removesuffix(suffix)
+            break
+    return normalized or None
+
+
+_POLICY_LOCALITY_SIDOS = {
+    # 대한민국 반값여행 / 디지털관광주민증 지역. These are not all covered by
+    # the static itinerary catalog, but policy and direct region links must still
+    # resolve to an authoritative broad sido before a fallback card is rendered.
+    "강진": "전남",
+    "거창": "경남",
+    "고창": "전북",
+    "고흥": "전남",
+    "남해": "경남",
+    "밀양": "경남",
+    "영광": "전남",
+    "영암": "전남",
+    "영월": "강원",
+    "완도": "전남",
+    "제천": "충북",
+    "평창": "강원",
+    "하동": "경남",
+    "합천": "경남",
+    "해남": "전남",
+    "횡성": "강원",
+    # 숙박세일 페스타 인구감소지역 alias coverage used by policy listing.
+    "고령": "경북",
+    "곡성": "전남",
+    "동구": "부산",
+    "공주": "충남",
+    "괴산": "충북",
+    "구례": "전남",
+    "군위": "대구",
+    "금산": "충남",
+    "김제": "전북",
+    "남구": "대구",
+    "남원": "전북",
+    "논산": "충남",
+    "담양": "전남",
+    "단양": "충북",
+    "무주": "전북",
+    "문경": "경북",
+    "보령": "충남",
+    "보성": "전남",
+    "보은": "충북",
+    "봉화": "경북",
+    "부안": "전북",
+    "부여": "충남",
+    "산청": "경남",
+    "상주": "경북",
+    "서천": "충남",
+    "성주": "경북",
+    "순창": "전북",
+    "신안": "전남",
+    "안동": "경북",
+    "삼척": "강원",
+    "양구": "강원",
+    "양양": "강원",
+    "영덕": "경북",
+    "영동": "충북",
+    "영양": "경북",
+    "영주": "경북",
+    "영천": "경북",
+    "예산": "충남",
+    "옥천": "충북",
+    "영도": "부산",
+    "울릉": "경북",
+    "울진": "경북",
+    "의령": "경남",
+    "의성": "경북",
+    "임실": "전북",
+    "장성": "전남",
+    "장수": "전북",
+    "장흥": "전남",
+    "정선": "강원",
+    "정읍": "전북",
+    "진도": "전남",
+    "진안": "전북",
+    "창녕": "경남",
+    "청도": "경북",
+    "청송": "경북",
+    "청양": "충남",
+    "철원": "강원",
+    "태백": "강원",
+    "태안": "충남",
+    "함안": "경남",
+    "함양": "경남",
+    "함평": "전남",
+    "화순": "전남",
+    "화천": "강원",
+    "홍천": "강원",
+}
+
+_AMBIGUOUS_POLICY_LOCALITY_SIDOS = {
+    # Valid policy aliases that appear under multiple broad regions. Keep direct
+    # municipality-only lookups ambiguous, but allow policy links to resolve them
+    # by passing the authoritative policy sido as a filter.
+    "고성": ("강원", "경남"),
+    "서구": ("대구", "부산"),
+}
+
 
 def make_policy_region_area_id(sido: str, city: str) -> str:
     return f"{POLICY_REGION_AREA_ID_PREFIX}{quote(sido.strip(), safe='')}:{quote(city.strip(), safe='')}"
@@ -26,7 +140,7 @@ def make_policy_region_area_id(sido: str, city: str) -> str:
 
 def make_policy_region_area(sido: str, city: str) -> TravelArea:
     normalized_sido = sido.strip()
-    normalized_city = city.strip().removesuffix("시").removesuffix("군").removesuffix("구")
+    normalized_city = _normalize_municipality(city) or city.strip()
     return TravelArea(
         make_policy_region_area_id(normalized_sido, normalized_city),
         normalized_city,
@@ -95,6 +209,35 @@ TRAVEL_AREAS: tuple[TravelArea, ...] = (
 
 def list_travel_areas() -> tuple[TravelArea, ...]:
     return TRAVEL_AREAS
+
+
+def resolve_municipality_sido(city: str | None, sido: str | None = None) -> str | None:
+    normalized_city = _normalize_municipality(city)
+    if not normalized_city:
+        return None
+    normalized_sido = sido.strip() if sido else None
+
+    explicit_sido = _POLICY_LOCALITY_SIDOS.get(normalized_city)
+    if explicit_sido and (not normalized_sido or normalized_sido == explicit_sido):
+        return explicit_sido
+    if explicit_sido:
+        return None
+
+    ambiguous_sidos = _AMBIGUOUS_POLICY_LOCALITY_SIDOS.get(normalized_city, ())
+    if normalized_sido and normalized_sido in ambiguous_sidos:
+        return normalized_sido
+
+    static_matches = {
+        area.sido
+        for area in TRAVEL_AREAS
+        for included_city in area.included_cities
+        if _normalize_municipality(included_city) == normalized_city
+    }
+    if normalized_sido:
+        return normalized_sido if normalized_sido in static_matches else None
+    if len(static_matches) == 1:
+        return next(iter(static_matches))
+    return None
 
 
 def get_travel_area(area_id: str | None) -> TravelArea | None:

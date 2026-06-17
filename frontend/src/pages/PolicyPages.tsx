@@ -31,9 +31,12 @@ function getPolicyTripRegionQuery(policy: Pick<Policy, "region" | "title">): str
   return region && region !== "전국" ? region : null;
 }
 
-function getPolicyTripCreatePath(policySlug: string, regionQuery: string | null): string {
+function getPolicyTripCreatePath(policySlug: string, regionQuery: string | null, policyRegion: string): string {
   const searchParams = new URLSearchParams({ policySlug });
   if (regionQuery) searchParams.set("region", regionQuery);
+  if (regionQuery && policyRegion && policyRegion !== "전국" && policyRegion !== regionQuery) {
+    searchParams.set("sido", policyRegion);
+  }
   return `/trips/new?${searchParams.toString()}`;
 }
 
@@ -976,6 +979,7 @@ export function PolicyDetailPage() {
         onClose={closeTripSheet}
         onSelectTrip={attachPolicyToTrip}
         onViewTrip={viewSelectedTrip}
+        policyRegion={policy.region}
         policyRegionQuery={getPolicyTripRegionQuery(policy)}
         policySlug={policy.slug}
         policyTitle={policy.title}
@@ -993,6 +997,7 @@ function TripSelectSheet({
   onClose,
   onSelectTrip,
   onViewTrip,
+  policyRegion,
   policyRegionQuery,
   policySlug,
   policyTitle,
@@ -1004,6 +1009,7 @@ function TripSelectSheet({
   onClose: () => void;
   onSelectTrip: (trip: Trip) => void;
   onViewTrip: () => void;
+  policyRegion: string;
   policyRegionQuery: string | null;
   policySlug: string;
   policyTitle: string;
@@ -1013,7 +1019,7 @@ function TripSelectSheet({
 }) {
   if (status === "closed") return null;
   const isSubmitting = status === "submitting";
-  const newTripPath = getPolicyTripCreatePath(policySlug, policyRegionQuery);
+  const newTripPath = getPolicyTripCreatePath(policySlug, policyRegionQuery, policyRegion);
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
