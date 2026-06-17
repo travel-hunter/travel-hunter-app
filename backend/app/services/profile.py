@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 
 from app.data import seed
 from app.models import User
+from app.services import auth as auth_service
 from app.repositories import users as user_repository
 from app.schemas.user import ProfileUpdate
 
@@ -28,3 +29,9 @@ def update_profile(db: Session, user: User, request: ProfileUpdate) -> dict[str,
     )
     db.commit()
     return profile_to_api(updated)
+
+
+def skip_profile_setup(db: Session, user: User) -> dict[str, object]:
+    updated = user_repository.mark_profile_setup_skipped(db, user)
+    db.commit()
+    return auth_service.user_to_api(updated)

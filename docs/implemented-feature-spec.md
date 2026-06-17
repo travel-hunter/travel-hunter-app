@@ -15,7 +15,7 @@
 | 기능 | 사용자 동작 | 연결 |
 |---|---|---|
 | 회원가입 | `/signup`에서 email만 입력해 인증 메일을 요청한다. `/signup/verify?token=...` 링크를 열면 이메일 인증 완료 상태에서 비밀번호 입력창이 나타나고, 비밀번호 제출 시 계정이 생성되어 자동 로그인 후 온보딩으로 이어진다. 미완료 인증 재요청은 기존 pending signup을 교체한다. | `POST /api/auth/email-check`, `POST /api/auth/signup`, `POST /api/auth/signup/verify`, `POST /api/auth/signup/complete`, `pending_signups`, `users`, refresh cookie |
-| 닉네임 설정 | `/nickname-setup`에서 자동 생성된 임시 닉네임을 수정하거나 주사위 버튼으로 새 추천 닉네임을 받아 저장한다. | `GET /api/me/nickname-suggestion`, `PATCH /api/me/nickname`, `users.nickname` |
+| 닉네임 설정 | `/nickname-setup`에서 자동 생성된 임시 닉네임을 수정하거나 주사위 버튼으로 새 추천 닉네임을 받아 저장한다. 소셜 신규 사용자는 provider 기본 닉네임이 있어도 이 단계를 먼저 완료해야 `/profile-setup`으로 진행한다. | `GET /api/me/nickname-suggestion`, `PATCH /api/me/nickname`, `users.nickname`, `users.nickname_setup_completed` |
 | 로그인 | `/`와 `/login`에서 프로토타입과 같은 모바일 앱형 로그인 화면을 보여주고 email/password로 로그인한다. 실패 시 사용자용 오류를 표시한다. | `POST /api/auth/login`, `auth_refresh_tokens` |
 | 세션 유지/로그아웃 | refresh cookie로 access token을 갱신하고, 로그아웃 시 refresh token을 revoke한다. | `POST /api/auth/refresh`, `POST /api/auth/logout` |
 | 비밀번호 재설정 | `/forgot-password` 요청 후 email link로 `/reset-password?token=...`에서 새 비밀번호를 설정한다. | `password_reset_tokens`, SMTP 설정 필요 |
@@ -25,7 +25,7 @@
 
 | 기능 | 사용자 동작 | 연결 |
 |---|---|---|
-| 프로필 설정 | `/profile-setup`에서 관심 지역, 스타일, 예산을 저장한다. | `PATCH /api/me/profile`, `users` |
+| 프로필 설정 | `/profile-setup`에서 관심 지역, 스타일, 예산을 저장한다. 저장 성공 시 온보딩이 완료된다. `나중에 설정`을 누르면 profile 값 저장 없이 skip 상태를 기록하고 온보딩만 완료한다. | `PATCH /api/me/profile`, `POST /api/me/profile/skip`, `users.onboarding_completed`, `users.profile_setup_skipped` |
 | 프로필 편집 | `/mypage`의 편집 sheet에서 profile 값을 수정한다. | `PATCH /api/me/profile` |
 | 저장 정책 | `/mypage`에서 저장한 정책을 확인하고 삭제한다. | `GET/DELETE /api/me/saved-policies` |
 | 신청 정책 통계 | `/mypage`에서 내 일정에 연결된 정책 수를 확인한다. | `GET /api/me/applied-policies`, `trip_policies` |
@@ -36,7 +36,7 @@
 
 | 기능 | 사용자 동작 | 연결 |
 |---|---|---|
-| 정책 목록/상세 | `/policies`에서 DB 정책과 대한민국 반값여행 신청접수중/준비중 및 active/fresh 숙박세일 페스타 혜택을 함께 보고 `/policies/:slug`에서 상세를 확인한다. `local_half_trip` 수집 혜택은 `sourceType="external"`과 `travelmonth-{externalSourceRecordId}` slug로 노출하고 제목은 `[합천] 대한민국 반값여행 지원`처럼 지자체명을 대괄호 접두어로 표시한다. 숙박세일 페스타는 canonical 정책 1건을 내부 저장/중복 방지 기준으로 두고 목록/검색/추천에는 비수도권 인구감소지역 85개 지자체별 `stay-discount-{sidoSlug}-{citySlug}` alias로 노출하되 제목은 `[고성] ...`처럼 시/군 접두어를 붙이고 목록 메타 `region`은 광역자치단체만 표시한다. 상세 표시용 `summary`/`requirements`는 원문 반복 대신 결제 금액별 2만/3만/5만/7만원 할인 조건과 발급·입실 기간으로 정리한다. alias 상세/저장/삭제/일정 연결 응답은 요청 alias를 echo하지만 DB 저장과 연결은 canonical `policies.id`로 처리한다. 사용자 화면에는 구현 구분 라벨을 표시하지 않고 공식 혜택으로 표현한다. raw 수집 레코드는 normalization 전까지 저장/일정 연결 action을 neutral 안내와 함께 임시 제한한다. | `GET /api/policies`, `GET /api/policies/{policySlug}` |
+| 정책 목록/상세 | `/policies`에서 DB 정책과 대한민국 반값여행 신청접수중/준비중 및 active/fresh 숙박세일 페스타 혜택을 함께 보고 `/policies/:slug`에서 상세를 확인한다. `local_half_trip` 수집 혜택은 `sourceType="external"`과 `travelmonth-{externalSourceRecordId}` slug로 노출하고 제목은 `[합천] 대한민국 반값여행 지원`처럼 지자체명을 대괄호 접두어로 표시한다. 기존 `dgtour-{city}-{n}` seed는 공식 디지털 관광주민증 지역 혜택으로 분리해 `[지역명] 디지털 관광주민증 혜택` 형식으로 유지한다. 이 seed는 `docs/디지털관광주민증.xlsx`의 지원내용/신청기간/확인 필요 사항/필요 서류를 정책 본문으로 쓰고, KTO 공식 운영 지자체 목록에 없는 지역이나 혜택 안내가 비어 있는 기존 dgtour 정책은 행을 삭제하지 않고 `hidden`으로 내려 public 목록/상세에서 제외한다. 반값여행 레거시 URL만 같은 지자체의 최신 `travelmonth-*` 정책으로 리다이렉트해 구버전 반값여행 상세 화면 재노출을 막는다. 숙박세일 페스타는 canonical 정책 1건을 내부 저장/중복 방지 기준으로 두고 목록/검색/추천에는 비수도권 인구감소지역 85개 지자체별 `stay-discount-{sidoSlug}-{citySlug}` alias로 노출하되 제목은 `[고성] ...`처럼 시/군 접두어를 붙이고 목록 메타 `region`은 광역자치단체만 표시한다. 상세 표시용 `summary`/`requirements`는 원문 반복 대신 결제 금액별 2만/3만/5만/7만원 할인 조건과 발급·입실 기간으로 정리한다. alias 상세/저장/삭제/일정 연결 응답은 요청 alias를 echo하지만 DB 저장과 연결은 canonical `policies.id`로 처리한다. 사용자 화면에는 구현 구분 라벨을 표시하지 않고 공식 혜택으로 표현한다. raw 수집 레코드는 normalization 전까지 저장/일정 연결 action을 neutral 안내와 함께 임시 제한한다. | `GET /api/policies`, `GET /api/policies/{policySlug}` |
 | 검색/필터 | 검색어, 지역, 카테고리를 client-side AND 조건으로 적용한다. 카테고리는 `교통`, `숙박`, `여행상품`, `지역할인`, `이벤트`, `기타` 혜택 유형이며 `travelStyles`와 분리한다. | frontend filtering |
 | 정책 탐색 바로가기 | `/policies` 상단에서 매칭 높은 정책, 마감 임박 정책, 유형별 모아보기를 먼저 보여주고 `/home`에서도 마감 임박/추천 혜택 레일을 분리해 보여준다. 홈 인기 국내 여행지와 AI 추천 맞춤 일정 카드는 `GET /api/recommendations/regions`를 `AppDataApi` 경유로 호출해 정책 수, 마감 임박, 혜택 금액, 취향 보정, 프로필 지역 최종 tie-breaker 기준으로 표시하고 실패/empty 때는 정책 지역 기반 후보로 fallback한다. AI 추천 맞춤 일정 카드는 기존 일정 목록의 첫 일정을 노출하지 않고 `/trips/new?region=...` 새 일정 생성 CTA로 연결한다. | `GET /api/recommendations/regions`, frontend grouping |
 | 조건 확인 요약/FAQ | 정책 상세에서 내 관심 지역과 정책 지역, 핵심 신청 조건, 필요 서류를 요약하고 정적 FAQ accordion을 제공한다. 확정 자격 판정은 하지 않는다. | `Policy.requirements`, `Policy.documents`, `Policy.region` |
@@ -50,10 +50,10 @@
 
 | 기능 | 사용자 동작 | 연결 |
 |---|---|---|
-| 일정 목록/생성 | `/trips`에서 목록을 보고 `/trips/new`에서 지역, 스타일, 기간으로 일정을 만든다. `/home`의 추천 지역 링크가 넘긴 `/trips/new?region=...` 값은 새 일정 생성 지역으로 유지된다. | `GET/POST /api/trips` |
+| 일정 목록/생성 | `/trips`에서 목록을 보고 `/trips/new`에서 지역, 스타일, 기간으로 일정을 만든다. `/home`의 추천 지역 링크가 넘긴 `/trips/new?region=...` 값은 새 일정 생성 지역으로 유지된다. 여행 지역 1단계는 17개 광역시도 버튼(`서울`, `부산`, `대구`, `인천`, `광주`, `대전`, `울산`, `세종`, `경기`, `강원`, `충북`, `충남`, `전북`, `전남`, `경북`, `경남`, `제주`)을 모두 제공해야 하며, backend travel-area 추천도 동일 17개 catalog를 broad fallback으로 지원한다. 정책 상세에서 `policySlug`만 들고 새 일정으로 진입하면 정책 제목의 `[지역명]`과 광역 `region`을 기준으로 세부 지역을 자동 조회·선택하며, 정적 여행권역에 없는 정책 지자체는 `policy-region:{sido}:{city}` 동적 단일 지역 카드로 표시해 선택된 `travelAreaId`를 일정 생성 payload에 포함한다. | `GET /api/recommendations/travel-areas`, `GET/POST /api/trips` |
 | 일정 확정 저장 | `/trips` 카드에서 draft 일정을 확정 선택 후 저장해 DB 상태를 `confirmed`로 바꾼다. | `trips.status`, `PATCH /api/trips/{tripId}/status` |
 | 생성 draft autosave | `/trips/new`의 지역, 스타일, 기간, policySlug draft를 24시간 localStorage에 저장한다. 생성 성공 시 삭제한다. | `frontend/src/utils/draftStorage.ts` |
-| 상세/삭제 | `/trips/:id`에서 상세를 보고 owner는 목록에서 일정을 삭제한다. 일정 상세의 추천 정책 카드는 `recommendedPolicies`를 사용해 정규화된 정책과 TravelMonth/반값여행/숙박세일 혜택 상세 페이지로 연결하며 지역, 날짜 겹침, 카테고리, 스타일 텍스트만으로 deterministic ranking한다. 숙박세일 추천은 canonical 1건이 아니라 eligible area alias 후보만 표시하고, 이미 연결된 canonical 정책이 있으면 모든 숙박세일 alias 추천을 숨긴다. | `GET/DELETE /api/trips/{tripId}`, `Trip.recommendedPolicies` |
+| 상세/삭제 | `/trips/:id`에서 상세를 보고 owner는 목록에서 일정을 삭제한다. 일정 상세의 추천 정책 카드는 `recommendedPolicies`를 사용해 정규화된 정책과 TravelMonth/반값여행/숙박세일 혜택 상세 페이지로 연결하며 지역, 날짜 겹침, 카테고리, 스타일 텍스트만으로 deterministic ranking한다. 추천 노출은 일정의 실제 시/군/구와 정책 지자체가 일치해야 하며, `서울 전체` 같은 광역 전체 일정만 해당 광역 내부 자치구 정책을 예외로 허용한다. 숙박세일 추천은 canonical 1건이 아니라 eligible area alias 후보만 표시하고, 이미 연결된 canonical 정책이 있으면 모든 숙박세일 alias 추천을 숨긴다. | `GET/DELETE /api/trips/{tripId}`, `Trip.recommendedPolicies` |
 | 장소 추가/수정/삭제/이동 | owner/editor는 장소를 추가, 수정, 삭제하고 드래그앤드롭으로 같은 Day 순서 변경 또는 다른 Day 이동을 수행한다. 각 장소 변경은 `Trip.revision`/`expectedRevision` optimistic conflict 처리를 거치며 stale 저장은 409 후 최신 일정을 다시 불러오고 draft를 유지한다. viewer는 편집할 수 없다. | `trip_places` CRUD/move endpoints, `trips.revision` |
 | 장소 추가 draft autosave | 장소 추가 sheet의 시간, 장소명, 메모, dayNumber draft를 24시간 localStorage에 저장한다. 저장 성공 또는 닫기 시 삭제한다. | `frontend/src/utils/draftStorage.ts` |
 | 장소 수정 draft autosave | 장소 수정 sheet의 시간, 장소명, 메모 draft를 `placeId` 기준으로 24시간 localStorage에 저장한다. 저장 성공, 닫기, 장소 삭제 시 삭제한다. | `frontend/src/utils/draftStorage.ts` |
@@ -64,7 +64,7 @@
 
 | 기능 | 사용자 동작 | 연결 |
 |---|---|---|
-| 추천 조회 | `/ai-results?tripId=...`에서 추천 목록을 본다. 새 후보는 `sourceType="freshCandidate"`, 일정 생성 시 저장된 추천 요약 fallback은 `sourceType="savedSummary"`로 구분하고 화면 banner/badge로 출처를 표시한다. | `GET /api/trips/{tripId}/recommendations` |
+| 추천 조회 | `/ai-results?tripId=...`에서 추천 목록을 본다. 새 후보는 `sourceType="freshCandidate"`, 일정 생성 시 저장된 추천 요약 fallback은 `sourceType="savedSummary"`로 구분하고 화면 상단 안내와 선택 후보 요약 문구로 출처를 표시한다. | `GET /api/trips/{tripId}/recommendations` |
 | 추천 항목 추가 | 추천 항목을 일정 장소로 추가한다. 이미 현재 일정 timeline에 같은 장소명이 있으면 `/ai-results?tripId=...`에서 `이미 일정에 있음`으로 표시하고 중복 추가를 막는다. | `GET /api/trips/{tripId}`, `POST /api/trips/{tripId}/days/{dayNumber}/places` |
 | 추천 기준 설명 | 추천 기준 아이콘으로 설명 sheet를 연다. | frontend sheet |
 

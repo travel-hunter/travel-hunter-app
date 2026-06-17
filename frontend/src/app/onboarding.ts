@@ -21,9 +21,8 @@ export function isOnboardingRoute(pathname: string): boolean {
 
 export function getOnboardingPath(user: User): string | null {
   if (user.onboardingCompleted) return null;
-  const hasSocialAccount = user.socialAccounts.length > 0;
   const hasNickname = user.nickname.trim().length > 0;
-  if (hasSocialAccount || !hasNickname) return "/nickname-setup";
+  if (!user.nicknameSetupCompleted || !hasNickname) return "/nickname-setup";
   return "/profile-setup";
 }
 

@@ -32,6 +32,8 @@ def make_user() -> User:
         travel_style="휴식",
         travel_budget="1인 40만원 이하",
         onboarding_completed=False,
+        nickname_setup_completed=False,
+        profile_setup_skipped=False,
         created_at=datetime(2026, 5, 4, 0, 0, 0),
         updated_at=datetime(2026, 5, 4, 0, 0, 0),
     )
@@ -84,6 +86,24 @@ def test_update_profile_prefers_explicit_style_and_budget() -> None:
     assert result == {"region": "제주", "style": "맛집", "budget": "1인 30만원 이하"}
     assert user.travel_style == "맛집"
     assert user.travel_budget == "1인 30만원 이하"
+
+
+def test_skip_profile_setup_marks_skip_and_onboarding_complete() -> None:
+    db = FakeDb()
+    user = make_user()
+
+    result = profile_service.skip_profile_setup(
+        db,  # type: ignore[arg-type]
+        user,
+    )
+
+    assert result["onboardingCompleted"] is True
+    assert result["nicknameSetupCompleted"] is False
+    assert user.onboarding_completed is True
+    assert user.profile_setup_skipped is True
+    assert db.added == [user]
+    assert db.flushed is True
+    assert db.committed is True
 
 
 def test_get_contact_returns_phone_and_verified_state() -> None:

@@ -12,6 +12,7 @@
   persona: string;
   savedAmount: number;
   onboardingCompleted: boolean;
+  nicknameSetupCompleted: boolean;
   socialAccounts: SocialAccount[];
   createdAt: string;
   updatedAt: string;
@@ -27,6 +28,11 @@ export type Profile = {
   region: string;
   style: string;
   budget: string;
+};
+
+export type ProfileSkipResponse = {
+  skipped: boolean;
+  onboardingCompleted: boolean;
 };
 
 export type NotificationSettings = {

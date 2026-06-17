@@ -4,8 +4,8 @@ import secrets
 
 from sqlalchemy.orm import Session
 
-from app.core import security
 from app.models import User
+from app.repositories import users as user_repository
 
 
 ADJECTIVES = [
@@ -56,8 +56,7 @@ def normalize_nickname(value: str) -> str:
 
 def update_nickname(db: Session, user: User, nickname: str) -> User:
     user.nickname = normalize_nickname(nickname)
-    user.updated_at = security.utc_now_naive()
-    db.add(user)
+    user_repository.mark_nickname_setup_completed(db, user)
     db.commit()
     db.refresh(user)
     return user

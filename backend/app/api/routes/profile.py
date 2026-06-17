@@ -17,6 +17,7 @@ from app.schemas.user import (
     NotificationSettingsUpdate,
     Profile,
     ProfileOptions,
+    ProfileSkipResponse,
     ProfileUpdate,
     User,
 )
@@ -65,6 +66,18 @@ def update_profile(
             profile,
         )
     )
+
+
+@router.post("/me/profile/skip", response_model=ProfileSkipResponse)
+def skip_profile_setup(
+    db: Session | None = Depends(get_optional_db),
+    current_user: UserModel | None = Depends(get_current_user),
+) -> ProfileSkipResponse:
+    user = profile_service.skip_profile_setup(
+        _require_db(db),
+        _require_user(current_user),
+    )
+    return ProfileSkipResponse(skipped=True, onboardingCompleted=bool(user["onboardingCompleted"]))
 
 
 @router.get("/me/nickname-suggestion", response_model=NicknameSuggestion)

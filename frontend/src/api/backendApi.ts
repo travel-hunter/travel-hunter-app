@@ -1,4 +1,5 @@
 import { apiClient, apiConfig } from "./client";
+import type { ProfileSkipResponse } from "./types";
 import {
   AppDataApi,
   AuthResponse,
@@ -102,6 +103,7 @@ export const backendApi: AppDataApi = {
   getCurrentUser: (): Promise<User> => apiClient.get<User>("/api/me"),
   getProfile: (): Promise<Profile> => apiClient.get<Profile>("/api/me/profile"),
   updateProfile: (profile: Partial<Profile>): Promise<Profile> => apiClient.patch<Profile>("/api/me/profile", profile),
+  skipProfileSetup: (): Promise<ProfileSkipResponse> => apiClient.post<ProfileSkipResponse>("/api/me/profile/skip"),
   getContact: (): Promise<ContactInfo> => apiClient.get<ContactInfo>("/api/me/contact"),
   updateContact: (contact: ContactUpdateRequest): Promise<ContactInfo> => apiClient.patch<ContactInfo>("/api/me/contact", contact),
   requestContactVerification: (request: ContactVerificationRequest): Promise<ContactVerificationRequestResponse> =>

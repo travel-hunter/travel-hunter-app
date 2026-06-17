@@ -11,6 +11,7 @@ import {
   type Trip,
 } from "../../api";
 import {
+  examplePolicyDetail,
   examplePolicyPath,
   getPreviewTrip,
   testEmail,
@@ -366,13 +367,21 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
   });
 
   it("renders policy documents as static checklist rows", async () => {
-    await login();
-    cleanup();
-    renderAppRoute(examplePolicyPath);
+    const getPolicySpy = vi
+      .spyOn(appDataApi, "getPolicy")
+      .mockResolvedValue(examplePolicyDetail);
 
-    await waitFor(() => expect(document.body).toHaveTextContent("필요 서류"));
-    expect(document.querySelectorAll(".check-item").length).toBeGreaterThan(0);
-    expect(document.querySelector(".check-item")?.tagName).toBe("DIV");
+    try {
+      await login();
+      cleanup();
+      renderAppRoute(examplePolicyPath);
+
+      await waitFor(() => expect(document.body).toHaveTextContent("필요 서류"));
+      expect(document.querySelectorAll(".check-item").length).toBeGreaterThan(0);
+      expect(document.querySelector(".check-item")?.tagName).toBe("DIV");
+    } finally {
+      getPolicySpy.mockRestore();
+    }
   });
 
   it("opens an AI recommendation criteria sheet", async () => {
@@ -575,6 +584,7 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
         persona: "초대테스트님",
         savedAmount: 0,
         onboardingCompleted: true,
+        nicknameSetupCompleted: true,
         socialAccounts: [],
         createdAt: "2026-06-15T00:00:00Z",
         updatedAt: "2026-06-15T00:00:00Z",
