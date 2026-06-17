@@ -92,14 +92,37 @@ def make_source(
 def test_catalog_contains_representative_nationwide_areas() -> None:
     areas = list_travel_areas()
     ids = {area.id for area in areas}
+    sidos = {area.sido for area in areas}
+    expected_sidos = {
+        "서울",
+        "부산",
+        "대구",
+        "인천",
+        "광주",
+        "대전",
+        "울산",
+        "세종",
+        "경기",
+        "강원",
+        "충북",
+        "충남",
+        "전북",
+        "전남",
+        "경북",
+        "경남",
+        "제주",
+    }
 
     assert "jeju-all" in ids
     assert "busan-all" in ids
+    assert "daegu-all" in ids
+    assert "sejong-all" in ids
     assert "gangwon-sokcho-goseong-yangyang" in ids
     assert "jeonnam-yeosu-suncheon" in ids
     assert "gyeongnam-tongyeong-geoje-goseong" in ids
     assert "chungbuk-danyang-jecheon" in ids
-    assert len(areas) >= 31
+    assert expected_sidos <= sidos
+    assert len(areas) >= 36
 
 
 def test_get_travel_area_resolves_id_and_display_fields() -> None:

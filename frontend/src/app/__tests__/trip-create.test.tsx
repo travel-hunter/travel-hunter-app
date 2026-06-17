@@ -24,6 +24,42 @@ import {
 import { login, renderAppRoute } from "../../test/renderAppRoute";
 
 describe("Travel Hunter app — trip creation", () => {
+  it("shows all 17 broad regions when choosing a new trip region", async () => {
+    await login();
+    cleanup();
+    const travelAreasSpy = vi
+      .spyOn(appDataApi, "listTravelAreaRecommendations")
+      .mockResolvedValue(getJejuTravelAreaResponse());
+
+    try {
+      renderAppRoute("/trips/new");
+
+      for (const region of [
+        "서울",
+        "부산",
+        "대구",
+        "인천",
+        "광주",
+        "대전",
+        "울산",
+        "세종",
+        "경기",
+        "강원",
+        "충북",
+        "충남",
+        "전북",
+        "전남",
+        "경북",
+        "경남",
+        "제주",
+      ]) {
+        expect(screen.getByRole("button", { name: region })).toBeInTheDocument();
+      }
+    } finally {
+      travelAreasSpy.mockRestore();
+    }
+  });
+
   it("uses selected dates and shows generated itinerary times when creating a trip", async () => {
     await login();
     cleanup();
