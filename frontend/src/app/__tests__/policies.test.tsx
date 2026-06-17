@@ -676,6 +676,10 @@ describe("Travel Hunter app — policies & trip picker", () => {
       await screen.findByText("부산 야호");
       expect(screen.getByText("경주 야호")).toBeInTheDocument();
       expect(document.querySelectorAll(".trip-select-row")).toHaveLength(2);
+      expect(screen.getByRole("link", { name: "새 일정에 담기" })).toHaveAttribute(
+        "href",
+        `/trips/new?policySlug=${examplePolicySlug}&region=%EC%98%81%EA%B4%91`,
+      );
     } finally {
       listTripsSpy.mockRestore();
     }
