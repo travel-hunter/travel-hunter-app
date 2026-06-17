@@ -19,6 +19,7 @@ import {
   getJejuTravelAreaResponse,
   getPreviewTrip,
   getSokchoTravelAreaResponse,
+  getYeonggwangTravelAreaResponse,
 } from "../../test/fixtures";
 import { login, renderAppRoute } from "../../test/renderAppRoute";
 
@@ -144,7 +145,7 @@ describe("Travel Hunter app — trip creation", () => {
         screen.getByRole("heading", { name: "여행 지역 선택" }),
       ).toBeInTheDocument();
       expect(
-        screen.getByText("선택한 정책을 새 일정에 연결할게요"),
+        screen.getByText("선택한 정책까지 일정에 연결할게요"),
       ).toBeInTheDocument();
       await waitFor(() =>
         expect(screen.getByRole("button", { name: /제주 전체/ })).toHaveClass(
@@ -322,6 +323,73 @@ describe("Travel Hunter app — trip creation", () => {
       await waitFor(() => expect(getTripSpy).toHaveBeenCalledWith("45"));
     } finally {
       createTripSpy.mockRestore();
+      getTripSpy.mockRestore();
+    }
+  });
+
+  it("preselects a policy municipality region query when linking a policy to a new trip", async () => {
+    await login();
+    cleanup();
+    const user = userEvent.setup();
+    const createdTrip: Trip = {
+      ...getPreviewTrip(),
+      id: "50",
+      title: "영광 반값여행",
+      dates: "2026.06.15 - 06.17",
+      days: { 1: [], 2: [], 3: [] },
+    };
+    const travelAreasSpy = vi
+      .spyOn(appDataApi, "listTravelAreaRecommendations")
+      .mockResolvedValue(getYeonggwangTravelAreaResponse());
+    const createTripSpy = vi
+      .spyOn(appDataApi, "createTrip")
+      .mockResolvedValue(createdTrip);
+    const addPolicySpy = vi
+      .spyOn(appDataApi, "addPolicyToTrip")
+      .mockResolvedValue({
+        tripId: "50",
+        policyId: examplePolicySlug,
+        added: true,
+      });
+    const getTripSpy = vi
+      .spyOn(appDataApi, "getTrip")
+      .mockResolvedValue(createdTrip);
+
+    try {
+      renderAppRoute(
+        `/trips/new?policySlug=${encodeURIComponent(examplePolicySlug)}&region=${encodeURIComponent("영광")}`,
+      );
+
+      expect(await screen.findByRole("button", { name: /영광/ })).toHaveClass(
+        "active",
+      );
+      expect(travelAreasSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ query: "영광" }),
+      );
+      await user.click(screen.getByRole("button", { name: "다음" }));
+      await user.click(screen.getByRole("button", { name: "다음" }));
+      await user.click(screen.getByRole("button", { name: "다음" }));
+      const titleInput = screen.getByRole("textbox", { name: "일정 제목" });
+      await user.clear(titleInput);
+      await user.type(titleInput, "영광 반값여행");
+      await user.click(screen.getByRole("button", { name: "일정 만들기" }));
+
+      await waitFor(() =>
+        expect(createTripSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: "영광 반값여행",
+            region: "영광",
+            travelAreaId: "policy-region:%EC%A0%84%EB%82%A8:%EC%98%81%EA%B4%91",
+            policySlug: examplePolicySlug,
+          }),
+        ),
+      );
+      expect(addPolicySpy).toHaveBeenCalledWith("50", examplePolicySlug);
+      await waitFor(() => expect(getTripSpy).toHaveBeenCalledWith("50"));
+    } finally {
+      travelAreasSpy.mockRestore();
+      createTripSpy.mockRestore();
+      addPolicySpy.mockRestore();
       getTripSpy.mockRestore();
     }
   });

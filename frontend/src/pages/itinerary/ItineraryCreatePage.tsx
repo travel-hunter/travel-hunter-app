@@ -14,7 +14,6 @@ const tripCreateMinDays = 2;
 const tripCreateMinParticipants = 1;
 const tripCreateMaxParticipants = 10;
 const broadTravelAreaRegions = new Set<string>(tripCreatePrimaryRegionValues);
-const legacyTravelAreaQueryRegions = ["속초", "경주", "강릉"] as const;
 const NO_TRAVEL_AREA_HEADING = "세부 지역 선택";
 type TripCreateStep = 1 | 2 | 3 | 4;
 type SelectedTravelArea = Pick<TravelAreaRecommendation, "travelAreaId" | "travelAreaName" | "sido" | "includedCities" | "summary" | "tags">;
@@ -51,8 +50,7 @@ function generatedTripTitle(region: string, dayCount: number | null): string {
 function normalizeRegionParam(value: string | null): string | null {
   if (!value) return null;
   const normalized = value.trim();
-  const supportedRegions = [...tripCreatePrimaryRegionValues, ...legacyTravelAreaQueryRegions];
-  return supportedRegions.includes(normalized) ? normalized : null;
+  return normalized || null;
 }
 
 function normalizeTravelAreaIdParam(value: string | null): string | null {

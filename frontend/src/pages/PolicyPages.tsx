@@ -20,6 +20,19 @@ function policyTripErrorMessage(error: unknown): string {
   return "일정에 혜택을 담지 못했어요. 잠시 후 다시 시도해 주세요.";
 }
 
+function getPolicyTripRegionQuery(policy: Pick<Policy, "region" | "title">): string | null {
+  const bracketedRegion = /^\s*\[([^\]]+)\]/.exec(policy.title)?.[1]?.trim();
+  if (bracketedRegion) return bracketedRegion;
+  const region = policy.region.trim();
+  return region && region !== "전국" ? region : null;
+}
+
+function getPolicyTripCreatePath(policySlug: string, regionQuery: string | null): string {
+  const searchParams = new URLSearchParams({ policySlug });
+  if (regionQuery) searchParams.set("region", regionQuery);
+  return `/trips/new?${searchParams.toString()}`;
+}
+
 const allFilter = "전체";
 const categoryFilters = [allFilter, "교통", "숙박", "여행상품", "지역할인", "이벤트", "기타"] as const;
 const periodFilters = ["전체", "7일 이내", "30일 이내", "3개월 이내"] as const;
@@ -959,6 +972,7 @@ export function PolicyDetailPage() {
         onClose={closeTripSheet}
         onSelectTrip={attachPolicyToTrip}
         onViewTrip={viewSelectedTrip}
+        policyRegionQuery={getPolicyTripRegionQuery(policy)}
         policySlug={policy.slug}
         policyTitle={policy.title}
         selectedTrip={selectedTrip}
@@ -975,6 +989,7 @@ function TripSelectSheet({
   onClose,
   onSelectTrip,
   onViewTrip,
+  policyRegionQuery,
   policySlug,
   policyTitle,
   selectedTrip,
@@ -985,6 +1000,7 @@ function TripSelectSheet({
   onClose: () => void;
   onSelectTrip: (trip: Trip) => void;
   onViewTrip: () => void;
+  policyRegionQuery: string | null;
   policySlug: string;
   policyTitle: string;
   selectedTrip: Trip | null;
@@ -993,6 +1009,7 @@ function TripSelectSheet({
 }) {
   if (status === "closed") return null;
   const isSubmitting = status === "submitting";
+  const newTripPath = getPolicyTripCreatePath(policySlug, policyRegionQuery);
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
@@ -1014,7 +1031,7 @@ function TripSelectSheet({
           <EmptyState
             title="아직 담을 일정이 없어요"
             body="먼저 여행 일정을 만들면 이 혜택을 바로 연결할 수 있어요."
-            action={<Link className="btn primary full" to={`/trips/new?policySlug=${encodeURIComponent(policySlug)}`}>새 일정 만들기</Link>}
+            action={<Link className="btn primary full" to={newTripPath}>새 일정 만들기</Link>}
           />
         )}
 
@@ -1031,7 +1048,7 @@ function TripSelectSheet({
                 <span className="btn sm secondary">{selectedTrip?.id === trip.id && isSubmitting ? "담는 중" : "선택"}</span>
               </button>
             ))}
-            <Link className="btn line full" to={`/trips/new?policySlug=${encodeURIComponent(policySlug)}`}>
+            <Link className="btn line full" to={newTripPath}>
               새 일정에 담기
             </Link>
           </div>
