@@ -6,9 +6,10 @@ import re
 
 from sqlalchemy.orm import Session
 
-from app.data.travel_areas import TravelArea, list_travel_areas
+from app.data.travel_areas import TravelArea, list_travel_areas, make_policy_region_area
 from app.models import ExternalSourceRecord
 from app.repositories import external_sources as external_source_repository
+from app.repositories import policies as policy_repository
 from app.schemas.recommendations import (
     TravelAreaRecommendation,
     TravelAreaRecommendationResponse,
@@ -68,6 +69,7 @@ def recommend_travel_areas(
     selected_mode = "search" if normalized_query else "sido" if normalized_sido else "nationwide"
     capped_limit = max(1, min(limit, 20))
     areas = list(list_travel_areas())
+    policy_area_counts: dict[str, int] = {}
 
     if selected_mode == "sido":
         areas = [area for area in areas if area.sido == normalized_sido]
@@ -84,6 +86,10 @@ def recommend_travel_areas(
             areas = [area for area in areas if area.sido == normalized_sido]
         areas = [area for area in areas if _matches_query(area, normalized_query or "")]
         if not areas:
+            policy_areas = _policy_region_areas_for_query(db, query=normalized_query or "", sido=normalized_sido)
+            areas = [area for area, _count in policy_areas]
+            policy_area_counts = {area.id: count for area, count in policy_areas}
+        if not areas:
             return TravelAreaRecommendationResponse(
                 mode="search",
                 sido=normalized_sido,
@@ -95,7 +101,12 @@ def recommend_travel_areas(
     records = external_source_repository.list_regional_benefit_recommendation_records(db)
     recommendation_records = list(_iter_recommendation_records(records))
     run_date = today or date.today()
-    ranked = [_rank_area(area, recommendation_records, style=style, today=run_date) for area in areas]
+    ranked = [
+        _rank_policy_area(area, policy_area_counts[area.id])
+        if area.id in policy_area_counts
+        else _rank_area(area, recommendation_records, style=style, today=run_date)
+        for area in areas
+    ]
     ranked.sort(key=_ranking_key, reverse=True)
 
     return TravelAreaRecommendationResponse(
@@ -117,6 +128,57 @@ def _rank_area(
     stats = _stats_for_area(area, records, style=style, today=today)
     recommendation = _to_recommendation(area, stats)
     return _RankedArea(area=area, recommendation=recommendation, stats=stats)
+
+
+def _rank_policy_area(area: TravelArea, policy_count: int) -> _RankedArea:
+    stats = _AreaStats(city_policy_count=policy_count)
+    recommendation = _to_recommendation(area, stats)
+    return _RankedArea(area=area, recommendation=recommendation, stats=stats)
+
+
+def _policy_region_areas_for_query(db: Session, *, query: str, sido: str | None) -> list[tuple[TravelArea, int]]:
+    folded_query = _fold(query)
+    if not folded_query:
+        return []
+    counts: dict[tuple[str, str], int] = {}
+    for policy in policy_repository.list_policies(db):
+        policy_sido = _normalize(getattr(policy, "region", None))
+        city = _policy_city(policy)
+        if not policy_sido or not city or policy_sido == NATIONWIDE_REGION:
+            continue
+        if sido and policy_sido != sido:
+            continue
+        if folded_query not in _fold(city):
+            continue
+        key = (policy_sido, city)
+        counts[key] = counts.get(key, 0) + 1
+
+    return [(make_policy_region_area(policy_sido, city), count) for (policy_sido, city), count in sorted(counts.items())]
+
+
+def _policy_city(policy: object) -> str | None:
+    title = str(getattr(policy, "title", "") or "")
+    bracketed = re.match(r"^\s*\[([^\]]+)\]", title)
+    if bracketed:
+        return _normalize_policy_city(bracketed.group(1))
+
+    dgtour_title = re.match(r"^\s*([가-힣]{2,}(?:[·∙][가-힣]{2,})?)\s+디지털관광주민증\s+혜택", title)
+    if dgtour_title:
+        return _normalize_policy_city(dgtour_title.group(1))
+
+    for requirement in getattr(policy, "requirements", []) or []:
+        requirement_text = str(requirement)
+        visit_match = re.search(r"(?:^|\s)([가-힣]{2,}(?:시|군|구)?)(?:\s+방문|방문)", requirement_text)
+        if visit_match:
+            return _normalize_policy_city(visit_match.group(1))
+    return None
+
+
+def _normalize_policy_city(value: str | None) -> str | None:
+    normalized = _normalize(value)
+    if not normalized or normalized == NATIONWIDE_REGION:
+        return None
+    return normalized.removesuffix("시").removesuffix("군").removesuffix("구")
 
 
 def _normalize(value: str | None) -> str | None:

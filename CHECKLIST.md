@@ -2,9 +2,9 @@
 
 ## Current Status
 
-- Latest implemented scope: policy-detail trip-link flow now carries the selected policy municipality into `/trips/new`, including both bracketed policy titles (`[영광] ...`) and digital resident policy titles (`영광 디지털관광주민증 혜택`), so the new-trip region step preselects the policy travel area.
+- Latest implemented scope: policy-detail trip-link flow now carries the selected policy municipality into `/trips/new`, and backend travel-area recommendations now synthesize policy-only municipalities such as `영광` when they are not present in the static travel-area catalog.
 - Validation date: 2026-06-17.
-- Current deployment posture: local fix is verified and pending PR/development-server deployment; production deployment remains out of scope.
+- Current deployment posture: frontend handoff fix PR #65 is merged to `develop`; backend policy-region travel-area follow-up is verified locally and pending PR/development-server deployment; production deployment remains out of scope.
 - Keep this file slim: current status, recent validation evidence, and active risks only. Historical detail belongs in git history, source docs, or `.omx/evidence/*`.
 
 ## Current Source Documents
@@ -16,8 +16,9 @@
 
 - Targeted frontend regression: `cd frontend && npm test -- --run src/app/__tests__/policies.test.tsx src/app/__tests__/trip-create.test.tsx` (`28 passed`).
 - Typecheck: `cd frontend && npm run typecheck` passed.
-- Real local backend check: `GET /api/recommendations/travel-areas?query=영광&limit=20` returns a single `영광` travel area, confirming the issue was the policy-to-new-trip query handoff for non-bracketed local policy titles.
-- UTF-8 replacement-character check for changed frontend files and `CHECKLIST.md`: passed; `git diff --check` and `git diff --check -- CHECKLIST.md`: passed.
+- Backend policy-region travel-area regression: `cd backend && .venv/bin/python -m pytest tests/test_travel_areas.py` (`13 passed`).
+- Development-server diagnosis after PR #65: `GET /api/recommendations/travel-areas?query=영광&limit=20` returned `items: []`, confirming the remaining issue was backend policy-only municipality discovery and dynamic travelAreaId resolution.
+- UTF-8 replacement-character check for changed files and `CHECKLIST.md`: passed; `git diff --check` and `git diff --check -- CHECKLIST.md`: passed.
 - Development-server deployment smoke: pending after PR/develop sync.
 
 ## Remaining Risks

@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import Integer, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.data.travel_areas import get_travel_area, list_travel_areas
+from app.data.travel_areas import get_travel_area, list_travel_areas, make_policy_region_area_id
 from app.db.base import Base
 from app.models import ExternalSourceRecord, Policy
 from app.repositories.external_sources import upsert_external_source_records
@@ -134,6 +134,28 @@ def test_search_sokcho_returns_gangwon_area(db: Session) -> None:
 
     assert result.mode == "search"
     assert result.items[0].travelAreaId == "gangwon-sokcho-goseong-yangyang"
+
+
+def test_search_policy_only_municipality_returns_policy_region_area(db: Session) -> None:
+    db.add(
+        Policy(
+            slug="dgtour-영광-8",
+            title="영광 디지털관광주민증 혜택",
+            region="전남",
+            status="active",
+        )
+    )
+    db.commit()
+
+    result = recommend_travel_areas(db, query="영광", today=date(2026, 5, 26))
+
+    assert result.mode == "search"
+    assert result.emptyReason is None
+    assert result.items[0].travelAreaId == make_policy_region_area_id("전남", "영광")
+    assert result.items[0].travelAreaName == "영광"
+    assert result.items[0].sido == "전남"
+    assert result.items[0].localPolicyCount == 1
+    assert get_travel_area(result.items[0].travelAreaId).name == "영광"
 
 
 def test_search_duplicate_goseong_returns_distinct_sidos(db: Session) -> None:
