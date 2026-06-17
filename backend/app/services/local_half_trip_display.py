@@ -26,6 +26,15 @@ def title_with_city_prefix(title: str, city: str | None = None) -> str:
     return f"[{display_city}] {TITLE_SUFFIX}"
 
 
+def city_from_title(title: str) -> str:
+    title = title.strip()
+    if title.startswith("[") and "]" in title:
+        return title[1 : title.index("]")].strip()
+    if title.endswith(TITLE_SUFFIX):
+        return title[: -len(TITLE_SUFFIX)].strip()
+    return ""
+
+
 def policy_title(title: str, source_category: str | None, city: str | None = None) -> str:
     if source_category != SOURCE_CATEGORY:
         return title
