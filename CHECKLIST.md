@@ -25,6 +25,8 @@
 - Full frontend gate: `cd frontend && npm run typecheck && npm test && npm run build` passed; unit suite `19` files / `187` tests, build assets `dist/assets/index-DS-8cWYb.css`, `dist/assets/index-Cxqmqiwf.js`.
 - Backend gate: `cd backend && .venv/bin/python -m pytest && .venv/bin/alembic upgrade head --sql` passed; backend suite `500` tests passed with `1` warning and Alembic SQL generated through head.
 - Backend-mode Playwright: `cd frontend && npm run test:e2e` passed (`11` tests).
+- Development server deploy: `ssh deploy@192.168.32.15` backed up server state to `/home/deploy/.travel-hunter-recovery/20260619T003353Z`, reset clean from `149c441` to verified commit `6ef0512`, ran compose config/build, Alembic upgrade, and force-recreated frontend/backend.
+- Development server smoke: server worktree `status_count=0`; `https://dev.travel-hunter.co.kr/api/health` returned `status=ok`, `environment=staging`, `database=connected`; frontend served `assets/index-CaqrVx9o.js` and `assets/index-DS-8cWYb.css`.
 
 ## Remaining Risks
 
