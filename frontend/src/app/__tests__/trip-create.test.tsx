@@ -109,7 +109,7 @@ describe("Travel Hunter app — trip creation", () => {
         screen.getByRole("heading", { name: "여행 지역 선택" }),
       ).toBeInTheDocument();
       expect(
-        screen.getByText("선택한 정책까지 일정에 연결할게요"),
+        screen.getByText("선택한 정책을 새 일정에 연결할게요"),
       ).toBeInTheDocument();
       await waitFor(() =>
         expect(screen.getByRole("button", { name: /제주 전체/ })).toHaveClass(

@@ -2,29 +2,29 @@ import type { Policy, TravelAreaRecommendationResponse, Trip, User } from "../ap
 
 export const testEmail = "test.user@example.com";
 export const testPassword = "password123";
-export const examplePolicySlug = "travelmonth-24";
+export const examplePolicySlug = "dgtour-영광-8";
 export const examplePolicyPath = `/policies/${encodeURIComponent(examplePolicySlug)}`;
 export const examplePolicyTitle =
-  "[\uC601\uAD11] \uB300\uD55C\uBBFC\uAD6D \uBC18\uAC12\uC5EC\uD589 \uC9C0\uC6D0";
+  "영광 디지털관광주민증 혜택";
 export const examplePolicyDetail: Policy = {
   id: examplePolicySlug,
   slug: examplePolicySlug,
   label: "전남",
-  tag: "최대 20만원",
+  tag: "지역할인",
   title: examplePolicyTitle,
-  org: "영광 지자체",
+  org: "한국관광공사",
   region: "전남",
   deadline: "2026-08-31",
-  amount: "최대 20만원",
-  summary: "숙박, 식사, 체험 등 여행 중 사용한 금액의 50%를 환급받을 수 있습니다.",
+  amount: "혜택 제공",
+  summary: "디지털관광주민증 또는 대한민국 반값여행을 통해 신청 가능한 영광 방문 혜택을 확인할 수 있습니다.",
   match: 75,
   category: "지역할인",
   requirements: [
     "디지털관광주민증 발급 또는 지역별 신청 조건 확인",
-    "영광 방문",
+    "전남 영광 방문",
   ],
-  documents: ["디지털관광주민증"],
-  officialUrl: "https://korean.visitkorea.or.kr/dgtourcard/tour50.do",
+  documents: ["디지털관광주민증 또는 지역별 신청 확인"],
+  officialUrl: "https://www.yeonggwang.go.kr/travel/",
   applyUrl: null,
   sourceType: "external",
 };

@@ -22,16 +22,18 @@
 - Diff/UTF-8 hygiene: `git diff --check` passed; changed/untracked text files UTF-8 scan checked `26` files and found `0` decode errors / `0` `U+FFFD`.
 - Secret-file gate: `.env`, `deploy/.env.prod`, `deploy/.env.staging`, `deploy/.env.tunnel` are not tracked by git; diff secret-name scan returned no added secret-looking lines.
 - Compose config: `docker compose -f compose.yaml config` passed.
-- Full frontend gate: `cd frontend && npm run typecheck && npm test && npm run build` passed; unit suite `19` files / `187` tests, build assets `dist/assets/index-DS-8cWYb.css`, `dist/assets/index-Cxqmqiwf.js`.
+- PR CI fixture fix: frontend DB-backed tests now use seeded policy slug `dgtour-영광-8` instead of stale `travelmonth-24`; targeted rerun `cd frontend && npm test -- src/app/__tests__/mypage.test.tsx src/app/__tests__/policies.test.tsx src/app/__tests__/invite-oauth.test.tsx src/app/__tests__/policy-detail.test.tsx src/app/__tests__/trip-create.test.tsx` passed (`5` files / `85` tests).
+- Full frontend gate after fixture fix: `cd frontend && npm run typecheck && npm test && npm run build` passed; unit suite `19` files / `187` tests, build assets `dist/assets/index-DS-8cWYb.css`, `dist/assets/index-Cxqmqiwf.js`.
 - Backend gate: `cd backend && .venv/bin/python -m pytest && .venv/bin/alembic upgrade head --sql` passed; backend suite `500` tests passed with `1` warning and Alembic SQL generated through head.
 - Backend-mode Playwright: `cd frontend && npm run test:e2e` passed (`11` tests).
 - Development server deploy: `ssh deploy@192.168.32.15` backed up server state to `/home/deploy/.travel-hunter-recovery/20260619T003353Z`, reset clean from `149c441` to verified commit `6ef0512`, ran compose config/build, Alembic upgrade, and force-recreated frontend/backend.
-- Development server smoke: server worktree `status_count=0`; `https://dev.travel-hunter.co.kr/api/health` returned `status=ok`, `environment=staging`, `database=connected`; frontend served `assets/index-CaqrVx9o.js` and `assets/index-DS-8cWYb.css`.
+- Development server smoke before PR CI fixture fix: server worktree `status_count=0`; `https://dev.travel-hunter.co.kr/api/health` returned `status=ok`, `environment=staging`, `database=connected`; frontend served `assets/index-CaqrVx9o.js` and `assets/index-DS-8cWYb.css`.
 
 ## Remaining Risks
 
 - **전체 저장** is intentionally destructive only after the second **확정** confirmation because it deletes existing saved trip places after saving remaining preview candidates.
 - Live recommendation content still depends on backend recommendation data; this change only alters preview action UI and save orchestration labels.
+- Development server still needs a post-PR redeploy after PR #75 checks pass and merges into `develop`.
 
 ## Cleanup Policy
 
