@@ -98,6 +98,22 @@ class Recommendation(BaseModel):
     sourceType: RecommendationSourceType | None = None
 
 
+class PlaceSearchCandidate(BaseModel):
+    id: str | None = None
+    label: str = "📍"
+    title: str
+    meta: str
+    categoryCode: str | None = None
+    categoryName: str | None = None
+    phone: str | None = None
+    address: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    placeUrl: str | None = None
+    sourceProvider: str | None = "kakao"
+    externalPlaceId: str | None = None
+
+
 class InviteState(BaseModel):
     id: str
     tripId: str

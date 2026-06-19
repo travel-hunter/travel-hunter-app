@@ -814,7 +814,7 @@ Frontend behavior: `/trips` does not expose trip confirmation controls or draft/
 
 ### POST /trips
 
-일정 생성. 모든 필드 optional.
+일정 생성. 모든 필드 optional. 생성 경로는 Trip, owner 멤버십, Day bucket, 선택 정책 연결만 만든다. 새 일정의 `days` 값은 요청 기간만큼의 빈 배열로 초기화되며, `POST /api/trips`는 추천 코스 생성, `trip_places` 저장, `trip_recommendations` 저장을 수행하지 않는다. 장소/추천 저장은 상세 화면의 수동 장소 추가 또는 명시적인 추천 미리보기 저장 액션에서만 발생한다.
 
 **Request**
 ```json
@@ -835,7 +835,7 @@ Frontend behavior: `/trips` does not expose trip confirmation controls or draft/
 - `participantCount`: 1~10. Planned travel party size, stored separately from real member/invite list `people`.
 - `startDate`/`endDate`: 함께 제공하거나 모두 생략. 기간은 2~7일.
 
-**Response 200** → `Trip`
+**Response 200** → `Trip`. 새로 생성된 응답의 `days`는 예를 들어 3일 일정이면 `{"1": [], "2": [], "3": []}`처럼 빈 Day 배열만 포함한다. `recommendedPolicies`는 일정 지역에 맞는 정책 추천일 수 있지만, `days` 안의 장소와 `GET /trips/{trip_id}/recommendations`의 saved summary를 create 시점에 seed하지 않는다.
 
 ---
 
@@ -1029,9 +1029,45 @@ Optional request fields:
 
 ---
 
+
+---
+
+### GET /trips/{trip_id}/place-search
+
+Authenticated trip members (owner/editor/viewer) can search Kakao-registered places for selection in the trip detail add-place sheet. Saving a selected place still uses `POST /trips/{trip_id}/days/{day_number}/places` with `expectedRevision`; this endpoint does not mutate itinerary data.
+
+**Query**
+- `query`: string, 1-80 chars. Place name or address keyword.
+
+**Response 200** → `PlaceSearchCandidate[]`
+```json
+[
+  {
+    "id": "kakao:12345",
+    "label": "📍",
+    "title": "성산일출봉",
+    "meta": "관광명소 · 제주 서귀포시 성산읍",
+    "categoryCode": "AT4",
+    "categoryName": "관광명소",
+    "phone": "064-000-0000",
+    "address": "제주 서귀포시 성산읍",
+    "latitude": 33.4581,
+    "longitude": 126.9425,
+    "placeUrl": "https://place.map.kakao.com/12345",
+    "sourceProvider": "kakao",
+    "externalPlaceId": "12345"
+  }
+]
+```
+
+**Errors**
+- 401: 인증 필요
+- 404: 일정 없음 또는 접근 권한 없음
+- 422: `query` 누락/길이 위반
+
 ### GET /trips/{trip_id}/recommendations
 
-Returns additional AI place candidates for the trip. The backend treats `(sourceProvider, externalPlaceId)` as the durable external identity, then applies a conservative same-provider `externalPlaceId` and normalized-title duplicate exclusion for existing MVP data. Kakao-backed candidates include official Kakao Local API map metadata when available; ratings/reviews are not exposed because the official API response does not provide those fields. When official Kakao data can supply enough non-duplicate places, the response targets at least 10 candidates with a useful mix of attractions, food, and stays; sparse categories are backfilled from other official candidates instead of creating synthetic places. If fresh candidates are unavailable, the endpoint returns recommendation summaries saved at trip creation with `sourceType="savedSummary"` so the UI can avoid presenting them as newly fetched places.
+Returns additional AI place candidates for the trip. The backend treats `(sourceProvider, externalPlaceId)` as the durable external identity, then applies a conservative same-provider `externalPlaceId` and normalized-title duplicate exclusion for existing MVP data. Kakao-backed candidates include official Kakao Local API map metadata when available; ratings/reviews are not exposed because the official API response does not provide those fields. When official Kakao data can supply enough non-duplicate places, the response targets at least 10 candidates with a useful mix of attractions, food, and stays; sparse categories are backfilled from other official candidates instead of creating synthetic places. New trip creation no longer seeds saved summaries. `sourceType="savedSummary"` is reserved for legacy rows or future explicit recommendation-persistence flows, not for fresh `POST /api/trips` results.
 
 Additional `Recommendation` fields:
 - `id`: string | null
@@ -1313,6 +1349,26 @@ SOLAPI 발송 결과 webhook 수신. `X-Solapi-Secret` 헤더로 검증.
 | externalPlaceId | string \| null | 외부 장소 ID |
 
 `externalPlaceId` is scoped by `sourceProvider`; the durable external identity is the pair `(sourceProvider, externalPlaceId)`.
+
+---
+
+### PlaceSearchCandidate
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | string \| null | 클라이언트 표시용 후보 ID |
+| label | string | 후보 표시 아이콘/라벨 |
+| title | string | Kakao 장소명 |
+| meta | string | 카테고리/주소 기반 요약 |
+| categoryCode | string \| null | Kakao 카테고리 그룹 코드 |
+| categoryName | string \| null | Kakao 카테고리 이름 |
+| phone | string \| null | 장소 전화번호 |
+| address | string \| null | 장소 주소 |
+| latitude | number \| null | 위도 |
+| longitude | number \| null | 경도 |
+| placeUrl | string \| null | Kakao 장소 상세 URL |
+| sourceProvider | string \| null | `kakao` |
+| externalPlaceId | string \| null | Kakao 장소 ID |
 
 ---
 

@@ -50,12 +50,12 @@
 
 | 기능 | 사용자 동작 | 연결 |
 |---|---|---|
-| 일정 목록/생성 | `/trips`에서 목록을 보고 `/trips/new`에서 지역, 스타일, 기간으로 일정을 만든다. `/home`의 추천 지역 링크가 넘긴 `/trips/new?region=...` 값은 새 일정 생성 지역으로 유지된다. 여행 지역 1단계는 17개 광역시도 버튼(`서울`, `부산`, `대구`, `인천`, `광주`, `대전`, `울산`, `세종`, `경기`, `강원`, `충북`, `충남`, `전북`, `전남`, `경북`, `경남`, `제주`)을 모두 제공해야 하며, backend travel-area 추천도 동일 17개 catalog를 broad fallback으로 지원한다. 정책 상세에서 `policySlug`만 들고 새 일정으로 진입하면 정책 제목의 `[지역명]`과 광역 `region`을 기준으로 세부 지역을 자동 조회·선택하며, 정적 여행권역에 없는 정책 지자체는 `policy-region:{sido}:{city}` 동적 단일 지역 카드로 표시해 선택된 `travelAreaId`를 일정 생성 payload에 포함한다. | `GET /api/recommendations/travel-areas`, `GET/POST /api/trips` |
+| 일정 목록/생성 | `/trips`에서 목록을 보고 `/trips/new`에서 지역, 스타일, 기간으로 일정을 만든다. `/home`의 추천 지역 링크가 넘긴 `/trips/new?region=...` 값은 새 일정 생성 지역으로 유지된다. 여행 지역 1단계는 17개 광역시도 버튼(`서울`, `부산`, `대구`, `인천`, `광주`, `대전`, `울산`, `세종`, `경기`, `강원`, `충북`, `충남`, `전북`, `전남`, `경북`, `경남`, `제주`)을 모두 제공해야 하며, backend travel-area 추천도 동일 17개 catalog를 broad fallback으로 지원한다. 정책 상세에서 `policySlug`만 들고 새 일정으로 진입하면 정책 제목의 `[지역명]`과 광역 `region`을 기준으로 세부 지역을 자동 조회·선택하며, 정적 여행권역에 없는 정책 지자체는 `policy-region:{sido}:{city}` 동적 단일 지역 카드로 표시해 선택된 `travelAreaId`를 일정 생성 payload에 포함한다. 생성 성공 직후 상세의 Day bucket은 비어 있으며, 장소/추천 저장은 수동 장소 추가 또는 상세의 추천 미리보기 저장 액션에서만 발생한다. | `GET /api/recommendations/travel-areas`, `GET/POST /api/trips` |
 | 일정 확정 저장 | `/trips` 카드에서 draft 일정을 확정 선택 후 저장해 DB 상태를 `confirmed`로 바꾼다. | `trips.status`, `PATCH /api/trips/{tripId}/status` |
 | 생성 draft autosave | `/trips/new`의 지역, 스타일, 기간, policySlug draft를 24시간 localStorage에 저장한다. 생성 성공 시 삭제한다. | `frontend/src/utils/draftStorage.ts` |
-| 상세/삭제 | `/trips/:id`에서 상세를 보고 owner는 목록에서 일정을 삭제한다. 일정 상세의 추천 정책 카드는 `recommendedPolicies`를 사용해 정규화된 정책과 TravelMonth/반값여행/숙박세일 혜택 상세 페이지로 연결하며 지역, 날짜 겹침, 카테고리, 스타일 텍스트만으로 deterministic ranking한다. 추천 노출은 일정의 실제 시/군/구와 정책 지자체가 일치해야 하며, `서울 전체` 같은 광역 전체 일정만 해당 광역 내부 자치구 정책을 예외로 허용한다. 숙박세일 추천은 canonical 1건이 아니라 eligible area alias 후보만 표시하고, 이미 연결된 canonical 정책이 있으면 모든 숙박세일 alias 추천을 숨긴다. | `GET/DELETE /api/trips/{tripId}`, `Trip.recommendedPolicies` |
-| 장소 추가/수정/삭제/이동 | owner/editor는 장소를 추가, 수정, 삭제하고 드래그앤드롭으로 같은 Day 순서 변경 또는 다른 Day 이동을 수행한다. 각 장소 변경은 `Trip.revision`/`expectedRevision` optimistic conflict 처리를 거치며 stale 저장은 409 후 최신 일정을 다시 불러오고 draft를 유지한다. viewer는 편집할 수 없다. | `trip_places` CRUD/move endpoints, `trips.revision` |
-| 장소 추가 draft autosave | 장소 추가 sheet의 시간, 장소명, 메모, dayNumber draft를 24시간 localStorage에 저장한다. 저장 성공 또는 닫기 시 삭제한다. | `frontend/src/utils/draftStorage.ts` |
+| 상세/삭제 | `/trips/:id`에서 상세를 보고 owner는 목록에서 일정을 삭제한다. 일정 상세는 정책 맥락, 장소 추가/추천 일정 만들기 CTA, Day 탭, 지도, 저장된 일정 리스트 순서의 map-first 화면이다. `/ai-results?tripId=...`는 `/trips/{tripId}?mode=recommend`로 대체 이동하는 호환 진입점이다. 추천 정책 카드는 `recommendedPolicies`를 사용해 정규화된 정책과 TravelMonth/반값여행/숙박세일 혜택 상세 페이지로 연결하며 지역, 날짜 겹침, 카테고리, 스타일 텍스트만으로 deterministic ranking한다. | `GET/DELETE /api/trips/{tripId}`, `Trip.recommendedPolicies` |
+| 장소 추가/수정/삭제/이동 | owner/editor는 Kakao-backed 장소 검색 후보를 선택해 장소를 추가하고, 저장된 장소를 수정/삭제하며 드래그앤드롭으로 같은 Day 순서 변경 또는 다른 Day 이동을 수행한다. 장소명 직접 입력은 추가 flow에서 제거되며 선택 후보가 label/주소/좌표/Kakao URL을 제공한다. 각 장소 변경은 `Trip.revision`/`expectedRevision` optimistic conflict 처리를 거치며 stale 저장은 409 후 최신 일정을 다시 불러오고 draft를 유지한다. viewer는 상세 CTA를 볼 수 있지만 저장 시도는 권한 안내로 막힌다. | `GET /api/trips/{tripId}/place-search`, trip_places CRUD/move endpoints, `trips.revision` |
+| 장소 추가 draft autosave | 장소 추가 sheet의 시간, 선택된 장소 후보, 메모, dayNumber draft를 24시간 localStorage에 저장한다. 저장 성공 또는 닫기 시 삭제한다. | `frontend/src/utils/draftStorage.ts` |
 | 장소 수정 draft autosave | 장소 수정 sheet의 시간, 장소명, 메모 draft를 `placeId` 기준으로 24시간 localStorage에 저장한다. 저장 성공, 닫기, 장소 삭제 시 삭제한다. | `frontend/src/utils/draftStorage.ts` |
 | Draft 복원 안내/폐기 | `/trips/new`와 장소 sheet에서 유효 draft를 불러오면 안내를 표시하고 사용자가 임시 저장 내용을 버릴 수 있다. | frontend localStorage UX |
 | 정책 연결 | 정규화된 정책 상세에서 선택한 정책을 일정에 연결한다. `travelmonth-{id}` TravelMonth 혜택은 새 일정 생성 참고 컨텍스트로만 쓰고 normalization 전 `trip_policies` 연결 요청에는 보내지 않는다. | `trip_policies`, frontend policy context |
@@ -64,8 +64,8 @@
 
 | 기능 | 사용자 동작 | 연결 |
 |---|---|---|
-| 추천 조회 | `/ai-results?tripId=...`에서 추천 목록을 본다. 새 후보는 `sourceType="freshCandidate"`, 일정 생성 시 저장된 추천 요약 fallback은 `sourceType="savedSummary"`로 구분하고 화면 상단 안내와 선택 후보 요약 문구로 출처를 표시한다. | `GET /api/trips/{tripId}/recommendations` |
-| 추천 항목 추가 | 추천 항목을 일정 장소로 추가한다. 이미 현재 일정 timeline에 같은 장소명이 있으면 `/ai-results?tripId=...`에서 `이미 일정에 있음`으로 표시하고 중복 추가를 막는다. | `GET /api/trips/{tripId}`, `POST /api/trips/{tripId}/days/{dayNumber}/places` |
+| 추천 조회 | `/trips/:tripId`에서 추천 일정 만들기를 눌러 저장 전 미리보기를 본다. 새 후보는 `sourceType="freshCandidate"`로 내려오며, `sourceType="savedSummary"`는 새 일정 생성이 아니라 legacy 데이터 또는 향후 명시적 추천 저장 계약에서만 쓰는 fallback이다. 미리보기는 명시적으로 `이 일정으로 저장`을 누르기 전까지 장소 API를 호출하지 않는다. | `GET /api/trips/{tripId}/recommendations` |
+| 추천 항목 추가 | 추천 미리보기 저장은 사용자에게 한 번의 저장 액션으로 보이지만 내부적으로 기존 단일 장소 추가 API를 순차 호출한다. 저장된 장소가 이미 있으면 대체 확인 후 기존 장소 삭제와 추가를 순차 처리한다. | `GET /api/trips/{tripId}`, `POST /api/trips/{tripId}/days/{dayNumber}/places`, `DELETE /api/trips/{tripId}/places/{placeId}` |
 | 추천 기준 설명 | 추천 기준 아이콘으로 설명 sheet를 연다. | frontend sheet |
 
 ## 초대와 협업

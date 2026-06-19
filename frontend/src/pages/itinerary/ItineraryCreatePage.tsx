@@ -517,7 +517,7 @@ export function ItineraryCreatePage() {
         {error && <ErrorState compact message={error} />}
         {isCreating && (
           <div className="prototype-create-waiting" role="status">
-            <p>카카오 장소 후보를 바탕으로 일정을 만들고 있어요.</p>
+            <p>새 일정을 만들고 있어요.</p>
             {isCreationTakingLong && <p>조금만 더 기다려주세요. 응답이 늦으면 잠시 후 다시 시도할 수 있어요.</p>}
           </div>
         )}
@@ -530,7 +530,7 @@ export function ItineraryCreatePage() {
           </Button>
         )}
         <Button full disabled={!canProceed || isCreating} onClick={goNext}>
-          {isCreating ? "카카오 장소 후보 조회 중" : step < TRIP_CREATE_TOTAL_STEPS ? "다음" : "일정 만들기"}
+          {isCreating ? "일정 생성 중" : step < TRIP_CREATE_TOTAL_STEPS ? "다음" : "일정 만들기"}
         </Button>
       </div>
     </section>

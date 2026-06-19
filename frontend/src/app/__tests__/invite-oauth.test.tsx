@@ -384,20 +384,28 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
     }
   });
 
-  it("opens an AI recommendation criteria sheet", async () => {
+  it("redirects the legacy AI recommendation route into trip detail", async () => {
+    const trip: Trip = {
+      ...getPreviewTrip(),
+      id: "55",
+      title: "초대 테스트 추천 여행",
+      days: { 1: [], 2: [] },
+    };
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(trip);
+
     await login();
     cleanup();
-    renderAppRoute("/ai-results?tripId=55");
+    try {
+      renderAppRoute("/ai-results?tripId=55");
 
-    await userEvent
-      .setup()
-      .click(await screen.findByRole("button", { name: "추천 기준 보기" }));
-
-    expect(
-      screen.getByRole("dialog", { name: "추천 기준" }),
-    ).toBeInTheDocument();
-    expect(document.body).toHaveTextContent("정책 조건");
-    expect(document.body).toHaveTextContent("이동 거리");
+      await waitFor(() =>
+        expect(screen.getAllByText("초대 테스트 추천 여행").length).toBeGreaterThan(0),
+      );
+      expect(getTripSpy).toHaveBeenCalledWith("55");
+      expect(document.querySelector(".ai-results-screen")).toBeNull();
+    } finally {
+      getTripSpy.mockRestore();
+    }
   });
 
   it("preserves an invite redirect through login and signup navigation", async () => {

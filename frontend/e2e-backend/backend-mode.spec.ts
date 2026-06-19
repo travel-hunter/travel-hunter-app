@@ -94,32 +94,10 @@ test("backend data source drives policy, trip, recommendation, invite, and logou
 
   await firstTripLink.click();
   await expect(page).toHaveURL(new RegExp(`/trips/${tripId}$`));
-  await expect(page.locator('a[href^="/ai-results?tripId="]').first()).toBeVisible();
-
-  await page.locator('a[href^="/ai-results?tripId="]').first().click();
-  await expect(page).toHaveURL(new RegExp(`/ai-results\\?tripId=${tripId}$`));
-  await expect(page.locator(".ai-candidate-card").first()).toBeVisible();
-
-  const recommendationCard = page.locator(".ai-candidate-card").first();
-  await expect(recommendationCard).toBeVisible();
-  const recommendationAddButton = recommendationCard.getByRole("button", {
-    name: /추가$/,
-  });
-  if (await recommendationAddButton.isVisible()) {
-    await recommendationAddButton.click();
-    const dayPicker = page.getByRole("dialog");
-    await expect(dayPicker).toBeVisible();
-    const addToDayButton = dayPicker
-      .getByRole("button", { name: /^Day [1-9][0-9]*에 추가/ })
-      .first();
-    await expect(addToDayButton).toBeVisible();
-    await addToDayButton.click();
-    await expect(page.locator(".toast")).toBeVisible();
-    await page.goto(`/trips/${tripId}`);
-  } else {
-    await expect(recommendationCard).toContainText("이미 추가됨");
-    await page.goto(`/trips/${tripId}`);
-  }
+  await expect(page.locator(".prototype-trip-action-ai")).toBeVisible();
+  await page.locator(".prototype-trip-action-ai").click();
+  await expect(page.locator(".recommendation-preview-banner")).toBeVisible();
+  await page.goto(`/trips/${tripId}`);
 
   await page.goto(`/friend-invite?tripId=${tripId}`);
   await expect(page.locator(".invite-link")).toBeVisible();
@@ -209,6 +187,17 @@ test("confirmed trip detail keeps owner editing controls available", async ({ pa
   const tripId = String(createdTrip.id);
   expect(tripId).toMatch(numericTripId);
 
+  const addPlaceResponse = await page.request.post(`${apiBaseUrl}/api/trips/${tripId}/days/1/places`, {
+    headers: { Authorization: `Bearer ${auth.accessToken}` },
+    data: {
+      expectedRevision: 1,
+      time: "10:00",
+      label: "광안리 테스트 장소",
+      meta: "E2E 편집 컨트롤 확인",
+    },
+  });
+  expect(addPlaceResponse.ok()).toBeTruthy();
+
   const confirmResponse = await page.request.patch(`${apiBaseUrl}/api/trips/${tripId}/status`, {
     headers: { Authorization: `Bearer ${auth.accessToken}` },
     data: { status: "confirmed" },
@@ -221,6 +210,71 @@ test("confirmed trip detail keeps owner editing controls available", async ({ pa
   await expect(page.locator(".trip-status-panel")).toHaveCount(0);
   await expect(page.locator(".prototype-trip-action-add")).toBeVisible();
   await expect(page.locator(".drag-handle").first()).toBeVisible();
+});
+
+test("empty trip detail saves a manual label-only place through the backend", async ({ page }) => {
+  const auth = await seedStoredAuth(page);
+  const authHeaders = { Authorization: `Bearer ${auth.accessToken}` };
+  const manualPlaceLabel = `수동 저장 e2e 장소 ${Date.now()}`;
+  const createResponse = await page.request.post(`${apiBaseUrl}/api/trips`, {
+    headers: authHeaders,
+    data: {
+      title: "빈 일정 수동 저장 e2e 여행",
+      region: "제주",
+      style: "휴식",
+      startDate: "2026-08-11",
+      endDate: "2026-08-13",
+    },
+  });
+  expect(createResponse.ok()).toBeTruthy();
+  const tripId = String((await createResponse.json()).id);
+  expect(tripId).toMatch(numericTripId);
+
+  await page.route(`**/api/trips/${tripId}/place-search**`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: "[]",
+    });
+  });
+
+  for (const width of [390, 1024]) {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 768 });
+    await page.goto(`/trips/${tripId}`);
+    await expect(page.getByText("아직 표시할 장소가 없어요")).toBeVisible();
+    await expectNoDocumentOverflow(page);
+  }
+
+  for (const width of [360, 390, 430, 1024, 1440]) {
+    await page.setViewportSize({ width, height: width < 768 ? 844 : 900 });
+    await page.goto(`/trips/${tripId}`);
+    await page.getByRole("button", { name: /장소 추가/ }).click();
+    const responsiveSheet = page.locator(".trip-select-sheet");
+    await expect(responsiveSheet).toBeVisible();
+    await expect(responsiveSheet.getByLabel("장소 지도 미리보기")).toBeVisible();
+    await expectNoDocumentOverflow(page);
+    await responsiveSheet.getByRole("button", { name: "닫기" }).click();
+    await expect(responsiveSheet).toHaveCount(0);
+  }
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/trips/${tripId}`);
+  await page.getByRole("button", { name: /장소 추가/ }).click();
+  const sheet = page.locator(".trip-select-sheet");
+  await expect(sheet).toBeVisible();
+  await sheet.locator('input[name="place-search"]').fill("후보없는수동장소");
+  await expect(sheet.getByText("검색 결과가 없어요")).toBeVisible();
+  await expectNoDocumentOverflow(page);
+
+  await sheet.locator('input[name="place-label"]').fill(manualPlaceLabel);
+  await sheet.locator('textarea[name="place-meta"]').fill("좌표 없이 리스트에 저장");
+  await sheet.getByRole("button", { name: "저장하기" }).click();
+
+  await expect(sheet).toHaveCount(0);
+  await expect(page.getByText(manualPlaceLabel).first()).toBeVisible();
+  await page.reload();
+  await expect(page.getByText(manualPlaceLabel).first()).toBeVisible();
+  await expectNoDocumentOverflow(page);
 });
 
 test("core app screens do not horizontally overflow at common responsive widths", async ({ page }) => {
@@ -323,14 +377,13 @@ test("backend data source creates a trip with selected profile values and policy
   expect(createdTripId).toMatch(numericTripId);
   await expect(page.locator(".day-tab").first()).toBeVisible();
   await expect(page.locator("body")).toContainText("영광 디지털관광주민증 혜택");
-  const itineraryTimes = page.locator(".timeline-item .place-prototype-meta span");
-  await expect.poll(async () => itineraryTimes.count(), { timeout: 8000 }).toBeGreaterThanOrEqual(3);
-  for (const timeText of (await itineraryTimes.allTextContents()).slice(0, 3)) {
-    expect(timeText).toMatch(/^[0-2][0-9]:[0-5][0-9]$/);
-  }
+  await expect(page.getByText("아직 표시할 장소가 없어요")).toBeVisible();
+  await expect(page.getByRole("button", { name: /추천 일정만들기/ })).toBeVisible();
+  await expect(page.locator(".timeline-item")).toHaveCount(0);
 
   await page.goto(`/ai-results?tripId=${createdTripId}`);
-  await expect(page.locator(".ai-candidate-card").first()).toBeVisible();
+  await expect(page.locator(".prototype-trip-detail-screen")).toBeVisible();
+  await expect(page.locator(".prototype-trip-action-ai")).toBeVisible();
 
   await page.goto(`/friend-invite?tripId=${createdTripId}`);
   await expect(page.locator(".invite-link")).toBeVisible();

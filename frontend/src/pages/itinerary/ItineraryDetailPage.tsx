@@ -1,10 +1,10 @@
-﻿import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, type DragEndEvent, type DragStartEvent, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, type DragEndEvent, type DragStartEvent, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Car, ChevronLeft, GripVertical, Info, List, Map as MapIcon, X } from "lucide-react";
-import { useEffect, useState, type KeyboardEvent } from "react";
+import { Car, ChevronLeft, GripVertical, Info, Map as MapIcon, X } from "lucide-react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { appDataApi, isApiError, type ItineraryPlace, type LinkedTripPolicy, type Recommendation, type Trip, type TripPlaceRequest } from "../../api";
+import { appDataApi, isApiError, type ItineraryPlace, type LinkedTripPolicy, type PlaceSearchCandidate, type Recommendation, type Trip, type TripPlaceMutationRequest, type TripPlaceRequest } from "../../api";
 import { useSession } from "../../app/session";
 import { useAsyncResource } from "../../api/useAsyncResource";
 import { KakaoMapView, type KakaoMapMarker } from "../../components/map/KakaoMapView";
@@ -27,7 +27,42 @@ type TripPlaceAddDraft = TripPlaceRequest & {
 type TripPlaceEditDraft = TripPlaceRequest & {
   placeId: string;
 };
-type TripDetailViewMode = "list" | "map";
+type PreviewPlace = {
+  previewId: string;
+  dayNumber: number;
+  time?: string;
+  label: string;
+  meta?: string;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  category?: string | null;
+  categoryCode?: string | null;
+  placeUrl?: string | null;
+  sourceProvider?: string | null;
+  externalPlaceId?: string | null;
+};
+type DisplayedPlace = ItineraryPlace & {
+  isRecommendationPreview?: boolean;
+  previewId?: string;
+  previewDayNumber?: number;
+};
+type RecommendationTimeBucket = "attraction" | "food" | "cafe" | "stay";
+type RecommendationPreviewState = {
+  status: "idle" | "loading" | "ready" | "saving";
+  places: PreviewPlace[];
+  error: string;
+};
+type PlacePreviewSource = "empty" | "draft" | "recommendation" | "searchPreview" | "selected" | "manual";
+type PlaceSaveEligibility = "empty" | "saveSelected" | "requiresExplicitCandidate" | "manualAllowed";
+type PlacePreviewCandidate = TripPlaceRequest & {
+  previewId: string;
+  source: Exclude<PlacePreviewSource, "empty">;
+  dayNumber: number;
+};
+type PlacePreviewState =
+  | { source: "empty"; place: null }
+  | { source: Exclude<PlacePreviewSource, "empty">; place: PlacePreviewCandidate };
 
 function tripDayNumbers(days: Record<number, unknown[]>): number[] {
   return Object.keys(days)
@@ -80,10 +115,6 @@ function formatTripDday(dates: string): string {
   if (diffDays > 0) return `D-${diffDays}`;
   if (diffDays === 0) return "D-day";
   return `D+${Math.abs(diffDays)}`;
-}
-
-function parseTripDetailViewMode(value: string | null): TripDetailViewMode {
-  return value === "map" ? "map" : "list";
 }
 
 function getPlaceEmoji(place: ItineraryPlace): string {
@@ -194,21 +225,221 @@ function recommendationPlacePayload(item: Recommendation, time: string | undefin
   };
 }
 
-function recommendationSearchText(item: Recommendation): string {
-  return [
-    item.title,
-    item.meta,
-    item.reason,
-    item.categoryName,
-    item.categoryGroup,
-    item.address,
-  ]
+function explicitRecommendationPlaceTime(item: Recommendation): string | null {
+  return item.meta.match(/\b\d{2}:\d{2}\b/)?.[0] ?? null;
+}
+
+function recommendationTimeBucket(item: Recommendation): RecommendationTimeBucket {
+  const categoryCode = item.categoryCode?.toUpperCase();
+  if (categoryCode === "FD6") return "food";
+  if (categoryCode === "CE7") return "cafe";
+  if (categoryCode === "AD5") return "stay";
+  if (item.categoryGroup === "food") return "food";
+  if (item.categoryGroup === "stay") return "stay";
+
+  const categoryText = [item.categoryName, item.meta, item.reason, item.title].filter(Boolean).join(" ");
+  if (/카페|커피|디저트/.test(categoryText)) return "cafe";
+  if (/식당|음식|맛집|밥|한식|양식|일식|중식|분식|레스토랑/.test(categoryText)) return "food";
+  if (/숙소|호텔|리조트|펜션|게스트하우스/.test(categoryText)) return "stay";
+  return "attraction";
+}
+
+function recommendationBucketBaseTime(bucket: RecommendationTimeBucket): string {
+  switch (bucket) {
+    case "food":
+      return "12:00";
+    case "cafe":
+      return "15:00";
+    case "stay":
+      return "17:00";
+    case "attraction":
+    default:
+      return "10:00";
+  }
+}
+
+function addHoursToPlaceTime(time: string, hours: number): string {
+  const parsed = parsePlaceTime(time) ?? parsePlaceTime(defaultPlaceTime) ?? { hour: 9, minute: 0 };
+  return formatPlaceTime((parsed.hour + hours) % 24, parsed.minute);
+}
+
+function recommendationPlaceTime(item: Recommendation, bucketOffset = 0): string {
+  const explicitTime = explicitRecommendationPlaceTime(item);
+  if (explicitTime) return explicitTime;
+  return addHoursToPlaceTime(recommendationBucketBaseTime(recommendationTimeBucket(item)), bucketOffset);
+}
+
+function recommendationPreviewId(item: Recommendation, index: number): string {
+  const stableId = item.id ?? item.externalPlaceId;
+  if (stableId) return stableId;
+  const randomId = globalThis.crypto?.randomUUID?.();
+  return randomId ?? `preview-${index}-${Date.now()}`;
+}
+
+function previewPlaceFromRecommendation(item: Recommendation, index: number, dayNumber: number): PreviewPlace {
+  const payload = recommendationPlacePayload(item, recommendationPlaceTime(item));
+  return {
+    previewId: recommendationPreviewId(item, index),
+    dayNumber,
+    time: payload.time,
+    label: payload.label,
+    meta: payload.meta,
+    address: payload.address,
+    latitude: payload.latitude,
+    longitude: payload.longitude,
+    category: payload.category,
+    categoryCode: payload.categoryCode,
+    placeUrl: payload.placeUrl,
+    sourceProvider: payload.sourceProvider,
+    externalPlaceId: payload.externalPlaceId,
+  };
+}
+
+function previewPlacesFromRecommendations(items: Recommendation[], dayNumbers: number[], visibleDay: number): PreviewPlace[] {
+  const bucketCounts = new Map<string, number>();
+  return items.map((item, index) => {
+    const dayNumber = dayNumbers.includes(item.suggestedDay ?? 1) ? item.suggestedDay ?? 1 : visibleDay;
+    const explicitTime = explicitRecommendationPlaceTime(item);
+    const bucket = recommendationTimeBucket(item);
+    const bucketKey = `${dayNumber}:${bucket}`;
+    const offset = explicitTime ? 0 : bucketCounts.get(bucketKey) ?? 0;
+    if (!explicitTime) bucketCounts.set(bucketKey, offset + 1);
+    const payload = recommendationPlacePayload(item, recommendationPlaceTime(item, offset));
+    return {
+      previewId: recommendationPreviewId(item, index),
+      dayNumber,
+      time: payload.time,
+      label: payload.label,
+      meta: payload.meta,
+      address: payload.address,
+      latitude: payload.latitude,
+      longitude: payload.longitude,
+      category: payload.category,
+      categoryCode: payload.categoryCode,
+      placeUrl: payload.placeUrl,
+      sourceProvider: payload.sourceProvider,
+      externalPlaceId: payload.externalPlaceId,
+    };
+  });
+}
+
+function tripPlaceMutationFromPreviewPlace(place: PreviewPlace, expectedRevision: number): TripPlaceMutationRequest {
+  return {
+    time: place.time ?? "",
+    label: place.label,
+    meta: place.meta,
+    address: place.address,
+    latitude: place.latitude,
+    longitude: place.longitude,
+    category: place.category,
+    categoryCode: place.categoryCode,
+    placeUrl: place.placeUrl,
+    sourceProvider: place.sourceProvider,
+    externalPlaceId: place.externalPlaceId,
+    expectedRevision,
+  };
+}
+
+function timelinePlaceFromPreviewPlace(place: PreviewPlace): DisplayedPlace {
+  return {
+    time: place.time ?? "",
+    label: place.label,
+    meta: place.meta ?? "",
+    address: place.address,
+    latitude: place.latitude,
+    longitude: place.longitude,
+    category: place.category,
+    categoryCode: place.categoryCode,
+    placeUrl: place.placeUrl,
+    sourceProvider: place.sourceProvider,
+    externalPlaceId: place.externalPlaceId,
+    isRecommendationPreview: true,
+    previewId: place.previewId,
+    previewDayNumber: place.dayNumber,
+  };
+}
+
+function previewFromPayload(
+  payload: TripPlaceRequest,
+  source: Exclude<PlacePreviewSource, "empty">,
+  dayNumber: number,
+  previewId: string,
+): PlacePreviewCandidate {
+  return {
+    ...payload,
+    label: payload.label,
+    meta: payload.meta ?? "",
+    previewId,
+    source,
+    dayNumber,
+  };
+}
+
+function previewFromRecommendation(item: Recommendation, index: number, dayNumber: number): PlacePreviewCandidate {
+  const time = recommendationPlaceTime(item);
+  return previewFromPayload(recommendationPlacePayload(item, time), "recommendation", dayNumber, recommendationPreviewId(item, index));
+}
+
+function placeSearchCandidatePayload(item: PlaceSearchCandidate, time: string | undefined): TripPlaceRequest {
+  return {
+    time: time ?? "",
+    label: item.title,
+    meta: item.meta,
+    address: item.address ?? null,
+    latitude: item.latitude ?? null,
+    longitude: item.longitude ?? null,
+    category: item.categoryName ?? null,
+    categoryCode: item.categoryCode ?? null,
+    placeUrl: item.placeUrl ?? null,
+    sourceProvider: item.sourceProvider ?? null,
+    externalPlaceId: item.externalPlaceId ?? item.id ?? null,
+  };
+}
+
+function previewFromSearchCandidate(item: PlaceSearchCandidate, dayNumber: number, source: "searchPreview" | "selected", time = ""): PlacePreviewCandidate {
+  return previewFromPayload(placeSearchCandidatePayload(item, time), source, dayNumber, item.id ?? item.externalPlaceId ?? `${item.title}:${item.address ?? item.meta}`);
+}
+
+function previewFromDraft(draft: TripPlaceAddDraft, dayNumber: number): PlacePreviewCandidate {
+  return previewFromPayload(
+    {
+      time: draft.time ?? "",
+      label: draft.label,
+      meta: draft.meta ?? "",
+    },
+    "draft",
+    dayNumber,
+    `draft:${dayNumber}:${draft.label}`,
+  );
+}
+
+function placePreviewMarker(place: PlacePreviewCandidate): KakaoMapMarker | null {
+  const query = place.address?.trim() || place.label.trim() || place.meta?.trim() || null;
+  if (!place.label.trim() && !query) return null;
+  return {
+    id: place.previewId,
+    label: place.label,
+    subtitle: place.address || place.meta || null,
+    latitude: place.latitude ?? null,
+    longitude: place.longitude ?? null,
+    query,
+  };
+}
+
+function saveEligibilityForPreview(preview: PlacePreviewState): PlaceSaveEligibility {
+  if (preview.source === "empty") return "empty";
+  return preview.source === "searchPreview" ? "requiresExplicitCandidate" : "saveSelected";
+}
+
+function placeSearchText(item: PlaceSearchCandidate): string {
+  return [item.title, item.meta, item.categoryName, item.address]
     .filter((part): part is string => Boolean(part))
     .join(" ")
     .toLocaleLowerCase("ko-KR");
 }
 
 const TRIP_CONFLICT_MESSAGE = "다른 사용자가 먼저 일정을 수정했어요. 최신 내용을 확인한 뒤 다시 저장해 주세요.";
+const REPLACE_PREVIEW_CLEANUP_MESSAGE = "새 추천 장소는 저장됐지만 기존 장소 정리가 끝나지 않았어요. 최신 일정을 확인해 남은 기존 장소를 정리해 주세요.";
 
 function isTripConflict(error: unknown): boolean {
   return isApiError(error) && error.status === 409;
@@ -221,7 +452,6 @@ export function ItineraryDetailPage() {
   const { removeAddedPolicy } = useSession();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeDay, setActiveDay] = useState(1);
-  const [viewMode, setViewMode] = useState<TripDetailViewMode>(() => parseTripDetailViewMode(searchParams.get("view")));
   const [selectedMapPlaceId, setSelectedMapPlaceId] = useState<string | null>(() => searchParams.get("place"));
   const { data: loadedTrip, error, isLoading } = useAsyncResource(() => {
     if (!tripId) return Promise.reject(new Error("Trip not found"));
@@ -234,9 +464,11 @@ export function ItineraryDetailPage() {
   const [placeDeleteError, setPlaceDeleteError] = useState("");
   const [isSavingPlace, setIsSavingPlace] = useState(false);
   const [placeSearchQuery, setPlaceSearchQuery] = useState("");
-  const [placeSearchCandidates, setPlaceSearchCandidates] = useState<Recommendation[]>([]);
+  const [placeSearchCandidates, setPlaceSearchCandidates] = useState<PlaceSearchCandidate[]>([]);
   const [isLoadingPlaceSearch, setIsLoadingPlaceSearch] = useState(false);
   const [placeSearchError, setPlaceSearchError] = useState("");
+  const [placePreview, setPlacePreview] = useState<PlacePreviewState>({ source: "empty", place: null });
+  const [placeSaveEligibility, setPlaceSaveEligibility] = useState<PlaceSaveEligibility>("empty");
   const [movingPlaceId, setMovingPlaceId] = useState<string | null>(null);
   const [draggingPlaceId, setDraggingPlaceId] = useState<string | null>(null);
   const [moveError, setMoveError] = useState("");
@@ -247,9 +479,20 @@ export function ItineraryDetailPage() {
   const [policyRemoveError, setPolicyRemoveError] = useState("");
   const [hiddenRoutePolicySlugs, setHiddenRoutePolicySlugs] = useState<Set<string>>(() => new Set());
   const [placeDraftNotice, setPlaceDraftNotice] = useState("");
+  const [recommendationPreview, setRecommendationPreview] = useState<RecommendationPreviewState>({ status: "idle", places: [], error: "" });
+  const [replacePreviewConfirmOpen, setReplacePreviewConfirmOpen] = useState(false);
+  const [replacePreviewFinalizeOpen, setReplacePreviewFinalizeOpen] = useState(false);
+  const placeEditorSessionRef = useRef(0);
+  const placeSearchRequestRef = useRef(0);
+  const placePreviewRef = useRef<PlacePreviewState>({ source: "empty", place: null });
   const dayNumbers = trip ? tripDayNumbers(trip.days) : [];
   const visibleDay = dayNumbers.includes(activeDay) ? activeDay : (dayNumbers[0] ?? 1);
   const dayPlaces = trip?.days[visibleDay] ?? [];
+  const isPreviewActive = recommendationPreview.status === "ready" || recommendationPreview.status === "saving";
+  const previewDayPlaces = isPreviewActive ? recommendationPreview.places.filter((place) => place.dayNumber === visibleDay) : [];
+  const displayedPlaces: DisplayedPlace[] = [...dayPlaces, ...previewDayPlaces.map(timelinePlaceFromPreviewPlace)];
+  const selectedPreviewMapPlace = isPreviewActive ? previewDayPlaces.find((place) => place.previewId === selectedMapPlaceId) ?? null : null;
+  const mapPlaces: DisplayedPlace[] = selectedPreviewMapPlace ? [timelinePlaceFromPreviewPlace(selectedPreviewMapPlace)] : dayPlaces;
   const sortablePlaceIds = dayPlaces.flatMap((place) => (place.id ? [placeDragId(place.id)] : []));
   const stayLabel = formatStayLabel(dayNumbers.length || 3);
   const canManageTripStatus = trip?.currentUserRole === "owner" || trip?.currentUserRole === "editor";
@@ -263,6 +506,7 @@ export function ItineraryDetailPage() {
   const linkedPolicies = linkedTripPoliciesForDisplay(trip?.linkedPolicies, routeLinkedPolicy, hiddenRoutePolicySlugs);
   const recommendedPolicies = trip?.recommendedPolicies ?? [];
   const hasLinkedPolicyFallback = linkedPolicies.length === 0 && hasPolicySaving(trip?.expectedSaving);
+  const hasSavedPlaces = Object.values(trip?.days ?? {}).some((places) => places.length > 0);
   const dragSensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 8 } }),
@@ -273,6 +517,18 @@ export function ItineraryDetailPage() {
     const latestTrip = await appDataApi.getTrip(trip.id).catch(() => null);
     if (latestTrip) setTrip(latestTrip);
     setError(TRIP_CONFLICT_MESSAGE);
+  };
+  const refreshTripQuietly = async (tripIdToRefresh: string) => {
+    const latestTrip = await appDataApi.getTrip(tripIdToRefresh).catch(() => null);
+    if (latestTrip) setTrip(latestTrip);
+  };
+  const updatePlacePreview = (nextPreview: PlacePreviewState) => {
+    placePreviewRef.current = nextPreview;
+    setPlacePreview(nextPreview);
+  };
+  const clearPlacePreview = () => {
+    updatePlacePreview({ source: "empty", place: null });
+    setPlaceSaveEligibility("empty");
   };
 
   useEffect(() => {
@@ -287,9 +543,14 @@ export function ItineraryDetailPage() {
   }, [trip?.id]);
 
   useEffect(() => {
-    setViewMode(parseTripDetailViewMode(searchParams.get("view")));
-    setSelectedMapPlaceId(searchParams.get("place"));
-  }, [searchParams]);
+    const nextPlaceId = searchParams.get("place");
+    setSelectedMapPlaceId((currentPlaceId) => {
+      if (!nextPlaceId && currentPlaceId && recommendationPreview.places.some((place) => place.previewId === currentPlaceId)) {
+        return currentPlaceId;
+      }
+      return nextPlaceId;
+    });
+  }, [recommendationPreview.places, searchParams]);
 
   useEffect(() => {
     if (trip && tripId && trip.id !== tripId) {
@@ -297,14 +558,10 @@ export function ItineraryDetailPage() {
     }
   }, [navigate, trip, tripId]);
 
-  const updateDetailSearchParams = (nextValues: { day?: number; view?: TripDetailViewMode; place?: string | null }) => {
+  const updateDetailSearchParams = (nextValues: { day?: number; place?: string | null }) => {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
       if (nextValues.day) next.set("day", String(nextValues.day));
-      if (nextValues.view) {
-        next.set("view", nextValues.view);
-        if (nextValues.view === "list") next.delete("place");
-      }
       if ("place" in nextValues) {
         if (nextValues.place) next.set("place", nextValues.place);
         else next.delete("place");
@@ -319,31 +576,226 @@ export function ItineraryDetailPage() {
     updateDetailSearchParams({ day, place: null });
   };
 
-  const selectViewMode = (nextViewMode: TripDetailViewMode) => {
-    setViewMode(nextViewMode);
-    if (nextViewMode === "list") setSelectedMapPlaceId(null);
-    updateDetailSearchParams({ view: nextViewMode, place: nextViewMode === "list" ? null : selectedMapPlaceId });
-  };
-
   const selectMapPlace = (placeId: string | null) => {
     setSelectedMapPlaceId(placeId);
-    updateDetailSearchParams({ view: "map", day: visibleDay, place: placeId });
+    if (placeId && recommendationPreview.places.some((place) => place.previewId === placeId)) return;
+    updateDetailSearchParams({ day: visibleDay, place: placeId });
+  };
+
+  const selectRecommendationPreviewMapPlace = (previewId: string) => {
+    setSelectedMapPlaceId(previewId);
+    updateDetailSearchParams({ day: visibleDay, place: null });
+  };
+
+  const showEditPermissionRequired = () => {
+    setNotice("편집 권한이 필요해요. 이 일정은 보기 권한으로 참여 중이라 장소 추가나 추천 일정 저장을 할 수 없어요.");
+    window.setTimeout(() => setNotice(null), 2200);
+  };
+
+  const openRecommendationPreview = async () => {
+    if (!trip) return;
+    if (!canEditTrip) {
+      showEditPermissionRequired();
+      return;
+    }
+    setRecommendationPreview({ status: "loading", places: [], error: "" });
+    try {
+      const recommendations = await appDataApi.listRecommendations(trip.id);
+      const nextPlaces = previewPlacesFromRecommendations(recommendations, dayNumbers, visibleDay);
+      setRecommendationPreview({ status: "ready", places: nextPlaces, error: "" });
+    } catch {
+      setRecommendationPreview({ status: "idle", places: [], error: "추천 일정을 불러오지 못했어요. 잠시 후 다시 시도해 주세요." });
+    }
+  };
+
+  const saveRecommendationPreview = async ({ replaceExisting }: { replaceExisting: boolean }) => {
+    const previewPlaces = recommendationPreview.places;
+    if (!trip || previewPlaces.length === 0) return;
+    const invalidTimePlace = previewPlaces.find((place) => !isTenMinutePlaceTime(place.time ?? ""));
+    if (invalidTimePlace) {
+      setRecommendationPreview((current) => ({
+        ...current,
+        status: "ready",
+        error: `${invalidTimePlace.label} 방문 시간은 10분 단위로 입력해 주세요.`,
+      }));
+      return;
+    }
+    setRecommendationPreview((current) => ({ ...current, status: "saving", error: "" }));
+    const savedPreviewIds = new Set<string>();
+    const originalPlaceIds = replaceExisting
+      ? Object.values(trip.days)
+          .flat()
+          .map((place) => place.id)
+          .filter((placeId): placeId is string => Boolean(placeId))
+      : [];
+    let replaceCleanupStarted = false;
+    try {
+      let currentTrip = trip;
+      for (const previewPlace of previewPlaces) {
+        currentTrip = await appDataApi.addTripPlace(
+          currentTrip.id,
+          previewPlace.dayNumber,
+          tripPlaceMutationFromPreviewPlace(previewPlace, currentTrip.revision),
+        );
+        savedPreviewIds.add(previewPlace.previewId);
+      }
+      if (replaceExisting) {
+        replaceCleanupStarted = true;
+        for (const placeId of originalPlaceIds) {
+          currentTrip = await appDataApi.deleteTripPlace(currentTrip.id, placeId, currentTrip.revision);
+        }
+      }
+      setTrip(currentTrip);
+      setRecommendationPreview((current) => {
+        const remainingPlaces = current.places.filter((place) => !savedPreviewIds.has(place.previewId));
+        return remainingPlaces.length > 0 ? { status: "ready", places: remainingPlaces, error: "" } : { status: "idle", places: [], error: "" };
+      });
+      setSelectedMapPlaceId((currentPlaceId) => (currentPlaceId && savedPreviewIds.has(currentPlaceId) ? null : currentPlaceId));
+      setReplacePreviewConfirmOpen(false);
+      setReplacePreviewFinalizeOpen(false);
+      setNotice(
+        replaceExisting
+          ? "추천 일정으로 교체했어요."
+          : previewPlaces.length === 1
+            ? `${previewPlaces[0].label}을(를) 저장했어요.`
+            : "추천 일정을 저장했어요.",
+      );
+      window.setTimeout(() => setNotice(null), 1800);
+    } catch (error) {
+      const replaceCleanupFailed = replaceExisting && replaceCleanupStarted && savedPreviewIds.size === previewPlaces.length;
+      const keepUnsavedPreview = (current: RecommendationPreviewState, message: string): RecommendationPreviewState => ({
+        ...current,
+        status: "ready",
+        error: message,
+        places: current.places.filter((place) => !savedPreviewIds.has(place.previewId)),
+      });
+      const preservePreviewState = (message: string) => {
+        setRecommendationPreview((current) => keepUnsavedPreview(current, message));
+      };
+      if (replaceCleanupFailed) {
+        await refreshTripQuietly(trip.id);
+        preservePreviewState(REPLACE_PREVIEW_CLEANUP_MESSAGE);
+        setReplacePreviewConfirmOpen(false);
+        setReplacePreviewFinalizeOpen(false);
+      } else if (isTripConflict(error)) {
+        await refreshTripAfterConflict((message) => preservePreviewState(message));
+      } else {
+        await refreshTripQuietly(trip.id);
+        preservePreviewState("추천 일정을 저장하지 못했어요. 최신 일정은 다시 불러왔고, 저장되지 않은 미리보기 입력은 그대로 보존했어요.");
+      }
+    }
+  };
+
+  const saveRecommendationPreviewPlace = async (previewId: string) => {
+    const previewPlace = recommendationPreview.places.find((place) => place.previewId === previewId);
+    if (!trip || !previewPlace) return;
+    if (!isTenMinutePlaceTime(previewPlace.time ?? "")) {
+      setRecommendationPreview((current) => ({
+        ...current,
+        status: "ready",
+        error: `${previewPlace.label} 방문 시간은 10분 단위로 입력해 주세요.`,
+      }));
+      return;
+    }
+    setRecommendationPreview((current) => ({ ...current, status: "saving", error: "" }));
+    try {
+      const nextTrip = await appDataApi.addTripPlace(
+        trip.id,
+        previewPlace.dayNumber,
+        tripPlaceMutationFromPreviewPlace(previewPlace, trip.revision),
+      );
+      setTrip(nextTrip);
+      setRecommendationPreview((current) => ({
+        status: "ready",
+        places: current.places.filter((place) => place.previewId !== previewId),
+        error: "",
+      }));
+      setNotice(`${previewPlace.label}을(를) 저장했어요.`);
+      window.setTimeout(() => setNotice(null), 1800);
+    } catch (error) {
+      const preservePreviewState = (message: string) => {
+        setRecommendationPreview((current) => ({ ...current, status: "ready", error: message }));
+      };
+      if (isTripConflict(error)) {
+        await refreshTripAfterConflict((message) => preservePreviewState(message));
+      } else {
+        await refreshTripQuietly(trip.id);
+        preservePreviewState("추천 일정을 저장하지 못했어요. 최신 일정은 다시 불러왔고, 저장되지 않은 미리보기 입력은 그대로 보존했어요.");
+      }
+    }
+  };
+
+  const cancelRecommendationPreviewPlace = (previewId: string) => {
+    setRecommendationPreview((current) => ({
+      ...current,
+      status: current.status === "saving" ? current.status : "ready",
+      places: current.places.filter((place) => place.previewId !== previewId),
+    }));
+  };
+
+  const chooseAddPlaceRecommendation = (items: Recommendation[], dayNumber: number): { item: Recommendation; index: number } | null => {
+    if (items.length === 0) return null;
+    const visibleDayMatch = items.findIndex((item) => item.suggestedDay === dayNumber);
+    if (visibleDayMatch >= 0) return { item: items[visibleDayMatch], index: visibleDayMatch };
+    const tripDayMatch = items.findIndex((item) => item.suggestedDay != null && dayNumbers.includes(item.suggestedDay));
+    if (tripDayMatch >= 0) return { item: items[tripDayMatch], index: tripDayMatch };
+    return { item: items[0], index: 0 };
+  };
+
+  const hydrateDefaultPlaceRecommendation = async (nextTrip: Trip, dayNumber: number, sessionId: number, searchRequestId: number) => {
+    try {
+      const recommendations = await appDataApi.listRecommendations(nextTrip.id);
+      if (placeEditorSessionRef.current !== sessionId) return;
+      if (placeSearchRequestRef.current !== searchRequestId) return;
+      if (placePreviewRef.current.source !== "empty") return;
+      const recommendation = chooseAddPlaceRecommendation(recommendations, dayNumber);
+      if (!recommendation) return;
+      const preview = previewFromRecommendation(recommendation.item, recommendation.index, dayNumber);
+      updatePlacePreview({ source: "recommendation", place: preview });
+      setPlaceSaveEligibility("saveSelected");
+      updatePlaceForm({
+        time: preview.time ?? "",
+        label: preview.label,
+        meta: preview.meta ?? "",
+        address: preview.address,
+        latitude: preview.latitude,
+        longitude: preview.longitude,
+        category: preview.category,
+        categoryCode: preview.categoryCode,
+        placeUrl: preview.placeUrl,
+        sourceProvider: preview.sourceProvider,
+        externalPlaceId: preview.externalPlaceId,
+      });
+    } catch {
+      if (placeEditorSessionRef.current === sessionId && placePreviewRef.current.source === "empty") {
+        setPlaceSaveEligibility("empty");
+      }
+    }
   };
 
   const openAddPlace = () => {
     if (!canEditTrip) {
-      setPlaceError("이 일정은 보기 권한으로 참여 중이라 편집할 수 없어요.");
+      showEditPermissionRequired();
       return;
     }
     const draft = trip ? readDraft<TripPlaceAddDraft>(tripPlaceAddDraftKey(trip.id, visibleDay)) : null;
+    const sessionId = placeEditorSessionRef.current + 1;
+    placeEditorSessionRef.current = sessionId;
+    placeSearchRequestRef.current = 0;
     setPlaceSearchQuery("");
     setPlaceSearchCandidates([]);
     setPlaceSearchError("");
     setPlaceEditor({ mode: "add", dayNumber: visibleDay });
     setPlaceForm(draft ? { time: draft.time ?? "", label: draft.label, meta: draft.meta ?? "" } : { time: "", label: "", meta: "" });
+    if (draft?.label?.trim()) {
+      updatePlacePreview({ source: "draft", place: previewFromDraft(draft, visibleDay) });
+      setPlaceSaveEligibility("saveSelected");
+    } else {
+      clearPlacePreview();
+    }
     setPlaceDraftNotice(draft ? "작성 중이던 장소 내용을 불러왔어요." : "");
     setPlaceError("");
-    if (trip) void loadPlaceSearchCandidates(trip.id);
+    if (trip) void hydrateDefaultPlaceRecommendation(trip, visibleDay, sessionId, placeSearchRequestRef.current);
   };
 
   const openEditPlace = (place: ItineraryPlace) => {
@@ -352,29 +804,74 @@ export function ItineraryDetailPage() {
       return;
     }
     const draft = trip && place.id ? readDraft<TripPlaceEditDraft>(tripPlaceEditDraftKey(trip.id, place.id)) : null;
+    placeEditorSessionRef.current += 1;
     setPlaceSearchQuery("");
     setPlaceSearchError("");
+    setPlaceSearchCandidates([]);
+    clearPlacePreview();
     setPlaceEditor({ mode: "edit", dayNumber: visibleDay, place });
     setPlaceForm(draft ? { time: draft.time ?? "", label: draft.label, meta: draft.meta ?? "" } : { ...place, time: place.time, label: place.label, meta: place.meta });
     setPlaceDraftNotice(draft ? "수정 중이던 장소 내용을 불러왔어요." : "");
     setPlaceError("");
   };
 
-  const loadPlaceSearchCandidates = async (nextTripId: string) => {
+  const loadPlaceSearchCandidates = async (nextTripId: string, query: string, sessionId: number, requestId: number) => {
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery) {
+      if (placeEditorSessionRef.current === sessionId && placeSearchRequestRef.current === requestId) {
+        setPlaceSearchCandidates([]);
+        setPlaceSearchError("");
+        setIsLoadingPlaceSearch(false);
+        setPlaceSaveEligibility(placePreviewRef.current.source === "searchPreview" ? "manualAllowed" : saveEligibilityForPreview(placePreviewRef.current));
+      }
+      return;
+    }
     setIsLoadingPlaceSearch(true);
     setPlaceSearchError("");
     try {
-      setPlaceSearchCandidates(await appDataApi.listRecommendations(nextTripId));
+      const candidates = await appDataApi.searchTripPlaces(nextTripId, { query: trimmedQuery });
+      if (placeEditorSessionRef.current !== sessionId || placeSearchRequestRef.current !== requestId) return;
+      setPlaceSearchCandidates(candidates);
+      if (candidates.length > 0 && placeEditor?.mode === "add") {
+        const preview = previewFromSearchCandidate(candidates[0], placeEditor.dayNumber, "searchPreview", placeForm.time ?? "");
+        updatePlacePreview({ source: "searchPreview", place: preview });
+        setPlaceSaveEligibility("requiresExplicitCandidate");
+      } else if (placeEditor?.mode === "add") {
+        setPlaceSaveEligibility("manualAllowed");
+      }
     } catch {
+      if (placeEditorSessionRef.current !== sessionId || placeSearchRequestRef.current !== requestId) return;
       setPlaceSearchCandidates([]);
-      setPlaceSearchError("추천 장소를 불러오지 못했어요. 직접 입력할 수 있어요.");
+      setPlaceSearchError("장소 검색 결과를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
+      if (placeEditor?.mode === "add") setPlaceSaveEligibility("manualAllowed");
     } finally {
-      setIsLoadingPlaceSearch(false);
+      if (placeEditorSessionRef.current === sessionId && placeSearchRequestRef.current === requestId) setIsLoadingPlaceSearch(false);
     }
   };
 
-  const selectPlaceSearchCandidate = (candidate: Recommendation) => {
-    updatePlaceForm(recommendationPlacePayload(candidate, placeForm.time));
+  const updatePlaceSearchQuery = (query: string) => {
+    setPlaceSearchQuery(query);
+    if (placeEditor?.mode === "add") {
+      setPlaceError("");
+      const trimmedQuery = query.trim();
+      const blankSearchPreviewEligibility = placePreviewRef.current.source === "searchPreview" ? "manualAllowed" : saveEligibilityForPreview(placePreviewRef.current);
+      setPlaceSaveEligibility(trimmedQuery ? "requiresExplicitCandidate" : blankSearchPreviewEligibility);
+      setPlaceForm((current) => ({
+        time: current.time ?? "",
+        label: trimmedQuery ? "" : current.label,
+        meta: trimmedQuery ? "" : current.meta ?? "",
+      }));
+    }
+    const requestId = placeSearchRequestRef.current + 1;
+    placeSearchRequestRef.current = requestId;
+    if (trip) void loadPlaceSearchCandidates(trip.id, query, placeEditorSessionRef.current, requestId);
+  };
+
+  const selectPlaceSearchCandidate = (candidate: PlaceSearchCandidate) => {
+    const preview = previewFromSearchCandidate(candidate, placeEditor?.dayNumber ?? visibleDay, "selected", placeForm.time ?? "");
+    updatePlacePreview({ source: "selected", place: preview });
+    setPlaceSaveEligibility("saveSelected");
+    updatePlaceForm(placeSearchCandidatePayload(candidate, placeForm.time));
     setPlaceSearchQuery(candidate.title);
     setPlaceError("");
   };
@@ -385,9 +882,17 @@ export function ItineraryDetailPage() {
       setPlaceError("이 일정은 보기 권한으로 참여 중이라 편집할 수 없어요.");
       return;
     }
+    if (placeEditor.mode === "add" && placeSaveEligibility === "requiresExplicitCandidate") {
+      setPlaceError("검색 결과에서 저장할 장소를 직접 선택해 주세요.");
+      return;
+    }
+    if (placeEditor.mode === "add" && placeSaveEligibility === "empty") {
+      setPlaceError("검색 결과를 선택하거나 장소명을 직접 입력해 주세요.");
+      return;
+    }
     const label = placeForm.label.trim();
     if (!label) {
-      setPlaceError("장소명을 입력해 주세요.");
+      setPlaceError(placeEditor.mode === "add" ? "검색 결과를 선택하거나 장소명을 직접 입력해 주세요." : "장소명을 입력해 주세요.");
       return;
     }
     const time = placeForm.time?.trim() ?? "";
@@ -420,6 +925,7 @@ export function ItineraryDetailPage() {
       if (placeEditor.mode === "edit" && placeEditor.place.id) clearDraft(tripPlaceEditDraftKey(trip.id, placeEditor.place.id));
       setTrip(nextTrip);
       setPlaceEditor(null);
+      clearPlacePreview();
       setPlaceDraftNotice("");
       setNotice(placeEditor.mode === "add" ? "장소를 일정에 추가했어요." : "장소 정보를 수정했어요.");
       window.setTimeout(() => setNotice(null), 1800);
@@ -581,7 +1087,11 @@ export function ItineraryDetailPage() {
     if (isSavingPlace) return;
     if (trip && placeEditor?.mode === "add") clearDraft(tripPlaceAddDraftKey(trip.id, placeEditor.dayNumber));
     if (trip && placeEditor?.mode === "edit" && placeEditor.place.id) clearDraft(tripPlaceEditDraftKey(trip.id, placeEditor.place.id));
+    placeEditorSessionRef.current += 1;
     setPlaceDraftNotice("");
+    setPlaceSearchCandidates([]);
+    setPlaceSearchQuery("");
+    clearPlacePreview();
     setPlaceEditor(null);
   };
 
@@ -590,6 +1100,7 @@ export function ItineraryDetailPage() {
     if (placeEditor.mode === "add") {
       clearDraft(tripPlaceAddDraftKey(trip.id, placeEditor.dayNumber));
       setPlaceForm({ time: "", label: "", meta: "" });
+      clearPlacePreview();
     }
     if (placeEditor.mode === "edit" && placeEditor.place.id) {
       clearDraft(tripPlaceEditDraftKey(trip.id, placeEditor.place.id));
@@ -602,7 +1113,7 @@ export function ItineraryDetailPage() {
   const placeSearchResults = placeSearchCandidates
     .filter((candidate) => {
       if (!normalizedPlaceSearchQuery) return true;
-      return recommendationSearchText(candidate).includes(normalizedPlaceSearchQuery);
+      return placeSearchText(candidate).includes(normalizedPlaceSearchQuery);
     })
     .slice(0, 6);
 
@@ -745,7 +1256,67 @@ export function ItineraryDetailPage() {
         onDragCancel={() => setDraggingPlaceId(null)}
         onDragEnd={handlePlaceDragEnd}
       >
-        <div className="day-tabs">
+        {isTripViewer && (
+          <div className="card">
+            <div className="card-body stack tight">
+              <strong>보기 권한으로 참여 중입니다</strong>
+              <p className="meta">일정과 정책은 확인할 수 있지만 장소 편집은 할 수 없어요.</p>
+            </div>
+          </div>
+        )}
+
+        {recommendationPreview.status === "loading" && <p className="place-search-status">추천 일정을 불러오는 중입니다.</p>}
+        {recommendationPreview.error && <p className="form-error">{recommendationPreview.error}</p>}
+        {isPreviewActive && (
+          <section className="recommendation-preview-banner" aria-label="추천 일정 저장 전 미리보기">
+            <div>
+              <strong>저장 전 미리보기</strong>
+              <p className="meta">추천 일정은 저장 전 후보 카드로 확인하고, 카드별 저장/취소 또는 취소/전체 저장을 할 수 있어요.</p>
+              {recommendationPreview.places.length === 0 ? <p className="place-search-status">저장할 추천 일정이 없어요. 다시 추천을 불러와 주세요.</p> : null}
+            </div>
+            <div className="recommendation-preview-actions">
+              <button className="btn sm line" type="button" disabled={recommendationPreview.status === "saving"} onClick={() => setRecommendationPreview({ status: "idle", places: [], error: "" })}>
+                취소
+              </button>
+              {recommendationPreview.places.length > 0 ? (
+                <button
+                  className="btn sm primary"
+                  type="button"
+                  disabled={recommendationPreview.status === "saving"}
+                  onClick={() => {
+                    setRecommendationPreview((current) => ({ ...current, error: "" }));
+                    setReplacePreviewFinalizeOpen(false);
+                    setReplacePreviewConfirmOpen(true);
+                  }}
+                >
+                  {recommendationPreview.status === "saving" ? "저장 중" : "전체 저장"}
+                </button>
+              ) : null}
+            </div>
+          </section>
+        )}
+
+        <PrototypeTripMap
+          dayNumber={visibleDay}
+          onSelectPlace={selectMapPlace}
+          onShowPlaceDetail={(place) => {
+            setNotice(null);
+            setPlaceDetail({ dayNumber: visibleDay, place });
+          }}
+          places={mapPlaces}
+          selectedPlaceId={selectedMapPlaceId}
+        />
+
+        <section className="trip-primary-actions" aria-label="일정 편집 작업">
+          <button className="prototype-trip-action-button prototype-trip-action-add" type="button" onClick={openAddPlace}>
+            + 장소 추가
+          </button>
+          <button className="prototype-trip-action-button prototype-trip-action-ai" type="button" onClick={() => void openRecommendationPreview()}>
+            ✨ 추천 일정만들기
+          </button>
+        </section>
+
+        <div className="day-tabs" aria-label="일정 날짜 선택">
           {dayNumbers.map((day) => (
             <DroppableDayTab
               canDrop={canEditTrip && Boolean(draggingPlaceId)}
@@ -759,46 +1330,24 @@ export function ItineraryDetailPage() {
           ))}
         </div>
 
-        <ListMapToggle value={viewMode} onChange={selectViewMode} />
-
-        {isTripViewer && (
-          <div className="card">
-            <div className="card-body stack tight">
-              <strong>보기 권한으로 참여 중입니다</strong>
-              <p className="meta">일정과 정책은 확인할 수 있지만 장소 편집은 할 수 없어요.</p>
-            </div>
-          </div>
-        )}
-
-        {viewMode === "list" ? (
+        {displayedPlaces.length > 0 && (
           <>
-            {false && canEditTrip && dayPlaces.length > 0 && (
-              <div className={draggingPlaceId ? "dnd-affordance active" : "dnd-affordance"} role="status">
-                <GripVertical size={16} />
-                <span>{draggingPlaceId ? `${activeDraggingPlaceLabel} 이동 중` : "장소 카드의 이동 핸들로 순서를 조정할 수 있어요"}</span>
-              </div>
-            )}
             <div className={draggingPlaceId ? "timeline dnd-active" : "timeline"}>
-              {dayPlaces.length === 0 && (
-                <EmptyState
-                  compact
-                  eyebrow={`Day ${visibleDay}`}
-                  title="아직 추가된 장소가 없어요"
-                  body={canEditTrip ? "장소 추가 버튼으로 방문지를 일정에 저장해 보세요." : "아직 이 날짜에 등록된 장소가 없어요."}
-                />
-              )}
               <SortableContext items={sortablePlaceIds} strategy={verticalListSortingStrategy}>
-                {dayPlaces.map((place, index) => (
+                {displayedPlaces.map((place, index) => (
                   <SortablePlaceItem
-                    canEditTrip={canEditTrip}
+                    canEditTrip={canEditTrip && !isPreviewActive}
                     currentDay={visibleDay}
                     dayNumbers={dayNumbers}
-                    disabled={Boolean(movingPlaceId) || isSavingPlace}
+                    disabled={Boolean(movingPlaceId) || isSavingPlace || recommendationPreview.status === "saving"}
                     isMoving={movingPlaceId === place.id}
-                    key={place.id ?? `${place.time}-${place.label}`}
+                    key={place.id ?? place.previewId ?? `${place.time}-${place.label}`}
+                    onCancelRecommendationPreviewPlace={cancelRecommendationPreviewPlace}
                     onDelete={requestDeletePlace}
                     onEdit={openEditPlace}
                     onMove={movePlaceTo}
+                    onSelectRecommendationPreviewPlace={selectRecommendationPreviewMapPlace}
+                    onSaveRecommendationPreviewPlace={(previewId) => void saveRecommendationPreviewPlace(previewId)}
                     place={place}
                     placeNumber={index + 1}
                     places={dayPlaces}
@@ -806,29 +1355,8 @@ export function ItineraryDetailPage() {
                   />
                 ))}
               </SortableContext>
-              <div className="prototype-trip-action-row">
-                {canEditTrip && (
-                  <button className="prototype-trip-action-button prototype-trip-action-add" type="button" onClick={openAddPlace}>
-                    + 장소 추가
-                  </button>
-                )}
-                <Link className="prototype-trip-action-button prototype-trip-action-ai" to={`/ai-results?tripId=${encodeURIComponent(trip.id)}`}>
-                  ✨ 추천 후보 추가
-                </Link>
-              </div>
             </div>
           </>
-        ) : (
-          <PrototypeTripMap
-            dayNumber={visibleDay}
-            onSelectPlace={selectMapPlace}
-            onShowPlaceDetail={(place) => {
-              setNotice(null);
-              setPlaceDetail({ dayNumber: visibleDay, place });
-            }}
-            places={dayPlaces}
-            selectedPlaceId={selectedMapPlaceId}
-          />
         )}
       </DndContext>
       {placeError && !placeEditor && <Toast>{placeError}</Toast>}
@@ -844,9 +1372,11 @@ export function ItineraryDetailPage() {
           onChange={updatePlaceForm}
           onClose={closePlaceEditor}
           onDiscardDraft={discardPlaceDraft}
-          onSearchChange={setPlaceSearchQuery}
+          onSearchChange={updatePlaceSearchQuery}
           onSelectSearchCandidate={selectPlaceSearchCandidate}
           onSubmit={submitPlaceEditor}
+          preview={placePreview}
+          saveEligibility={placeSaveEligibility}
           searchCandidates={placeSearchResults}
           searchError={placeSearchError}
           searchQuery={placeSearchQuery}
@@ -861,6 +1391,29 @@ export function ItineraryDetailPage() {
         />
       )}
       <ConfirmDialog
+        open={replacePreviewConfirmOpen}
+        title="추천 일정으로 바꿀까요?"
+        body={hasSavedPlaces ? "기존 일정은 삭제되고, 남아있는 추천 후보 전체가 저장됩니다." : "남아있는 추천 후보 전체가 일정으로 저장됩니다."}
+        error={recommendationPreview.error}
+        confirmLabel="저장"
+        isSubmitting={recommendationPreview.status === "saving"}
+        onCancel={() => setReplacePreviewConfirmOpen(false)}
+        onConfirm={() => {
+          setReplacePreviewConfirmOpen(false);
+          setReplacePreviewFinalizeOpen(true);
+        }}
+      />
+      <ConfirmDialog
+        open={replacePreviewFinalizeOpen}
+        title="전체 저장을 확정할까요?"
+        body={hasSavedPlaces ? "기존 일정을 삭제하고 남아있는 추천 후보 전체를 저장합니다. 확정하면 되돌릴 수 없어요." : "남아있는 추천 후보 전체를 일정으로 저장합니다."}
+        error={recommendationPreview.error}
+        confirmLabel="확정"
+        isSubmitting={recommendationPreview.status === "saving"}
+        onCancel={() => setReplacePreviewFinalizeOpen(false)}
+        onConfirm={() => void saveRecommendationPreview({ replaceExisting: true })}
+      />
+      <ConfirmDialog
         open={Boolean(deleteCandidatePlace)}
         title="장소를 삭제할까요?"
         body={`${deleteCandidatePlace?.label ?? "선택한 장소"} 장소가 이 일정에서 삭제됩니다.`}
@@ -874,21 +1427,6 @@ export function ItineraryDetailPage() {
   );
 }
 
-function ListMapToggle({ onChange, value }: { onChange: (value: TripDetailViewMode) => void; value: TripDetailViewMode }) {
-  return (
-    <div className="list-map-toggle" role="tablist" aria-label="일정 표시 방식">
-      <button aria-selected={value === "list"} className={value === "list" ? "active" : ""} onClick={() => onChange("list")} role="tab" type="button">
-        <List size={14} />
-        리스트
-      </button>
-      <button aria-selected={value === "map"} className={value === "map" ? "active" : ""} onClick={() => onChange("map")} role="tab" type="button">
-        <MapIcon size={14} />
-        지도
-      </button>
-    </div>
-  );
-}
-
 function PrototypeTripMap({
   dayNumber,
   onSelectPlace,
@@ -899,10 +1437,10 @@ function PrototypeTripMap({
   dayNumber: number;
   onSelectPlace: (placeId: string | null) => void;
   onShowPlaceDetail: (place: ItineraryPlace) => void;
-  places: ItineraryPlace[];
+  places: DisplayedPlace[];
   selectedPlaceId: string | null;
 }) {
-  const selectedPlace = places.find((place) => place.id === selectedPlaceId) ?? null;
+  const selectedPlace = places.find((place, index) => mapPlaceId(place, index) === selectedPlaceId && !place.isRecommendationPreview) ?? null;
   const mapPlaces = places.map((place, index) => ({
     place,
     index,
@@ -910,7 +1448,7 @@ function PrototypeTripMap({
   }));
   const routePoints = mapPlaces.map(({ point }) => `${point.x},${point.y}`).join(" ");
   const markers: KakaoMapMarker[] = places.map((place, index) => ({
-    id: place.id ?? `${place.label}-${index}`,
+    id: mapPlaceId(place, index),
     label: place.label,
     subtitle: place.address || place.meta,
     latitude: place.latitude,
@@ -923,8 +1461,8 @@ function PrototypeTripMap({
       <div className="prototype-map-wrap">
         <div className="prototype-map-empty">
           <MapIcon size={28} />
-          <strong>Day {dayNumber} 지도에 표시할 장소가 없어요</strong>
-          <p>리스트 화면에서 장소를 추가하면 지도 핀이 함께 표시됩니다.</p>
+          <strong>아직 표시할 장소가 없어요</strong>
+          <p>장소 추가 버튼으로 방문지를 일정에 저장해 보세요.</p>
         </div>
       </div>
     );
@@ -948,14 +1486,15 @@ function PrototypeTripMap({
           <button aria-label="전체 보기" type="button">🧭</button>
         </div>
         {mapPlaces.map(({ index, place, point }) => {
-          const selected = place.id === selectedPlaceId;
+          const markerId = mapPlaceId(place, index);
+          const selected = markerId === selectedPlaceId;
           return (
             <button
               aria-label={`${index + 1}번 장소: ${place.label}`}
               className={selected ? "prototype-map-pin selected" : "prototype-map-pin"}
-              key={place.id ?? `${place.label}-${index}`}
+              key={markerId}
               onMouseDown={(event) => event.stopPropagation()}
-              onClick={() => onSelectPlace(selected ? null : (place.id ?? null))}
+              onClick={() => onSelectPlace(selected ? null : markerId)}
               style={{ left: `${point.x}%`, top: `${point.y}%` }}
               type="button"
             >
@@ -989,6 +1528,10 @@ function PrototypeTripMap({
       </div>
     </div>
   );
+}
+
+function mapPlaceId(place: DisplayedPlace, index: number): string {
+  return place.id ?? place.previewId ?? `${place.label}-${index}`;
 }
 
 function PlaceMapBottomSheet({
@@ -1136,9 +1679,12 @@ function SortablePlaceItem({
   dayNumbers,
   disabled,
   isMoving,
+  onCancelRecommendationPreviewPlace,
   onDelete,
   onEdit,
   onMove,
+  onSaveRecommendationPreviewPlace,
+  onSelectRecommendationPreviewPlace,
   place,
   placeNumber,
   places,
@@ -1149,18 +1695,22 @@ function SortablePlaceItem({
   dayNumbers: number[];
   disabled: boolean;
   isMoving: boolean;
+  onCancelRecommendationPreviewPlace: (previewId: string) => void;
   onDelete: (place: ItineraryPlace) => void;
   onEdit: (place: ItineraryPlace) => void;
   onMove: (place: ItineraryPlace, dayNumber: number, position: number) => Promise<void>;
-  place: ItineraryPlace;
+  onSaveRecommendationPreviewPlace: (previewId: string) => void;
+  onSelectRecommendationPreviewPlace: (previewId: string) => void;
+  place: DisplayedPlace;
   placeNumber: number;
   places: ItineraryPlace[];
   trip: Trip;
 }) {
   const sortableId = place.id ? placeDragId(place.id) : `missing:${place.time}-${place.label}`;
+  const isRecommendationPreviewPlace = Boolean(place.isRecommendationPreview && place.previewId);
   const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
     id: sortableId,
-    disabled: !canEditTrip || !place.id || disabled,
+    disabled: isRecommendationPreviewPlace || !canEditTrip || !place.id || disabled,
   });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -1200,8 +1750,8 @@ function SortablePlaceItem({
       <div className="timeline-marker" aria-hidden="true">
         <span>{placeNumber}</span>
       </div>
-      <article className="place-detail">
-        {canEditTrip && place.id && (
+      <article className={isRecommendationPreviewPlace ? "place-detail recommendation-preview-place" : "place-detail"}>
+        {canEditTrip && place.id && !isRecommendationPreviewPlace && (
           <button
             className="drag-handle"
             type="button"
@@ -1216,16 +1766,61 @@ function SortablePlaceItem({
             <GripVertical size={16} />
           </button>
         )}
-        <div className="place-copy">
-          <div className="place-prototype-meta">
-            {place.time && <span>{place.time}</span>}
-            <em aria-hidden="true">{getPlaceEmoji(place)}</em>
+        {isRecommendationPreviewPlace && place.previewId ? (
+          <button
+            className="place-copy recommendation-preview-place-select"
+            type="button"
+            aria-label={`${place.label} 지도에서 보기`}
+            onClick={() => onSelectRecommendationPreviewPlace(place.previewId!)}
+            disabled={disabled}
+          >
+            <div className="place-prototype-meta">
+              {place.time && <span>{place.time}</span>}
+              <em aria-hidden="true">{getPlaceEmoji(place)}</em>
+              <span className="preview-candidate-index">추천 후보</span>
+            </div>
+            <h4>{place.label}</h4>
+            <div className="meta">{place.meta}</div>
+          </button>
+        ) : (
+          <div className="place-copy">
+            <div className="place-prototype-meta">
+              {place.time && <span>{place.time}</span>}
+              <em aria-hidden="true">{getPlaceEmoji(place)}</em>
+            </div>
+            <h4>{place.label}</h4>
+            <div className="meta">{place.meta}</div>
           </div>
-          <h4>{place.label}</h4>
-          <div className="meta">{place.meta}</div>
-        </div>
+        )}
         {isMoving && <span className="place-moving-badge">이동 중</span>}
-        {canEditTrip && (
+        {isRecommendationPreviewPlace && place.previewId ? (
+          <div className="place-actions recommendation-preview-place-actions">
+            <button
+              className="btn sm primary"
+              type="button"
+              aria-label={`${place.label} 미리보기 저장`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onSaveRecommendationPreviewPlace(place.previewId!);
+              }}
+              disabled={disabled}
+            >
+              저장
+            </button>
+            <button
+              className="btn sm line"
+              type="button"
+              aria-label={`${place.label} 미리보기 취소`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onCancelRecommendationPreviewPlace(place.previewId!);
+              }}
+              disabled={disabled}
+            >
+              취소
+            </button>
+          </div>
+        ) : canEditTrip ? (
           <div className="place-actions">
             <button className="btn sm ghost" type="button" onClick={() => onEdit(place)} disabled={!place.id || disabled}>
               수정
@@ -1234,7 +1829,7 @@ function SortablePlaceItem({
               삭제
             </button>
           </div>
-        )}
+        ) : null}
       </article>
     </div>
   );
@@ -1310,6 +1905,66 @@ function PlaceTimePicker({
   );
 }
 
+function PlacePreviewMapCard({
+  preview,
+  saveEligibility,
+}: {
+  preview: PlacePreviewState;
+  saveEligibility: PlaceSaveEligibility;
+}) {
+  const place = preview.place;
+  const marker = place ? placePreviewMarker(place) : null;
+  const helperText =
+    saveEligibility === "requiresExplicitCandidate"
+      ? "검색 결과를 지도에 미리 표시했어요. 저장하려면 후보를 직접 선택해 주세요."
+      : saveEligibility === "saveSelected"
+        ? "저장할 장소로 선택되어 있어요."
+        : saveEligibility === "manualAllowed"
+          ? "검색 결과가 없어도 장소명을 직접 입력해 저장할 수 있어요."
+          : "장소를 검색하면 지도에 표시돼요.";
+  const fallback = (
+    <div className={place ? "place-preview-fallback has-place" : "place-preview-fallback"}>
+      <MapIcon size={18} aria-hidden="true" />
+      <div>
+        <strong>{place?.label || "장소를 검색하면 지도에 표시돼요"}</strong>
+        <span>{place?.address || place?.meta || "추천 장소나 검색 후보가 여기에 미리 표시됩니다."}</span>
+      </div>
+    </div>
+  );
+
+  return (
+    <section className="place-preview-map-card" aria-label="장소 지도 미리보기">
+      <div className="place-preview-map-head">
+        <div>
+          <span className="eyebrow">지도 미리보기</span>
+          <h3>{place?.label || "선택할 장소 확인"}</h3>
+        </div>
+        <span className={saveEligibility === "saveSelected" || saveEligibility === "manualAllowed" ? "place-preview-state ready" : "place-preview-state"}>
+          {saveEligibility === "saveSelected" ? "저장 가능" : saveEligibility === "manualAllowed" ? "직접 입력" : "확인 필요"}
+        </span>
+      </div>
+      {marker ? (
+        <KakaoMapView
+          ariaLabel={`${place?.label ?? "장소"} 지도 미리보기`}
+          fallback={fallback}
+          markers={[marker]}
+          onSelectMarker={() => undefined}
+          selectedMarkerId={marker.id}
+        />
+      ) : (
+        fallback
+      )}
+      {place && (
+        <div className="place-preview-details">
+          <strong>{place.label}</strong>
+          <span>{place.address || place.meta || "장소 정보 확인"}</span>
+        </div>
+      )}
+      <p className="place-preview-helper">{helperText}</p>
+    </section>
+  );
+}
+
 function PlaceEditorSheet({
   error,
   form,
@@ -1322,6 +1977,8 @@ function PlaceEditorSheet({
   onSearchChange,
   onSelectSearchCandidate,
   onSubmit,
+  preview,
+  saveEligibility,
   searchCandidates,
   searchError,
   searchQuery,
@@ -1336,21 +1993,28 @@ function PlaceEditorSheet({
   onClose: () => void;
   onDiscardDraft: () => void;
   onSearchChange: (query: string) => void;
-  onSelectSearchCandidate: (candidate: Recommendation) => void;
+  onSelectSearchCandidate: (candidate: PlaceSearchCandidate) => void;
   onSubmit: () => void;
-  searchCandidates: Recommendation[];
+  preview: PlacePreviewState;
+  saveEligibility: PlaceSaveEligibility;
+  searchCandidates: PlaceSearchCandidate[];
   searchError: string;
   searchQuery: string;
   restoredDraftMessage: string;
 }) {
   const showEmptySearch = mode === "add" && searchQuery.trim() && !isLoadingSearch && searchCandidates.length === 0;
+  const showBlankManualRecovery = mode === "add" && !searchQuery.trim() && saveEligibility === "manualAllowed" && searchCandidates.length === 0 && !isLoadingSearch;
+  const showManualPlaceName = mode === "edit" || showEmptySearch || showBlankManualRecovery || (mode === "add" && Boolean(form.label) && searchCandidates.length === 0 && !isLoadingSearch);
+  const updateManualPlaceName = (label: string) => {
+    onChange({ time: form.time ?? "", label, meta: form.meta ?? "" });
+  };
   return (
     <div className="sheet-backdrop" role="presentation" onMouseDown={onClose}>
       <section className="trip-select-sheet" role="dialog" aria-modal="true" aria-labelledby="place-editor-title" onMouseDown={(event) => event.stopPropagation()}>
         <div className="sheet-head">
           <div>
             <h2 id="place-editor-title">{mode === "add" ? "장소 추가" : "장소 수정"}</h2>
-            <p className="meta">장소명, 방문 시간, 메모를 입력해 일정에 저장하세요.</p>
+            <p className="meta">{mode === "add" ? "장소를 검색해 선택하거나 직접 입력한 뒤 방문 시간과 메모를 저장하세요." : "장소명, 방문 시간, 메모를 수정하세요."}</p>
           </div>
           <button className="btn sm ghost" type="button" onClick={onClose} disabled={isSaving}>
             닫기
@@ -1364,12 +2028,12 @@ function PlaceEditorSheet({
                 장소 검색
                 <input
                   name="place-search"
-                  placeholder="추천 후보에서 검색"
+                  placeholder="장소명이나 주소 검색"
                   value={searchQuery}
                   onChange={(event) => onSearchChange(event.target.value)}
                 />
               </label>
-              {isLoadingSearch && <p className="place-search-status">추천 장소를 불러오는 중입니다.</p>}
+              {isLoadingSearch && <p className="place-search-status">장소 검색 결과를 불러오는 중입니다.</p>}
               {searchError && <p className="place-search-status error">{searchError}</p>}
               {searchCandidates.length > 0 && (
                 <div className="place-search-results" role="list" aria-label="장소 검색 결과">
@@ -1383,27 +2047,38 @@ function PlaceEditorSheet({
                     >
                       <span>
                         <strong>{candidate.title}</strong>
-                        <em>{candidate.categoryName ?? candidate.categoryGroup ?? "장소"}</em>
+                        <em>{candidate.categoryName ?? "장소"}</em>
                       </span>
                       <small>{candidate.address ?? candidate.meta}</small>
                     </button>
                   ))}
                 </div>
               )}
-              {showEmptySearch && <p className="place-search-status">검색 결과가 없어요. 직접 장소명을 입력해 주세요.</p>}
+              {form.label && (
+                <div className="place-selected-summary" aria-label="선택한 장소">
+                  <strong>{form.label}</strong>
+                  <span>{form.meta || "장소 정보 확인"}</span>
+                </div>
+              )}
+              {showEmptySearch && <p className="place-search-status">검색 결과가 없어요. 장소명을 직접 입력해 저장할 수 있어요.</p>}
             </div>
           )}
+          {mode === "add" && <PlacePreviewMapCard preview={preview} saveEligibility={saveEligibility} />}
           <PlaceTimePicker disabled={isSaving} value={form.time ?? ""} onChange={(time) => onChange({ ...form, time })} />
           <input type="hidden" name="place-time" value={form.time ?? ""} readOnly />
-          <label className="field">
-            장소명
-            <input
-              name="place-label"
-              placeholder="성산일출봉"
-              value={form.label}
-              onChange={(event) => onChange({ ...form, label: event.target.value })}
-            />
-          </label>
+          {showManualPlaceName ? (
+            <label className="field">
+              장소명
+              <input
+                name="place-label"
+                placeholder="성산일출봉"
+                value={form.label}
+                onChange={(event) => updateManualPlaceName(event.target.value)}
+              />
+            </label>
+          ) : (
+            <input type="hidden" name="place-label" value={form.label} readOnly />
+          )}
           <label className="field">
             메모
             <textarea

@@ -14,6 +14,7 @@ import {
   InviteRole,
   InviteState,
   NotificationSettings,
+  PlaceSearchCandidate,
   Policy,
   Profile,
   ProfileSkipResponse,
@@ -134,6 +135,10 @@ export type TravelAreaRecommendationOptions = {
   limit?: number;
 };
 
+export type TripPlaceSearchOptions = {
+  query: string;
+};
+
 export type TripPlaceRequest = {
   time?: string;
   label: string;
@@ -229,6 +234,7 @@ export type AppDataApi = {
   addPolicyToTrip: (tripId: string, policySlug: string) => Promise<TripPolicyResponse>;
   removePolicyFromTrip: (tripId: string, policySlug: string) => Promise<TripPolicyResponse>;
   listRecommendations: (tripId: string) => Promise<Recommendation[]>;
+  searchTripPlaces: (tripId: string, options: TripPlaceSearchOptions) => Promise<PlaceSearchCandidate[]>;
   getInviteState: (tripId: string) => Promise<InviteState>;
   confirmInviteSent: (tripId: string, role?: InviteRole) => Promise<InviteState>;
   sendInviteEmail: (tripId: string, request: SendInviteEmailRequest) => Promise<InviteEmailResult>;

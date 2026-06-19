@@ -12,6 +12,7 @@ from app.schemas.trip import (
     InviteEmailResult,
     InviteState,
     MoveTripPlaceRequest,
+    PlaceSearchCandidate,
     Recommendation,
     SendInviteEmailRequest,
     Trip,
@@ -247,6 +248,25 @@ def list_recommendations(
     if recommendations is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trip not found")
     return [Recommendation(**item) for item in recommendations]
+
+
+@router.get("/{trip_id}/place-search", response_model=list[PlaceSearchCandidate])
+def search_trip_places(
+    trip_id: str,
+    query: str = Query(min_length=1, max_length=80),
+    db: Session | None = Depends(get_optional_db),
+    current_user: User | None = Depends(get_current_user),
+) -> list[PlaceSearchCandidate]:
+    try:
+        candidates = trip_service.search_places_for_trip(
+            _require_db(db),
+            _require_user(current_user),
+            trip_handle=trip_id,
+            query=query,
+        )
+    except trip_service.TripServiceError as error:
+        _raise_trip_error(error)
+    return [PlaceSearchCandidate(**item) for item in candidates]
 
 
 @router.get("/{trip_id}/invite", response_model=InviteState)

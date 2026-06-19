@@ -187,12 +187,12 @@
       "requiredFields": {
         "accessToken": "string",
         "user": {
-        "id": "string",
-        "email": "string",
-        "nicknameSetupCompleted": "boolean",
-        "socialAccounts": "array",
-        "role": "string enum(user|admin)"
-      }
+          "id": "string",
+          "email": "string",
+          "nicknameSetupCompleted": "boolean",
+          "socialAccounts": "array",
+          "role": "string enum(user|admin)"
+        }
       }
     },
     {
@@ -682,7 +682,8 @@
       "participantCountBehavior": "Optional participantCount defaults to 1, accepts 1 through 10, and is stored as planned party size separate from the real member/invite list.",
       "dateRangeBehavior": "Optional startDate/endDate must be provided together, accept 2 through 7 days inclusive, override durationDays, and control trips.start_date/end_date plus generated trip_days.date.",
       "dbModeRecommendationBehavior": "The returned recommendedPolicies follows strict municipality/city matching; province-only 광역 matches are excluded except explicit localities inside whole-sido travel areas.",
-      "travelAreaIdBehavior": "Valid static or dynamic policy-region travelAreaId resolves to backend travel area, stores trips.travel_area_id, and uses the travel-area display name as trips.region. Invalid travelAreaId returns 400 Travel area not found."
+      "travelAreaIdBehavior": "Valid static or dynamic policy-region travelAreaId resolves to backend travel area, stores trips.travel_area_id, and uses the travel-area display name as trips.region. Invalid travelAreaId returns 400 Travel area not found.",
+      "dbModeCreateDaysBehavior": "Creates Trip, owner membership, date-based trip_days, optional trip_policies link, and returns empty day arrays for newly created trips; does not generate auto-course places, trip_places, or trip_recommendations during create."
     },
     {
       "method": "GET",
@@ -836,6 +837,33 @@
     },
     {
       "method": "GET",
+      "path": "/api/trips/1/place-search",
+      "status": 200,
+      "authRequired": true,
+      "query": {
+        "query": "성산일출봉"
+      },
+      "requiredArrayItemFields": {
+        "label": "string",
+        "title": "string",
+        "meta": "string"
+      },
+      "optionalArrayItemFields": {
+        "id": "string|null",
+        "categoryCode": "string|null",
+        "categoryName": "string|null",
+        "phone": "string|null",
+        "address": "string|null",
+        "latitude": "number|null",
+        "longitude": "number|null",
+        "placeUrl": "string|null",
+        "sourceProvider": "string|null",
+        "externalPlaceId": "string|null"
+      },
+      "dbModeBehavior": "Authenticated trip members can search Kakao Local places for selection. The endpoint returns candidate metadata only and does not mutate itinerary data; saving still uses POST /api/trips/{tripId}/days/{dayNumber}/places with expectedRevision."
+    },
+    {
+      "method": "GET",
       "path": "/api/trips/1/recommendations",
       "status": 200,
       "requiredArrayItemFields": {
@@ -860,7 +888,7 @@
         "phone": "string|null",
         "sourceType": "string enum(freshCandidate|savedSummary)|null"
       },
-      "dbModeBehavior": "Returns additional place candidates for the trip, excluding places already in the itinerary. Kakao-backed candidates include official Local API map metadata such as categoryName, phone, address, coordinates, and placeUrl when available, and use sourceType=freshCandidate. If fresh candidates are unavailable, returns saved trip-creation recommendation summaries with sourceType=savedSummary."
+      "dbModeBehavior": "Returns additional place candidates for the trip, excluding places already in the itinerary. Kakao-backed candidates include official Local API map metadata such as categoryName, phone, address, coordinates, and placeUrl when available, and use sourceType=freshCandidate. New trip creation does not seed saved summaries; sourceType=savedSummary is reserved for legacy rows or future explicit recommendation-persistence flows."
     },
     {
       "method": "GET",

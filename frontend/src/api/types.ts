@@ -289,6 +289,22 @@ export type Recommendation = {
   sourceType?: RecommendationSourceType | null;
 };
 
+export type PlaceSearchCandidate = {
+  id?: string | null;
+  label: string;
+  title: string;
+  meta: string;
+  categoryCode?: string | null;
+  categoryName?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  placeUrl?: string | null;
+  sourceProvider?: string | null;
+  externalPlaceId?: string | null;
+};
+
 export type RegionRecommendation = {
   region: string;
   title: string;

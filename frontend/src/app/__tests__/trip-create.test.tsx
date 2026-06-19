@@ -61,7 +61,7 @@ describe("Travel Hunter app — trip creation", () => {
     }
   });
 
-  it("uses selected dates and shows generated itinerary times when creating a trip", async () => {
+  it("uses selected dates and opens an empty itinerary when creating a trip", async () => {
     await login();
     cleanup();
     const travelAreasSpy = vi
@@ -78,86 +78,13 @@ describe("Travel Hunter app — trip creation", () => {
       dates: "2026.07.12 - 07.18",
       participantCount: 3,
       days: {
-        1: [
-          {
-            id: "441",
-            time: "10:00",
-            label: "자갈치시장",
-            meta: "맛집 · 해산물",
-          },
-          {
-            id: "442",
-            time: "14:00",
-            label: "부평깡통시장",
-            meta: "맛집 · 시장",
-          },
-          {
-            id: "443",
-            time: "18:00",
-            label: "돼지국밥 거리",
-            meta: "맛집 · 향토음식",
-          },
-        ],
-        2: [
-          {
-            id: "444",
-            time: "10:00",
-            label: "해리단길 맛집",
-            meta: "맛집 · 골목",
-          },
-          {
-            id: "445",
-            time: "14:00",
-            label: "기장 해산물 식당",
-            meta: "맛집 · 바다",
-          },
-          {
-            id: "446",
-            time: "18:00",
-            label: "광안리 해변 산책",
-            meta: "휴식 · 해변",
-          },
-        ],
-        3: [
-          {
-            id: "447",
-            time: "10:00",
-            label: "송정 해변 카페",
-            meta: "휴식 · 카페",
-          },
-          {
-            id: "448",
-            time: "14:00",
-            label: "민락수변공원",
-            meta: "휴식 · 야경",
-          },
-          {
-            id: "449",
-            time: "18:00",
-            label: "해운대 블루라인파크",
-            meta: "휴식 · 전망",
-          },
-        ],
-        4: [
-          {
-            id: "450",
-            time: "10:00",
-            label: "온천천 카페 거리",
-            meta: "휴식 · 산책",
-          },
-          {
-            id: "451",
-            time: "14:00",
-            label: "영화의전당",
-            meta: "체험 · 문화",
-          },
-          {
-            id: "452",
-            time: "18:00",
-            label: "부산시민공원 공방",
-            meta: "체험 · 공방",
-          },
-        ],
+        1: [],
+        2: [],
+        3: [],
+        4: [],
+        5: [],
+        6: [],
+        7: [],
       },
     };
     const createTripSpy = vi
@@ -243,12 +170,13 @@ describe("Travel Hunter app — trip creation", () => {
           }),
         ),
       );
-      await expect(screen.findAllByText("10:00")).resolves.not.toHaveLength(0);
-      await expect(screen.findAllByText("14:00")).resolves.not.toHaveLength(0);
-      await expect(screen.findAllByText("18:00")).resolves.not.toHaveLength(0);
       expect(
-        screen.getByRole("link", { name: "✨ 추천 후보 추가" }),
-      ).toHaveAttribute("href", "/ai-results?tripId=44");
+        await screen.findByRole("button", { name: "✨ 추천 일정만들기" }),
+      ).toBeInTheDocument();
+      expect(screen.getByText("아직 표시할 장소가 없어요")).toBeInTheDocument();
+      expect(screen.queryByText("10:00")).not.toBeInTheDocument();
+      expect(screen.queryByText("14:00")).not.toBeInTheDocument();
+      expect(screen.queryByText("18:00")).not.toBeInTheDocument();
 
       cleanup();
       renderAppRoute("/trips");
@@ -315,14 +243,7 @@ describe("Travel Hunter app — trip creation", () => {
       title: "부산 추천 여행",
       dates: "2026.06.15 - 06.17",
       days: {
-        1: [
-          {
-            id: "451",
-            time: "10:00",
-            label: "자갈치시장",
-            meta: "맛집 · 해산물",
-          },
-        ],
+        1: [],
         2: [],
         3: [],
       },
@@ -917,7 +838,7 @@ describe("Travel Hunter app — trip creation", () => {
     }
   });
 
-  it("shows Kakao candidate lookup copy and a longer wait hint while trip creation is pending", async () => {
+  it("shows generic creation copy and a longer wait hint while trip creation is pending", async () => {
     await login();
     cleanup();
     const user = userEvent.setup();
@@ -940,10 +861,10 @@ describe("Travel Hunter app — trip creation", () => {
       fireEvent.click(screen.getByRole("button", { name: "일정 만들기" }));
 
       expect(
-        screen.getByRole("button", { name: "카카오 장소 후보 조회 중" }),
+        screen.getByRole("button", { name: "일정 생성 중" }),
       ).toBeDisabled();
       expect(
-        screen.getByText("카카오 장소 후보를 바탕으로 일정을 만들고 있어요."),
+        screen.getByText("새 일정을 만들고 있어요."),
       ).toBeInTheDocument();
 
       await waitFor(
