@@ -12,6 +12,7 @@ import {
   type Trip,
 } from "../../api";
 import {
+  examplePolicyDetail,
   examplePolicyPath,
   examplePolicyTitle,
   getPreviewTrip,
@@ -184,27 +185,35 @@ describe("Travel Hunter app — policy detail", () => {
   });
 
   it("renders the prototype policy detail section order", async () => {
+    const getPolicySpy = vi
+      .spyOn(appDataApi, "getPolicy")
+      .mockResolvedValue(examplePolicyDetail);
+
     await login();
     cleanup();
-    renderAppRoute(examplePolicyPath);
+    try {
+      renderAppRoute(examplePolicyPath);
 
-    await waitFor(() => expect(document.body).toHaveTextContent("지원 내용"));
-    const bodyText = document.body.textContent ?? "";
-    expect(bodyText.indexOf("지원 내용")).toBeLessThan(
-      bodyText.indexOf("신청 기간"),
-    );
-    expect(bodyText.indexOf("신청 기간")).toBeLessThan(
-      bodyText.indexOf("신청 대상"),
-    );
-    expect(bodyText.indexOf("신청 대상")).toBeLessThan(
-      bodyText.indexOf("필요 서류"),
-    );
-    expect(document.body).toHaveTextContent(
-      "디지털관광주민증 발급 또는 지역별 신청 조건 확인",
-    );
-    expect(document.body).not.toHaveTextContent("조건 확인 요약");
-    expect(document.body).not.toHaveTextContent("이 정책과 함께 확인할 혜택");
-    expect(document.body).not.toHaveTextContent("자주 묻는 질문");
+      await waitFor(() => expect(document.body).toHaveTextContent("지원 내용"));
+      const bodyText = document.body.textContent ?? "";
+      expect(bodyText.indexOf("지원 내용")).toBeLessThan(
+        bodyText.indexOf("신청 기간"),
+      );
+      expect(bodyText.indexOf("신청 기간")).toBeLessThan(
+        bodyText.indexOf("신청 대상"),
+      );
+      expect(bodyText.indexOf("신청 대상")).toBeLessThan(
+        bodyText.indexOf("필요 서류"),
+      );
+      expect(document.body).toHaveTextContent(
+        "디지털관광주민증 발급 또는 지역별 신청 조건 확인",
+      );
+      expect(document.body).not.toHaveTextContent("조건 확인 요약");
+      expect(document.body).not.toHaveTextContent("이 정책과 함께 확인할 혜택");
+      expect(document.body).not.toHaveTextContent("자주 묻는 질문");
+    } finally {
+      getPolicySpy.mockRestore();
+    }
   });
 
   it("splits policy requirements into target, usage condition, and confirmation sections", async () => {

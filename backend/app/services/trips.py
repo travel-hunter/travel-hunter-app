@@ -29,7 +29,7 @@ from app.services import email as email_service
 from app.services import itinerary_recommendations
 from app.services import local_half_trip_display
 from app.services import stay_discount_aliases
-from app.services.kakao_local import KakaoLocalClient
+from app.services.kakao_local import KakaoLocalClient, build_kakao_local_client
 
 try:
     from app.data.travel_areas import get_travel_area, list_travel_areas
@@ -926,50 +926,14 @@ def create_trip(
     )
     trip_repository.add_trip_member(db, trip_id=trip.id, user_id=user.id, role="owner")
 
-    generated_course = itinerary_recommendations.generate_auto_course(
-        region=region,
-        style=str(payload.get("style") or seed.PROFILE["style"]),
-        start_date=start_date,
-        day_count=duration_days,
-        travel_area_id=travel_area.id if travel_area else None,
-        external_provider=_build_external_place_provider(),
-    )
-    generated_places_by_day: dict[int, list[itinerary_recommendations.GeneratedPlace]] = {}
-    for generated_place in generated_course.places:
-        generated_places_by_day.setdefault(generated_place.day_number, []).append(generated_place)
-
     for day_number in range(1, duration_days + 1):
-        trip_day = trip_repository.add_trip_day(
+        trip_repository.add_trip_day(
             db,
             trip_id=trip.id,
             day_number=day_number,
             date_value=start_date + timedelta(days=day_number - 1),
         )
-        for generated_place in generated_places_by_day.get(day_number, []):
-            trip_repository.add_trip_place(
-                db,
-                trip_day_id=trip_day.id,
-                place_name=generated_place.title,
-                visit_time=_parse_time(generated_place.time),
-                order_num=generated_place.order_num,
-                memo=generated_place.meta,
-                address=generated_place.address,
-                latitude=generated_place.latitude,
-                longitude=generated_place.longitude,
-                source_provider=generated_place.source_provider,
-                external_place_id=generated_place.external_place_id,
-                category_group_code=generated_place.category_group_code,
-                category_group_name=generated_place.category_group_name,
-                place_url=generated_place.place_url,
-            )
 
-    trip_repository.add_recommendation(
-        db,
-        user_id=user.id,
-        trip_id=trip.id,
-        query=f"{title} recommendations",
-        result=generated_course.recommendations,
-    )
     _ensure_invite(db, trip, user)
     if payload.get("policySlug"):
         policy_slug = str(payload["policySlug"])
@@ -1290,6 +1254,54 @@ def list_recommendations(
     for recommendation in trip_repository.list_recommendations(db, trip_id=trip.id, user_id=user.id):
         items.extend(_recommendation_items(recommendation.result))
     return items
+
+
+def _place_search_meta(*, category_name: str | None, address: str | None) -> str:
+    parts = [category_name, address]
+    text = " · ".join(part for part in parts if part)
+    return text or "장소 정보 확인"
+
+
+def search_places_for_trip(
+    db: Session,
+    user: User,
+    *,
+    trip_handle: str,
+    query: str,
+) -> list[dict[str, object]]:
+    trip = _resolve_required_trip(db, trip_handle, user)
+    del trip
+    trimmed_query = query.strip()
+    if not trimmed_query:
+        return []
+    provider = build_kakao_local_client()
+    if provider is None:
+        return []
+    try:
+        places = provider.search_keyword(query=trimmed_query, size=10)
+    except Exception:
+        logger.warning("trip_place_search_failed trip=%s", trip_handle, exc_info=True)
+        return []
+    candidates: list[dict[str, object]] = []
+    for place in places:
+        candidates.append(
+            {
+                "id": f"kakao:{place.external_place_id}",
+                "label": "📍",
+                "title": place.name,
+                "meta": _place_search_meta(category_name=place.category_name, address=place.address),
+                "categoryCode": place.category_group_code,
+                "categoryName": place.category_name,
+                "phone": place.phone,
+                "address": place.address,
+                "latitude": place.latitude,
+                "longitude": place.longitude,
+                "placeUrl": place.place_url,
+                "sourceProvider": "kakao",
+                "externalPlaceId": place.external_place_id,
+            }
+        )
+    return candidates
 
 
 def _new_invite_token() -> str:

@@ -103,112 +103,63 @@ Kakao Map 연동 코드는 구현되어 있고 Docker 빌드 시점의 키 주�
 - Vite 환경변수는 빌드 시점에 번들에 포함되므로, 키 변경 후에는 프론트엔드 재빌드가 필요하다.
 - 실제 화면에서 지도 표시 여부는 일정 장소의 좌표 또는 Kakao services 주소/키워드 검색 결과에 영향을 받는다.
 
-## 2026-05-29 - 일정 장소 자동생성 및 AI 추천 후보 로직 설명
+## 2026-06-18 - 새 일정 생성과 추천 후보 로직 설명
 
 ### 설명 범위
 
-- 대상 화면/흐름: `/trips/new` 일정 생성 완료 직후 `/trips/{tripId}`에 처음 채워지는 Day별 장소, `/ai-results?tripId={tripId}`에서 보이는 추가 후보 장소
-- 설명 목적: 팀원이 현재 자동생성/추천 로직을 MVP 기준으로 합리적인 구조로 이해하고, 동시에 현재 한계와 향후 개선 후보를 판단할 수 있게 한다.
-- 비목표: 이 섹션은 구현 변경, 신규 API 도입 설계, 상세 개발 계획을 다루지 않는다. 현재 동작과 한계, 개선 후보만 정리한다.
+- 대상 화면/흐름: `/trips/new` 일정 생성 완료 직후 `/trips/{tripId}`에 보이는 빈 Day bucket, `/ai-results?tripId={tripId}` 또는 상세 추천 CTA에서 보이는 추가 후보 장소
+- 설명 목적: 팀원이 “새 일정 생성”과 “추천/장소 저장”의 책임 경계를 명확히 이해하게 한다.
+- 비목표: 새 외부 API 도입, 추천 품질 고도화 설계, 경로 최적화 구현은 다루지 않는다.
 
 ### 전체 추천 소스 구조
 
 | 구분 | 우선 소스 | fallback/보조 소스 | 저장 여부 |
 | --- | --- | --- | --- |
-| 일정 생성 직후 Day별 초기 장소 | Kakao Local 후보 기반 자동 코스 | 내장 여행 장소 catalog | 생성 시점에 `trip_days`, `trip_places`로 DB 저장 |
-| `/ai-results` 추가 후보 | Kakao Local 추가 후보 | 일정 생성 시 저장해 둔 recommendation 결과 | 화면 표시만으로는 저장되지 않고, 사용자가 Day를 선택해 `추가`할 때 `trip_places`에 저장 |
+| 일정 생성 직후 Day bucket | 사용자가 입력한 기간 | 없음 | 생성 시점에는 `trip_days`만 만들고 `trip_places`/`trip_recommendations`는 저장하지 않음 |
+| 추천 미리보기 후보 | Kakao Local 추가 후보 | 내장 catalog 후보 또는 legacy/명시적으로 저장된 recommendation summary | 미리보기만으로는 저장되지 않고, 사용자가 `이 일정으로 저장` 또는 장소 추가 액션을 실행할 때 `trip_places`에 저장 |
 | 일정 상세 지도 marker | 저장된 장소의 좌표/주소/Kakao place metadata | 좌표 없거나 SDK 실패 시 fallback 지도/검색 표시 | 저장된 `trip_places` 응답을 표시 |
 
-현재 기본 compose 설정은 `KAKAO_LOCAL_ENABLED=false`이므로, 별도 Kakao Local REST API 키와 활성화 설정이 없으면 일정 생성 초기 장소는 내장 catalog fallback을 사용한다. 이 fallback은 추천이 실패했다는 의미가 아니라, 외부 API 설정이 없거나 후보가 충분하지 않아도 MVP에서 일정 생성 흐름이 끊기지 않게 하는 안전장치다.
+현재 기본 compose 설정은 `KAKAO_LOCAL_ENABLED=false`이므로, 별도 Kakao Local REST API 키와 활성화 설정이 없으면 추천 후보는 내장 catalog fallback을 사용할 수 있다. 이 fallback은 새 일정 생성이 아니라 사용자가 추천 CTA를 눌렀을 때 후보 미리보기를 유지하기 위한 안전장치다.
 
-### 일정 생성 시 초기 장소가 추천/저장되는 흐름
+### 일정 생성 시 저장되는 흐름
 
 | 단계 | 로직 | 설명 |
 | --- | --- | --- |
 | 1. 사용자가 일정 조건 입력 | `/trips/new`에서 지역, 세부 travel area, 여행 스타일, 날짜, 인원, 선택 정책을 입력 | 프론트는 `appDataApi.createTrip()`으로 `POST /api/trips`를 호출한다. |
-| 2. 백엔드가 Trip 생성 | `create_trip()` | `trips` 레코드와 owner 멤버십을 먼저 만든다. |
-| 3. 자동 코스 생성 호출 | `generate_auto_course(region, style, startDate, dayCount, travelAreaId, externalProvider)` | 현재 지역/권역, 여행 스타일, 일정 일수를 기준으로 초기 장소 후보를 만든다. |
-| 4-A. Kakao Local 사용 가능 시 | `KakaoItineraryPlaceProvider` + `_external_course()` | Kakao Local 키워드 검색 결과를 카테고리별로 수집하고, 지역/권역 필터와 점수 정렬을 거친 뒤 Day별 시간대에 배치한다. |
-| 4-B. Kakao Local 미사용/후보 부족 시 | `_catalog_course()` | `ITINERARY_PLACE_CATALOG`에서 같은 지역 항목을 찾고, 사용자 style과 일치하는 장소를 먼저 배치한다. 부족하면 같은 지역의 다른 style 장소를 보조로 사용한다. |
-| 5. Day/장소 저장 | `add_trip_day()`, `add_trip_place()` | 생성된 장소는 화면 임시값이 아니라 일정 생성 트랜잭션 안에서 Day별 장소로 DB에 저장된다. |
-| 6. 추천 설명 저장 | `add_recommendation()` | 생성된 장소의 추천 설명 목록도 `trip_recommendations`에 저장된다. 이 값은 Kakao 추가 후보가 없을 때 `/ai-results` fallback으로 쓰인다. |
-| 7. 정책 연결 | `policySlug`가 있으면 `trip_policies` 연결 | 정책 상세에서 새 일정 생성으로 들어온 경우 해당 정책도 일정에 연결된다. |
+| 2. 백엔드가 Trip 생성 | `create_trip()` | `trips` 레코드와 owner 멤버십을 만든다. |
+| 3. Day bucket 생성 | `add_trip_day()` | 요청 기간만큼 `trip_days`를 만든다. 각 Day의 장소 배열은 비어 있다. |
+| 4. 정책 연결 | `policySlug`가 있으면 `trip_policies` 연결 | 정책 상세에서 새 일정 생성으로 들어온 경우 해당 정책도 일정에 연결된다. |
+| 5. 상세 진입 | `/trips/{tripId}` | 지도 empty state와 `장소 추가`, `추천 일정만들기` CTA를 보여준다. |
 
-### Kakao Local 기반 초기 장소 선택 기준
+`POST /api/trips`는 `generate_auto_course()`, `add_trip_place()`, `add_recommendation()`을 호출하지 않는다. 따라서 새 일정은 사용자가 명시적으로 장소를 추가하거나 추천 미리보기를 저장하기 전까지 비어 있어야 한다.
 
-Kakao Local provider가 활성화되면, 백엔드는 여행 권역/도시명과 카테고리 키워드로 후보를 검색한다.
-
-| 시간대 | 목적 | Kakao category/검색 의도 | 비고 |
-| --- | --- | --- | --- |
-| 10:00 | 오전 명소 | `AT4` 관광명소, 보조로 `CT1` 문화시설 | 관광 후보가 부족하면 일부 cafe 후보로 보완할 수 있다. |
-| 13:00 | 점심/음식 | `FD6` 음식점 | 사용자의 맛집/미식 style이면 점수에 유리하다. |
-| 16:00 | 카페/휴식 | `CE7` 카페 | 휴식/cafe style이면 점수에 유리하다. |
-| 20:00 | 숙소 | `AD5` 숙소 | 마지막 날은 숙소 슬롯을 만들지 않는다. |
-
-후보는 단순히 Kakao 응답을 그대로 쓰지 않고 다음 조건을 거친다.
-
-- 장소명이 비어 있으면 제외한다.
-- 장소명에 `휴업`, `폐업`이 포함되면 제외한다.
-- travel area가 있으면 주소/장소명/도시명이 해당 시도와 포함 도시/별칭에 맞는지 확인한다.
-- Kakao external place id 또는 정규화한 제목 기준으로 중복을 제거한다.
-- 카테고리 일치, 지역/권역 용어 포함, style 텍스트 포함, 주소 존재, Kakao place URL 존재 여부로 점수를 계산한다.
-- 점수가 높은 순서로 정렬하고, 같은 점수에서는 제목 순으로 정렬한다.
-- Day별 시간대 슬롯에 맞춰 카테고리별 상위 후보를 하나씩 꺼내 배치한다.
-
-이 구조는 “평점이 가장 높은 장소”를 고르는 방식은 아니지만, MVP 기준으로는 지역·카테고리·여행 스타일·중복 제거를 함께 반영하므로 무작위 추천보다 설명 가능한 규칙 기반 추천이다.
-
-### Catalog fallback 기준
-
-Kakao Local provider가 없거나 외부 후보가 충분하지 않으면 내장 catalog를 사용한다.
-
-| 기준 | 설명 |
-| --- | --- |
-| 후보 원천 | `backend/app/data/itinerary_catalog.py`의 `ITINERARY_PLACE_CATALOG` |
-| 지역 기준 | 요청된 `region`과 catalog 항목의 `region`이 정확히 일치하는 항목을 우선 사용 |
-| style 기준 | 같은 지역 안에서 사용자 `style`과 일치하는 장소를 먼저 선택 |
-| 부족할 때 | 같은 지역의 다른 style 장소를 보조로 선택 |
-| 중복 제거 | 같은 제목의 장소는 한 번만 선택 |
-| 개수 | `여행일수 × 3`개까지 요청 |
-| 시간 배치 | `10:00`, `14:00`, `18:00` 고정 슬롯에 순서대로 배치 |
-
-이 fallback은 Kakao API 설정이 없는 로컬/시연/개발 환경에서도 일정 생성 결과가 빈 화면으로 끝나지 않도록 하는 MVP 안전장치다. 다만 catalog에 없는 지역이거나 catalog 항목 수가 부족한 권역에서는 Day가 생성되어도 장소 수가 적거나 비어 있을 수 있다.
-
-### `/ai-results` 후보가 추천되어 보이는 흐름
+### 추천 후보가 보이는 흐름
 
 | 단계 | 로직 | 설명 |
 | --- | --- | --- |
-| 1. 화면 진입 | `/ai-results?tripId={tripId}` | 프론트는 `resolveTripId()`로 trip id를 확정한 뒤 `listRecommendations()`와 `getTrip()`을 함께 호출한다. |
+| 1. 화면 진입 | `/ai-results?tripId={tripId}` 또는 상세 `추천 일정만들기` | 프론트는 trip id를 확정한 뒤 추천 후보와 현재 일정을 함께 조회한다. |
 | 2. 백엔드 후보 조회 | `GET /api/trips/{tripId}/recommendations` | 현재 사용자가 접근 가능한 일정인지 확인한다. |
-| 3-A. Kakao 추가 후보 생성 | `_additional_recommendation_items()` | Kakao Local provider가 있으면 현재 일정의 지역, style, travel area를 기준으로 추가 후보를 다시 수집한다. |
+| 3-A. Kakao 추가 후보 생성 | `_additional_recommendation_items()` | Kakao Local provider가 있으면 현재 일정의 지역, style, travel area를 기준으로 후보를 수집한다. |
 | 3-B. 기존 장소 중복 제외 | `_existing_place_keys()`, `_is_duplicate_candidate()` | 이미 일정에 들어간 장소는 provider id, external id, 정규화 제목 기준으로 제외한다. |
 | 3-C. 카테고리 균형 선택 | `additional_place_candidates()` | 명소, 맛집, 숙소 등 카테고리 목표치를 우선 채우고 남는 후보를 순서대로 보완한다. 기본 후보 limit은 18개다. |
 | 3-D. 추천 Day 부여 | `suggestedDay` | 후보 순서대로 현재 일정의 Day 번호에 round-robin 방식으로 제안 Day를 부여한다. |
-| 4. fallback 추천 반환 | 저장된 `trip_recommendations` | Kakao 추가 후보가 없으면 일정 생성 시 저장해 둔 추천 설명 목록을 `sourceType="savedSummary"`로 반환한다. |
-| 5. 프론트 표시 | `AiResultsPage` | 후보를 `숙소`, `맛집`, `명소`, `기타` 그룹으로 나누고 지도/후보 목록/추천 기준 sheet를 보여준다. 출처 안내 banner와 candidate badge로 fresh candidate와 saved summary fallback을 구분한다. |
-| 6. 사용자가 추가 | `POST /api/trips/{tripId}/days/{dayNumber}/places` | 후보는 보기만 할 때 저장되지 않는다. 사용자가 후보의 `추가`를 누르고 Day를 선택하면 장소 payload가 `trip_places`에 저장된다. |
+| 4. fallback 추천 반환 | catalog 또는 legacy/명시 저장된 `trip_recommendations` | 새 일정 생성은 summary를 seed하지 않는다. `sourceType="savedSummary"`는 legacy row 또는 향후 별도 저장 계약의 결과로만 해석한다. |
+| 5. 프론트 표시 | `AiResultsPage`/상세 미리보기 | 후보를 `숙소`, `맛집`, `명소`, `기타` 그룹으로 나누고 지도/후보 목록/추천 기준 sheet를 보여준다. |
+| 6. 사용자가 저장 | 장소 추가 API 순차 호출 | 사용자가 명시적으로 저장하면 장소 payload가 `trip_places`에 저장된다. |
 
-`/ai-results`는 “현재 일정에 바로 추가할 수 있는 후보” 화면이다. Kakao Local이 활성화된 경우에는 현재 일정에 이미 들어간 장소를 제외한 새 후보를 우선 보여주고, Kakao 추가 후보가 없으면 일정 생성 시 저장해 둔 추천 결과를 보여준다.
+### 추천 후보 선택 기준
 
-### `/ai-results` 화면 표시 기준
+Kakao Local provider가 활성화되면, 백엔드는 여행 권역/도시명과 카테고리 키워드로 후보를 검색한다. 후보는 장소명 누락/폐업 키워드 제외, travel area 주소/장소명 필터, provider id 또는 정규화 제목 중복 제거, 카테고리/지역/style/address/place URL 점수를 거쳐 정렬된다.
 
-| 화면 요소 | 현재 동작 |
-| --- | --- |
-| 후보 지도 | 선택된 후보 1개를 `KakaoMapView` marker로 표시한다. 좌표가 없거나 SDK가 실패하면 fallback map을 보여준다. |
-| 후보 목록 | 추천 응답의 `categoryGroup`을 기준으로 `숙소`, `맛집`, `명소`, `기타`로 묶는다. |
-| 출처 안내 | 추천 응답의 `sourceType`을 기준으로 새 Kakao 후보, 혼합 결과, 저장된 추천 요약 fallback을 banner와 badge로 표시한다. |
-| 이미 추가됨 표시 | 현재 trip의 기존 장소명과 후보 제목을 정규화해 비교하고, 이미 있으면 `이미 추가됨`으로 표시한다. |
-| Day 선택 | 후보의 `suggestedDay`가 있으면 해당 Day를 기본값으로 쓰고, 없으면 Day 1 또는 현재 일정의 첫 Day를 사용한다. 사용자는 inline Day selector에서 추가할 Day를 바꿀 수 있고, 7일 일정까지 `Day 1`~`Day 7` 형식으로 표시한다. |
-| 저장 payload | 후보 제목, 설명, 주소, 좌표, category code, place URL, source provider, external place id를 장소 추가 API로 전달한다. |
-| 추천 기준 sheet | 정책 조건, 이동 거리, 예산, 여행 스타일을 함께 본다는 제품 설명을 제공한다. 현재 실제 코드에서 정량 이동시간/예산 최적화가 완성된 것은 아니므로 발표 시에는 “추천 기준 설명 UI”로 구분하는 편이 정확하다. |
+Kakao Local provider가 없거나 외부 후보가 충분하지 않으면 내장 catalog를 사용한다. catalog fallback은 `backend/app/data/itinerary_catalog.py`의 지역/style 후보를 기반으로 추천 미리보기 후보를 만들 수 있지만, create transaction 안에서 Day별 장소를 자동 저장하지 않는다.
 
 ### 현재 로직이 MVP 기준 합리적인 이유
 
-- 지역/권역, 카테고리, 여행 스타일을 모두 사용하므로 완전 임의 선택이 아니다.
+- 새 일정 생성은 빠르고 예측 가능한 컨테이너 생성으로 제한된다.
+- 장소 저장은 사용자가 수동 추가 또는 추천 저장을 선택한 때만 발생하므로 hidden mutation이 없다.
+- 추천 후보는 여전히 지역/권역, 카테고리, 여행 스타일, 중복 제거를 반영한다.
 - Kakao Local 후보가 있으면 실제 장소명, 주소, 좌표, Kakao URL 같은 지도 표시 가능한 metadata를 보존한다.
-- 이미 일정에 들어간 장소는 `/ai-results` 후보에서 제외해 중복 추가를 줄인다.
-- Day별 시간대는 관광/식사/카페/숙소라는 여행자가 이해하기 쉬운 기본 리듬을 따른다.
-- Kakao Local이 꺼져 있어도 catalog fallback으로 일정 생성 경험을 유지한다.
-- 후보는 자동 저장되지 않고 사용자가 Day를 선택해 추가해야 저장되므로, `/ai-results`는 보조 추천/편집 흐름으로 동작한다.
+- 이미 일정에 들어간 장소는 추천 후보에서 제외해 중복 추가를 줄인다.
 
 ### 현재 한계
 
@@ -217,8 +168,8 @@ Kakao Local provider가 없거나 외부 후보가 충분하지 않으면 내장
 | 평점/리뷰 기반 만족도 없음 | Kakao Local 응답에는 앱에서 바로 쓰는 평점/리뷰수 기반 만족도 점수가 없다. 현재 로직은 평점 높은 장소 추천이 아니라 지역·카테고리·style·metadata 기반 규칙 추천이다. |
 | 실제 이동시간 최적화 미완료 | 현재 후보 점수에는 좌표/지역 단서가 반영되지만, Kakao Mobility 같은 경로 API로 Day별 이동시간을 최적화하는 단계는 아니다. |
 | 후보 품질은 Kakao 검색/환경에 의존 | `KAKAO_LOCAL_ENABLED`, REST API 키, 검색 결과 품질, travel area term 매칭에 영향을 받는다. |
-| catalog coverage 제한 | fallback catalog에 충분한 장소가 없는 지역은 장소 수가 부족할 수 있다. 이 경우에도 Day 자체는 생성된다. |
-| `/ai-results` fallback은 생성 당시 추천 설명 기반 | Kakao 추가 후보가 없으면 새 후보라기보다 생성 시 저장된 recommendation 결과를 보여준다. 이 경우 UI는 저장 요약 fallback임을 명시한다. |
+| catalog coverage 제한 | fallback catalog에 충분한 장소가 없는 지역은 추천 후보 수가 부족할 수 있다. 이 경우에도 Day 자체는 생성된다. |
+| `savedSummary`는 새 생성 fallback이 아님 | 새 일정 생성은 추천 summary를 저장하지 않는다. saved summary fallback은 legacy row 또는 향후 명시적 추천 저장 계약으로만 설명해야 한다. |
 | 추천 기준 UI와 실제 정량 로직 차이 | 화면의 추천 기준 sheet는 정책/거리/예산/style을 함께 본다는 제품 방향을 설명하지만, 모든 항목이 현재 정량 최적화로 구현된 것은 아니다. |
 
 ### 향후 추천 품질 개선 후보
@@ -234,7 +185,7 @@ Kakao Local provider가 없거나 외부 후보가 충분하지 않으면 내장
 
 ### 보고용 요약
 
-현재 Travel Hunter의 장소 자동생성/추천은 “Kakao Local 후보 우선 + catalog fallback 안전장치” 구조다. 일정 생성 시에는 지역, 세부 travel area, 여행 스타일, 여행일수를 기준으로 Day별 초기 장소를 만들고 즉시 DB에 저장한다. Kakao Local이 활성화되어 충분한 후보가 있으면 실제 장소 metadata를 가진 후보를 시간대별 카테고리에 맞춰 배치하고, 그렇지 않으면 내장 catalog로 일정 생성 경험을 유지한다. `/ai-results`는 기존 일정에 추가할 후보를 보여주는 화면이며, Kakao 추가 후보가 있으면 기존 장소 중복을 제외한 후보를 카테고리별로 보여주고, 후보가 없으면 일정 생성 시 저장된 recommendation 결과를 fallback으로 보여준다. 현재 로직은 MVP 기준으로 설명 가능한 규칙 기반 추천이지만, 평점/리뷰 만족도와 실제 이동시간 최적화는 아직 포함되지 않았으므로 향후 추천 품질 개선 후보로 관리하는 것이 적절하다.
+현재 Travel Hunter의 새 일정 생성은 “Trip/member/Day bucket 생성”까지만 수행하고, Day별 장소와 추천 summary를 자동 저장하지 않는다. 일정 상세는 빈 지도 상태와 `장소 추가`, `추천 일정만들기` CTA를 보여준다. 추천 후보는 사용자가 명시적으로 추천 화면/CTA에 진입했을 때 Kakao Local 후보와 catalog/legacy fallback을 통해 조회되며, 사용자가 저장하기 전까지 일정에 반영되지 않는다. 현재 로직은 hidden place mutation을 제거하면서도 MVP 기준의 규칙 기반 추천 후보 제공을 유지한다.
 
 ### 확인 근거
 

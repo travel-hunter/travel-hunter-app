@@ -118,10 +118,7 @@ def test_db_trip_create_route_returns_created_numeric_id(monkeypatch) -> None:
     fake_db = object()
     user = make_user()
     install_db_route_dependencies(monkeypatch, fake_db, user)
-    monkeypatch.setattr(
-        trip_routes.trip_service,
-        "create_trip",
-        lambda db, current_user, payload: trip_payload("8")
+    def create_trip_stub(db, current_user, payload):
         if (
             db is fake_db
             and current_user is user
@@ -130,9 +127,14 @@ def test_db_trip_create_route_returns_created_numeric_id(monkeypatch) -> None:
             and payload.startDate == date(2026, 7, 12)
             and payload.endDate == date(2026, 7, 15)
             and payload.participantCount == 3
-        )
-        else trip_payload("7"),
-    )
+        ):
+            created = trip_payload("8")
+            created["participantCount"] = 3
+            created["days"] = {1: [], 2: [], 3: [], 4: []}
+            return created
+        return trip_payload("7")
+
+    monkeypatch.setattr(trip_routes.trip_service, "create_trip", create_trip_stub)
 
     try:
         response = client.post("/api/trips", json={"title": "New trip", "startDate": "2026-07-12", "endDate": "2026-07-15", "participantCount": 3})
@@ -140,8 +142,10 @@ def test_db_trip_create_route_returns_created_numeric_id(monkeypatch) -> None:
         clear_overrides()
 
     assert response.status_code == 200
-    assert response.json()["id"] == "8"
-    assert response.json()["participantCount"] == 1
+    body = response.json()
+    assert body["id"] == "8"
+    assert body["participantCount"] == 3
+    assert body["days"] == {"1": [], "2": [], "3": [], "4": []}
 
 
 def test_db_trip_create_route_rejects_out_of_range_duration() -> None:
@@ -588,6 +592,45 @@ def test_db_recommendation_and_invite_routes(monkeypatch) -> None:
     assert confirm.status_code == 200
     assert confirm.json()["invited"] is True
     assert confirm.json()["role"] == "viewer"
+
+
+def test_db_trip_place_search_route_returns_candidates(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    install_db_route_dependencies(monkeypatch, fake_db, user)
+    monkeypatch.setattr(
+        trip_routes.trip_service,
+        "search_places_for_trip",
+        lambda db, current_user, *, trip_handle, query: [
+            {
+                "id": "kakao:kakao-1",
+                "label": "📍",
+                "title": "성산일출봉",
+                "meta": "관광명소 · 제주 서귀포시 성산읍",
+                "categoryCode": "AT4",
+                "categoryName": "관광명소",
+                "phone": "064-000-0000",
+                "address": "제주 서귀포시 성산읍",
+                "latitude": 33.4581,
+                "longitude": 126.9425,
+                "placeUrl": "https://place.map.kakao.com/kakao-1",
+                "sourceProvider": "kakao",
+                "externalPlaceId": "kakao-1",
+            }
+        ]
+        if db is fake_db and current_user is user and trip_handle == "7" and query == "성산일출봉"
+        else [],
+    )
+
+    try:
+        response = client.get("/api/trips/7/place-search?query=성산일출봉")
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    assert response.json()[0]["title"] == "성산일출봉"
+    assert response.json()[0]["sourceProvider"] == "kakao"
+    assert response.json()[0]["externalPlaceId"] == "kakao-1"
 
 
 def test_db_trip_invite_email_route_returns_delivery_status(monkeypatch) -> None:

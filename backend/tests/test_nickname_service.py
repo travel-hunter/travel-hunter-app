@@ -18,6 +18,9 @@ class FakeDb:
     def commit(self) -> None:
         self.committed = True
 
+    def flush(self) -> None:
+        pass
+
     def refresh(self, value: object) -> None:
         self.refreshed = value
 

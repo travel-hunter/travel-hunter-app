@@ -64,6 +64,7 @@ def make_trip() -> Trip:
         created_at=datetime(2026, 5, 4, 0, 0, 0),
         updated_at=datetime(2026, 5, 4, 0, 0, 0),
     )
+
     trip.owner = owner
 
     owner_membership = TripMember(id=1, trip_id=7, user_id=1, role="owner")
@@ -92,6 +93,43 @@ def make_trip() -> Trip:
     trip.invites = []
     trip.recommendations = []
     return trip
+
+def test_search_places_for_trip_maps_kakao_candidates(monkeypatch) -> None:
+    class FakeSearchProvider:
+        def search_keyword(self, *, query: str, size: int = 10):
+            assert query == "성산일출봉"
+            assert size == 10
+            return [
+                KakaoLocalPlace(
+                    external_place_id="kakao-1",
+                    name="성산일출봉",
+                    category_name="관광명소",
+                    category_group_code="AT4",
+                    category_group_name="관광명소",
+                    phone="064-000-0000",
+                    address="제주 서귀포시 성산읍",
+                    latitude=33.4581,
+                    longitude=126.9425,
+                    place_url="https://place.map.kakao.com/kakao-1",
+                )
+            ]
+
+    user = make_user()
+    trip = make_trip()
+    monkeypatch.setattr(trip_service, "_resolve_required_trip", lambda db, trip_handle, current_user: trip)
+    monkeypatch.setattr(trip_service, "build_kakao_local_client", lambda: FakeSearchProvider())
+
+    candidates = trip_service.search_places_for_trip(
+        object(),
+        user,
+        trip_handle="7",
+        query="성산일출봉",
+    )
+
+    assert candidates[0]["title"] == "성산일출봉"
+    assert candidates[0]["meta"] == "관광명소 · 제주 서귀포시 성산읍"
+    assert candidates[0]["sourceProvider"] == "kakao"
+    assert candidates[0]["externalPlaceId"] == "kakao-1"
 
 
 def make_stay_policy() -> Policy:
@@ -443,7 +481,7 @@ def test_get_trip_recommendations_return_up_to_three_area_matched_policies(monke
     payload = trip_service.get_trip("7", fake_db, user)
 
     assert payload is not None
-    assert [policy["slug"] for policy in payload["recommendedPolicies"]] == ["sokcho-stay", "gangwon-extra", "goseong-cafe"]
+    assert [policy["slug"] for policy in payload["recommendedPolicies"]] == ["sokcho-stay", "goseong-cafe", "yangyang-surf"]
 
 
 def test_get_trip_recommendations_hide_candidates_below_area_score_threshold(monkeypatch) -> None:
@@ -1977,11 +2015,15 @@ def test_create_trip_region_only_remains_legacy_compatible(monkeypatch) -> None:
     assert captured["create_trip"]["travel_area_id"] is None
 
 
-def test_create_trip_generates_catalog_places_and_recommendations(monkeypatch) -> None:
+def test_create_trip_initializes_empty_days_without_recommendation_side_effects(monkeypatch) -> None:
     fake_db = FakeDb()
     user = make_user()
     captured = install_create_trip_stubs(monkeypatch)
-    monkeypatch.setattr(trip_service, "_build_external_place_provider", lambda: None)
+
+    def fail_generate_auto_course(**_kwargs):
+        raise AssertionError("create_trip must not generate itinerary recommendations")
+
+    monkeypatch.setattr(trip_service.itinerary_recommendations, "generate_auto_course", fail_generate_auto_course)
 
     trip_service.create_trip(
         fake_db,
@@ -1990,143 +2032,20 @@ def test_create_trip_generates_catalog_places_and_recommendations(monkeypatch) -
     )
 
     assert len(captured["trip_days"]) == 2
-    assert len(captured["trip_places"]) == 6
-    assert [place["visit_time"] for place in captured["trip_places"][:3]] == [time(10), time(14), time(18)]
-    assert captured["trip_places"][0]["place_name"] == "성산 일출봉"
-    assert captured["trip_places"][0]["order_num"] == 1
-    assert captured["trip_places"][0]["memo"] == "자연 · 제주 동부"
-    assert len(captured["recommendations"]) == 1
-    recommendation_result = captured["recommendations"][0]["result"]
-    assert recommendation_result[0]["title"] == "성산 일출봉"
-    assert recommendation_result[0]["meta"].startswith("Day 1 · 10:00")
+    assert captured["trip_places"] == []
+    assert captured["recommendations"] == []
     assert fake_db.commits == 1
 
 
-def test_create_trip_persists_generated_external_place_metadata(monkeypatch) -> None:
-    fake_db = FakeDb()
-    user = make_user()
-    captured = install_create_trip_stubs(monkeypatch)
-    generated = itinerary_recommendations.GeneratedCourse(
-        places=[
-            itinerary_recommendations.GeneratedPlace(
-                day_number=1,
-                date=date(2026, 7, 12),
-                time="13:00",
-                order_num=1,
-                region="Busan",
-                style="Food",
-                label="FO",
-                title="Kakao food place",
-                meta="Food · Busan road",
-                reason="Kakao candidate",
-                address="Busan road",
-                latitude=35.1,
-                longitude=129.1,
-                source_provider="kakao_local",
-                external_place_id="12345",
-                category_group_code="FD6",
-                category_group_name="Food",
-                place_url="http://place.map.kakao.com/12345",
-            )
-        ],
-        recommendations=[],
-    )
-    monkeypatch.setattr(
-        trip_service.itinerary_recommendations,
-        "generate_auto_course",
-        lambda **_kwargs: generated,
-    )
+def test_create_trip_persists_empty_days_and_no_recommendation_rows_in_db(sqlite_db_session, monkeypatch) -> None:
+    def fail_generate_auto_course(**_kwargs):
+        raise AssertionError("create_trip must not generate itinerary recommendations")
 
-    trip_service.create_trip(
-        fake_db,
-        user,
-        CreateTripRequest(region="Busan", style="Food", startDate=date(2026, 7, 12), endDate=date(2026, 7, 13)),
-    )
-
-    place_kwargs = captured["trip_places"][0]
-    assert place_kwargs["address"] == "Busan road"
-    assert place_kwargs["latitude"] == 35.1
-    assert place_kwargs["longitude"] == 129.1
-    assert place_kwargs["source_provider"] == "kakao_local"
-    assert place_kwargs["external_place_id"] == "12345"
-    assert place_kwargs["category_group_code"] == "FD6"
-    assert place_kwargs["category_group_name"] == "Food"
-    assert place_kwargs["place_url"] == "http://place.map.kakao.com/12345"
-
-
-def test_create_trip_returns_persisted_kakao_coordinates_from_db(sqlite_db_session, monkeypatch) -> None:
+    monkeypatch.setattr(trip_service.itinerary_recommendations, "generate_auto_course", fail_generate_auto_course)
     user = UserModel(
-        email="kakao-course@example.com",
+        email="empty-course@example.com",
         password_hash="hashed",
-        nickname="Kakao Course",
-        onboarding_completed=True,
-    )
-    sqlite_db_session.add(user)
-    sqlite_db_session.commit()
-    generated = itinerary_recommendations.GeneratedCourse(
-        places=[
-            itinerary_recommendations.GeneratedPlace(
-                day_number=1,
-                date=date(2026, 7, 12),
-                time="13:00",
-                order_num=1,
-                region="Busan",
-                style="Food",
-                label="FO",
-                title="Kakao food place",
-                meta="Food · Busan road",
-                reason="Kakao candidate",
-                address="Busan road",
-                latitude=35.1234567,
-                longitude=129.7654321,
-                source_provider="kakao_local",
-                external_place_id="12345",
-                category_group_code="FD6",
-                category_group_name="Food",
-                place_url="http://place.map.kakao.com/12345",
-            )
-        ],
-        recommendations=[],
-    )
-    monkeypatch.setattr(
-        trip_service.itinerary_recommendations,
-        "generate_auto_course",
-        lambda **_kwargs: generated,
-    )
-
-    created = trip_service.create_trip(
-        sqlite_db_session,
-        user,
-        CreateTripRequest(
-            region="Busan",
-            style="Food",
-            startDate=date(2026, 7, 12),
-            endDate=date(2026, 7, 13),
-            title="Kakao coordinate verification",
-        ),
-    )
-
-    api_place = created["days"][1][0]
-    assert api_place["label"] == "Kakao food place"
-    assert api_place["address"] == "Busan road"
-    assert api_place["latitude"] == 35.1234567
-    assert api_place["longitude"] == 129.7654321
-    assert api_place["sourceProvider"] == "kakao_local"
-    assert api_place["externalPlaceId"] == "12345"
-    assert api_place["categoryCode"] == "FD6"
-    assert api_place["placeUrl"] == "http://place.map.kakao.com/12345"
-
-    persisted_place = sqlite_db_session.query(TripPlace).one()
-    assert str(persisted_place.latitude) == "35.1234567"
-    assert str(persisted_place.longitude) == "129.7654321"
-
-
-def test_create_trip_persists_generated_days_places_and_recommendations_in_db(sqlite_db_session, monkeypatch) -> None:
-    monkeypatch.setattr(trip_service, "_build_external_place_provider", lambda: None)
-    user = UserModel(
-        email="auto-course@example.com",
-        password_hash="hashed",
-        nickname="Auto Course",
+        nickname="Empty Course",
         onboarding_completed=True,
     )
     sqlite_db_session.add(user)
@@ -2140,24 +2059,18 @@ def test_create_trip_persists_generated_days_places_and_recommendations_in_db(sq
             style="맛집",
             startDate=date(2026, 7, 12),
             endDate=date(2026, 7, 14),
-            title="Busan auto-course verification",
+            title="Busan empty-course verification",
         ),
     )
 
-    assert created["title"] == "Busan auto-course verification"
+    assert created["title"] == "Busan empty-course verification"
     assert sorted(created["days"].keys()) == [1, 2, 3]
-    for day_places in created["days"].values():
-        assert len(day_places) == 3
-        assert [place["time"] for place in day_places] == ["10:00", "14:00", "18:00"]
-        assert all(place["label"] for place in day_places)
-
-    recommendations = trip_service.list_recommendations(sqlite_db_session, user, created["id"])
-    assert recommendations is not None
-    assert len(recommendations) >= 3
-    assert all(item["sourceType"] == "savedSummary" for item in recommendations)
+    assert all(day_places == [] for day_places in created["days"].values())
+    assert sqlite_db_session.query(TripPlace).count() == 0
+    assert sqlite_db_session.query(Recommendation).count() == 0
 
 
-def test_create_trip_persists_empty_recommendations_when_catalog_has_no_region(monkeypatch) -> None:
+def test_create_trip_with_unsupported_region_still_initializes_empty_days(monkeypatch) -> None:
     fake_db = FakeDb()
     user = make_user()
     captured = install_create_trip_stubs(monkeypatch)
@@ -2170,8 +2083,7 @@ def test_create_trip_persists_empty_recommendations_when_catalog_has_no_region(m
 
     assert len(captured["trip_days"]) == 2
     assert captured["trip_places"] == []
-    assert len(captured["recommendations"]) == 1
-    assert captured["recommendations"][0]["result"] == []
+    assert captured["recommendations"] == []
     assert fake_db.commits == 1
 
 
