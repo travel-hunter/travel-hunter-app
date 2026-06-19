@@ -105,7 +105,7 @@ def test_signup_normalizes_valid_email() -> None:
 
 
 def test_nickname_update_rejects_special_chars() -> None:
-    for bad in ["hello!", "nick name", "nick@", "닉!네임"]:
+    for bad in ["hello!", "nick@", "닉!네임"]:
         with pytest.raises(ValidationError):
             NicknameUpdate(nickname=bad)
 
@@ -116,7 +116,7 @@ def test_nickname_update_rejects_single_char() -> None:
 
 
 def test_nickname_update_accepts_valid_formats() -> None:
-    for good in ["ab", "김철수", "TravelKing", "nick_123", "여행자99"]:
+    for good in ["ab", "김철수", "TravelKing", "nick_123", "여행자99", "nick name", "여행 헌터"]:
         req = NicknameUpdate(nickname=good)
         assert req.nickname == good
 

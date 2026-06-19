@@ -16,6 +16,7 @@ from app.schemas.admin import (
     AdminUserUpdateRequest,
 )
 from app.services import nicknames
+from app.services.profile_preferences import ProfilePreferenceError, serialize_preferred_regions
 
 
 class AdminServiceError(Exception):
@@ -41,6 +42,15 @@ def _split_lines(value: str | None) -> list[str]:
 
 def _clean_items(values: list[str] | None) -> list[str]:
     return [value.strip() for value in values or [] if value.strip()]
+
+
+def _normalize_admin_preferred_regions(value: str | None) -> str | None:
+    if value is None:
+        return None
+    try:
+        return serialize_preferred_regions(value.split(","))
+    except ProfilePreferenceError as error:
+        raise AdminServiceError(error.status_code, error.detail) from error
 
 
 def _policy_source_type(policy: Policy) -> str:
@@ -285,7 +295,7 @@ def update_user(
     if "residenceArea" in values:
         user.residence_area = values["residenceArea"]
     if "preferredRegions" in values:
-        user.preferred_regions = values["preferredRegions"]
+        user.preferred_regions = _normalize_admin_preferred_regions(values["preferredRegions"])
     if "travelStyle" in values:
         user.travel_style = values["travelStyle"]
     if "travelBudget" in values:
@@ -506,4 +516,3 @@ def list_audit_logs(
         "limit": limit,
         "offset": offset,
     }
-

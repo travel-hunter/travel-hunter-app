@@ -13,17 +13,22 @@ router = APIRouter(tags=["recommendations"])
 def list_region_recommendations(
     style: str | None = None,
     region: str | None = None,
+    preferredRegions: list[str] | None = Query(default=None),
     limit: int = Query(default=3, ge=1, le=10),
     db: Session | None = Depends(get_optional_db),
 ) -> list[RegionRecommendation]:
     if db is None:
         raise HTTPException(status_code=500, detail="DB session is required.")
-    return region_recommendation_service.recommend_regions(
-        db,
-        style=style,
-        region=region,
-        limit=limit,
-    )
+    try:
+        return region_recommendation_service.recommend_regions(
+            db,
+            style=style,
+            region=region,
+            preferred_regions=preferredRegions,
+            limit=limit,
+        )
+    except region_recommendation_service.RegionRecommendationError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
 
 
 

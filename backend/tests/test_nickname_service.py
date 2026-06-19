@@ -47,9 +47,9 @@ def test_update_nickname_trims_and_persists() -> None:
     db = FakeDb()
     user = make_user()
 
-    updated = nicknames.update_nickname(db, user, "  알뜰한여행자482  ")
+    updated = nicknames.update_nickname(db, user, "  알뜰한 여행자 482  ")
 
-    assert updated.nickname == "알뜰한여행자482"
+    assert updated.nickname == "알뜰한 여행자 482"
     assert db.committed is True
     assert db.refreshed is user
 
