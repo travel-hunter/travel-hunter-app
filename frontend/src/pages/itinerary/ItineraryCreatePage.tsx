@@ -322,7 +322,7 @@ export function ItineraryCreatePage() {
         region: selectedRegion,
         travelAreaId: selectedTravelArea?.travelAreaId ?? undefined,
         participantCount,
-        style: profile.style,
+        style: profile.style ?? undefined,
         ...(linkablePolicySlug ? { policySlug: linkablePolicySlug } : {}),
         startDate,
         endDate,

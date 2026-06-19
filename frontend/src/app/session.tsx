@@ -27,7 +27,7 @@ type SessionContextValue = {
   completeOAuthSession: () => Promise<User>;
   logout: () => Promise<void>;
   saveNickname: (nickname: string) => Promise<User>;
-  updateProfile: (key: keyof Profile, value: string) => void;
+  updateProfile: <K extends keyof Profile>(key: K, value: Profile[K]) => void;
   saveProfile: (profile?: Partial<Profile>) => Promise<Profile>;
   skipProfileSetup: () => Promise<void>;
   addPolicy: (slug?: string) => void;
@@ -41,6 +41,7 @@ type SessionContextValue = {
 };
 
 const AUTH_STORAGE_KEY = "travel-hunter-production-auth";
+const PROFILE_PROMPT_DISMISSAL_PREFIX = "travel-hunter-profile-completion-dismissed:";
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
@@ -64,11 +65,28 @@ function persistAuth(auth: AuthResponse) {
 function clearAuth() {
   setApiAccessToken(null);
   window.localStorage.removeItem(AUTH_STORAGE_KEY);
+  clearProfileCompletionPromptDismissals();
+}
+
+function clearProfileCompletionPromptDismissals() {
+  for (let index = window.sessionStorage.length - 1; index >= 0; index -= 1) {
+    const key = window.sessionStorage.key(index);
+    if (key?.startsWith(PROFILE_PROMPT_DISMISSAL_PREFIX)) {
+      window.sessionStorage.removeItem(key);
+    }
+  }
 }
 
 async function readRemoteProfile(): Promise<Profile> {
   return appDataApi.getProfile();
 }
+
+const emptyProfile: Profile = {
+  region: null,
+  preferredRegions: null,
+  style: null,
+  budget: null,
+};
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -77,11 +95,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return stored?.user ?? null;
   });
   const [isSessionBootstrapping, setIsSessionBootstrapping] = useState(true);
-  const [profile, setProfile] = useState<Profile>({
-    region: "제주",
-    style: "휴식",
-    budget: "1인 40만원 이하",
-  });
+  const [profile, setProfile] = useState<Profile>(emptyProfile);
   const [addedPolicy, setAddedPolicy] = useState(false);
   const [addedPolicySlugs, setAddedPolicySlugs] = useState<Set<string>>(new Set());
   const [likedPolicy, setLikedPolicy] = useState(false);
@@ -211,6 +225,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         } finally {
           clearAuth();
           setCurrentUser(null);
+          setProfile(emptyProfile);
           savedSlugAdditionsRef.current.clear();
           savedSlugRemovalsRef.current.clear();
           setSavedSlugs(new Set());
@@ -236,6 +251,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       },
       skipProfileSetup: async () => {
         await appDataApi.skipProfileSetup();
+        setProfile(await readRemoteProfile());
         try {
           const user = await appDataApi.getCurrentUser();
           const stored = readStoredAuth();

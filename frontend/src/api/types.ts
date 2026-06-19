@@ -8,7 +8,7 @@
   region: string | null;
   homeRegion: string;
   residenceArea: string | null;
-  preferredRegions: string | null;
+  preferredRegions: string[] | null;
   persona: string;
   savedAmount: number;
   onboardingCompleted: boolean;
@@ -25,9 +25,10 @@ export type SocialAccount = {
 };
 
 export type Profile = {
-  region: string;
-  style: string;
-  budget: string;
+  region: string | null;
+  preferredRegions: string[] | null;
+  style: string | null;
+  budget: string | null;
 };
 
 export type ProfileSkipResponse = {

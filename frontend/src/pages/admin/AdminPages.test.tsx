@@ -21,6 +21,7 @@ describe("admin pages", () => {
     vi.spyOn(appDataApi, "getCurrentUser").mockResolvedValue(user);
     vi.spyOn(appDataApi, "getProfile").mockResolvedValue({
       region: "Seoul",
+      preferredRegions: null,
       style: "Food",
       budget: "400000 KRW",
     });

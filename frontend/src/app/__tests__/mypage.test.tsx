@@ -490,8 +490,10 @@ describe("Travel Hunter app — my page", () => {
   });
 
   it("edits profile preferences from my page", async () => {
+    const targetRegion = "강원";
     const nextProfile = {
-      region: "강원",
+      region: null,
+      preferredRegions: [targetRegion],
       style: "사진",
       budget: "상관없음",
     };
@@ -504,38 +506,43 @@ describe("Travel Hunter app — my page", () => {
     const updateProfileSpy = vi
       .spyOn(appDataApi, "updateProfile")
       .mockResolvedValue(nextProfile);
+    const updateNicknameSpy = vi
+      .spyOn(appDataApi, "updateNickname")
+      .mockResolvedValue(nextUser);
+    let getCurrentUserSpy: { mockRestore: () => void } | null = null;
 
     try {
       await login();
-      const updateNicknameSpy = vi
-        .spyOn(appDataApi, "updateNickname")
-        .mockResolvedValue(nextUser);
       cleanup();
       renderAppRoute("/mypage");
       const user = userEvent.setup();
 
       await user.click(await screen.findByRole("button", { name: "편집" }));
       const dialog = screen.getByRole("dialog", { name: "프로필 편집" });
-      const getCurrentUserSpy = vi
-        .spyOn(appDataApi, "getCurrentUser")
-        .mockResolvedValue(nextUser);
       expect(dialog).toBeInTheDocument();
+      const preferencePreview = within(dialog).getByLabelText("현재 추천 기준");
+      expect(preferencePreview).toBeInTheDocument();
       const nicknameInput = within(dialog).getByRole("textbox", {
         name: "닉네임",
       });
       await user.clear(nicknameInput);
       await user.type(nicknameInput, nextUser.nickname);
       expect(nicknameInput).toHaveValue(nextUser.nickname);
+      getCurrentUserSpy = vi
+        .spyOn(appDataApi, "getCurrentUser")
+        .mockResolvedValue(nextUser);
 
-      await user.click(
-        await within(dialog).findByRole("button", { name: nextProfile.region }),
-      );
-      await user.click(
-        within(dialog).getByRole("button", { name: nextProfile.style }),
-      );
-      await user.click(
-        within(dialog).getByRole("button", { name: nextProfile.budget }),
-      );
+      const regionButton = await within(dialog).findByRole("button", { name: targetRegion });
+      expect(regionButton).toHaveClass("preferred-region-card");
+      expect(regionButton.closest(".preferred-region-grid")).toBeTruthy();
+      await user.click(regionButton);
+      expect(preferencePreview).toHaveTextContent(targetRegion);
+      const styleButton = within(dialog).getByRole("button", { name: nextProfile.style });
+      expect(styleButton).toHaveClass("preference-choice-card");
+      await user.click(styleButton);
+      const budgetButton = within(dialog).getByRole("button", { name: nextProfile.budget });
+      expect(budgetButton).toHaveClass("preference-choice-card");
+      await user.click(budgetButton);
       await user.click(
         within(dialog).getByRole("button", { name: "저장하기" }),
       );
@@ -555,9 +562,9 @@ describe("Travel Hunter app — my page", () => {
       );
       expect(screen.getByText(nextUser.nickname)).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "편집" })).toBeInTheDocument();
-      updateNicknameSpy.mockRestore();
-      getCurrentUserSpy.mockRestore();
     } finally {
+      updateNicknameSpy.mockRestore();
+      getCurrentUserSpy?.mockRestore();
       updateProfileSpy.mockRestore();
     }
   });

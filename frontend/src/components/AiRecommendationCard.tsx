@@ -18,17 +18,29 @@ type AiRecommendationCardProps = {
   saving: string;
   detail: string;
   visual: AiRecommendationCardVisual;
+  tabIndex?: number;
 };
 
-export function AiRecommendationCard({ to, title, saving, detail, visual }: AiRecommendationCardProps) {
+export function AiRecommendationCard({
+  to,
+  title,
+  saving,
+  detail,
+  visual,
+  tabIndex,
+}: AiRecommendationCardProps) {
   return (
-    <Link className="prototype-home-ai-card" to={to}>
+    <Link className="prototype-home-ai-card" to={to} tabIndex={tabIndex}>
       <div className="prototype-home-ai-visual" aria-hidden="true">
         <div className="prototype-home-ai-chat-topline">
           <span className="prototype-home-ai-chat-avatar">{visual.avatar}</span>
           <div className="prototype-home-ai-chat-copy">
-            <span className="prototype-home-ai-chat-bubble primary">{visual.headline}</span>
-            <span className="prototype-home-ai-chat-bubble secondary">{visual.subline}</span>
+            <span className="prototype-home-ai-chat-bubble primary">
+              {visual.headline}
+            </span>
+            <span className="prototype-home-ai-chat-bubble secondary">
+              {visual.subline}
+            </span>
           </div>
         </div>
         <div className="prototype-home-ai-action-dock">

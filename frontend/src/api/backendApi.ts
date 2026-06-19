@@ -115,10 +115,13 @@ export const backendApi: AppDataApi = {
   getNotificationSettings: (): Promise<NotificationSettings> => apiClient.get<NotificationSettings>("/api/me/notification-settings"),
   updateNotificationSettings: (settings: Pick<NotificationSettings, "deadlineEnabled">): Promise<NotificationSettings> => apiClient.patch<NotificationSettings>("/api/me/notification-settings", settings),
   listPolicies: (): Promise<Policy[]> => apiClient.get<Policy[]>("/api/policies"),
-  listRegionRecommendations: (options?: { style?: string; region?: string; limit?: number }): Promise<RegionRecommendation[]> => {
+  listRegionRecommendations: (options?: { style?: string | null; region?: string | null; preferredRegions?: string[] | null; limit?: number }): Promise<RegionRecommendation[]> => {
     const params = new URLSearchParams();
     if (options?.style) params.set("style", options.style);
     if (options?.region) params.set("region", options.region);
+    for (const preferredRegion of options?.preferredRegions ?? []) {
+      if (preferredRegion) params.append("preferredRegions", preferredRegion);
+    }
     if (options?.limit !== undefined) params.set("limit", String(options.limit));
     const query = params.toString();
     return apiClient.get<RegionRecommendation[]>(`/api/recommendations/regions${query ? `?${query}` : ""}`);
