@@ -15,6 +15,7 @@ from app.repositories import users as user_repository
 from app.schemas.user import EmailAvailabilityRequest, LoginRequest, PasswordResetConfirm, PasswordResetRequest, SignupCompleteRequest, SignupRequest, SignupVerifyRequest
 from app.services.email import EmailDeliveryError, send_password_reset_email, send_signup_verification_email
 from app.services import nicknames
+from app.services.profile_preferences import parse_preferred_regions
 
 
 class AuthServiceError(Exception):
@@ -64,7 +65,7 @@ def user_to_api(user: UserModel) -> dict[str, object]:
         "region": user.region,
         "homeRegion": user.residence_area or "",
         "residenceArea": user.residence_area,
-        "preferredRegions": user.preferred_regions,
+        "preferredRegions": parse_preferred_regions(user.preferred_regions),
         "persona": "Travel Hunter 사용자",
         "savedAmount": 0,
         "onboardingCompleted": bool(user.onboarding_completed),

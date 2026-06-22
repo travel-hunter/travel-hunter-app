@@ -17,7 +17,7 @@ class User(BaseModel):
     region: str | None = None
     homeRegion: str
     residenceArea: str | None = None
-    preferredRegions: str | None = None
+    preferredRegions: list[str] | None = None
     persona: str
     savedAmount: int
     onboardingCompleted: bool
@@ -28,13 +28,15 @@ class User(BaseModel):
 
 
 class Profile(BaseModel):
-    region: str
-    style: str
-    budget: str
+    region: str | None = None
+    preferredRegions: list[str] | None = None
+    style: str | None = None
+    budget: str | None = None
 
 
 class ProfileUpdate(BaseModel):
     region: str | None = None
+    preferredRegions: list[str] | None = None
     style: str | None = None
     budget: str | None = None
 
@@ -123,7 +125,7 @@ class NicknameSuggestion(BaseModel):
 
 
 class NicknameUpdate(BaseModel):
-    nickname: str = Field(min_length=2, max_length=20, pattern=r"^[가-힣a-zA-Z0-9_]+$")
+    nickname: str = Field(min_length=2, max_length=20, pattern=r"^[가-힣a-zA-Z0-9_ ]+$")
 
 
 class AuthResponse(BaseModel):

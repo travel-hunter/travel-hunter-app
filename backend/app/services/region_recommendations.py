@@ -9,11 +9,13 @@ from sqlalchemy.orm import Session
 from app.models import ExternalSourceRecord
 from app.repositories import external_sources as external_source_repository
 from app.schemas.recommendations import RegionRecommendation
+from app.services.profile_preferences import ProfilePreferenceError, normalize_preferred_regions
 from app.services import stay_discount_aliases
 
 
 ENDING_SOON_DAYS = 14
 NATIONWIDE_REGION = "전국"
+RegionRecommendationError = ProfilePreferenceError
 
 
 @dataclass
@@ -33,10 +35,13 @@ def recommend_regions(
     today: date | None = None,
     style: str | None = None,
     region: str | None = None,
+    preferred_regions: list[str] | None = None,
     limit: int = 3,
 ) -> list[RegionRecommendation]:
     run_date = today or date.today()
-    preferred_region = _normalize_region(region)
+    selected_regions = normalize_preferred_regions(preferred_regions)
+    preferred_region = None if selected_regions else _normalize_region(region)
+    selected_region_set = set(selected_regions or [])
     records = external_source_repository.list_regional_benefit_recommendation_records(db)
     regional_stats: dict[str, _RegionStats] = {}
     nationwide_stats = _RegionStats(region=NATIONWIDE_REGION, nationwide=True)
@@ -48,17 +53,34 @@ def recommend_regions(
         _add_record(target, record, today=run_date, style=style)
 
     for stats in regional_stats.values():
-        stats.profile_region_match = preferred_region is not None and stats.region == preferred_region
+        stats.profile_region_match = stats.region in selected_region_set or (preferred_region is not None and stats.region == preferred_region)
 
     ranked = sorted(
         regional_stats.values(),
         key=_ranking_key,
         reverse=True,
     )
+    if selected_regions and len(selected_regions) > 1:
+        ranked = _reserve_preferred_region_slots(ranked, selected_regions)
     if len(ranked) < limit and nationwide_stats.policy_count > 0:
-        ranked.append(nationwide_stats)
+        ranked = [*ranked, nationwide_stats]
 
     return [_to_recommendation(stats) for stats in ranked[:limit]]
+
+
+def _reserve_preferred_region_slots(
+    ranked: list[_RegionStats],
+    preferred_regions: list[str],
+) -> list[_RegionStats]:
+    reserved: list[_RegionStats] = []
+    reserved_regions: set[str] = set()
+    for preferred_region in preferred_regions:
+        match = next((stats for stats in ranked if stats.region == preferred_region), None)
+        if match is None:
+            continue
+        reserved.append(match)
+        reserved_regions.add(match.region)
+    return [*reserved, *[stats for stats in ranked if stats.region not in reserved_regions]]
 
 
 def _stats_for_region(

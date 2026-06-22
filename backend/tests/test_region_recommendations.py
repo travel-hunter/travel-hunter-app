@@ -168,6 +168,54 @@ def test_region_recommendations_use_nationwide_only_as_fallback(db: Session) -> 
     assert [item.region for item in three_items] == ["강원", "부산", "전국"]
 
 
+def test_region_recommendations_reserve_slots_for_three_preferred_regions(db: Session) -> None:
+    today = date(2026, 5, 21)
+    upsert_external_source_records(
+        db,
+        [
+            make_source("busan-1", region="부산", title="부산 숙박 지원"),
+            make_source("busan-2", region="부산", title="부산 맛집 지원"),
+            make_source("gangwon-1", region="강원", title="강원 자연 지원"),
+            make_source("jeju-1", region="제주", title="제주 휴식 지원"),
+            make_source("seoul-1", region="서울", title="서울 전시 지원"),
+            make_source("seoul-2", region="서울", title="서울 교통 지원"),
+            make_source("seoul-3", region="서울", title="서울 숙박 지원"),
+        ],
+    )
+
+    recommendations = recommend_regions(
+        db,
+        today=today,
+        preferred_regions=["부산", "강원", "제주"],
+        limit=3,
+    )
+
+    assert [item.region for item in recommendations] == ["부산", "강원", "제주"]
+
+
+def test_region_recommendations_use_two_preferred_regions_before_unselected_fill(db: Session) -> None:
+    today = date(2026, 5, 21)
+    upsert_external_source_records(
+        db,
+        [
+            make_source("busan-1", region="부산", title="부산 지원"),
+            make_source("gangwon-1", region="강원", title="강원 지원"),
+            make_source("seoul-1", region="서울", title="서울 지원 1"),
+            make_source("seoul-2", region="서울", title="서울 지원 2"),
+        ],
+    )
+
+    recommendations = recommend_regions(
+        db,
+        today=today,
+        preferred_regions=["부산", "강원"],
+        limit=3,
+    )
+
+    assert [item.region for item in recommendations[:2]] == ["부산", "강원"]
+    assert recommendations[2].region == "서울"
+
+
 def test_region_recommendations_ignore_inactive_or_stale_records(db: Session) -> None:
     today = date(2026, 5, 21)
     upsert_external_source_records(

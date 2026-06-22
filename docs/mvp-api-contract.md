@@ -385,7 +385,7 @@ Account linking policy:
   "region": "서울",
   "homeRegion": "서울",
   "residenceArea": null,
-  "preferredRegions": null,
+  "preferredRegions": ["부산", "강원"],
   "persona": "탐험가",
   "savedAmount": 0,
   "onboardingCompleted": false,
@@ -405,11 +405,15 @@ Account linking policy:
 **Response 200**
 ```json
 {
-  "region": "서울",
-  "style": "혼자",
-  "budget": "중간"
+  "region": null,
+  "preferredRegions": ["부산", "강원"],
+  "style": "휴식",
+  "budget": "1인 40만원 이하"
 }
 ```
+
+- `region`은 기존 호환용 대표 지역 필드이며, `preferredRegions`의 첫 번째 값으로 자동 파생하지 않는다.
+- `preferredRegions`는 17개 광역시도 중 최대 3개를 담는다. 미설정 상태는 `null`이며 UI의 `미정` 표시는 저장/전송하지 않는다.
 
 ---
 
@@ -420,11 +424,14 @@ Account linking policy:
 **Request**
 ```json
 {
-  "region": "제주",
+  "preferredRegions": ["제주", "부산", "강원"],
   "style": "가족",
-  "budget": "저렴"
+  "budget": "1인 40만원 이하"
 }
 ```
+
+- 모든 필드는 생략 가능하다. 명시적으로 `null` 또는 빈 `preferredRegions` 배열을 보내면 해당 항목을 미설정 상태로 저장한다.
+- `preferredRegions`는 중복을 제거하고 순서를 보존하며, 4개 이상 또는 17개 광역시도 외 값은 422를 반환한다.
 
 **Response 200** → `Profile`
 
@@ -464,7 +471,7 @@ Account linking policy:
 { "nickname": "새닉네임" }
 ```
 
-- `nickname`: 2~20자, `[가-힣a-zA-Z0-9_]`만 허용
+- `nickname`: 2~20자, `[가-힣a-zA-Z0-9_ ]`만 허용. 앞뒤 공백은 저장 전 제거하고, 내부 띄어쓰기는 보존한다.
 
 **Response 200** → `User`
 
@@ -653,7 +660,7 @@ Account linking policy:
 **Response 200**
 ```json
 {
-  "regions": ["제주", "부산", "강원", "전국"],
+  "regions": ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"],
   "travelStyles": ["휴식", "맛집", "체험", "자연", "사진"],
   "budgets": ["1인 30만원 이하", "1인 40만원 이하", "1인 60만원 이하", "상관없음"]
 }
@@ -672,7 +679,8 @@ Account linking policy:
 | 이름 | 타입 | 설명 |
 |------|------|------|
 | style | string, optional | `휴식`, `맛집`, `체험`, `자연`, `사진` 같은 장소 취향. 점수 보정에만 사용하며 정책 점수 우선순위를 뒤집지 않는다. |
-| region | string, optional | 사용자 프로필 관심 지역. 정책 수, 마감 임박, 명시 금액, 취향 보정까지 모두 같은 경우에만 최종 tie-breaker로 사용한다. |
+| region | string, optional | 기존 호환용 단일 관심 지역. `preferredRegions`가 없을 때만 마지막 tie-breaker로 사용한다. |
+| preferredRegions | string[], optional | 반복 query param(`?preferredRegions=부산&preferredRegions=강원`)으로 전달하는 관심 지역 최대 3개. 제공되면 legacy `region`보다 우선하며 선택 지역별 추천 다양성을 보장한다. |
 | limit | number, optional | 반환 개수. 기본 3, 1~10. |
 
 **Ranking**
@@ -681,7 +689,8 @@ Account linking policy:
 2. 마감 임박 혜택 수
 3. 명시 금액 혜택 가치
 4. 취향 일치 수는 동점권 보조 점수로만 사용
-5. 프로필 지역 일치는 마지막 tie-breaker로만 사용
+5. 단일 프로필 지역 일치는 마지막 tie-breaker로만 사용
+6. `preferredRegions`가 2~3개이면 선택 순서대로 각 지역 후보를 먼저 1개씩 확보한 뒤 남은 슬롯을 점수순으로 채운다. 1개이면 해당 지역을 점수 보정한다.
 
 전국 혜택은 지역 후보가 `limit`보다 부족할 때만 fallback으로 포함한다.
 
@@ -1263,7 +1272,7 @@ SOLAPI 발송 결과 webhook 수신. `X-Solapi-Secret` 헤더로 검증.
 | region | string \| null | 주요 여행 지역 |
 | homeRegion | string | 거주 지역 |
 | residenceArea | string \| null | 세부 거주 지역 |
-| preferredRegions | string \| null | 선호 지역 |
+| preferredRegions | string[] \| null | 관심 지역 최대 3개. 미설정은 `null` |
 | persona | string | 여행 유형 |
 | savedAmount | number | 예상 절약 금액 |
 | onboardingCompleted | boolean | 온보딩 완료 여부 |
@@ -1470,6 +1479,13 @@ Trip response includes:
 ```
 
 Existing trips can return `travelAreaId: null`.
+
+## Admin user profile fields
+
+- `GET /api/admin/users/{userId}` and `PATCH /api/admin/users/{userId}` expose the legacy admin `preferredRegions` field as a comma-separated `string | null` for the current admin UI.
+- On update, `preferredRegions` is normalized with the same 17개 광역시도 allowlist and max-3 rule as the public profile API. Blank input clears the field to `null`; invalid or 4+ regions return 422.
+- The public profile API continues to expose the same stored value as `preferredRegions: string[] | null`.
+
 ## Admin external source summary
 
 - `GET /api/admin/external-sources/summary`

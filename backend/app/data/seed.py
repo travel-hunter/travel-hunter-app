@@ -14,6 +14,8 @@ USER = {
     "homeRegion": "서울 마포",
     "residenceArea": "서울 마포",
     "preferredRegions": "제주,부산,강원",
+    "travelStyle": "휴식",
+    "travelBudget": "1인 40만원 이하",
     "persona": "혜택을 꼼꼼히 챙기는 29세 직장인",
     "savedAmount": 120000,
     "onboardingCompleted": True,
@@ -23,13 +25,31 @@ USER = {
 }
 
 PROFILE = {
-    "region": "제주",
-    "style": "휴식",
-    "budget": "1인 40만원 이하",
+    "region": None,
+    "style": None,
+    "budget": None,
 }
 
 PROFILE_OPTIONS = {
-    "regions": ["제주", "부산", "강원", "전국"],
+    "regions": [
+        "서울",
+        "부산",
+        "대구",
+        "인천",
+        "광주",
+        "대전",
+        "울산",
+        "세종",
+        "경기",
+        "강원",
+        "충북",
+        "충남",
+        "전북",
+        "전남",
+        "경북",
+        "경남",
+        "제주",
+    ],
     "travelStyles": ["휴식", "맛집", "체험", "자연", "사진"],
     "budgets": ["1인 30만원 이하", "1인 40만원 이하", "1인 60만원 이하", "상관없음"],
 }

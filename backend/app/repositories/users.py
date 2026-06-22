@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session, selectinload
 from app.core import security
 from app.models import SocialAccount, User
 
+UNSET = object()
+
 
 def get_user_by_email(db: Session, email: str) -> User | None:
     statement = (
@@ -112,15 +114,18 @@ def update_user_profile(
     db: Session,
     user: User,
     *,
-    region: str | None = None,
-    style: str | None = None,
-    budget: str | None = None,
+    region: str | None | object = UNSET,
+    preferred_regions: str | None | object = UNSET,
+    style: str | None | object = UNSET,
+    budget: str | None | object = UNSET,
 ) -> User:
-    if region is not None:
+    if region is not UNSET:
         user.region = region
-    if style is not None:
+    if preferred_regions is not UNSET:
+        user.preferred_regions = preferred_regions
+    if style is not UNSET:
         user.travel_style = style
-    if budget is not None:
+    if budget is not UNSET:
         user.travel_budget = budget
     user.onboarding_completed = True
     user.profile_setup_skipped = False

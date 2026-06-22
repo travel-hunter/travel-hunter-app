@@ -108,7 +108,7 @@
           "region": "string|null",
           "homeRegion": "string",
           "residenceArea": "string|null",
-          "preferredRegions": "string|null",
+          "preferredRegions": "array|null",
           "persona": "string",
           "savedAmount": "number",
           "onboardingCompleted": "boolean",
@@ -281,10 +281,23 @@
       },
       "example": {
         "regions": [
-          "제주",
+          "서울",
           "부산",
+          "대구",
+          "인천",
+          "광주",
+          "대전",
+          "울산",
+          "세종",
+          "경기",
           "강원",
-          "전국"
+          "충북",
+          "충남",
+          "전북",
+          "전남",
+          "경북",
+          "경남",
+          "제주"
         ],
         "travelStyles": [
           "휴식",
@@ -330,9 +343,10 @@
       "path": "/api/me/profile",
       "status": 200,
       "requiredFields": {
-        "region": "string",
-        "style": "string",
-        "budget": "string"
+        "region": "string|null",
+        "style": "string|null",
+        "budget": "string|null",
+        "preferredRegions": "array|null"
       },
       "dbFields": {
         "region": "users.region",
@@ -345,16 +359,18 @@
       "path": "/api/me/profile",
       "status": 200,
       "optionalRequestFields": {
-        "region": "string",
-        "style": "string",
-        "budget": "string"
+        "region": "string|null",
+        "style": "string|null",
+        "budget": "string|null",
+        "preferredRegions": "array|null"
       },
       "requiredFields": {
-        "region": "string",
-        "style": "string",
-        "budget": "string"
+        "region": "string|null",
+        "style": "string|null",
+        "budget": "string|null",
+        "preferredRegions": "array|null"
       },
-      "dbModeBehavior": "Updates users.region, users.travel_style, users.travel_budget and marks onboarding_completed true."
+      "dbModeBehavior": "Updates users.region, users.preferred_regions, users.travel_style, users.travel_budget and marks onboarding_completed true. Explicit null or an empty preferredRegions array clears the corresponding unset preference."
     },
     {
       "method": "POST",
@@ -476,7 +492,10 @@
       "authRequired": false,
       "query": {
         "style": "맛집",
-        "region": "부산",
+        "preferredRegions": [
+          "부산",
+          "강원"
+        ],
         "limit": 3
       },
       "requiredArrayItemFields": {
@@ -489,7 +508,7 @@
         "score": "number",
         "styleMatchedCount": "number"
       },
-      "dbModeBehavior": "Ranks public recommendation-eligible external_source_records rows by active fresh regional policy count, ending-soon count, explicit KRW value, style as a non-overriding tie breaker, and profile region only as the final tie breaker; nationwide records are included only as fallback when regional candidates are fewer than limit. local_half_trip records count directly, while stay_discount records are expanded from raw_payload.eligibleAreas into regional alias candidates so the canonical stay policy is not counted as an extra +1. Legacy regional_benefit and traffic_benefit evidence is excluded from public recommendation scoring."
+      "dbModeBehavior": "Ranks public recommendation-eligible external_source_records rows by active fresh regional policy count, ending-soon count, explicit KRW value, style as a non-overriding tie breaker, and profile region only as the final tie breaker. preferredRegions accepts up to three 17-sido values and, when provided, reserves one candidate per selected region before score-order fill; nationwide records are included only as fallback when regional candidates are fewer than limit. local_half_trip records count directly, while stay_discount records are expanded from raw_payload.eligibleAreas into regional alias candidates so the canonical stay policy is not counted as an extra +1. Legacy regional_benefit and traffic_benefit evidence is excluded from public recommendation scoring."
     },
     {
       "method": "GET",
@@ -989,7 +1008,7 @@
         "onboardingCompleted": "boolean",
         "role": "string enum(user|admin)"
       },
-      "dbModeBehavior": "Updates editable admin user fields only. homeRegion, persona, email, password, phone verification, and social accounts are not editable. Self-demotion and final-admin removal return 409."
+      "dbModeBehavior": "Updates editable admin user fields only. preferredRegions remains the legacy admin comma-separated string shape, but is normalized against the same 17-sido max-3 rule as the public profile API; blank clears to null and invalid/4+ regions return 422. homeRegion, persona, email, password, phone verification, and social accounts are not editable. Self-demotion and final-admin removal return 409."
     },
     {
       "method": "GET",

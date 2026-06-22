@@ -5,10 +5,12 @@ import { appDataApi } from "../api";
 import { getSafeRedirect, withRedirect } from "../app/onboarding";
 import { useSession } from "../app/session";
 import { useAsyncResource } from "../api/useAsyncResource";
-import { ProfileSetupStep } from "../components/patterns";
+import { ProfilePreferencePreview } from "../components/ProfilePreferencePreview";
+import { PreferredRegionSelector } from "../components/PreferredRegionSelector";
+import { getPreferenceIcon } from "../components/preferenceDisplay";
 import { Button, ErrorState, IconButton } from "../components/ui";
 
-type ProfileSetupField = "region" | "style" | "budget";
+type ProfileSetupField = "preferredRegions" | "style" | "budget";
 
 export function ProfileSetupPage() {
   const navigate = useNavigate();
@@ -25,19 +27,22 @@ export function ProfileSetupPage() {
 
   const steps = [
     {
-      key: "region" as ProfileSetupField,
+      key: "preferredRegions" as ProfileSetupField,
+      label: "지역",
       title: "어디로 떠나고 싶나요?",
       body: "관심 지역을 기준으로 정책과 일정을 먼저 추천합니다.",
       choices: profileOptions?.regions ?? [],
     },
     {
       key: "style" as ProfileSetupField,
+      label: "스타일",
       title: "어떤 여행을 선호하나요?",
       body: "장소와 동선을 맞출 때 여행 스타일을 반영합니다.",
       choices: profileOptions?.travelStyles ?? [],
     },
     {
       key: "budget" as ProfileSetupField,
+      label: "예산",
       title: "예산 범위를 알려주세요",
       body: "예산에 맞는 혜택과 예약 옵션을 보여드립니다.",
       choices: profileOptions?.budgets ?? [],
@@ -45,7 +50,6 @@ export function ProfileSetupPage() {
   ];
 
   const step = steps[stepIndex];
-  const selected = profile[step.key];
   const redirect = getSafeRedirect(searchParams);
 
   if (profileOptionsLoading || !profileOptions) {
@@ -119,7 +123,7 @@ export function ProfileSetupPage() {
   };
 
   return (
-    <section className="screen">
+    <section className="screen profile-setup-preference-screen">
       <div className="top-bar">
         <IconButton label="뒤로" onClick={back}>
           <ChevronLeft size={20} />
@@ -131,13 +135,43 @@ export function ProfileSetupPage() {
         <div className="progress-bar">
           <div className="progress-fill" style={{ width: `${((stepIndex + 1) / steps.length) * 100}%` }} />
         </div>
-        <ProfileSetupStep eyebrow="맞춤 추천 설정" title={step.title} body={step.body}>
-          {step.choices.map((choice) => (
-            <button className={selected === choice ? "choice active" : "choice"} key={choice} onClick={() => updateProfile(step.key, choice)} type="button">
-              {choice}
-            </button>
+        <div className="profile-setup-step-tabs" aria-label="프로필 설정 단계">
+          {steps.map((candidate, index) => (
+            <span className={index === stepIndex ? "active" : ""} key={candidate.key}>
+              {index + 1}. {candidate.label}
+            </span>
           ))}
-        </ProfileSetupStep>
+        </div>
+        <ProfilePreferencePreview profile={profile} />
+        <section className="profile-setup-preference-card" aria-labelledby="profile-setup-step-title">
+          <div className="eyebrow">맞춤 추천 설정</div>
+          <h2 id="profile-setup-step-title">{step.title}</h2>
+          <p>{step.body}</p>
+          {step.key === "preferredRegions" ? (
+            <PreferredRegionSelector
+              onChange={(regions) => updateProfile("preferredRegions", regions.length > 0 ? regions : null)}
+              options={step.choices}
+              value={profile.preferredRegions ?? []}
+            />
+          ) : (
+            <div className="preference-choice-grid">
+              {step.choices.map((choice) => (
+                <button
+                  aria-pressed={profile[step.key] === choice}
+                  className={profile[step.key] === choice ? "preference-choice-card active" : "preference-choice-card"}
+                  key={choice}
+                  onClick={() => updateProfile(step.key, choice)}
+                  type="button"
+                >
+                  <span className="preference-choice-icon" aria-hidden="true">
+                    {getPreferenceIcon(choice)}
+                  </span>
+                  {choice}
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
         {error && (
           <p className="form-error" role="alert">
             {error}

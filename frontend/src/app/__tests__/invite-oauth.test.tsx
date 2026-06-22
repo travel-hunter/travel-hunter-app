@@ -44,17 +44,25 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
     const user = userEvent.setup();
 
     await waitFor(() =>
-      expect(document.querySelector(".ds-profile-setup-step")).toBeTruthy(),
+      expect(document.querySelector(".profile-setup-preference-card")).toBeTruthy(),
     );
     await waitFor(() =>
       expect(
         screen.getByRole("heading", { name: "어디로 떠나고 싶나요?" }),
       ).toBeInTheDocument(),
     );
-    expect(screen.getByRole("button", { name: "부산" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "부산" }));
+    expect(screen.getByLabelText("현재 추천 기준")).toBeInTheDocument();
+    const regionGrid = document.querySelector(".preferred-region-grid");
+    expect(regionGrid).toBeTruthy();
+    const busanButton = screen.getByRole("button", { name: "부산" });
+    expect(busanButton).toHaveClass("preferred-region-card");
+    if (busanButton.getAttribute("aria-pressed") !== "true") {
+      await user.click(busanButton);
+    }
     await user.click(screen.getByRole("button", { name: "다음" }));
-    await user.click(screen.getByRole("button", { name: "맛집" }));
+    const styleButton = screen.getByRole("button", { name: "맛집" });
+    expect(styleButton).toHaveClass("preference-choice-card");
+    await user.click(styleButton);
     await user.click(screen.getByRole("button", { name: "다음" }));
     await user.click(screen.getByRole("button", { name: "1인 30만원 이하" }));
     await user.click(screen.getByRole("button", { name: "추천 홈 보기" }));
@@ -604,6 +612,7 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
     });
     const getProfileSpy = vi.spyOn(appDataApi, "getProfile").mockResolvedValue({
       region: "제주",
+      preferredRegions: ["제주"],
       style: "휴식",
       budget: "1인 40만원 이하",
     });

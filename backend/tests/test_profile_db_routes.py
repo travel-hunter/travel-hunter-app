@@ -14,6 +14,7 @@ class FakeDb:
     def __init__(self) -> None:
         self.flushed = False
         self.committed = False
+        self.refreshed: object | None = None
 
     def add(self, _value: object) -> None:
         pass
@@ -24,15 +25,19 @@ class FakeDb:
     def commit(self) -> None:
         self.committed = True
 
+    def refresh(self, value: object) -> None:
+        self.refreshed = value
+
 
 def make_user() -> User:
     return User(
         id=1,
         email="test.user@example.com",
         nickname="Test User",
-        region="Jeju",
-        travel_style="Relax",
-        travel_budget="Under 400000 KRW",
+        region="제주",
+        preferred_regions="제주,부산",
+        travel_style="휴식",
+        travel_budget="1인 40만원 이하",
         onboarding_completed=False,
         nickname_setup_completed=False,
         profile_setup_skipped=False,
@@ -65,9 +70,33 @@ def test_db_get_profile_returns_current_user_profile() -> None:
 
     assert response.status_code == 200
     assert response.json() == {
-        "region": "Jeju",
-        "style": "Relax",
-        "budget": "Under 400000 KRW",
+        "region": "제주",
+        "preferredRegions": ["제주", "부산"],
+        "style": "휴식",
+        "budget": "1인 40만원 이하",
+    }
+
+
+def test_db_get_profile_returns_nulls_for_unset_values() -> None:
+    user = make_user()
+    user.region = None
+    user.preferred_regions = None
+    user.travel_style = None
+    user.travel_budget = None
+
+    app.dependency_overrides[profile_routes.get_current_user] = lambda: user
+
+    try:
+        response = client.get("/api/me/profile", headers={"Authorization": "Bearer access-token"})
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "region": None,
+        "preferredRegions": None,
+        "style": None,
+        "budget": None,
     }
 
 
@@ -81,7 +110,7 @@ def test_db_patch_profile_persists_current_user_profile() -> None:
     try:
         response = client.patch(
             "/api/me/profile",
-            json={"region": "Busan", "style": "Food", "budget": "Under 300000 KRW"},
+            json={"region": "부산", "preferredRegions": ["부산", "강원"], "style": "맛집", "budget": "1인 30만원 이하"},
             headers={"Authorization": "Bearer access-token"},
         )
     finally:
@@ -89,16 +118,51 @@ def test_db_patch_profile_persists_current_user_profile() -> None:
 
     assert response.status_code == 200
     assert response.json() == {
-        "region": "Busan",
-        "style": "Food",
-        "budget": "Under 300000 KRW",
+        "region": "부산",
+        "preferredRegions": ["부산", "강원"],
+        "style": "맛집",
+        "budget": "1인 30만원 이하",
     }
-    assert user.region == "Busan"
-    assert user.travel_style == "Food"
-    assert user.travel_budget == "Under 300000 KRW"
+    assert user.region == "부산"
+    assert user.preferred_regions == "부산,강원"
+    assert user.travel_style == "맛집"
+    assert user.travel_budget == "1인 30만원 이하"
     assert user.onboarding_completed is True
     assert fake_db.flushed is True
     assert fake_db.committed is True
+
+
+def test_db_patch_profile_clears_and_rejects_preferred_regions() -> None:
+    user = make_user()
+    fake_db = FakeDb()
+
+    app.dependency_overrides[profile_routes.get_current_user] = lambda: user
+    app.dependency_overrides[profile_routes.get_optional_db] = lambda: fake_db
+
+    try:
+        clear_response = client.patch(
+            "/api/me/profile",
+            json={"preferredRegions": []},
+            headers={"Authorization": "Bearer access-token"},
+        )
+        invalid_response = client.patch(
+            "/api/me/profile",
+            json={"preferredRegions": ["부산", "달나라"]},
+            headers={"Authorization": "Bearer access-token"},
+        )
+        too_many_response = client.patch(
+            "/api/me/profile",
+            json={"preferredRegions": ["서울", "부산", "대구", "인천"]},
+            headers={"Authorization": "Bearer access-token"},
+        )
+    finally:
+        clear_overrides()
+
+    assert clear_response.status_code == 200
+    assert clear_response.json()["preferredRegions"] is None
+    assert user.preferred_regions is None
+    assert invalid_response.status_code == 422
+    assert too_many_response.status_code == 422
 
 
 def test_db_post_profile_skip_marks_onboarding_complete_without_profile_values() -> None:
@@ -125,6 +189,56 @@ def test_db_post_profile_skip_marks_onboarding_complete_without_profile_values()
     assert user.profile_setup_skipped is True
     assert fake_db.flushed is True
     assert fake_db.committed is True
+
+
+def test_profile_options_return_all_broad_regions() -> None:
+    response = client.get("/api/profile-options")
+
+    assert response.status_code == 200
+    assert response.json()["regions"] == [
+        "서울",
+        "부산",
+        "대구",
+        "인천",
+        "광주",
+        "대전",
+        "울산",
+        "세종",
+        "경기",
+        "강원",
+        "충북",
+        "충남",
+        "전북",
+        "전남",
+        "경북",
+        "경남",
+        "제주",
+    ]
+
+
+def test_db_patch_nickname_accepts_internal_spaces() -> None:
+    user = make_user()
+    fake_db = FakeDb()
+
+    app.dependency_overrides[profile_routes.get_current_user] = lambda: user
+    app.dependency_overrides[profile_routes.get_optional_db] = lambda: fake_db
+
+    try:
+        response = client.patch(
+            "/api/me/nickname",
+            json={"nickname": "여행 헌터"},
+            headers={"Authorization": "Bearer access-token"},
+        )
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    assert response.json()["nickname"] == "여행 헌터"
+    assert response.json()["nicknameSetupCompleted"] is True
+    assert user.nickname == "여행 헌터"
+    assert user.nickname_setup_completed is True
+    assert fake_db.committed is True
+    assert fake_db.refreshed is user
 
 
 def test_db_contact_requires_bearer_token() -> None:

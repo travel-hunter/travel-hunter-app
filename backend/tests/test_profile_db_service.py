@@ -29,6 +29,7 @@ def make_user() -> User:
         email="test.user@example.com",
         nickname="테스트 사용자",
         region="제주",
+        preferred_regions="제주,부산",
         travel_style="휴식",
         travel_budget="1인 40만원 이하",
         onboarding_completed=False,
@@ -39,17 +40,25 @@ def make_user() -> User:
     )
 
 
-def test_profile_to_api_uses_seed_defaults_for_missing_values() -> None:
+def test_profile_to_api_returns_nulls_for_missing_values() -> None:
     user = make_user()
     user.region = None
+    user.preferred_regions = None
     user.travel_style = None
     user.travel_budget = None
 
     assert profile_service.profile_to_api(user) == {
-        "region": "제주",
-        "style": "휴식",
-        "budget": "1인 40만원 이하",
+        "region": None,
+        "preferredRegions": None,
+        "style": None,
+        "budget": None,
     }
+
+
+def test_profile_to_api_parses_preferred_regions() -> None:
+    user = make_user()
+
+    assert profile_service.profile_to_api(user)["preferredRegions"] == ["제주", "부산"]
 
 
 def test_update_profile_persists_partial_values_and_marks_onboarding_complete() -> None:
@@ -62,7 +71,7 @@ def test_update_profile_persists_partial_values_and_marks_onboarding_complete() 
         ProfileUpdate(region="부산"),
     )
 
-    assert result == {"region": "부산", "style": "휴식", "budget": "1인 40만원 이하"}
+    assert result == {"region": "부산", "preferredRegions": ["제주", "부산"], "style": "휴식", "budget": "1인 40만원 이하"}
     assert user.region == "부산"
     assert user.travel_style == "휴식"
     assert user.travel_budget == "1인 40만원 이하"
@@ -83,9 +92,72 @@ def test_update_profile_prefers_explicit_style_and_budget() -> None:
         ProfileUpdate(style="맛집", budget="1인 30만원 이하"),
     )
 
-    assert result == {"region": "제주", "style": "맛집", "budget": "1인 30만원 이하"}
+    assert result == {"region": "제주", "preferredRegions": ["제주", "부산"], "style": "맛집", "budget": "1인 30만원 이하"}
     assert user.travel_style == "맛집"
     assert user.travel_budget == "1인 30만원 이하"
+
+
+def test_update_profile_persists_preferred_regions_as_comma_string() -> None:
+    db = FakeDb()
+    user = make_user()
+
+    result = profile_service.update_profile(
+        db,  # type: ignore[arg-type]
+        user,
+        ProfileUpdate(preferredRegions=["부산", "강원", "부산"]),
+    )
+
+    assert result["preferredRegions"] == ["부산", "강원"]
+    assert user.preferred_regions == "부산,강원"
+
+
+def test_update_profile_clears_preferred_regions_with_empty_list_or_null() -> None:
+    db = FakeDb()
+    user = make_user()
+
+    result = profile_service.update_profile(
+        db,  # type: ignore[arg-type]
+        user,
+        ProfileUpdate(preferredRegions=[]),
+    )
+    assert result["preferredRegions"] is None
+    assert user.preferred_regions is None
+
+    user.preferred_regions = "부산,강원"
+    result = profile_service.update_profile(
+        db,  # type: ignore[arg-type]
+        user,
+        ProfileUpdate(preferredRegions=None),
+    )
+    assert result["preferredRegions"] is None
+    assert user.preferred_regions is None
+
+
+def test_update_profile_rejects_invalid_or_too_many_preferred_regions() -> None:
+    db = FakeDb()
+    user = make_user()
+
+    try:
+        profile_service.update_profile(
+            db,  # type: ignore[arg-type]
+            user,
+            ProfileUpdate(preferredRegions=["부산", "달나라"]),
+        )
+    except profile_service.ProfileServiceError as error:
+        assert error.status_code == 422
+    else:
+        raise AssertionError("invalid region should be rejected")
+
+    try:
+        profile_service.update_profile(
+            db,  # type: ignore[arg-type]
+            user,
+            ProfileUpdate(preferredRegions=["서울", "부산", "대구", "인천"]),
+        )
+    except profile_service.ProfileServiceError as error:
+        assert error.status_code == 422
+    else:
+        raise AssertionError("more than three regions should be rejected")
 
 
 def test_skip_profile_setup_marks_skip_and_onboarding_complete() -> None:
@@ -101,6 +173,7 @@ def test_skip_profile_setup_marks_skip_and_onboarding_complete() -> None:
     assert result["nicknameSetupCompleted"] is False
     assert user.onboarding_completed is True
     assert user.profile_setup_skipped is True
+    assert user.preferred_regions == "제주,부산"
     assert db.added == [user]
     assert db.flushed is True
     assert db.committed is True

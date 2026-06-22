@@ -74,7 +74,7 @@ def test_admin_user_update_changes_allowed_fields_and_records_audit(db: Session)
         AdminUserUpdateRequest(
             nickname="updated-user",
             residenceArea="Busan",
-            preferredRegions="Busan,Gangwon",
+            preferredRegions=" 부산,강원, 부산 ",
             travelStyle="Food",
             travelBudget="under 400000 KRW",
             onboardingCompleted=False,
@@ -85,7 +85,8 @@ def test_admin_user_update_changes_allowed_fields_and_records_audit(db: Session)
     assert result["nickname"] == "updated-user"
     assert result["role"] == "admin"
     assert user.residence_area == "Busan"
-    assert user.preferred_regions == "Busan,Gangwon"
+    assert user.preferred_regions == "부산,강원"
+    assert result["preferredRegions"] == "부산,강원"
     assert user.travel_style == "Food"
     assert user.travel_budget == "under 400000 KRW"
     assert user.onboarding_completed is False
@@ -109,6 +110,45 @@ def test_admin_user_update_rejects_self_or_final_admin_demotion(db: Session) -> 
         )
 
     assert error.value.status_code == 409
+
+
+def test_admin_user_update_validates_preferred_regions(db: Session) -> None:
+    admin = make_user(1, email="admin@example.com", role="admin")
+    user = make_user(2, email="user@example.com", role="user")
+    db.add_all([admin, user])
+    db.commit()
+
+    with pytest.raises(admin_service.AdminServiceError) as invalid_error:
+        admin_service.update_user(
+            db,
+            admin,
+            "2",
+            AdminUserUpdateRequest(preferredRegions="부산,달나라"),
+        )
+
+    assert invalid_error.value.status_code == 422
+    assert user.preferred_regions is None
+
+    with pytest.raises(admin_service.AdminServiceError) as too_many_error:
+        admin_service.update_user(
+            db,
+            admin,
+            "2",
+            AdminUserUpdateRequest(preferredRegions="서울,부산,대구,인천"),
+        )
+
+    assert too_many_error.value.status_code == 422
+    assert user.preferred_regions is None
+
+    result = admin_service.update_user(
+        db,
+        admin,
+        "2",
+        AdminUserUpdateRequest(preferredRegions="  "),
+    )
+
+    assert result["preferredRegions"] is None
+    assert user.preferred_regions is None
 
 
 def test_admin_policy_create_maps_save_fields_and_records_audit(db: Session) -> None:
@@ -333,4 +373,3 @@ def test_admin_policy_list_includes_source_category_and_label(db: Session) -> No
     assert items["travelmonth-1"]["sourceLabel"] == "반값여행"
     assert items["internal-policy"]["sourceCategory"] is None
     assert items["internal-policy"]["sourceLabel"] == "내부"
-

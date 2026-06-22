@@ -2,37 +2,38 @@
 
 ## Current Status
 
-- Latest implemented scope: `/trips/:tripId` 추천 일정 저장 전 미리보기 상단 액션을 **취소**와 **전체 저장** 두 개로 단순화했다.
-- Top cancel label update: 저장 전 미리보기 상단의 전체 후보 제거 버튼 문구는 **취소**로 표시한다.
-- Removed top bulk-add labels/flows: **기존 유지하고 추가**, **추천 일정 추가하기**, **이 일정으로 저장**은 저장 전 미리보기 상단에 렌더링하지 않는다.
-- Candidate controls: 각 추천 후보 아티클의 개별 **저장/취소** 버튼은 유지한다.
-- Replace safety: **전체 저장**은 `추천 일정으로 바꿀까요?` 확인 뒤 **저장**을 누르면 `전체 저장을 확정할까요?` 2차 확인으로 이동하고, **확정** 버튼에서만 기존 일정 삭제 + 남은 추천 후보 전체 저장을 실행하며 성공 후 저장 전 미리보기 배너/후보 카드를 닫는다.
-- Frontend/API boundary: 이번 범위는 `AppDataApi`의 기존 trip place save/delete 흐름만 사용하며 API/DB DTO 변경은 없다.
+- Latest implemented scope: C안(요약 프리뷰 포함형)으로 온보딩 3단계와 마이페이지 프로필 편집을 정리했다. 관심 지역은 17개 광역시도 4열 아이콘 카드(최대 3개), 여행 스타일/예산은 카드형 선택지, 양쪽 모두 현재 추천 기준 프리뷰를 표시한다.
+- Recommendation behavior: `preferredRegions`가 있으면 legacy `region`보다 우선하며, 2~3개 선택 시 선택 지역별 후보를 먼저 확보한 뒤 점수순으로 채운다. 기존 `region`은 첫 번째 관심 지역으로 자동 파생하지 않는다.
+- Profile completion: 관심 지역, 여행 스타일, 예산 중 하나라도 미설정이면 홈 로그인 진입 시 세션당 1회 프로필 완료 안내를 표시한다.
+- Home AI itinerary CTA: 관심 지역 1개는 중앙 단일 CTA 카드, 2개 이상은 중앙 스냅/이전·다음 순환을 지원하는 관심지역 전용 카드 캐러셀이다. `인기 국내 여행지` 영역은 기존 인기/혜택 기반 동작을 유지한다.
+- Profile preference UX: 온보딩과 프로필 편집 모두 `AppDataApi.getProfileOptions()`로 받은 지역/스타일/예산 옵션만 사용하며, 저장/건너뛰기/API DTO 계약은 변경하지 않았다. 요약/프리뷰는 `preferredRegions`를 우선 표시하고 기존 `region`만 있는 프로필은 임시 표시값으로 일관되게 이어준다.
+- Nickname validation remains active: 닉네임은 2~20자이며 한글/영문/숫자/언더스코어/일반 공백을 허용하고 내부 공백을 보존한다.
+- API contract/eval sync: `docs/mvp-api-contract.md`와 `.agent/evals/api-contract-golden.json`을 `preferredRegions: string[] | null`, 17개 지역 옵션, 반복 query param 계약, 관리자 CSV 검증 계약에 맞췄다.
+- Local-only constraint: 개발서버 배포/원격 빌드 없이 로컬 테스트와 로컬 Vite 빌드만 수행했다.
 - Validation date: 2026-06-19.
-- Keep this file slim: current status, recent validation evidence, and active risks only. Historical detail belongs in git history, source docs, or `.omx/evidence/*`.
 
 ## Current Source Documents
 
 - Product/status/plan/API: `docs/requirements.md`, `docs/implemented-feature-spec.md`, `docs/next-work-plan.md`, `docs/mvp-api-contract.md`.
-- Current task spec: `.omx/specs/deep-interview-preview-replace-actions.md`.
+- Current task specs: `.omx/specs/deep-interview-onboarding-profile-region-grid-wireframe.md`, `.omx/specs/deep-interview-onboarding-profile-preferences.md`, `.omx/specs/deep-interview-home-recommendation-regions-scroll-cards.md`.
+- Current implementation/test plan: `.omx/plans/prd-onboarding-profile-preferences.md`, `.omx/plans/test-spec-onboarding-profile-preferences.md`.
 - Deployment/CICD: `docs/deployment-cicd/README.md` and release checklist docs under `docs/deployment-cicd/`.
 
 ## Latest Validations
 
-- Diff/UTF-8 hygiene: `git diff --check` passed; changed/untracked text files UTF-8 scan checked `26` files and found `0` decode errors / `0` `U+FFFD`.
-- Secret-file gate: `.env`, `deploy/.env.prod`, `deploy/.env.staging`, `deploy/.env.tunnel` are not tracked by git; diff secret-name scan returned no added secret-looking lines.
+- Backend full suite: `cd backend && .venv/bin/python -m pytest` passed (`511` tests, `1` existing Starlette/httpx deprecation warning).
+- Alembic SQL gate: `cd backend && .venv/bin/alembic upgrade head --sql` passed.
+- Frontend full suite: `cd frontend && npm test` passed (`191` tests).
+- Frontend local build: `cd frontend && npm run build` passed.
+- Frontend backend-mode E2E: `cd frontend && npm run test:e2e` passed (`11` tests).
 - Compose config: `docker compose -f compose.yaml config` passed.
-- PR CI fixture fix: frontend DB-backed tests now use seeded policy slug `dgtour-영광-8` instead of stale `travelmonth-24`; targeted rerun `cd frontend && npm test -- src/app/__tests__/mypage.test.tsx src/app/__tests__/policies.test.tsx src/app/__tests__/invite-oauth.test.tsx src/app/__tests__/policy-detail.test.tsx src/app/__tests__/trip-create.test.tsx` passed (`5` files / `85` tests).
-- Full frontend gate after fixture fix: `cd frontend && npm run typecheck && npm test && npm run build` passed; unit suite `19` files / `187` tests, build assets `dist/assets/index-DS-8cWYb.css`, `dist/assets/index-Cxqmqiwf.js`.
-- Backend gate: `cd backend && .venv/bin/python -m pytest && .venv/bin/alembic upgrade head --sql` passed; backend suite `500` tests passed with `1` warning and Alembic SQL generated through head.
-- Backend-mode Playwright: `cd frontend && npm run test:e2e` passed (`11` tests).
-- Development server deploy after PR #75 merge: `ssh deploy@192.168.32.15` backed up server state to `/home/deploy/.travel-hunter-recovery/20260619T005518Z`, reset clean from `4070856` to merge commit `70a6fbd`, ran tunnel compose config/build, Alembic upgrade, and force-recreated frontend/backend.
-- Development server smoke after PR #75 merge: server worktree `head=70a6fbd`, `status_count=0`; `https://dev.travel-hunter.co.kr/api/health` returned `status=ok`, `environment=staging`, `database=connected`; frontend served `assets/index-CaqrVx9o.js` and `assets/index-DS-8cWYb.css`; backend container reported `healthy` and frontend container reported `running`.
+- 2026-06-19 local max-clean targeted gate: `cd backend && .venv/bin/python -m pytest tests/test_admin_service.py tests/test_profile_db_service.py tests/test_profile_db_routes.py tests/test_region_recommendations.py tests/test_region_recommendation_routes.py` passed (`47` tests, `1` existing Starlette/httpx deprecation warning); `cd backend && .venv/bin/alembic upgrade head --sql` passed; `cd frontend && npm run typecheck` passed; `cd frontend && npm test -- --run src/app/__tests__/home.test.tsx src/app/__tests__/mypage.test.tsx src/components/PreferredRegionSelector.test.tsx src/components/ProfilePreferencePreview.test.tsx src/app/__tests__/invite-oauth.test.tsx` passed (`57` tests); `cd frontend && npm run build` passed; `docker compose -f compose.yaml config` passed; `git diff --check` and `git diff --check -- CHECKLIST.md` passed.
+- Docker preview refresh: `docker compose -f compose.yaml up -d --build frontend` rebuilt/restarted the local frontend container after the running `127.0.0.1:4173` preview was found serving an older bundle. Playwright smoke on `http://127.0.0.1:4173/home` with `test.user@example.com / password123` confirmed the AI area renders the preferred-region carousel only (`제주 → 부산 → 강원 → 제주 → 부산` via next/loop/swipe), with 5 slides including edge clones and no console errors. Follow-up center-alignment smoke confirmed the 390px viewport center is 195px and the active card center is 194.98px after correcting carousel transform math.
+- UTF-8/diff hygiene: changed-file UTF-8 scan, `git diff --check`, and `git diff --check -- CHECKLIST.md` passed.
 
 ## Remaining Risks
 
-- **전체 저장** is intentionally destructive only after the second **확정** confirmation because it deletes existing saved trip places after saving remaining preview candidates.
-- Live recommendation content still depends on backend recommendation data; this change only alters preview action UI and save orchestration labels.
+- Admin user management keeps the legacy comma-separated `preferredRegions` UI/API shape, but backend normalization now enforces the same 17-region max-3 rule before public profile parsing.
 
 ## Cleanup Policy
 

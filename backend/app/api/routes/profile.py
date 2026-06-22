@@ -59,13 +59,16 @@ def update_profile(
     db: Session | None = Depends(get_optional_db),
     current_user: UserModel | None = Depends(get_current_user),
 ) -> Profile:
-    return Profile(
-        **profile_service.update_profile(
-            _require_db(db),
-            _require_user(current_user),
-            profile,
+    try:
+        return Profile(
+            **profile_service.update_profile(
+                _require_db(db),
+                _require_user(current_user),
+                profile,
+            )
         )
-    )
+    except profile_service.ProfileServiceError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
 
 
 @router.post("/me/profile/skip", response_model=ProfileSkipResponse)

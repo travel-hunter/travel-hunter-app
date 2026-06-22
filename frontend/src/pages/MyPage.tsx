@@ -3,6 +3,9 @@ import { Bell, CircleHelp, Dice5, FileText, LogOut, ShieldCheck } from "lucide-r
 import { Link, useNavigate } from "react-router-dom";
 import { appDataApi, type ContactInfo, type NotificationSettings, type Policy, type Profile, type Trip } from "../api";
 import { useSession } from "../app/session";
+import { ProfilePreferencePreview } from "../components/ProfilePreferencePreview";
+import { PreferredRegionSelector } from "../components/PreferredRegionSelector";
+import { formatPreferredRegions, getPreferenceIcon } from "../components/preferenceDisplay";
 import { FavoritePolicyCard, ProfileSectionHeader } from "../components/patterns";
 import { Button, EmptyState, ErrorState, LoadingState } from "../components/ui";
 import { useAsyncResource } from "../api/useAsyncResource";
@@ -16,6 +19,10 @@ function uniquePoliciesBySlug(policies: Policy[]) {
     seen.add(policy.slug);
     return true;
   });
+}
+
+function profileValueLabel(value: string | null | undefined) {
+  return value?.trim() ? value : "미정";
 }
 
 export function MyPage() {
@@ -265,9 +272,9 @@ export function MyPage() {
               <h2 className="profile-name">{name}</h2>
               <p className="prototype-profile-email">{currentUser?.email ?? "이메일 정보 없음"}</p>
               <div className="prototype-profile-chips" aria-label="프로필 취향">
-                <span>{profile.region}</span>
-                <span>{profile.style}</span>
-                <span>{profile.budget}</span>
+                <span>{formatPreferredRegions(profile.preferredRegions, profile.region)}</span>
+                <span>{profileValueLabel(profile.style)}</span>
+                <span>{profileValueLabel(profile.budget)}</span>
               </div>
             </div>
             <button className="btn ghost prototype-profile-edit-button" onClick={openProfileEditor} type="button">
@@ -729,6 +736,7 @@ function ProfileEditSheet({
           </button>
         </div>
         <div className="profile-edit-sections">
+          <ProfilePreferencePreview className="profile-edit-preference-preview" profile={draft} />
           <label className="field">
             <span>닉네임</span>
             <div className="input-action-row nickname-row">
@@ -751,13 +759,15 @@ function ProfileEditSheet({
               {nicknameError}
             </p>
           )}
-          <ProfileEditChoices
-            label="관심 지역"
-            selected={draft.region}
-            values={profilesRegions}
-            onSelect={(region) => onChange({ ...draft, region })}
-            disabled={isSaving}
-          />
+          <div>
+            <div className="choice-label">관심 지역</div>
+            <PreferredRegionSelector
+              disabled={isSaving}
+              onChange={(preferredRegions) => onChange({ ...draft, preferredRegions: preferredRegions.length > 0 ? preferredRegions : null })}
+              options={profilesRegions}
+              value={draft.preferredRegions ?? []}
+            />
+          </div>
           <ProfileEditChoices
             label="여행 스타일"
             selected={draft.style}
@@ -794,15 +804,25 @@ function ProfileEditChoices({
   disabled?: boolean;
   label: string;
   onSelect: (value: string) => void;
-  selected: string;
+  selected: string | null;
   values: readonly string[];
 }) {
   return (
     <div>
       <div className="choice-label">{label}</div>
-      <div className="choice-grid">
+      <div className="preference-choice-grid profile-edit-choice-grid">
         {values.map((value) => (
-          <button className={selected === value ? "choice active" : "choice"} disabled={disabled} key={value} onClick={() => onSelect(value)} type="button">
+          <button
+            aria-pressed={selected === value}
+            className={selected === value ? "preference-choice-card active" : "preference-choice-card"}
+            disabled={disabled}
+            key={value}
+            onClick={() => onSelect(value)}
+            type="button"
+          >
+            <span className="preference-choice-icon" aria-hidden="true">
+              {getPreferenceIcon(value)}
+            </span>
             {value}
           </button>
         ))}

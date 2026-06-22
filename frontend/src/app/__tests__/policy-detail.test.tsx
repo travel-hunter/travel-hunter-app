@@ -591,7 +591,7 @@ describe("Travel Hunter app — policy detail", () => {
       .mockResolvedValue({ accessToken: "test-token", user: getPreviewUser() });
     const profileSpy = vi
       .spyOn(appDataApi, "getProfile")
-      .mockResolvedValue({ region: "부산", style: "휴식", budget: "20만원" });
+      .mockResolvedValue({ region: "부산", preferredRegions: ["부산"], style: "휴식", budget: "20만원" });
     const savedPolicySpy = vi
       .spyOn(appDataApi, "listSavedPolicies")
       .mockResolvedValue([]);
