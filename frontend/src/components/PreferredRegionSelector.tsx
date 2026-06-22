@@ -2,12 +2,14 @@ import { useMemo, useState } from "react";
 import { getRegionIcon } from "./preferenceDisplay";
 
 export function PreferredRegionSelector({
+  compact = false,
   disabled = false,
   maxSelections = 3,
   onChange,
   options,
   value,
 }: {
+  compact?: boolean;
   disabled?: boolean;
   maxSelections?: number;
   onChange: (regions: string[]) => void;
@@ -31,8 +33,10 @@ export function PreferredRegionSelector({
     onChange([...selected, region]);
   };
 
+  const selectedLabel = selected.length > 0 ? selected.join(" · ") : "아직 선택한 지역이 없어요.";
+
   return (
-    <div className="preferred-region-selector">
+    <div className={compact ? "preferred-region-selector compact" : "preferred-region-selector"}>
       <div className="preferred-region-selector-head">
         <label className="field compact">
           <span>지역 검색</span>
@@ -45,6 +49,10 @@ export function PreferredRegionSelector({
           />
         </label>
         <span className={isAtLimit ? "meta preferred-region-count active" : "meta preferred-region-count"}>{selected.length}/{maxSelections} 선택</span>
+      </div>
+      <div className="preferred-region-selected-summary" aria-live="polite">
+        <span>선택된 관심지역</span>
+        <strong>{selectedLabel}</strong>
       </div>
       <div className="choice-grid preferred-region-grid" aria-label="관심 지역 선택">
         {visibleOptions.map((region) => {
@@ -63,6 +71,11 @@ export function PreferredRegionSelector({
                 {getRegionIcon(region)}
               </span>
               <span className="preferred-region-card-label">{region}</span>
+              {active && (
+                <span className="preferred-region-card-check" aria-hidden="true">
+                  ✓
+                </span>
+              )}
             </button>
           );
         })}

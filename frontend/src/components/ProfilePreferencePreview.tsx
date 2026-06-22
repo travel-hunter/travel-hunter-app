@@ -3,9 +3,11 @@ import { formatPreferredRegions, formatProfilePreference } from "./preferenceDis
 
 export function ProfilePreferencePreview({
   className = "",
+  cta = "홈 AI 추천 맞춤 일정에 이 기준이 적용됩니다.",
   profile,
 }: {
   className?: string;
+  cta?: string;
   profile: Pick<Profile, "region" | "preferredRegions" | "style" | "budget">;
 }) {
   const regions = formatPreferredRegions(profile.preferredRegions, profile.region);
@@ -22,7 +24,7 @@ export function ProfilePreferencePreview({
         <span>{style}</span>
         <span>{budget}</span>
       </div>
-      <p>홈 AI 추천 맞춤 일정과 정책 추천에 이 기준이 반영됩니다.</p>
+      <p>{cta}</p>
     </section>
   );
 }
