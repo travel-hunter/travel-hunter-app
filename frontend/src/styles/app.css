@@ -1486,22 +1486,22 @@
   border: 1px solid var(--gray-200);
   border-radius: 18px;
   color: var(--gray-700);
-  background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+  background: #fff;
   font-weight: 900;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+  box-shadow: none;
   overflow: hidden;
 }
 
 .preferred-region-card:not(:disabled):hover {
   border-color: rgba(46, 125, 50, 0.32);
-  transform: translateY(-1px);
+  background: var(--primary-50);
 }
 
 .preferred-region-card.active {
   border-color: var(--primary-500);
   color: var(--primary-700);
-  background: linear-gradient(180deg, #f1f8e9 0%, #ffffff 100%);
-  box-shadow: 0 12px 24px rgba(46, 125, 50, 0.14);
+  background: var(--primary-50);
+  box-shadow: none;
 }
 
 .preferred-region-card:disabled {
@@ -1624,28 +1624,6 @@
   font-size: 18px;
 }
 
-.profile-editor-head-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.profile-editor-save-badge {
-  min-height: 30px;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 10px;
-  border-radius: 999px;
-  color: var(--primary-600);
-  background: var(--primary-50);
-  font-size: 12px;
-  font-weight: 1000;
-  white-space: nowrap;
-}
-
-.profile-edit-preference-preview {
-  border-radius: 18px;
-}
 
 /* 05. Home screen rules */
 .prototype-home-screen {
@@ -3591,12 +3569,47 @@
 }
 
 .profile-edit-preference-preview {
-  border-color: rgba(46, 125, 50, 0.2);
-  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.07);
+  border-color: rgba(255, 94, 91, 0.18);
+  border-radius: 18px;
+  color: var(--text-900);
+  background:
+    radial-gradient(circle at top right, rgba(255, 158, 122, 0.2), transparent 34%),
+    linear-gradient(135deg, #fff7f3 0%, #fffdf9 100%);
+  box-shadow: 0 12px 30px rgba(33, 37, 41, 0.08);
+}
+
+.profile-edit-preference-preview .profile-preference-preview-kicker {
+  color: var(--primary-700);
+}
+
+.profile-edit-preference-preview strong {
+  color: var(--text-900);
+}
+
+.profile-edit-preference-preview p {
+  color: var(--text-600);
+}
+
+.profile-edit-preference-preview .profile-preference-preview-chips span {
+  border-color: rgba(255, 94, 91, 0.16);
+  color: var(--text-800);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 8px 18px rgba(255, 94, 91, 0.08);
 }
 
 .profile-edit-choice-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.profile-edit-choice-grid .preference-choice-icon {
+  width: auto;
+  height: auto;
+  display: inline;
+  flex: 0 0 auto;
+  border-radius: 0;
+  background: transparent;
+  font-size: 20px;
+  line-height: 1;
 }
 
 .bottom-tabs {

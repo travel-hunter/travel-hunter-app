@@ -731,12 +731,9 @@ function ProfileEditSheet({
             <h2 id="profile-editor-title">프로필 편집</h2>
             <p className="meta">관심 지역, 여행 스타일, 예산을 바꾸면 추천 기준도 함께 바뀝니다.</p>
           </div>
-          <div className="profile-editor-head-actions">
-            <span className="profile-editor-save-badge">완성형</span>
-            <button className="btn sm ghost" type="button" onClick={onCancel} disabled={isSaving}>
-              취소
-            </button>
-          </div>
+          <button className="btn sm ghost" type="button" onClick={onCancel} disabled={isSaving}>
+            취소
+          </button>
         </div>
         <div className="profile-edit-sections">
           <ProfilePreferencePreview
