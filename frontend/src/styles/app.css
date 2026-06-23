@@ -3597,10 +3597,6 @@
   box-shadow: 0 8px 18px rgba(255, 94, 91, 0.08);
 }
 
-.profile-edit-choice-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
 .profile-edit-choice-grid .preference-choice-icon {
   width: auto;
   height: auto;
@@ -4257,8 +4253,7 @@
     justify-self: start;
   }
 
-  .preference-choice-grid,
-  .profile-edit-choice-grid {
+  .preference-choice-grid {
     grid-template-columns: 1fr;
   }
 
