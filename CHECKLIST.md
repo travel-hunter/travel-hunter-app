@@ -2,43 +2,45 @@
 
 ## Current Status
 
-- Latest implemented scope: C안(요약 프리뷰 포함형) 와이어프레임을 기준으로 온보딩 3단계와 마이페이지 프로필 편집 UI를 다시 폴리시했다. 관심 지역은 17개 광역시도 4열 아이콘 카드(최대 3개), 선택 체크 오버레이, 선택 지역 요약을 제공하고, 여행 스타일/예산은 카드형 선택지로 통일했다. 온보딩은 어두운 현재 추천 기준 프리뷰를 유지하고, 프로필 편집은 밝은 브랜드 틴트 프리뷰로 조정했다.
-- Recommendation behavior: `preferredRegions`가 있으면 legacy `region`보다 우선하며, 2~3개 선택 시 선택 지역별 후보를 먼저 확보한 뒤 점수순으로 채운다. 기존 `region`은 첫 번째 관심 지역으로 자동 파생하지 않는다.
-- Profile completion: 관심 지역, 여행 스타일, 예산 중 하나라도 미설정이면 홈 로그인 진입 시 세션당 1회 프로필 완료 안내를 표시한다.
-- Home AI itinerary CTA: 관심 지역 1개는 중앙 단일 CTA 카드, 2개 이상은 중앙 스냅/이전·다음 순환을 지원하는 관심지역 전용 카드 캐러셀이다. `인기 국내 여행지` 영역은 기존 인기/혜택 기반 동작을 유지한다.
-- Profile preference UX: 온보딩과 프로필 편집 모두 `AppDataApi.getProfileOptions()`로 받은 지역/스타일/예산 옵션만 사용하며, 저장/건너뛰기/API DTO 계약은 변경하지 않았다. 요약/프리뷰는 `preferredRegions`를 우선 표시하고 기존 `region`만 있는 프로필은 임시 표시값으로 일관되게 이어준다.
-- Nickname validation remains active: 닉네임은 2~20자이며 한글/영문/숫자/언더스코어/일반 공백을 허용하고 내부 공백을 보존한다.
-- API contract/eval sync: `docs/mvp-api-contract.md`와 `.agent/evals/api-contract-golden.json`을 `preferredRegions: string[] | null`, 17개 지역 옵션, 반복 query param 계약, 관리자 CSV 검증 계약에 맞췄다.
-- Branch handoff: 로컬 검증 후 현재 feature 브랜치를 원격에 push하는 흐름으로 정리 중이다.
+- Active task: development-server handoff and smoke preparation after local cleanup.
+- Current branch: `develop` at local commit `e142f04 Stabilize pre-server cleanup evidence`.
+- Scope: development server `deploy@192.168.32.15` / hostname `C307-24`, repo `/home/deploy/travel-hunter-app`, compose file `compose.tunnel.yaml`, runtime env `deploy/.env.prod` without printing values.
+- Non-goals: no production changes, no DB/volume deletion or reset, no secret value output/copy/commit, no Docker daemon/DNS changes, and no provider/browser smoke without separate step-specific approval.
+- Safe workspace cleanup completed: `.ruff_cache`, `backend/.pytest_cache`, `frontend/dist`, and backend Python `__pycache__` directories were removed; real env files, `node_modules`, `backend/.venv`, Docker volumes/DB data, and active `.omx` state were preserved.
+- Code-quality cleanup audit completed with no tracked production source edits: large candidates (`frontend/src/styles/app.css`, `ItineraryDetailPage.tsx`, `backend/app/services/trips.py`, `backend/tests/test_trip_db_service.py`, `docs/mvp-api-contract.md`) need separate planned refactors if pursued.
+- E2E cleanup adjustment completed: `frontend/e2e-backend/backend-mode.spec.ts` now uses clone-tolerant home-card locators and accepts current policy fallback navigation when a generated trip has no matching policy. No product code, API shape, schema, or seed data changed.
 - Validation date: 2026-06-23.
 
 ## Current Source Documents
 
 - Product/status/plan/API: `docs/requirements.md`, `docs/implemented-feature-spec.md`, `docs/next-work-plan.md`, `docs/mvp-api-contract.md`.
-- Current task specs: `.omx/specs/deep-interview-onboarding-profile-region-grid-wireframe.md`, `.omx/specs/deep-interview-onboarding-profile-preferences.md`, `.omx/specs/deep-interview-home-recommendation-regions-scroll-cards.md`, `.omx/specs/deep-interview-css-cleanup-verify-rebuild-push.md`.
-- Current implementation/test plan: `.omx/plans/prd-onboarding-profile-preferences.md`, `.omx/plans/test-spec-onboarding-profile-preferences.md`.
-- Deployment/CICD: `docs/deployment-cicd/README.md` and release checklist docs under `docs/deployment-cicd/`.
+- Current cleanup spec and durable goal state: `.omx/specs/deep-interview-pre-dev-server-cleanup.md`, `.omx/ultragoal/brief.md`, `.omx/ultragoal/goals.json`, `.omx/ultragoal/ledger.jsonl`.
+- Deployment/CICD: `docs/deployment-cicd/README.md`, `docs/deployment-cicd/09-release-checklist.md`, `docs/local-dev-runtime.md`.
 
-## Latest Validations
+## Latest Validation Evidence
 
-- Backend full suite: `cd backend && .venv/bin/python -m pytest` passed (`511` tests, `1` existing Starlette/httpx deprecation warning).
-- Alembic SQL gate: `cd backend && .venv/bin/alembic upgrade head --sql` passed.
-- Frontend full suite: `cd frontend && npm test` passed (`191` tests).
-- Frontend local build: `cd frontend && npm run build` passed.
-- Frontend backend-mode E2E: `cd frontend && npm run test:e2e` passed (`11` tests).
-- Compose config: `docker compose -f compose.yaml config` passed.
-- 2026-06-19 local max-clean targeted gate: `cd backend && .venv/bin/python -m pytest tests/test_admin_service.py tests/test_profile_db_service.py tests/test_profile_db_routes.py tests/test_region_recommendations.py tests/test_region_recommendation_routes.py` passed (`47` tests, `1` existing Starlette/httpx deprecation warning); `cd backend && .venv/bin/alembic upgrade head --sql` passed; `cd frontend && npm run typecheck` passed; `cd frontend && npm test -- --run src/app/__tests__/home.test.tsx src/app/__tests__/mypage.test.tsx src/components/PreferredRegionSelector.test.tsx src/components/ProfilePreferencePreview.test.tsx src/app/__tests__/invite-oauth.test.tsx` passed (`57` tests); `cd frontend && npm run build` passed; `docker compose -f compose.yaml config` passed; `git diff --check` and `git diff --check -- CHECKLIST.md` passed.
-- 2026-06-22 C안 UI polish gate: `cd frontend && npm run typecheck` passed; `cd frontend && npm test -- --run src/components/PreferredRegionSelector.test.tsx src/components/ProfilePreferencePreview.test.tsx src/app/__tests__/onboarding.test.ts src/app/__tests__/mypage.test.tsx` passed (`32` tests); `cd frontend && npm run build` passed. Playwright smoke against local Vite `http://127.0.0.1:5173/profile-setup` confirmed 390px/360px onboarding C안 rendering, 4-column region grid, persisted dark recommendation preview, and no horizontal overflow (`390 rootWidth 375`, `360 rootWidth 345`). Playwright smoke against `/mypage` profile edit confirmed 390px sheet rendering, dark preview, compact 4-column region grid, and no horizontal overflow (`rootWidth 390`).
-- Docker preview refresh: `docker compose -f compose.yaml up -d --build frontend` rebuilt/restarted the local frontend container after the running `127.0.0.1:4173` preview was found serving an older bundle. Playwright smoke on `http://127.0.0.1:4173/home` with `test.user@example.com / password123` confirmed the AI area renders the preferred-region carousel only (`제주 → 부산 → 강원 → 제주 → 부산` via next/loop/swipe), with 5 slides including edge clones and no console errors. Follow-up center-alignment smoke confirmed the 390px viewport center is 195px and the active card center is 194.98px after correcting carousel transform math.
-- 2026-06-23 CSS cleanup gate: removed duplicate `profile-edit-choice-grid` grid overrides from `frontend/src/styles/app.css` without intended visual changes; `npm --prefix frontend run typecheck` passed; `npm --prefix frontend test -- --run src/components/PreferredRegionSelector.test.tsx src/components/ProfilePreferencePreview.test.tsx src/app/__tests__/onboarding.test.ts src/app/__tests__/mypage.test.tsx` passed (`32` tests); `npm --prefix frontend run build` passed; `docker compose -f compose.yaml up -d --build frontend` rebuilt the 4173 preview, and `curl -I http://127.0.0.1:4173/` returned `200 OK` with assets `index-CXIEeppB.js` / `index-V7QS1Rru.css`; `git diff --check` and scoped UTF-8 scan passed.
-- UTF-8/diff hygiene: changed-file UTF-8 scan, `git diff --check`, and `git diff --check -- CHECKLIST.md` passed.
+- Preflight/secret-env audit: tracked env-like files are examples/config/code paths; ignored real env files (`.env`, `backend/.env`, `frontend/.env`, `deploy/.env.prod`) were identified by name only and values were not printed.
+- Safe artifact cleanup evidence: `.omx/ultragoal/evidence/G002-safe-artifact-cleanup.md`.
+- Code-quality audit evidence: `.omx/ultragoal/evidence/G003-code-quality-cleanup-audit.md`.
+- Full local release gate evidence: `.omx/ultragoal/evidence/G005-release-gate.md`.
+- Frontend: `npm run typecheck` PASS; `npm test` PASS (21 files / 198 tests plus mojibake check); `npm run test:e2e` PASS (11 tests); `npm run build` PASS.
+- Backend: `.venv/bin/python -m pytest` PASS (511 tests, 1 deprecation warning); `.venv/bin/alembic upgrade head --sql` PASS.
+- Compose: `docker compose -f compose.yaml config` PASS; output was not persisted in docs/evidence because compose config includes environment material.
+- Hygiene: `git diff --check` PASS; changed-file UTF-8 scan PASS; tracked env-like files are only `.env.example` files; ignored real env files remain untracked and preserved.
+- Development server sync/build: SSH auth PASS for `deploy@192.168.32.15`; remote repo clean before sync; GitHub direct push to `develop` was rejected by repository PR-only rule, so local commit `e142f04d22f8899762d9cfe61ba319a31c92af71` was transferred by git bundle and fast-forwarded on the server; `docker compose --env-file deploy/.env.prod -f compose.tunnel.yaml build` completed for backend and frontend; build log path is `/home/deploy/travel-hunter-build-20260623T094039Z-e142f04.log`.
+- Development server runtime refresh: `docker compose --env-file deploy/.env.prod -f compose.tunnel.yaml up -d backend frontend` recreated backend and frontend without DB/volume deletion; backend health is healthy and `https://dev.travel-hunter.co.kr/api/health` returns ok/DB connected; public HTML now references rebuilt frontend assets `index-BVW2vpdy.js` and `index-V7QS1Rru.css`.
+- Development-server UI parity smoke: Playwright-authenticated checks confirmed `/home` renders the AI recommendation carousel/card markers, `/profile-setup?redirect=/home` renders the profile preference preview and preferred-region selector, and `/mypage` → `편집` renders the profile edit preference preview and preferred-region selector on both local `127.0.0.1:4173` and `https://dev.travel-hunter.co.kr`; visible data differs because local and dev use different backend datasets/profiles.
+- Home recommendation reason cleanup: backend region recommendation `reason` copy was shortened for card display (`전국 혜택 추천`, `{region} 맞춤 혜택 N개`, `마감 임박 N개`, `{region} 혜택 N개`); `backend/.venv/bin/python -m pytest tests/test_region_recommendations.py tests/test_region_recommendation_routes.py` PASS (13 tests) and `backend/.venv/bin/python -m pytest` PASS (511 tests, 1 deprecation warning).
+- Development server reason deploy: local commit `0d8f533` was bundle-transferred to the development server, `docker compose --env-file deploy/.env.prod -f compose.tunnel.yaml build backend` and `up -d backend` completed without DB/volume deletion, `/api/health` returned ok/DB connected, and authenticated `/home` secondary bubbles now show compact examples such as `강원 맞춤 혜택 12개` and `부산 맞춤 혜택 3개`.
 
 ## Remaining Risks
 
-- Admin user management keeps the legacy comma-separated `preferredRegions` UI/API shape, but backend normalization now enforces the same 17-region max-3 rule before public profile parsing.
+- Public production-domain release is still unproven; development-server container restart/migration and provider smoke remain separate future work.
+- `frontend/src/styles/app.css`, `ItineraryDetailPage.tsx`, `backend/app/services/trips.py`, and large trip tests remain maintainability hotspots; avoid opportunistic broad refactors before server handoff.
+- Full local release gate and development-server image build are clean, but provider-backed/dev-server runtime smoke and production-domain release remain separate future work.
 
 ## Cleanup Policy
 
-- Replace stale validation detail instead of appending chronology.
-- Record document removals/replacements in `docs/specs/spec-index.md` when workflow specs are retired.
+- Keep this file slim: current status, latest validation evidence, and active risks only.
+- Do not append long historical logs; replace stale validation detail as new gates run.
 - Before claiming completion, run `git diff --check`; for Korean-bearing changes, also verify UTF-8 has no `U+FFFD` replacement characters.

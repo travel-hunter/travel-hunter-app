@@ -110,6 +110,9 @@ def test_region_recommendations_rank_by_count_deadline_then_amount(db: Session) 
     assert recommendations[0].policyCount == 2
     assert recommendations[0].endingSoonCount == 1
     assert recommendations[0].estimatedValueKrw == 80000
+    assert recommendations[0].reason == "마감 임박 1개"
+    assert recommendations[1].reason == "마감 임박 1개"
+    assert recommendations[2].reason == "제주 혜택 1개"
     assert recommendations[0].score > recommendations[1].score
 
 
@@ -128,6 +131,7 @@ def test_region_recommendations_keep_style_bonus_from_overriding_policy_score(db
 
     assert [item.region for item in recommendations] == ["강원", "부산"]
     assert recommendations[1].styleMatchedCount == 1
+    assert recommendations[1].reason == "부산 맞춤 혜택 1개"
 
 
 def test_region_recommendations_use_profile_region_only_as_tie_breaker(db: Session) -> None:
@@ -166,6 +170,7 @@ def test_region_recommendations_use_nationwide_only_as_fallback(db: Session) -> 
 
     assert [item.region for item in two_items] == ["강원", "부산"]
     assert [item.region for item in three_items] == ["강원", "부산", "전국"]
+    assert three_items[2].reason == "전국 혜택 추천"
 
 
 def test_region_recommendations_reserve_slots_for_three_preferred_regions(db: Session) -> None:
@@ -354,6 +359,7 @@ def test_region_recommendations_expand_stay_discount_alias_areas(db: Session) ->
     assert [item.region for item in recommendations] == ["강원", "경남"]
     assert recommendations[0].policyCount == 2
     assert recommendations[0].estimatedValueKrw == 140000
+    assert recommendations[0].reason == "강원 혜택 2개"
     assert recommendations[1].policyCount == 1
 
 

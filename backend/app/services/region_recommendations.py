@@ -175,12 +175,9 @@ def _to_recommendation(stats: _RegionStats) -> RegionRecommendation:
 
 def _reason(stats: _RegionStats) -> str:
     if stats.nationwide:
-        return "지역 후보가 부족할 때 함께 볼 수 있는 전국 혜택이 있습니다."
-    parts = [f"신청 가능한 지역 혜택 {stats.policy_count}개"]
-    if stats.ending_soon_count:
-        parts.append(f"마감 임박 {stats.ending_soon_count}개")
-    if stats.estimated_value_krw:
-        parts.append(f"명시 혜택 최대 {stats.estimated_value_krw:,}원")
+        return "전국 혜택 추천"
     if stats.style_matched_count:
-        parts.append(f"선택 취향과 맞는 혜택 {stats.style_matched_count}개")
-    return " · ".join(parts) + "를 기준으로 추천합니다."
+        return f"{stats.region} 맞춤 혜택 {stats.style_matched_count}개"
+    if stats.ending_soon_count:
+        return f"마감 임박 {stats.ending_soon_count}개"
+    return f"{stats.region} 혜택 {stats.policy_count}개"

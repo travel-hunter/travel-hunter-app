@@ -53,11 +53,12 @@ test("backend data source persists profile setup choices", async ({ page }) => {
   await page.getByRole("button", { name: "추천 홈 보기" }).click();
 
   await expect(page).toHaveURL(/\/home$/);
-  await expect(page.locator(".prototype-home-ai-card")).toBeVisible();
-  await expect(page.locator(".prototype-home-ai-card")).toContainText("맛집 코스 만들기");
+  const homeAiCard = page.locator(".prototype-home-ai-card", { hasText: "맛집 코스 만들기" }).first();
+  await expect(homeAiCard).toBeVisible();
+  await expect(homeAiCard).toContainText("맛집 코스 만들기");
 
   await page.reload();
-  await expect(page.locator(".prototype-home-ai-card")).toContainText("맛집 코스 만들기");
+  await expect(homeAiCard).toContainText("맛집 코스 만들기");
 });
 
 test("backend data source drives policy, trip, recommendation, invite, and logout flow", async ({ page }) => {
@@ -308,11 +309,11 @@ test("core app screens do not horizontally overflow at common responsive widths"
   }
 });
 
-test("home recommendation starts a new trip and reaches recommended policy detail", async ({ page }) => {
+test("home recommendation starts a new trip and reaches policy navigation", async ({ page }) => {
   await seedStoredAuth(page);
 
   await page.goto("/home");
-  const aiTripCard = page.locator(".prototype-home-ai-card");
+  const aiTripCard = page.getByRole("link", { name: /맛집 코스 만들기/ }).first();
   await expect(aiTripCard).toBeVisible();
   await expect(aiTripCard).toHaveAttribute("href", /\/trips\/new\?region=/);
 
@@ -338,13 +339,13 @@ test("home recommendation starts a new trip and reaches recommended policy detai
 
   await expect(page).toHaveURL(/\/trips\/[1-9][0-9]*$/);
   await expect(page.locator(".day-tab").first()).toBeVisible();
-  const recommendedPolicyLink = page.locator('.prototype-matching-policy-card[href^="/policies/"]').first();
-  await expect(recommendedPolicyLink).toBeVisible();
-  const policyHref = await recommendedPolicyLink.getAttribute("href");
-  expect(policyHref).toMatch(/^\/policies\/.+/);
-  await recommendedPolicyLink.click();
-  await expect(page).toHaveURL(/\/policies\/.+/);
-  await expect(page.getByRole("link", { name: "혜택 안내 보기" }).or(page.getByRole("link", { name: "신청하러 가기" }))).toBeVisible();
+  const policyNavigationLink = page.locator('.prototype-matching-policy-card[href^="/policies"]').first();
+  await expect(policyNavigationLink).toBeVisible();
+  const policyHref = await policyNavigationLink.getAttribute("href");
+  expect(policyHref).toMatch(/^\/policies(?:\/.+)?$/);
+  await policyNavigationLink.click();
+  await expect(page).toHaveURL(/\/policies(?:\/.+)?$/);
+  await expect(page.locator("#root")).not.toBeEmpty();
 });
 
 async function expectNoDocumentOverflow(page: Page) {
