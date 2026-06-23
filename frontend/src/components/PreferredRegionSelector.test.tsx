@@ -44,6 +44,7 @@ describe("PreferredRegionSelector", () => {
     );
 
     expect(screen.getByText("3/3 선택")).toHaveClass("active");
+    expect(screen.getByText("서울 · 부산 · 강원")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "제주" })).toBeDisabled();
 
     await user.click(screen.getByRole("button", { name: "부산" }));
@@ -69,5 +70,19 @@ describe("PreferredRegionSelector", () => {
     await user.click(screen.getByRole("button", { name: "제주" }));
 
     expect(onChange).toHaveBeenLastCalledWith([]);
+  });
+
+  it("shows an empty selected-region summary before the first choice", () => {
+    render(
+      <PreferredRegionSelector
+        maxSelections={3}
+        onChange={vi.fn()}
+        options={regions}
+        value={[]}
+      />,
+    );
+
+    expect(screen.getByText("선택된 관심지역")).toBeInTheDocument();
+    expect(screen.getByText("아직 선택한 지역이 없어요.")).toBeInTheDocument();
   });
 });

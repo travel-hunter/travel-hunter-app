@@ -736,7 +736,11 @@ function ProfileEditSheet({
           </button>
         </div>
         <div className="profile-edit-sections">
-          <ProfilePreferencePreview className="profile-edit-preference-preview" profile={draft} />
+          <ProfilePreferencePreview
+            className="profile-edit-preference-preview"
+            cta="저장하면 홈 추천과 맞춤 일정에 바로 반영됩니다."
+            profile={draft}
+          />
           <label className="field">
             <span>닉네임</span>
             <div className="input-action-row nickname-row">
@@ -762,6 +766,7 @@ function ProfileEditSheet({
           <div>
             <div className="choice-label">관심 지역</div>
             <PreferredRegionSelector
+              compact
               disabled={isSaving}
               onChange={(preferredRegions) => onChange({ ...draft, preferredRegions: preferredRegions.length > 0 ? preferredRegions : null })}
               options={profilesRegions}

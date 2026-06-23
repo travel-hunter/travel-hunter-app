@@ -1341,25 +1341,26 @@
   display: grid;
   gap: 10px;
   padding: 16px;
-  border: 1px solid rgba(46, 125, 50, 0.16);
+  border: 1px solid rgba(17, 24, 39, 0.9);
   border-radius: var(--radius-lg);
+  color: #fff;
   background:
-    radial-gradient(circle at top right, rgba(46, 125, 50, 0.14), transparent 34%),
-    linear-gradient(135deg, #f8fff7 0%, #ffffff 62%);
-  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.16), transparent 30%),
+    linear-gradient(135deg, #17172b 0%, #111827 100%);
+  box-shadow: 0 18px 38px rgba(17, 24, 39, 0.18);
 }
 
 .profile-preference-preview-kicker {
   display: block;
   margin-bottom: 4px;
-  color: var(--primary-600);
+  color: rgba(255, 255, 255, 0.7);
   font-size: 12px;
   font-weight: 1000;
 }
 
 .profile-preference-preview strong {
   display: block;
-  color: var(--gray-900);
+  color: #fff;
   font-size: 18px;
   line-height: 1.32;
   word-break: keep-all;
@@ -1367,7 +1368,7 @@
 
 .profile-preference-preview p {
   margin: 0;
-  color: var(--gray-600);
+  color: rgba(255, 255, 255, 0.72);
   font-size: 12px;
   line-height: 1.45;
 }
@@ -1383,10 +1384,10 @@
   align-items: center;
   min-height: 28px;
   padding: 0 10px;
-  border: 1px solid rgba(46, 125, 50, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 999px;
-  color: var(--primary-700);
-  background: rgba(255, 255, 255, 0.82);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
   font-size: 12px;
   font-weight: 900;
 }
@@ -1448,13 +1449,35 @@
   background: var(--primary-50);
 }
 
+.preferred-region-selected-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid var(--gray-200);
+  border-radius: 14px;
+  color: var(--gray-500);
+  background: #fff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.preferred-region-selected-summary strong {
+  color: var(--gray-800);
+  text-align: right;
+  word-break: keep-all;
+}
+
 .preferred-region-grid {
-  grid-template-columns: repeat(4, minmax(72px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
 .preferred-region-card {
   min-height: 70px;
+  position: relative;
   display: grid;
   justify-items: center;
   align-content: center;
@@ -1463,21 +1486,22 @@
   border: 1px solid var(--gray-200);
   border-radius: 18px;
   color: var(--gray-700);
-  background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+  background: #fff;
   font-weight: 900;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+  box-shadow: none;
+  overflow: hidden;
 }
 
 .preferred-region-card:not(:disabled):hover {
   border-color: rgba(46, 125, 50, 0.32);
-  transform: translateY(-1px);
+  background: var(--primary-50);
 }
 
 .preferred-region-card.active {
   border-color: var(--primary-500);
   color: var(--primary-700);
-  background: linear-gradient(180deg, #f1f8e9 0%, #ffffff 100%);
-  box-shadow: 0 12px 24px rgba(46, 125, 50, 0.14);
+  background: var(--primary-50);
+  box-shadow: none;
 }
 
 .preferred-region-card:disabled {
@@ -1497,6 +1521,59 @@
 .preferred-region-card-label {
   font-size: 12px;
   line-height: 1.2;
+}
+
+.preferred-region-card-check {
+  position: absolute;
+  top: 6px;
+  right: 7px;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--primary-500);
+  font-size: 11px;
+  font-weight: 1000;
+  box-shadow: 0 6px 14px rgba(46, 125, 50, 0.24);
+}
+
+.preferred-region-selector.compact {
+  gap: 8px;
+}
+
+.preferred-region-selector.compact .preferred-region-selector-head {
+  grid-template-columns: 1fr;
+}
+
+.preferred-region-selector.compact .preferred-region-count {
+  justify-self: start;
+  min-height: 32px;
+}
+
+.preferred-region-selector.compact .preferred-region-selected-summary {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.preferred-region-selector.compact .preferred-region-selected-summary strong {
+  text-align: left;
+}
+
+.preferred-region-selector.compact .preferred-region-grid {
+  gap: 7px;
+}
+
+.preferred-region-selector.compact .preferred-region-card {
+  min-height: 58px;
+  border-radius: 14px;
+  gap: 3px;
+}
+
+.preferred-region-selector.compact .preferred-region-card-icon {
+  font-size: 20px;
 }
 
 .preference-choice-grid {
@@ -1528,6 +1605,14 @@
   box-shadow: 0 12px 24px rgba(46, 125, 50, 0.13);
 }
 
+.preference-choice-card.active::after {
+  content: "선택됨";
+  margin-left: auto;
+  color: var(--primary-600);
+  font-size: 11px;
+  font-weight: 1000;
+}
+
 .preference-choice-icon {
   width: 34px;
   height: 34px;
@@ -1538,6 +1623,7 @@
   background: rgba(46, 125, 50, 0.08);
   font-size: 18px;
 }
+
 
 /* 05. Home screen rules */
 .prototype-home-screen {
@@ -3483,12 +3569,43 @@
 }
 
 .profile-edit-preference-preview {
-  border-color: rgba(46, 125, 50, 0.2);
-  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.07);
+  border-color: rgba(255, 94, 91, 0.18);
+  border-radius: 18px;
+  color: var(--text-900);
+  background:
+    radial-gradient(circle at top right, rgba(255, 158, 122, 0.2), transparent 34%),
+    linear-gradient(135deg, #fff7f3 0%, #fffdf9 100%);
+  box-shadow: 0 12px 30px rgba(33, 37, 41, 0.08);
 }
 
-.profile-edit-choice-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.profile-edit-preference-preview .profile-preference-preview-kicker {
+  color: var(--primary-700);
+}
+
+.profile-edit-preference-preview strong {
+  color: var(--text-900);
+}
+
+.profile-edit-preference-preview p {
+  color: var(--text-600);
+}
+
+.profile-edit-preference-preview .profile-preference-preview-chips span {
+  border-color: rgba(255, 94, 91, 0.16);
+  color: var(--text-800);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 8px 18px rgba(255, 94, 91, 0.08);
+}
+
+.profile-edit-choice-grid .preference-choice-icon {
+  width: auto;
+  height: auto;
+  display: inline;
+  flex: 0 0 auto;
+  border-radius: 0;
+  background: transparent;
+  font-size: 20px;
+  line-height: 1;
 }
 
 .bottom-tabs {
@@ -4125,7 +4242,7 @@
   }
 
   .preferred-region-grid {
-    grid-template-columns: repeat(4, minmax(72px, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .preferred-region-selector-head {
@@ -4136,14 +4253,13 @@
     justify-self: start;
   }
 
-  .preference-choice-grid,
-  .profile-edit-choice-grid {
+  .preference-choice-grid {
     grid-template-columns: 1fr;
   }
 
   @media (max-width: 340px) {
     .preferred-region-grid {
-      grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(68px, 1fr));
     }
   }
 
