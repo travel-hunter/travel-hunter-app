@@ -67,14 +67,10 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
     await user.click(screen.getByRole("button", { name: "1인 30만원 이하" }));
     await user.click(screen.getByRole("button", { name: "추천 홈 보기" }));
 
-    await waitFor(() =>
-      expect(document.body).toHaveTextContent("인기 국내 여행지"),
-    );
-    await waitFor(() =>
-      expect(screen.getByLabelText("인기 국내 여행지 목록")).toHaveTextContent(
-        /마감 임박|혜택/,
-      ),
-    );
+    await waitFor(() => expect(document.body).toHaveTextContent("안녕,"));
+    expect(document.body).toHaveTextContent("AI 추천 맞춤 일정");
+    expect(screen.queryByLabelText("인기 국내 여행지 목록")).toBeNull();
+    expect(document.body).toHaveTextContent(/코스 만들기/);
   });
 
   it("saves selected invite roles from the friend invite page", async () => {
