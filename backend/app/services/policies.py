@@ -12,6 +12,7 @@ from app.repositories import policies as policy_repository
 from app.services.policy_category_classifier import classify_external_policy_category
 from app.services import stay_discount_aliases
 from app.services import local_half_trip_display
+from app.services.policy_requirements import split_requirement_lines, sanitize_requirement_items
 
 
 LEGACY_CATEGORY_MAP = {
@@ -51,12 +52,6 @@ def _format_benefit_amount(value: int | None) -> str | None:
     return f"최대 {value:,}원"
 
 
-def _split_lines(value: str | None) -> list[str]:
-    if not value:
-        return []
-    return [line.strip() for line in value.splitlines() if line.strip()]
-
-
 def policy_to_api(policy: PolicyModel) -> dict[str, object]:
     slug = policy.slug or str(policy.id)
     display = DISPLAY_OVERRIDES.get(slug, {})
@@ -83,7 +78,7 @@ def policy_to_api(policy: PolicyModel) -> dict[str, object]:
         "summary": policy.policy_comment or policy.description or "",
         "match": int(display.get("match", 90)),
         "category": category,
-        "requirements": _split_lines(policy.target_condition),
+        "requirements": sanitize_requirement_items(split_requirement_lines(policy.target_condition)),
         "documents": [document.document_name for document in policy.documents],
         "officialUrl": policy.official_url,
         "applyUrl": policy.apply_url,

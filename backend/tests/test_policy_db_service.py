@@ -52,6 +52,15 @@ def test_policy_to_api_preserves_contract_shape() -> None:
     assert payload["category"] == "지역할인"
 
 
+def test_policy_to_api_filters_phone_contact_requirements() -> None:
+    policy = make_policy()
+    policy.target_condition = "1660-3067\n문의전화 1660-3067 특이사항 지정관광지 방문 인증\n국내 거주자"
+
+    payload = policy_service.policy_to_api(policy)
+
+    assert payload["requirements"] == ["국내 거주자"]
+
+
 def test_local_half_trip_policy_title_uses_bracketed_city_prefix() -> None:
     policy = make_policy()
     policy.slug = "travelmonth-101"
@@ -184,7 +193,6 @@ def test_db_policy_detail_resolves_collected_external_benefit_slug(monkeypatch) 
     assert detail["slug"] == "travelmonth-58"
     assert detail["sourceType"] == "external"
     assert detail["actionStatus"] == "infoOnly"
-
 
 def test_local_half_trip_raw_fallback_title_uses_bracketed_city_prefix(monkeypatch) -> None:
     fake_db = object()
