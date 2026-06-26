@@ -12,11 +12,23 @@ def create_pending_signup(
     email: str,
     token_hash: str,
     expires_at: datetime,
+    terms_accepted: bool,
+    terms_accepted_at: datetime,
+    terms_version: str,
+    privacy_accepted: bool,
+    privacy_accepted_at: datetime,
+    privacy_version: str,
 ) -> PendingSignup:
     pending = PendingSignup(
         email=email,
         token_hash=token_hash,
         expires_at=expires_at,
+        terms_accepted=terms_accepted,
+        terms_accepted_at=terms_accepted_at,
+        terms_version=terms_version,
+        privacy_accepted=privacy_accepted,
+        privacy_accepted_at=privacy_accepted_at,
+        privacy_version=privacy_version,
     )
     db.add(pending)
     db.flush()

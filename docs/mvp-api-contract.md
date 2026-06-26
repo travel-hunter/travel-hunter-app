@@ -160,11 +160,19 @@ DB 연결 상태 포함 서버 헬스 확인. 인증 불필요.
 
 ### POST /auth/signup
 
-이메일 인증 요청. 성공 시 계정은 아직 생성하지 않고 인증 메일을 발송한다. 같은 이메일의 미완료 pending signup은 새 요청으로 교체한다.
+이메일 인증 요청. 성공 시 계정은 아직 생성하지 않고 인증 메일을 발송한다. 같은 이메일의 미완료 pending signup은 새 요청으로 교체한다. 신규 계정 생성 시점의 필수 약관 2종 동의를 함께 검증·저장한다.
 
 **Request**
 ```json
-{ "email": "user@example.com" }
+{
+  "email": "user@example.com",
+  "agreements": {
+    "termsAccepted": true,
+    "privacyAccepted": true,
+    "termsVersion": "2026-06-26",
+    "privacyVersion": "2026-06-26"
+  }
+}
 ```
 
 **Response 200**
@@ -176,6 +184,7 @@ DB 연결 상태 포함 서버 헬스 확인. 인증 불필요.
 ```
 
 **Errors**
+- 400: 필수 약관 미동의 또는 현재 약관 버전 불일치
 - 409: 이미 가입 완료된 이메일
 - 503: 인증 메일 발송 실패. 이 경우 pending signup은 저장하지 않는다.
 
@@ -199,7 +208,7 @@ DB 연결 상태 포함 서버 헬스 확인. 인증 불필요.
 ```
 
 **Errors**
-- 400: 인증 token 없음, 만료, 또는 이미 사용됨
+- 400: 인증 token 없음, 만료, 이미 사용됨, 또는 pending signup의 필수 약관 메타데이터가 유효하지 않음
 - 409: 이미 가입 완료된 이메일
 
 ---
@@ -230,6 +239,55 @@ DB 연결 상태 포함 서버 헬스 확인. 인증 불필요.
 - 400: 인증 token 없음, 만료, 또는 이미 사용됨
 - 409: 이미 가입 완료된 이메일
 - 409: 인증 전 같은 이메일 계정이 이미 생성됨
+
+
+---
+
+### GET /auth/oauth/pending-signup
+
+신규 소셜 로그인 callback에서 아직 계정을 만들지 않고 발급한 pending social signup token의 화면 표시용 정보를 조회한다. 기존 소셜 계정은 이 흐름을 타지 않고 바로 로그인된다.
+
+**Query**
+```text
+token=<pending-social-signup-token>
+```
+
+**Response 200**
+```json
+{
+  "provider": "google",
+  "email": "user@example.com",
+  "nickname": "홍길동",
+  "expiresAt": "2026-06-26T06:30:00"
+}
+```
+
+**Errors**
+- 400: pending social signup token 없음 또는 만료
+
+---
+
+### POST /auth/oauth/pending-signup/complete
+
+신규 소셜 계정 생성 대기 상태에서 필수 약관 2종 동의를 검증한 뒤 실제 `users`와 `social_accounts`를 생성하고 로그인한다.
+
+**Request**
+```json
+{
+  "token": "<pending-social-signup-token>",
+  "agreements": {
+    "termsAccepted": true,
+    "privacyAccepted": true,
+    "termsVersion": "2026-06-26",
+    "privacyVersion": "2026-06-26"
+  }
+}
+```
+
+**Response 200** → `AuthResponse`, refresh cookie set
+
+**Errors**
+- 400: pending social signup token 없음/만료, 필수 약관 미동의 또는 현재 약관 버전 불일치
 
 ---
 

@@ -1,7 +1,7 @@
 import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { PublicLayout, ServiceLayout } from "../components/AppLayout";
 import { AiResultsPage, FriendInvitePage, ItineraryCreatePage, ItineraryDetailPage, ItineraryListPage } from "../pages/ItineraryPages";
-import { ForgotPasswordPage, LoginPage, NicknameSetupPage, OAuthCallbackPage, OAuthStartPage, ResetPasswordPage, SignupPage, SignupVerifyPage } from "../pages/AuthPages";
+import { ForgotPasswordPage, LoginPage, NicknameSetupPage, OAuthCallbackPage, OAuthStartPage, ResetPasswordPage, SignupPage, SignupVerifyPage, SocialSignupAgreementPage } from "../pages/AuthPages";
 import { AppliedPolicyLinksPage } from "../pages/AppliedPolicyLinksPage";
 import { HomePage } from "../pages/HomePage";
 import { InviteAcceptPage } from "../pages/InviteAcceptPage";
@@ -22,6 +22,7 @@ export function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/signup/verify" element={<SignupVerifyPage />} />
+        <Route path="/signup/social-agreement" element={<SocialSignupAgreementPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/oauth/:provider/start" element={<OAuthStartPage />} />

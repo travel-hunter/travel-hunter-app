@@ -89,8 +89,16 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1)
 
 
+class RequiredAgreement(BaseModel):
+    termsAccepted: bool
+    privacyAccepted: bool
+    termsVersion: str = Field(min_length=1, max_length=32)
+    privacyVersion: str = Field(min_length=1, max_length=32)
+
+
 class SignupRequest(BaseModel):
     email: EmailStr
+    agreements: RequiredAgreement
 
 
 class SignupVerificationResponse(BaseModel):
@@ -110,6 +118,18 @@ class SignupVerifyResponse(BaseModel):
 class SignupCompleteRequest(BaseModel):
     token: str = Field(min_length=1)
     password: str = Field(min_length=8)
+
+
+class PendingSocialSignupResponse(BaseModel):
+    provider: str
+    email: str
+    nickname: str | None = None
+    expiresAt: str
+
+
+class CompleteSocialSignupRequest(BaseModel):
+    token: str = Field(min_length=1)
+    agreements: RequiredAgreement
 
 
 class EmailAvailabilityRequest(BaseModel):

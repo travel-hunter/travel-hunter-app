@@ -2,6 +2,7 @@ import { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useSt
 import {
   appDataApi,
   AuthResponse,
+  CompleteSocialSignupRequest,
   LoginRequest,
   setApiAccessToken,
   SignupCompleteRequest,
@@ -24,6 +25,7 @@ type SessionContextValue = {
   signup: (request?: SignupRequest) => Promise<SignupVerificationResponse>;
   verifySignup: (token: string) => Promise<SignupVerifyResponse>;
   completeSignup: (request: SignupCompleteRequest) => Promise<User>;
+  completeSocialSignup: (request: CompleteSocialSignupRequest) => Promise<User>;
   completeOAuthSession: () => Promise<User>;
   logout: () => Promise<void>;
   saveNickname: (nickname: string) => Promise<User>;
@@ -196,6 +198,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       verifySignup: async (token) => appDataApi.verifySignup({ token }),
       completeSignup: async (request) => {
         const auth = await appDataApi.completeSignup(request);
+        persistAuth(auth);
+        setCurrentUser(auth.user);
+        setProfile(await readRemoteProfile());
+        savedSlugAdditionsRef.current.clear();
+        savedSlugRemovalsRef.current.clear();
+        setSavedSlugs(new Set());
+        return auth.user;
+      },
+      completeSocialSignup: async (request) => {
+        const auth = await appDataApi.completeSocialSignup(request);
         persistAuth(auth);
         setCurrentUser(auth.user);
         setProfile(await readRemoteProfile());

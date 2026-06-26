@@ -37,6 +37,178 @@ const oauthProviderLabels = {
   google: "구글",
 } as const;
 
+const CURRENT_TERMS_VERSION = "2026-06-26";
+const CURRENT_PRIVACY_VERSION = "2026-06-26";
+
+type AgreementKey = "terms" | "privacy";
+type AgreementState = Record<AgreementKey, boolean>;
+
+const emptyAgreements: AgreementState = {
+  terms: false,
+  privacy: false,
+};
+
+const agreementContent = {
+  terms: {
+    title: "이용약관",
+    subtitle: "트래블헌터 서비스 이용 기준",
+    rows: [
+      {
+        heading: "서비스 목적",
+        body: "트래블헌터는 여행 지원 정책 탐색, 즐겨찾기, 일정 연결을 돕는 정보 제공 서비스입니다.",
+      },
+      {
+        heading: "정보의 성격",
+        body: "앱의 정책 요약은 탐색을 돕기 위한 정보이며, 실제 신청 조건은 공식 안내에서 확인해야 합니다.",
+      },
+      {
+        heading: "사용자 책임",
+        body: "사용자는 신청 전 기간, 대상 조건, 예산 소진 여부, 제출 서류를 직접 확인해야 합니다.",
+      },
+    ],
+  },
+  privacy: {
+    title: "개인정보처리방침",
+    subtitle: "트래블헌터 개인정보 처리 기준",
+    rows: [
+      {
+        heading: "수집 항목",
+        body: "이메일, 닉네임, 프로필 선호 정보, 저장한 정책, 여행 일정 등 기능 제공에 필요한 정보를 처리합니다.",
+      },
+      {
+        heading: "이용 목적",
+        body: "로그인, 회원 식별, 맞춤 정책 표시, 일정 관리, 즐겨찾기 동기화에 사용합니다.",
+      },
+      {
+        heading: "보호 조치",
+        body: "비밀번호와 인증 토큰은 원문으로 저장하지 않으며, 운영 secret은 저장소에 기록하지 않습니다.",
+      },
+    ],
+  },
+} as const;
+
+function toRequiredAgreements(agreements: AgreementState) {
+  return {
+    termsAccepted: agreements.terms,
+    privacyAccepted: agreements.privacy,
+    termsVersion: CURRENT_TERMS_VERSION,
+    privacyVersion: CURRENT_PRIVACY_VERSION,
+  };
+}
+
+function allAgreementsAccepted(agreements: AgreementState) {
+  return agreements.terms && agreements.privacy;
+}
+
+function AgreementCheckIcon({ checked }: { checked: boolean }) {
+  return (
+    <span className={checked ? "prototype-agreement-check checked" : "prototype-agreement-check"} aria-hidden="true">
+      {checked ? "✓" : ""}
+    </span>
+  );
+}
+
+function AgreementBlock({
+  agreements,
+  onChange,
+  onOpen,
+}: {
+  agreements: AgreementState;
+  onChange: (next: AgreementState) => void;
+  onOpen: (type: AgreementKey) => void;
+}) {
+  const allChecked = allAgreementsAccepted(agreements);
+  const setAll = () => onChange({ terms: !allChecked, privacy: !allChecked });
+  const toggle = (key: AgreementKey) => onChange({ ...agreements, [key]: !agreements[key] });
+
+  return (
+    <section className="prototype-agreement-card" aria-label="필수 약관 동의">
+      <h2>필수 약관 동의</h2>
+      <button className="prototype-agreement-all" type="button" onClick={setAll} aria-pressed={allChecked}>
+        <AgreementCheckIcon checked={allChecked} />
+        <span>전체 동의</span>
+        <span className="prototype-agreement-arrow" aria-hidden="true">›</span>
+      </button>
+      <div className="prototype-agreement-divider" />
+      <AgreementRow
+        checked={agreements.terms}
+        description="서비스 이용 기준"
+        label="[필수] 이용약관 동의"
+        onOpen={() => onOpen("terms")}
+        onToggle={() => toggle("terms")}
+      />
+      <AgreementRow
+        checked={agreements.privacy}
+        description="개인정보 처리 기준"
+        label="[필수] 개인정보처리방침 동의"
+        onOpen={() => onOpen("privacy")}
+        onToggle={() => toggle("privacy")}
+      />
+    </section>
+  );
+}
+
+function AgreementRow({
+  checked,
+  description,
+  label,
+  onOpen,
+  onToggle,
+}: {
+  checked: boolean;
+  description: string;
+  label: string;
+  onOpen: () => void;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="prototype-agreement-row">
+      <button className="prototype-agreement-toggle" type="button" onClick={onToggle} aria-pressed={checked}>
+        <AgreementCheckIcon checked={checked} />
+        <span>
+          <strong>{label}</strong>
+          <small>{description}</small>
+        </span>
+      </button>
+      <button className="prototype-agreement-view" type="button" onClick={onOpen}>
+        보기
+      </button>
+    </div>
+  );
+}
+
+function AgreementSheet({ onClose, type }: { onClose: () => void; type: AgreementKey }) {
+  const content = agreementContent[type];
+  return (
+    <div className="sheet-backdrop prototype-agreement-backdrop" role="presentation" onMouseDown={onClose}>
+      <section
+        className="trip-select-sheet prototype-agreement-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="agreement-sheet-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="prototype-agreement-sheet-handle" aria-hidden="true" />
+        <div className="prototype-agreement-sheet-head">
+          <h2 id="agreement-sheet-title">{content.title}</h2>
+          <p>{content.subtitle}</p>
+        </div>
+        <div className="prototype-agreement-sheet-body">
+          {content.rows.map((row) => (
+            <article className="prototype-agreement-section" key={row.heading}>
+              <strong>{row.heading}</strong>
+              <p>{row.body}</p>
+            </article>
+          ))}
+        </div>
+        <Button full onClick={onClose}>
+          확인했어요
+        </Button>
+      </section>
+    </div>
+  );
+}
+
 function isOAuthProvider(provider: string | undefined): provider is keyof typeof oauthProviderLabels {
   return provider === "kakao" || provider === "google";
 }
@@ -182,6 +354,8 @@ export function SignupPage() {
   const { signup } = useSession();
   const [error, setError] = useState("");
   const [email, setEmail] = useState("");
+  const [agreements, setAgreements] = useState<AgreementState>(emptyAgreements);
+  const [openAgreement, setOpenAgreement] = useState<AgreementKey | null>(null);
   const [sentEmail, setSentEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const redirect = getSafeRedirect(searchParams);
@@ -195,10 +369,14 @@ export function SignupPage() {
       setError("이메일을 입력해 주세요.");
       return;
     }
+    if (!allAgreementsAccepted(agreements)) {
+      setError("필수 약관에 모두 동의해 주세요.");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
-      const result = await signup({ email: normalizedEmail });
+      const result = await signup({ email: normalizedEmail, agreements: toRequiredAgreements(agreements) });
       setSentEmail(result.email);
     } catch (error) {
       const detail = error instanceof Error ? error.message : "";
@@ -246,6 +424,7 @@ export function SignupPage() {
               }}
             />
           </label>
+          <AgreementBlock agreements={agreements} onChange={setAgreements} onOpen={setOpenAgreement} />
           {sentEmail && (
             <div className="state-panel">
               <strong>인증 메일을 보냈어요</strong>
@@ -257,7 +436,7 @@ export function SignupPage() {
               {error}
             </p>
           )}
-          <Button full type="submit" disabled={isSubmitting}>
+          <Button full type="submit" disabled={isSubmitting || !allAgreementsAccepted(agreements)}>
             {isSubmitting ? "인증 메일 발송 중" : sentEmail ? "인증 메일 재발송" : "인증 메일 받기"}
           </Button>
         </form>
@@ -268,6 +447,7 @@ export function SignupPage() {
           </LinkButton>
         </div>
       </AuthFormShell>
+      {openAgreement && <AgreementSheet type={openAgreement} onClose={() => setOpenAgreement(null)} />}
     </section>
   );
 }
@@ -340,8 +520,18 @@ export function SignupVerifyPage() {
   return (
     <section className="screen white prototype-auth-screen">
       <div className="prototype-status-bar" aria-hidden="true" />
-      <AuthFormShell title={isVerifying ? "이메일 인증을 확인하는 중입니다" : email ? "이메일 인증이 완료됐어요" : "이메일 인증이 필요해요"} body={email ? `${email} 계정에 사용할 비밀번호를 설정해 주세요.` : "인증 링크를 확인하고 다시 시도해 주세요."}>
-        <div className="content stack padded prototype-auth-content">
+      <div className="top-bar prototype-auth-top">
+        <IconButton label="뒤로" to={withRedirect("/signup", redirect)}>
+          <ChevronLeft size={20} />
+        </IconButton>
+        <h1 className="prototype-auth-top-title prototype-auth-brand-title">
+          <BrandMark />
+          <span className="sr-only">이메일 인증 확인</span>
+        </h1>
+        <span />
+      </div>
+      <AuthFormShell title={isVerifying ? "이메일 인증을 확인하는 중입니다" : email ? "이메일 인증이 완료됐어요" : "이메일 인증이 필요해요"} body={email ? `${email} 계정에 사용할 비밀번호를 설정해 주세요.` : "인증 링크를 확인하고 다시 시도해 주세요."} showBrandMark={false}>
+        <div className="form prototype-auth-form prototype-auth-state-form">
           {error && (
             <p className="form-error" role="alert">
               {error}
@@ -365,6 +555,111 @@ export function SignupVerifyPage() {
           )}
         </div>
       </AuthFormShell>
+    </section>
+  );
+}
+
+export function SocialSignupAgreementPage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { completeSocialSignup } = useSession();
+  const token = searchParams.get("token") ?? "";
+  const redirect = getSafeRedirect(searchParams) ?? "/home";
+  const [provider, setProvider] = useState<keyof typeof oauthProviderLabels | null>(null);
+  const [email, setEmail] = useState("");
+  const [nickname, setNickname] = useState<string | null>(null);
+  const [agreements, setAgreements] = useState<AgreementState>(emptyAgreements);
+  const [openAgreement, setOpenAgreement] = useState<AgreementKey | null>(null);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadPendingSignup() {
+      if (!token) {
+        setError("소셜 가입 확인 토큰이 없어요. 다시 로그인해 주세요.");
+        setIsLoading(false);
+        return;
+      }
+      try {
+        const result = await appDataApi.getPendingSocialSignup(token);
+        if (cancelled) return;
+        setProvider(result.provider);
+        setEmail(result.email);
+        setNickname(result.nickname);
+      } catch {
+        if (!cancelled) setError("소셜 가입 확인이 만료되었어요. 다시 로그인해 주세요.");
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+    void loadPendingSignup();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    if (!allAgreementsAccepted(agreements)) {
+      setError("필수 약관에 모두 동의해 주세요.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const user = await completeSocialSignup({ token, agreements: toRequiredAgreements(agreements) });
+      navigate(getPostAuthPath(user, redirect), { replace: true });
+    } catch {
+      setError("소셜 가입을 완료하지 못했어요. 다시 로그인해 주세요.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const providerLabel = provider ? oauthProviderLabels[provider] : "소셜";
+
+  return (
+    <section className="screen white prototype-auth-screen">
+      <div className="prototype-status-bar" aria-hidden="true" />
+      <div className="top-bar prototype-auth-top">
+        <IconButton label="뒤로" to={withRedirect("/login", redirect)}>
+          <ChevronLeft size={20} />
+        </IconButton>
+        <h1 className="prototype-auth-top-title prototype-auth-brand-title">
+          <BrandMark />
+          <span className="sr-only">소셜 가입 약관 동의</span>
+        </h1>
+        <span />
+      </div>
+      <AuthFormShell title="소셜 가입 약관 동의" body="확인된 계정으로 새 계정을 만들기 전에 약관을 확인해 주세요." showBrandMark={false}>
+        <form className="form prototype-auth-form" onSubmit={submit}>
+          <div className="prototype-social-pending-card">
+            <span className="prototype-social-pending-mark" aria-hidden="true">
+              {provider === "google" ? "G" : provider === "kakao" ? "K" : "S"}
+            </span>
+            <span>
+              <small>확인된 {providerLabel} 계정</small>
+              <strong>{email || nickname || "소셜 계정"}</strong>
+            </span>
+            <em>신규 가입 대기</em>
+          </div>
+          <AgreementBlock agreements={agreements} onChange={setAgreements} onOpen={setOpenAgreement} />
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
+          <Button full type="submit" disabled={isLoading || isSubmitting || !allAgreementsAccepted(agreements)}>
+            {isSubmitting ? "가입 완료 중" : "동의하고 가입 완료"}
+          </Button>
+          <button className="prototype-auth-text-link" type="button" onClick={() => navigate(withRedirect("/login", redirect))}>
+            다른 계정으로 로그인
+          </button>
+        </form>
+      </AuthFormShell>
+      {openAgreement && <AgreementSheet type={openAgreement} onClose={() => setOpenAgreement(null)} />}
     </section>
   );
 }

@@ -15,6 +15,8 @@ from app.schemas.user import (
     PasswordResetConfirmResponse,
     PasswordResetRequest,
     PasswordResetResponse,
+    CompleteSocialSignupRequest,
+    PendingSocialSignupResponse,
     SignupCompleteRequest,
     SignupRequest,
     SignupVerificationResponse,
@@ -236,7 +238,8 @@ def complete_oauth(
         return response
 
     response = RedirectResponse(result.frontend_redirect_url, status_code=302)
-    security.set_refresh_cookie(response, result.auth.refresh_token)
+    if result.auth is not None:
+        security.set_refresh_cookie(response, result.auth.refresh_token)
     response.delete_cookie(
         key=settings.oauth_state_cookie_name,
         httponly=True,
@@ -245,3 +248,33 @@ def complete_oauth(
         path="/api/auth/oauth",
     )
     return response
+
+
+@router.get("/oauth/pending-signup", response_model=PendingSocialSignupResponse)
+def get_pending_social_signup(
+    token: str = Query(min_length=1),
+    db: Session | None = Depends(get_optional_db),
+) -> PendingSocialSignupResponse:
+    try:
+        result = oauth_service.get_pending_social_signup(_require_db(db), token)
+    except oauth_service.OAuthServiceError as error:
+        _raise_oauth_error(error)
+    return PendingSocialSignupResponse(
+        provider=result.provider,
+        email=result.email,
+        nickname=result.nickname,
+        expiresAt=result.expires_at,
+    )
+
+
+@router.post("/oauth/pending-signup/complete", response_model=AuthResponse)
+def complete_pending_social_signup(
+    request: CompleteSocialSignupRequest,
+    response: Response,
+    db: Session | None = Depends(get_optional_db),
+) -> AuthResponse:
+    try:
+        result = oauth_service.complete_pending_social_signup(_require_db(db), request)
+    except oauth_service.OAuthServiceError as error:
+        _raise_oauth_error(error)
+    return _to_auth_response(result, response)

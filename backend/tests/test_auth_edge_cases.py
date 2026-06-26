@@ -16,7 +16,7 @@ from pydantic import ValidationError
 
 from app.core.config import Settings
 from app.models import User as UserModel
-from app.schemas.user import LoginRequest, NicknameUpdate, SignupCompleteRequest, SignupRequest
+from app.schemas.user import LoginRequest, NicknameUpdate, RequiredAgreement, SignupCompleteRequest, SignupRequest
 from app.services import auth as auth_service
 from app.services import oauth as oauth_service
 from app.services.auth import AuthServiceError
@@ -25,6 +25,15 @@ from app.services.auth import AuthServiceError
 KAKAO_PROVIDER_ID = "12345"
 KAKAO_PLACEHOLDER_EMAIL = f"kakao_{KAKAO_PROVIDER_ID}@oauth.local"
 KAKAO_VERIFIED_EMAIL = "real.user@example.com"
+
+
+def accepted_agreements() -> RequiredAgreement:
+    return RequiredAgreement(
+        termsAccepted=True,
+        privacyAccepted=True,
+        termsVersion=auth_service.CURRENT_TERMS_VERSION,
+        privacyVersion=auth_service.CURRENT_PRIVACY_VERSION,
+    )
 
 
 def _kakao_profile(
@@ -59,7 +68,7 @@ def _user(
 
 
 def test_signup_request_is_email_first() -> None:
-    req = SignupRequest(email="a@example.com")
+    req = SignupRequest(email="a@example.com", agreements=accepted_agreements())
     assert req.email == "a@example.com"
 
 
@@ -91,11 +100,11 @@ def test_login_accepts_single_char_password() -> None:
 def test_signup_rejects_invalid_email_formats() -> None:
     for bad_email in ["notanemail", "missing@", "@domain.com", "two@@domain.com", "space @domain.com"]:
         with pytest.raises(ValidationError):
-            SignupRequest(email=bad_email)
+            SignupRequest(email=bad_email, agreements=accepted_agreements())
 
 
 def test_signup_normalizes_valid_email() -> None:
-    req = SignupRequest(email="User@Example.COM")
+    req = SignupRequest(email="User@Example.COM", agreements=accepted_agreements())
     assert "@" in req.email
 
 

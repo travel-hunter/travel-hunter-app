@@ -125,13 +125,19 @@
       "path": "/api/auth/signup",
       "status": 200,
       "request": {
-        "email": "new-user@travel.kr"
+        "email": "new-user@travel.kr",
+        "agreements": {
+          "termsAccepted": true,
+          "privacyAccepted": true,
+          "termsVersion": "2026-06-26",
+          "privacyVersion": "2026-06-26"
+        }
       },
       "requiredFields": {
         "verificationRequired": "boolean",
         "email": "string"
       },
-      "dbModeBehavior": "Sends verification email and stores pending signup only after email delivery succeeds; does not create users until /api/auth/signup/complete."
+      "dbModeBehavior": "Validates required terms/privacy agreements, sends verification email, and stores pending signup with agreement metadata only after email delivery succeeds; does not create users until /api/auth/signup/complete."
     },
     {
       "method": "POST",
@@ -253,7 +259,46 @@
       "method": "GET",
       "path": "/api/auth/oauth/{provider}/callback",
       "status": 302,
-      "requiredBehavior": "On success, validates code/state, links or creates the user through social_accounts, sets the refresh cookie, clears the OAuth state cookie, and redirects to frontend /oauth/callback?redirect={safePath}. Same-email auto-link requires verified provider email; Google requires email_verified=true, while Kakao without usable verified email may create kakao_{providerId}@oauth.local. On terminal failure, does not set a refresh cookie, clears the OAuth state cookie where possible, and redirects to frontend /oauth/callback?error={access_denied|invalid_state|provider_unavailable|profile_unavailable|email_policy}&redirect={safePath} without exposing provider error_description."
+      "requiredBehavior": "On existing social user or verified same-email link success, validates code/state, links social_accounts as needed, sets the refresh cookie, clears the OAuth state cookie, and redirects to frontend /oauth/callback?redirect={safePath}. For a new social account, does not create a user or set refresh cookie; creates pending_social_signups and redirects to frontend /signup/social-agreement?token={token}&redirect={safePath}. Same-email auto-link requires verified provider email; Google requires email_verified=true, while Kakao without usable verified email may use kakao_{providerId}@oauth.local in the pending signup. On terminal failure, does not set a refresh cookie, clears the OAuth state cookie where possible, and redirects to frontend /oauth/callback?error={access_denied|invalid_state|provider_unavailable|profile_unavailable|email_policy}&redirect={safePath} without exposing provider error_description."
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/oauth/pending-signup",
+      "status": 200,
+      "query": {
+        "token": "pending-social-signup-token"
+      },
+      "requiredFields": {
+        "provider": "string enum(kakao|google)",
+        "email": "string",
+        "nickname": "string|null",
+        "expiresAt": "datetime string"
+      },
+      "dbModeBehavior": "Reads an active pending_social_signups row by token hash and returns display-only provider/email/nickname metadata without creating a user."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/oauth/pending-signup/complete",
+      "status": 200,
+      "request": {
+        "token": "pending-social-signup-token",
+        "agreements": {
+          "termsAccepted": true,
+          "privacyAccepted": true,
+          "termsVersion": "2026-06-26",
+          "privacyVersion": "2026-06-26"
+        }
+      },
+      "requiredFields": {
+        "accessToken": "string",
+        "user": {
+          "id": "string",
+          "email": "string",
+          "socialAccounts": "array",
+          "role": "string enum(user|admin)"
+        }
+      },
+      "dbModeBehavior": "Validates active pending social signup token and current required agreements, creates users/social_accounts only after agreement, deletes the pending row, returns AuthResponse, and sets the refresh cookie."
     },
     {
       "method": "GET",

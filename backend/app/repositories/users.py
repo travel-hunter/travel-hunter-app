@@ -33,6 +33,12 @@ def create_user(
     password_hash: str | None,
     nickname_setup_completed: bool = True,
     profile_setup_skipped: bool = False,
+    terms_accepted: bool = False,
+    terms_accepted_at=None,
+    terms_version: str | None = None,
+    privacy_accepted: bool = False,
+    privacy_accepted_at=None,
+    privacy_version: str | None = None,
 ) -> User:
     user = User(
         email=email,
@@ -41,6 +47,12 @@ def create_user(
         onboarding_completed=False,
         nickname_setup_completed=nickname_setup_completed,
         profile_setup_skipped=profile_setup_skipped,
+        terms_accepted=terms_accepted,
+        terms_accepted_at=terms_accepted_at,
+        terms_version=terms_version,
+        privacy_accepted=privacy_accepted,
+        privacy_accepted_at=privacy_accepted_at,
+        privacy_version=privacy_version,
     )
     db.add(user)
     db.flush()

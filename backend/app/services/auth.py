@@ -12,7 +12,7 @@ from app.repositories import auth_tokens as token_repository
 from app.repositories import pending_signups as pending_signup_repository
 from app.repositories import password_resets as password_reset_repository
 from app.repositories import users as user_repository
-from app.schemas.user import EmailAvailabilityRequest, LoginRequest, PasswordResetConfirm, PasswordResetRequest, SignupCompleteRequest, SignupRequest, SignupVerifyRequest
+from app.schemas.user import EmailAvailabilityRequest, LoginRequest, PasswordResetConfirm, PasswordResetRequest, RequiredAgreement, SignupCompleteRequest, SignupRequest, SignupVerifyRequest
 from app.services.email import EmailDeliveryError, send_password_reset_email, send_signup_verification_email
 from app.services import nicknames
 from app.services.profile_preferences import parse_preferred_regions
@@ -34,10 +34,24 @@ class AuthResult:
 
 SIGNUP_EMAIL_DELIVERY_ERROR = "인증 메일을 보낼 수 없습니다. 잠시 후 다시 시도해 주세요."
 SIGNUP_VERIFICATION_EXPIRE_MINUTES = 30
+CURRENT_TERMS_VERSION = "2026-06-26"
+CURRENT_PRIVACY_VERSION = "2026-06-26"
+REQUIRED_AGREEMENT_ERROR = "Required agreements must be accepted"
 
 
 def normalize_email(email: str) -> str:
     return email.strip().lower()
+
+
+def validate_required_agreements(agreements: RequiredAgreement) -> datetime:
+    if (
+        not agreements.termsAccepted
+        or not agreements.privacyAccepted
+        or agreements.termsVersion != CURRENT_TERMS_VERSION
+        or agreements.privacyVersion != CURRENT_PRIVACY_VERSION
+    ):
+        raise AuthServiceError(400, REQUIRED_AGREEMENT_ERROR)
+    return security.utc_now_naive()
 
 
 def _iso_datetime(value: datetime | None) -> str:
@@ -94,6 +108,7 @@ def _issue_tokens(db: Session, user: UserModel) -> AuthResult:
 
 def signup(db: Session, request: SignupRequest) -> dict[str, object]:
     email = normalize_email(str(request.email))
+    accepted_at = validate_required_agreements(request.agreements)
     if user_repository.get_user_by_email(db, email) is not None:
         raise AuthServiceError(409, "Email already registered")
 
@@ -114,6 +129,12 @@ def signup(db: Session, request: SignupRequest) -> dict[str, object]:
         email=email,
         token_hash=token_hash,
         expires_at=expires_at,
+        terms_accepted=True,
+        terms_accepted_at=accepted_at,
+        terms_version=request.agreements.termsVersion,
+        privacy_accepted=True,
+        privacy_accepted_at=accepted_at,
+        privacy_version=request.agreements.privacyVersion,
     )
     db.commit()
     return {"verificationRequired": True, "email": email}
@@ -141,12 +162,27 @@ def verify_signup(db: Session, request: SignupVerifyRequest) -> dict[str, object
 
 def complete_signup(db: Session, request: SignupCompleteRequest) -> AuthResult:
     pending = _get_verified_pending_signup(db, request.token)
+    if (
+        not pending.terms_accepted
+        or not pending.privacy_accepted
+        or pending.terms_version != CURRENT_TERMS_VERSION
+        or pending.privacy_version != CURRENT_PRIVACY_VERSION
+        or pending.terms_accepted_at is None
+        or pending.privacy_accepted_at is None
+    ):
+        raise AuthServiceError(400, REQUIRED_AGREEMENT_ERROR)
     user = user_repository.create_user(
         db,
         email=pending.email,
         nickname=nicknames.generate_random_nickname(),
         password_hash=security.hash_password(request.password),
         nickname_setup_completed=True,
+        terms_accepted=True,
+        terms_accepted_at=pending.terms_accepted_at,
+        terms_version=pending.terms_version,
+        privacy_accepted=True,
+        privacy_accepted_at=pending.privacy_accepted_at,
+        privacy_version=pending.privacy_version,
     )
     pending_signup_repository.delete_pending_signup(db, pending)
     result = _issue_tokens(db, user)

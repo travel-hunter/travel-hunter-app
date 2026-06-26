@@ -61,6 +61,30 @@ Then check:
 http://127.0.0.1:4173/
 ```
 
+
+## Auth flow UI without real SMTP/OAuth
+
+For local UI checks, use the dev-only auth helper instead of real email delivery or Google/Kakao callbacks. It refuses to run when `APP_ENV` is `staging`, `production`, or `prod`. Run Alembic first so the latest pending signup tables exist.
+
+```bash
+cd backend
+.venv/bin/alembic upgrade head
+
+# Email signup: creates a pending signup with required agreement metadata and prints /signup/verify URL.
+.venv/bin/python -m app.scripts.dev_auth_helper email \
+  --email local-email-$(date +%s)@example.com
+
+# Social new signup: creates pending_social_signups and prints /signup/social-agreement URL.
+.venv/bin/python -m app.scripts.dev_auth_helper social \
+  --provider google \
+  --email local-social-$(date +%s)@example.com \
+  --provider-id local-google-$(date +%s)
+```
+
+Open the printed URL in the local frontend. By default the helper uses `http://127.0.0.1:5173`, matching the Vite dev server. If you are checking the Docker production frontend on `4173`, either set `TRAVEL_HUNTER_PUBLIC_BASE_URL=http://127.0.0.1:4173` before running the helper or replace the port in the printed URL.
+
+The latest generated URL is also saved to `.omx/tmp/dev-auth-helper/latest-url.txt` unless `--no-file` is passed. Use a fresh test email/provider id for each run; the helper rejects already-created users/social accounts so existing accounts are not modified accidentally.
+
 ## Port Standard
 
 - `5173`: Vite dev frontend, fast UI iteration.

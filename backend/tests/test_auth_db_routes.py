@@ -91,7 +91,7 @@ def test_db_signup_route_requests_email_verification(monkeypatch) -> None:
     try:
         response = client.post(
             "/api/auth/signup",
-            json={"email": "new@example.com"},
+            json={"email": "new@example.com", "agreements": {"termsAccepted": True, "privacyAccepted": True, "termsVersion": "2026-06-26", "privacyVersion": "2026-06-26"}},
         )
     finally:
         clear_overrides()
