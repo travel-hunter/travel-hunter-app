@@ -448,7 +448,7 @@ export function PolicyListPage() {
     savedOnly: showSavedOnly,
   });
   const [searchTerm, setSearchTerm] = useState("");
-  const { profile, savedSlugs, addSavedSlug, removeSavedSlug } = useSession();
+  const { savedSlugs, addSavedSlug, removeSavedSlug } = useSession();
   const { data: policies, error, isLoading } = useAsyncResource(() => appDataApi.listPolicies(), []);
   const regionFilters = useMemo(() => {
     const regions = policies?.map((policy) => policy.region) ?? [];

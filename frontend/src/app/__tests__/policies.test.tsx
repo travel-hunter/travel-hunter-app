@@ -94,6 +94,73 @@ describe("Travel Hunter app — policies & trip picker", () => {
     }
   });
 
+  it("discards draft filter changes when the sheet closes", async () => {
+    const policies: Policy[] = [
+      examplePolicyDetail,
+      {
+        ...examplePolicyDetail,
+        id: "busan-card-cashback",
+        slug: "busan-card-cashback",
+        label: "BS",
+        tag: "지역할인",
+        title: "부산 카드 캐시백",
+        region: "부산",
+        category: "지역할인",
+        summary: "부산 지역 결제 혜택",
+      },
+      {
+        ...examplePolicyDetail,
+        id: "gangneung-stay",
+        slug: "gangneung-stay",
+        label: "GN",
+        tag: "숙박",
+        title: "강릉 숙박 할인권",
+        region: "강원",
+        category: "숙박",
+        summary: "강릉 숙박 혜택",
+      },
+    ];
+    const listPoliciesSpy = vi
+      .spyOn(appDataApi, "listPolicies")
+      .mockResolvedValue(policies);
+
+    try {
+      await login();
+      cleanup();
+      renderAppRoute("/policies");
+      const user = userEvent.setup();
+
+      await waitFor(() =>
+        expect(document.body).toHaveTextContent(examplePolicyTitle),
+      );
+      expect(document.body).toHaveTextContent("부산 카드 캐시백");
+      expect(screen.getByRole("button", { name: /^필터/ })).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: /^필터/ }));
+      let filterDialog = screen.getByRole("dialog", { name: "정책 필터" });
+      await user.click(within(filterDialog).getByRole("button", { name: "부산" }));
+      await user.click(within(filterDialog).getByRole("button", { name: "지역할인" }));
+      expect(document.body).toHaveTextContent("강릉 숙박 할인권");
+
+      await user.click(within(filterDialog).getByRole("button", { name: "필터 닫기" }));
+      await waitFor(() =>
+        expect(screen.queryByRole("dialog", { name: "정책 필터" })).not.toBeInTheDocument(),
+      );
+
+      expect(document.body).toHaveTextContent(examplePolicyTitle);
+      expect(document.body).toHaveTextContent("부산 카드 캐시백");
+      expect(document.body).toHaveTextContent("강릉 숙박 할인권");
+      expect(screen.getByRole("button", { name: /^필터/ })).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: /^필터/ }));
+      filterDialog = screen.getByRole("dialog", { name: "정책 필터" });
+      expect(within(filterDialog).getByRole("button", { name: "부산" })).not.toHaveClass("active");
+      expect(within(filterDialog).getByRole("button", { name: "지역할인" })).not.toHaveClass("active");
+    } finally {
+      listPoliciesSpy.mockRestore();
+    }
+  });
+
   it("shows grouped region choices in the unified filter sheet", async () => {
     const regionalPolicies: Policy[] = [
       {
