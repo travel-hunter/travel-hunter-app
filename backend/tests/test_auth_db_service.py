@@ -6,7 +6,7 @@ import pytest
 from app.core import security
 from app.models import AuthRefreshToken, PendingSignup
 from app.models import User as UserModel
-from app.schemas.user import LoginRequest, SignupCompleteRequest, SignupRequest, SignupVerifyRequest
+from app.schemas.user import LoginRequest, RequiredAgreement, SignupCompleteRequest, SignupRequest, SignupVerifyRequest
 from app.services import auth as auth_service
 
 
@@ -24,6 +24,15 @@ class FakeDb:
 
     def rollback(self) -> None:
         self.rolled_back = True
+
+
+def accepted_agreements() -> RequiredAgreement:
+    return RequiredAgreement(
+        termsAccepted=True,
+        privacyAccepted=True,
+        termsVersion=auth_service.CURRENT_TERMS_VERSION,
+        privacyVersion=auth_service.CURRENT_PRIVACY_VERSION,
+    )
 
 
 def make_user(
@@ -74,7 +83,7 @@ def test_signup_creates_pending_signup_and_sends_verification_email(monkeypatch)
 
     result = auth_service.signup(
         db,
-        SignupRequest(email="TEST.USER@EXAMPLE.COM"),
+        SignupRequest(email="TEST.USER@EXAMPLE.COM", agreements=accepted_agreements()),
     )
 
     assert db.committed is True
@@ -110,7 +119,7 @@ def test_signup_send_failure_rolls_back_without_replacing_existing_pending(monke
     with pytest.raises(auth_service.AuthServiceError) as error:
         auth_service.signup(
             db,
-            SignupRequest(email="test.user@example.com"),
+            SignupRequest(email="test.user@example.com", agreements=accepted_agreements()),
         )
 
     assert error.value.status_code == 503
@@ -126,6 +135,12 @@ def test_verify_signup_confirms_token_without_creating_user(monkeypatch) -> None
         email="test.user@example.com",
         token_hash=security.hash_token("raw-signup-token"),
         expires_at=security.utc_now_naive() + timedelta(minutes=30),
+        terms_accepted=True,
+        terms_accepted_at=security.utc_now_naive(),
+        terms_version=auth_service.CURRENT_TERMS_VERSION,
+        privacy_accepted=True,
+        privacy_accepted_at=security.utc_now_naive(),
+        privacy_version=auth_service.CURRENT_PRIVACY_VERSION,
     )
 
     monkeypatch.setattr(
@@ -149,6 +164,12 @@ def test_complete_signup_creates_user_and_refresh_token(monkeypatch) -> None:
         email="test.user@example.com",
         token_hash=security.hash_token("raw-signup-token"),
         expires_at=security.utc_now_naive() + timedelta(minutes=30),
+        terms_accepted=True,
+        terms_accepted_at=security.utc_now_naive(),
+        terms_version=auth_service.CURRENT_TERMS_VERSION,
+        privacy_accepted=True,
+        privacy_accepted_at=security.utc_now_naive(),
+        privacy_version=auth_service.CURRENT_PRIVACY_VERSION,
     )
 
     def create_user(
@@ -158,11 +179,13 @@ def test_complete_signup_creates_user_and_refresh_token(monkeypatch) -> None:
         nickname: str,
         password_hash: str,
         nickname_setup_completed: bool,
+        **kwargs,
     ) -> UserModel:
         captured["email"] = email
         captured["nickname"] = nickname
         captured["password_hash"] = password_hash
         captured["nickname_setup_completed"] = nickname_setup_completed
+        captured.update(kwargs)
         user = make_user(email=email)
         user.nickname = nickname
         user.password_hash = password_hash
@@ -226,7 +249,7 @@ def test_signup_rejects_duplicate_email(monkeypatch) -> None:
     with pytest.raises(auth_service.AuthServiceError) as error:
         auth_service.signup(
             FakeDb(),
-            SignupRequest(email="test.user@example.com"),
+            SignupRequest(email="test.user@example.com", agreements=accepted_agreements()),
         )
 
     assert error.value.status_code == 409

@@ -8,6 +8,7 @@ def test_current_schema_tables_are_registered() -> None:
         "auth_refresh_tokens",
         "password_reset_tokens",
         "pending_signups",
+        "pending_social_signups",
         "social_accounts",
         "policies",
         "policy_documents",
@@ -37,6 +38,7 @@ def test_current_schema_decision_columns_are_registered() -> None:
     notification_deliveries = Base.metadata.tables["notification_deliveries"]
     password_reset_tokens = Base.metadata.tables["password_reset_tokens"]
     pending_signups = Base.metadata.tables["pending_signups"]
+    pending_social_signups = Base.metadata.tables["pending_social_signups"]
     phone_verification_codes = Base.metadata.tables["phone_verification_codes"]
     external_source_records = Base.metadata.tables["external_source_records"]
     social_accounts = Base.metadata.tables["social_accounts"]
@@ -47,6 +49,12 @@ def test_current_schema_decision_columns_are_registered() -> None:
     assert "phone_verified_at" in users.c
     assert "travel_style" in users.c
     assert "travel_budget" in users.c
+    assert "terms_accepted" in users.c
+    assert "terms_accepted_at" in users.c
+    assert "terms_version" in users.c
+    assert "privacy_accepted" in users.c
+    assert "privacy_accepted_at" in users.c
+    assert "privacy_version" in users.c
     user_saved_policies = Base.metadata.tables["user_saved_policies"]
     assert "saved_at" in user_saved_policies.c
     assert "slug" in policies.c
@@ -76,7 +84,18 @@ def test_current_schema_decision_columns_are_registered() -> None:
     assert "used_at" in password_reset_tokens.c
     assert "email" in pending_signups.c
     assert "token_hash" in pending_signups.c
+    assert "terms_accepted" in pending_signups.c
+    assert "terms_accepted_at" in pending_signups.c
+    assert "terms_version" in pending_signups.c
+    assert "privacy_accepted" in pending_signups.c
+    assert "privacy_accepted_at" in pending_signups.c
+    assert "privacy_version" in pending_signups.c
     assert "password_hash" not in pending_signups.c
+    assert "token_hash" in pending_social_signups.c
+    assert "provider" in pending_social_signups.c
+    assert "provider_id" in pending_social_signups.c
+    assert "email" in pending_social_signups.c
+    assert "expires_at" in pending_social_signups.c
     assert social_accounts.c["provider_id"].type.length == 255
     assert "revision" in trips.c
     assert "user_id" in phone_verification_codes.c

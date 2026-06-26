@@ -14,12 +14,12 @@
 
 | 기능 | 사용자 동작 | 연결 |
 |---|---|---|
-| 회원가입 | `/signup`에서 email만 입력해 인증 메일을 요청한다. `/signup/verify?token=...` 링크를 열면 이메일 인증 완료 상태에서 비밀번호 입력창이 나타나고, 비밀번호 제출 시 계정이 생성되어 자동 로그인 후 온보딩으로 이어진다. 미완료 인증 재요청은 기존 pending signup을 교체한다. | `POST /api/auth/email-check`, `POST /api/auth/signup`, `POST /api/auth/signup/verify`, `POST /api/auth/signup/complete`, `pending_signups`, `users`, refresh cookie |
+| 회원가입 | `/signup`에서 email과 필수 2종 약관(이용약관, 개인정보처리방침)을 확인한 뒤 인증 메일을 요청한다. `보기` 버튼은 하단 sheet/modal로 전문을 보여주며, 필수 체크가 없으면 프론트 제출과 백엔드 요청이 모두 차단된다. `/signup/verify?token=...` 링크를 열면 이메일 인증 완료 상태에서 비밀번호 입력창이 나타나고, 비밀번호 제출 시 계정이 생성되어 자동 로그인 후 온보딩으로 이어진다. 미완료 인증 재요청은 기존 pending signup을 교체하며, 동의 여부·시각·약관 버전을 pending signup과 최종 user에 저장한다. | `POST /api/auth/email-check`, `POST /api/auth/signup`, `POST /api/auth/signup/verify`, `POST /api/auth/signup/complete`, `pending_signups`, `users`, refresh cookie |
 | 닉네임 설정 | `/nickname-setup`에서 자동 생성된 임시 닉네임을 수정하거나 주사위 버튼으로 새 추천 닉네임을 받아 저장한다. 소셜 신규 사용자는 provider 기본 닉네임이 있어도 이 단계를 먼저 완료해야 `/profile-setup`으로 진행한다. | `GET /api/me/nickname-suggestion`, `PATCH /api/me/nickname`, `users.nickname`, `users.nickname_setup_completed` |
 | 로그인 | `/`와 `/login`에서 프로토타입과 같은 모바일 앱형 로그인 화면을 보여주고 email/password로 로그인한다. 실패 시 사용자용 오류를 표시한다. | `POST /api/auth/login`, `auth_refresh_tokens` |
 | 세션 유지/로그아웃 | refresh cookie로 access token을 갱신하고, 로그아웃 시 refresh token을 revoke한다. | `POST /api/auth/refresh`, `POST /api/auth/logout` |
 | 비밀번호 재설정 | `/forgot-password` 요청 후 email link로 `/reset-password?token=...`에서 새 비밀번호를 설정한다. | `password_reset_tokens`, SMTP 설정 필요 |
-| Kakao/Google OAuth | 로그인 버튼에서 provider authorization flow를 시작하고 callback에서 세션을 복구한다. 동일 이메일 자동 연결은 검증된 provider email만 허용하고, callback 실패는 닫힌 error code로 사용자용 메시지를 표시한다. Kakao는 `account_email`만 요청하며, 기존 `kakao_{providerId}@oauth.local` 내부 이메일 계정은 verified Kakao email을 받는 다음 로그인 때 충돌이 없으면 실제 email로 자동 교체한다. dev 도메인에서는 Google/Kakao 브라우저 로그인이 검증됐다. | `social_accounts`, provider env 필요 |
+| Kakao/Google OAuth | 로그인 버튼에서 provider authorization flow를 시작하고 callback에서 세션을 복구한다. 기존 소셜 계정 또는 검증된 동일 이메일 계정은 바로 로그인/연결된다. 신규 소셜 계정은 callback에서 즉시 user를 만들지 않고 `/signup/social-agreement` 대기 화면으로 이동해 확인된 provider/email 정보를 작게 보여준 뒤 필수 2종 약관 동의를 받아 계정을 생성한다. callback 실패는 닫힌 error code로 사용자용 메시지를 표시한다. Kakao는 `account_email`만 요청하며, 기존 `kakao_{providerId}@oauth.local` 내부 이메일 계정은 verified Kakao email을 받는 다음 로그인 때 충돌이 없으면 실제 email로 자동 교체한다. dev 도메인에서는 Google/Kakao 브라우저 로그인이 검증됐다. | `GET/POST /api/auth/oauth/pending-signup`, `pending_social_signups`, `social_accounts`, provider env 필요 |
 
 ## 사용자와 마이페이지
 

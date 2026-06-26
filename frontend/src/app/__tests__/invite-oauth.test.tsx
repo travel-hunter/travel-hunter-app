@@ -19,6 +19,14 @@ import {
 } from "../../test/fixtures";
 import { login, renderAppRoute } from "../../test/renderAppRoute";
 
+
+const acceptedAgreements = {
+  termsAccepted: true,
+  privacyAccepted: true,
+  termsVersion: "2026-06-26",
+  privacyVersion: "2026-06-26",
+};
+
 function makeInviteState(overrides: Partial<InviteState> = {}): InviteState {
   return {
     id: "9",
@@ -630,12 +638,13 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
         email,
       );
       expect(document.querySelector('input[name="password"]')).toBeNull();
+      await user.click(screen.getByRole("button", { name: /전체 동의/ }));
       await user.click(
         document.querySelector('button[type="submit"]') as HTMLButtonElement,
       );
 
       await waitFor(() => expect(document.body).toHaveTextContent("인증 메일을 보냈어요"));
-      expect(signupSpy).toHaveBeenCalledWith({ email });
+      expect(signupSpy).toHaveBeenCalledWith({ email, agreements: acceptedAgreements });
 
       cleanup();
       renderAppRoute("/signup/verify?token=valid-token&redirect=/invites/jeju-3d/accept");

@@ -2,15 +2,20 @@ from __future__ import annotations
 
 import secrets
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Any
 from urllib.parse import quote, urlencode
 
 import httpx
 from sqlalchemy.orm import Session
 
+from app.core import security
 from app.core.config import settings
+from app.models import PendingSocialSignup
 from app.models import User as UserModel
+from app.repositories import pending_social_signups as pending_social_signup_repository
 from app.repositories import users as user_repository
+from app.schemas.user import CompleteSocialSignupRequest
 from app.services import auth as auth_service
 
 
@@ -30,8 +35,16 @@ class OAuthStartResult:
 
 @dataclass(frozen=True)
 class OAuthCallbackResult:
-    auth: auth_service.AuthResult
+    auth: auth_service.AuthResult | None
     frontend_redirect_url: str
+
+
+@dataclass(frozen=True)
+class PendingSocialSignupResult:
+    provider: str
+    email: str
+    nickname: str | None
+    expires_at: str
 
 
 @dataclass(frozen=True)
@@ -131,6 +144,16 @@ def provider_callback_error_code(provider_error: str, state_is_valid: bool) -> s
 
 def callback_success_redirect_url(redirect: str | None) -> str:
     return f"{_frontend_base_url()}/oauth/callback?redirect={quote(safe_redirect_path(redirect), safe='')}"
+
+
+def social_signup_redirect_url(*, token: str, redirect: str | None) -> str:
+    query = urlencode(
+        {
+            "token": token,
+            "redirect": safe_redirect_path(redirect),
+        }
+    )
+    return f"{_frontend_base_url()}/signup/social-agreement?{query}"
 
 
 def state_matches_cookie(state: str | None, state_cookie: str | None) -> bool:
@@ -303,6 +326,79 @@ def _find_or_create_user(
     return user
 
 
+def _candidate_email_or_error(provider: str, profile: OAuthProfile) -> str:
+    if provider == "google" and (not profile.email or not profile.email_verified):
+        raise OAuthServiceError(400, "OAuth email policy requires a verified Google email")
+
+    if profile.email and profile.email_verified:
+        return auth_service.normalize_email(profile.email)
+    if provider == "kakao":
+        return _kakao_placeholder_email(profile.provider_id)
+    raise OAuthServiceError(400, "OAuth email policy requires a verified email")
+
+
+def _find_existing_oauth_user(
+    db: Session,
+    *,
+    provider: str,
+    profile: OAuthProfile,
+) -> UserModel | None:
+    social_account = user_repository.get_social_account(
+        db,
+        provider=provider,
+        provider_id=profile.provider_id,
+    )
+    if social_account is not None:
+        user = social_account.user
+        if provider == "kakao":
+            user = _maybe_upgrade_kakao_placeholder_email(db, user, profile=profile)
+        return user
+
+    if profile.email and profile.email_verified:
+        user = user_repository.get_user_by_email(
+            db,
+            auth_service.normalize_email(profile.email),
+        )
+        if user is not None:
+            user_repository.create_social_account(
+                db,
+                user=user,
+                provider=provider,
+                provider_id=profile.provider_id,
+                provider_nickname=profile.nickname,
+            )
+            return user
+    return None
+
+
+def _create_pending_social_signup(
+    db: Session,
+    *,
+    provider: str,
+    profile: OAuthProfile,
+    redirect: str,
+) -> str:
+    email = _candidate_email_or_error(provider, profile)
+    raw_token = security.create_urlsafe_token()
+    pending_social_signup_repository.delete_pending_social_signup_by_provider(
+        db,
+        provider=provider,
+        provider_id=profile.provider_id,
+    )
+    pending_social_signup_repository.create_pending_social_signup(
+        db,
+        token_hash=security.hash_token(raw_token),
+        provider=provider,
+        provider_id=profile.provider_id,
+        email=email,
+        email_verified=profile.email_verified,
+        nickname=profile.nickname,
+        redirect_path=safe_redirect_path(redirect),
+        expires_at=security.utc_now_naive() + timedelta(minutes=auth_service.SIGNUP_VERIFICATION_EXPIRE_MINUTES),
+    )
+    return raw_token
+
+
 def complete_oauth_callback(
     db: Session,
     *,
@@ -319,13 +415,97 @@ def complete_oauth_callback(
     access_token = _exchange_code(config, code)
     profile_payload = _fetch_userinfo(config, access_token)
     profile = _extract_profile(provider, profile_payload)
-    user = _find_or_create_user(
+    user = _find_existing_oauth_user(
         db,
         provider=provider,
         profile=profile,
     )
+    redirect = redirect_from_state(state)
+    if user is None:
+        pending_token = _create_pending_social_signup(
+            db,
+            provider=provider,
+            profile=profile,
+            redirect=redirect,
+        )
+        db.commit()
+        return OAuthCallbackResult(
+            auth=None,
+            frontend_redirect_url=social_signup_redirect_url(token=pending_token, redirect=redirect),
+        )
+
     result = auth_service._issue_tokens(db, user)
     db.commit()
 
-    frontend_redirect_url = callback_success_redirect_url(redirect_from_state(state))
+    frontend_redirect_url = callback_success_redirect_url(redirect)
     return OAuthCallbackResult(auth=result, frontend_redirect_url=frontend_redirect_url)
+
+
+def _get_active_pending_social_signup(db: Session, token: str) -> PendingSocialSignup:
+    pending = pending_social_signup_repository.get_active_pending_social_signup_by_token(
+        db,
+        token_hash=security.hash_token(token),
+        now=security.utc_now_naive(),
+    )
+    if pending is None:
+        raise OAuthServiceError(400, "Invalid or expired social signup token")
+    return pending
+
+
+def get_pending_social_signup(db: Session, token: str) -> PendingSocialSignupResult:
+    pending = _get_active_pending_social_signup(db, token)
+    return PendingSocialSignupResult(
+        provider=pending.provider,
+        email=pending.email,
+        nickname=pending.nickname,
+        expires_at=pending.expires_at.isoformat(),
+    )
+
+
+def complete_pending_social_signup(
+    db: Session,
+    request: CompleteSocialSignupRequest,
+) -> auth_service.AuthResult:
+    pending = _get_active_pending_social_signup(db, request.token)
+    accepted_at = auth_service.validate_required_agreements(request.agreements)
+
+    social_account = user_repository.get_social_account(
+        db,
+        provider=pending.provider,
+        provider_id=pending.provider_id,
+    )
+    if social_account is not None:
+        pending_social_signup_repository.delete_pending_social_signup(db, pending)
+        result = auth_service._issue_tokens(db, social_account.user)
+        db.commit()
+        return result
+
+    existing_user = user_repository.get_user_by_email(db, pending.email)
+    if existing_user is None:
+        user = user_repository.create_user(
+            db,
+            email=pending.email,
+            nickname=pending.nickname or f"{pending.provider} 사용자",
+            password_hash=None,
+            nickname_setup_completed=False,
+            terms_accepted=True,
+            terms_accepted_at=accepted_at,
+            terms_version=request.agreements.termsVersion,
+            privacy_accepted=True,
+            privacy_accepted_at=accepted_at,
+            privacy_version=request.agreements.privacyVersion,
+        )
+    else:
+        user = existing_user
+
+    user_repository.create_social_account(
+        db,
+        user=user,
+        provider=pending.provider,
+        provider_id=pending.provider_id,
+        provider_nickname=pending.nickname,
+    )
+    pending_social_signup_repository.delete_pending_social_signup(db, pending)
+    result = auth_service._issue_tokens(db, user)
+    db.commit()
+    return result

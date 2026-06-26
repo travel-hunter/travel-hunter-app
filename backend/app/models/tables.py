@@ -55,6 +55,16 @@ class User(Base):
     profile_setup_skipped: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default="false"
     )
+    terms_accepted: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="false"
+    )
+    terms_accepted_at: Mapped[datetime | None] = mapped_column(DateTime)
+    terms_version: Mapped[str | None] = mapped_column(String(32))
+    privacy_accepted: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="false"
+    )
+    privacy_accepted_at: Mapped[datetime | None] = mapped_column(DateTime)
+    privacy_version: Mapped[str | None] = mapped_column(String(32))
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
     )
@@ -130,6 +140,36 @@ class PendingSignup(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     token_hash: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    terms_accepted: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="false"
+    )
+    terms_accepted_at: Mapped[datetime | None] = mapped_column(DateTime)
+    terms_version: Mapped[str | None] = mapped_column(String(32))
+    privacy_accepted: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="false"
+    )
+    privacy_accepted_at: Mapped[datetime | None] = mapped_column(DateTime)
+    privacy_version: Mapped[str | None] = mapped_column(String(32))
+
+
+class PendingSocialSignup(Base):
+    __tablename__ = "pending_social_signups"
+    __table_args__ = (UniqueConstraint("provider", "provider_id"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    token_hash: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    provider: Mapped[str] = mapped_column(String(20), nullable=False)
+    provider_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
+    email_verified: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="false"
+    )
+    nickname: Mapped[str | None] = mapped_column(String(100))
+    redirect_path: Mapped[str] = mapped_column(String(500), nullable=False, server_default="/home")
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
     )

@@ -33,6 +33,14 @@ export type LoginRequest = {
 
 export type SignupRequest = {
   email: string;
+  agreements: RequiredAgreements;
+};
+
+export type RequiredAgreements = {
+  termsAccepted: boolean;
+  privacyAccepted: boolean;
+  termsVersion: string;
+  privacyVersion: string;
 };
 
 export type SignupVerificationResponse = {
@@ -52,6 +60,18 @@ export type SignupVerifyResponse = {
 export type SignupCompleteRequest = {
   token: string;
   password: string;
+};
+
+export type PendingSocialSignupResponse = {
+  provider: OAuthProvider;
+  email: string;
+  nickname: string | null;
+  expiresAt: string;
+};
+
+export type CompleteSocialSignupRequest = {
+  token: string;
+  agreements: RequiredAgreements;
 };
 
 export type EmailAvailabilityRequest = {
@@ -195,6 +215,8 @@ export type AppDataApi = {
   requestSignupVerification: (request?: SignupRequest) => Promise<SignupVerificationResponse>;
   verifySignup: (request: SignupVerifyRequest) => Promise<SignupVerifyResponse>;
   completeSignup: (request: SignupCompleteRequest) => Promise<AuthResponse>;
+  getPendingSocialSignup: (token: string) => Promise<PendingSocialSignupResponse>;
+  completeSocialSignup: (request: CompleteSocialSignupRequest) => Promise<AuthResponse>;
   checkEmailAvailability: (request: EmailAvailabilityRequest) => Promise<EmailAvailabilityResponse>;
   getNicknameSuggestion: () => Promise<NicknameSuggestionResponse>;
   updateNickname: (request: NicknameUpdateRequest) => Promise<User>;

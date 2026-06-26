@@ -3,6 +3,7 @@ import type { ProfileSkipResponse } from "./types";
 import {
   AppDataApi,
   AuthResponse,
+  CompleteSocialSignupRequest,
   ContactVerificationConfirmRequest,
   ContactVerificationRequest,
   ContactUpdateRequest,
@@ -19,6 +20,7 @@ import {
   PasswordResetConfirmResponse,
   PasswordResetRequest,
   PasswordResetResponse,
+  PendingSocialSignupResponse,
   SavePolicyResponse,
   SendInviteEmailRequest,
   SignupRequest,
@@ -69,8 +71,8 @@ const makeDefaultLogin = (request: LoginRequest | undefined): LoginRequest => {
 };
 
 const makeDefaultSignup = (request: SignupRequest | undefined): SignupRequest => {
-  if (!request || !request.email) {
-    throw new Error("TRAVEL_HUNTER: signup request must include email.");
+  if (!request || !request.email || !request.agreements) {
+    throw new Error("TRAVEL_HUNTER: signup request must include email and agreements.");
   }
   return request;
 };
@@ -91,6 +93,10 @@ export const backendApi: AppDataApi = {
   requestSignupVerification: (request?: SignupRequest): Promise<SignupVerificationResponse> => apiClient.post<SignupVerificationResponse>("/api/auth/signup", makeDefaultSignup(request)),
   verifySignup: (request: SignupVerifyRequest): Promise<SignupVerifyResponse> => apiClient.post<SignupVerifyResponse>("/api/auth/signup/verify", request),
   completeSignup: (request: SignupCompleteRequest): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/signup/complete", request),
+  getPendingSocialSignup: (token: string): Promise<PendingSocialSignupResponse> =>
+    apiClient.get<PendingSocialSignupResponse>(`/api/auth/oauth/pending-signup?token=${encodeURIComponent(token)}`),
+  completeSocialSignup: (request: CompleteSocialSignupRequest): Promise<AuthResponse> =>
+    apiClient.post<AuthResponse>("/api/auth/oauth/pending-signup/complete", request),
   checkEmailAvailability: (request: EmailAvailabilityRequest): Promise<EmailAvailabilityResponse> => apiClient.post<EmailAvailabilityResponse>("/api/auth/email-check", request),
   getNicknameSuggestion: (): Promise<NicknameSuggestionResponse> => apiClient.get<NicknameSuggestionResponse>("/api/me/nickname-suggestion"),
   updateNickname: (request: NicknameUpdateRequest): Promise<User> => apiClient.patch<User>("/api/me/nickname", request),
