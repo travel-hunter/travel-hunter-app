@@ -917,6 +917,79 @@ describe("Travel Hunter app — trip detail & itinerary", () => {
       expect(screen.getByText("15:00")).toBeInTheDocument();
       expect(screen.getByText("17:00")).toBeInTheDocument();
       expect(screen.getByText("18:30")).toBeInTheDocument();
+      expect(screen.getAllByText("오전 일정").length).toBeGreaterThan(0);
+      expect(screen.getByText("점심")).toBeInTheDocument();
+      expect(screen.getAllByText("카페").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("숙소").length).toBeGreaterThan(0);
+    } finally {
+      getTripSpy.mockRestore();
+      recommendationsSpy.mockRestore();
+    }
+  });
+
+  it("orders recommendation preview cards by assigned visit time without moving saved places", async () => {
+    const existingPlace = { id: "existing-ordered", time: "09:00", label: "기존 장소", meta: "기존 동선" };
+    const trip: Trip = {
+      ...getPreviewTrip(),
+      id: "113",
+      revision: 1,
+      title: "추천 정렬 여행",
+      days: { 1: [existingPlace], 2: [] },
+    };
+    const recommendations: Recommendation[] = [
+      { id: "lunch", title: "점심 식당", label: "🍽️", meta: "12:00 음식점", reason: "추천", categoryCode: "FD6", categoryName: "음식점", suggestedDay: 1 },
+      { id: "early-cafe", title: "이른 카페", label: "☕", meta: "13:00 카페", reason: "추천", categoryCode: "CE7", categoryName: "카페", suggestedDay: 1 },
+      { id: "stay", title: "숙소 체크인", label: "🏨", meta: "17:00 숙소", reason: "추천", categoryCode: "AD5", categoryName: "숙박", suggestedDay: 1 },
+      { id: "walk", title: "오후 산책", label: "🌳", meta: "14:00 관광명소", reason: "추천", categoryCode: "AT4", categoryName: "관광명소", suggestedDay: 1 },
+      { id: "late-cafe", title: "오후 카페", label: "☕", meta: "15:00 카페", reason: "추천", categoryCode: "CE7", categoryName: "카페", suggestedDay: 1 },
+    ];
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(trip);
+    const recommendationsSpy = vi.spyOn(appDataApi, "listRecommendations").mockResolvedValue(recommendations);
+
+    try {
+      await login();
+      cleanup();
+      renderAppRoute("/trips/113");
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole("button", { name: /추천 일정만들기/ }));
+
+      expect(await screen.findByText("저장 전 미리보기")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "1번 장소: 기존 장소" })).toBeInTheDocument();
+      expect(screen.getAllByText("기존 장소").length).toBeGreaterThan(0);
+      const previewOrder = screen
+        .getAllByRole("button", { name: /지도에서 보기$/ })
+        .map((button) => button.getAttribute("aria-label")?.replace(" 지도에서 보기", ""));
+      expect(previewOrder).toEqual(["점심 식당", "이른 카페", "오후 산책", "오후 카페", "숙소 체크인"]);
+      expect(screen.getByText("오후 일정")).toBeInTheDocument();
+    } finally {
+      getTripSpy.mockRestore();
+      recommendationsSpy.mockRestore();
+    }
+  });
+
+  it("orders same-time recommendation preview cards by category before original response order", async () => {
+    const trip: Trip = { ...getPreviewTrip(), id: "114", revision: 1, title: "추천 동시간 여행", days: { 1: [], 2: [] } };
+    const recommendations: Recommendation[] = [
+      { id: "stay-same", title: "동시간 숙소", label: "🏨", meta: "13:00 숙소", reason: "추천", categoryCode: "AD5", categoryName: "숙박", suggestedDay: 1 },
+      { id: "cafe-same", title: "동시간 카페", label: "☕", meta: "13:00 카페", reason: "추천", categoryCode: "CE7", categoryName: "카페", suggestedDay: 1 },
+      { id: "food-same", title: "동시간 식당", label: "🍽️", meta: "13:00 음식점", reason: "추천", categoryCode: "FD6", categoryName: "음식점", suggestedDay: 1 },
+      { id: "attraction-same", title: "동시간 명소", label: "📍", meta: "13:00 관광명소", reason: "추천", categoryCode: "AT4", categoryName: "관광명소", suggestedDay: 1 },
+    ];
+    const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(trip);
+    const recommendationsSpy = vi.spyOn(appDataApi, "listRecommendations").mockResolvedValue(recommendations);
+
+    try {
+      await login();
+      cleanup();
+      renderAppRoute("/trips/114");
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole("button", { name: /추천 일정만들기/ }));
+
+      expect(await screen.findByText("동시간 명소")).toBeInTheDocument();
+      const previewOrder = screen
+        .getAllByRole("button", { name: /지도에서 보기$/ })
+        .map((button) => button.getAttribute("aria-label")?.replace(" 지도에서 보기", ""));
+      expect(previewOrder).toEqual(["동시간 명소", "동시간 식당", "동시간 카페", "동시간 숙소"]);
     } finally {
       getTripSpy.mockRestore();
       recommendationsSpy.mockRestore();

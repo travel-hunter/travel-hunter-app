@@ -48,6 +48,11 @@ type DisplayedPlace = ItineraryPlace & {
   previewDayNumber?: number;
 };
 type RecommendationTimeBucket = "attraction" | "food" | "cafe" | "stay";
+type RecommendationPreviewKind = {
+  bucket: RecommendationTimeBucket;
+  rank: number;
+  phaseLabel: "오전 일정" | "오후 일정" | "점심" | "카페" | "숙소";
+};
 type RecommendationPreviewState = {
   status: "idle" | "loading" | "ready" | "saving";
   places: PreviewPlace[];
@@ -229,19 +234,47 @@ function explicitRecommendationPlaceTime(item: Recommendation): string | null {
   return item.meta.match(/\b\d{2}:\d{2}\b/)?.[0] ?? null;
 }
 
-function recommendationTimeBucket(item: Recommendation): RecommendationTimeBucket {
-  const categoryCode = item.categoryCode?.toUpperCase();
+function recommendationPreviewKind(bucket: RecommendationTimeBucket, time: string | undefined): RecommendationPreviewKind {
+  if (bucket === "food") return { bucket, rank: 1, phaseLabel: "점심" };
+  if (bucket === "cafe") return { bucket, rank: 2, phaseLabel: "카페" };
+  if (bucket === "stay") return { bucket, rank: 3, phaseLabel: "숙소" };
+
+  const timeValue = previewPlaceTimeValue(time);
+  return { bucket, rank: 0, phaseLabel: timeValue < 12 * 60 ? "오전 일정" : "오후 일정" };
+}
+
+function recommendationTimeBucketFromFields(fields: {
+  category?: string | null;
+  categoryCode?: string | null;
+  categoryGroup?: string | null;
+  label?: string | null;
+  meta?: string | null;
+  reason?: string | null;
+}): RecommendationTimeBucket {
+  const categoryCode = fields.categoryCode?.toUpperCase();
   if (categoryCode === "FD6") return "food";
   if (categoryCode === "CE7") return "cafe";
   if (categoryCode === "AD5") return "stay";
-  if (item.categoryGroup === "food") return "food";
-  if (item.categoryGroup === "stay") return "stay";
+  if (fields.categoryGroup === "food") return "food";
+  if (fields.categoryGroup === "stay") return "stay";
 
-  const categoryText = [item.categoryName, item.meta, item.reason, item.title].filter(Boolean).join(" ");
+  const categoryText = [fields.category, fields.meta, fields.reason, fields.label].filter(Boolean).join(" ");
+  if (/관광|명소/.test(categoryText)) return "attraction";
   if (/카페|커피|디저트/.test(categoryText)) return "cafe";
-  if (/식당|음식|맛집|밥|한식|양식|일식|중식|분식|레스토랑/.test(categoryText)) return "food";
-  if (/숙소|호텔|리조트|펜션|게스트하우스/.test(categoryText)) return "stay";
+  if (/식당|음식|점심|맛집|밥|한식|양식|일식|중식|분식|레스토랑/.test(categoryText)) return "food";
+  if (/숙소|숙박|호텔|리조트|펜션|게스트하우스/.test(categoryText)) return "stay";
   return "attraction";
+}
+
+function recommendationTimeBucket(item: Recommendation): RecommendationTimeBucket {
+  return recommendationTimeBucketFromFields({
+    category: item.categoryName,
+    categoryCode: item.categoryCode,
+    categoryGroup: item.categoryGroup,
+    label: item.title,
+    meta: item.meta,
+    reason: item.reason,
+  });
 }
 
 function recommendationBucketBaseTime(bucket: RecommendationTimeBucket): string {
@@ -295,9 +328,43 @@ function previewPlaceFromRecommendation(item: Recommendation, index: number, day
   };
 }
 
+type RecommendationPreviewOrderFields = Pick<PreviewPlace, "category" | "categoryCode" | "label" | "meta" | "time">;
+
+function previewPlaceTimeValue(time: string | undefined): number {
+  const parsed = parsePlaceTime(time);
+  if (!parsed) return Number.MAX_SAFE_INTEGER;
+  return parsed.hour * 60 + parsed.minute;
+}
+
+function recommendationPreviewCategoryRank(place: RecommendationPreviewOrderFields): number {
+  return recommendationPreviewKind(recommendationTimeBucketFromFields(place), place.time).rank;
+}
+
+function recommendationPreviewPhaseLabel(place: RecommendationPreviewOrderFields): string {
+  return recommendationPreviewKind(recommendationTimeBucketFromFields(place), place.time).phaseLabel;
+}
+
+function sortRecommendationPreviewPlaces(places: PreviewPlace[]): PreviewPlace[] {
+  return places
+    .map((place, originalIndex) => ({ place, originalIndex }))
+    .sort((left, right) => {
+      const dayDiff = left.place.dayNumber - right.place.dayNumber;
+      if (dayDiff !== 0) return dayDiff;
+
+      const timeDiff = previewPlaceTimeValue(left.place.time) - previewPlaceTimeValue(right.place.time);
+      if (timeDiff !== 0) return timeDiff;
+
+      const categoryDiff = recommendationPreviewCategoryRank(left.place) - recommendationPreviewCategoryRank(right.place);
+      if (categoryDiff !== 0) return categoryDiff;
+
+      return left.originalIndex - right.originalIndex;
+    })
+    .map(({ place }) => place);
+}
+
 function previewPlacesFromRecommendations(items: Recommendation[], dayNumbers: number[], visibleDay: number): PreviewPlace[] {
   const bucketCounts = new Map<string, number>();
-  return items.map((item, index) => {
+  const places = items.map((item, index) => {
     const dayNumber = dayNumbers.includes(item.suggestedDay ?? 1) ? item.suggestedDay ?? 1 : visibleDay;
     const explicitTime = explicitRecommendationPlaceTime(item);
     const bucket = recommendationTimeBucket(item);
@@ -321,6 +388,7 @@ function previewPlacesFromRecommendations(items: Recommendation[], dayNumbers: n
       externalPlaceId: payload.externalPlaceId,
     };
   });
+  return sortRecommendationPreviewPlaces(places);
 }
 
 function tripPlaceMutationFromPreviewPlace(place: PreviewPlace, expectedRevision: number): TripPlaceMutationRequest {
@@ -1778,6 +1846,7 @@ function SortablePlaceItem({
               {place.time && <span>{place.time}</span>}
               <em aria-hidden="true">{getPlaceEmoji(place)}</em>
               <span className="preview-candidate-index">추천 후보</span>
+              <span className="preview-phase-label">{recommendationPreviewPhaseLabel(place)}</span>
             </div>
             <h4>{place.label}</h4>
             <div className="meta">{place.meta}</div>

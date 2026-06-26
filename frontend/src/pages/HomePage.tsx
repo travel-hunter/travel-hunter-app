@@ -1,10 +1,11 @@
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import {
   useEffect,
   useMemo,
   useRef,
   useState,
   type CSSProperties,
+  type MouseEvent,
   type PointerEvent,
 } from "react";
 import { Link } from "react-router-dom";
@@ -20,11 +21,9 @@ import {
   AiRecommendationCard,
   type AiRecommendationCardVisual,
 } from "../components/AiRecommendationCard";
-import { HomeRail, HomeSectionHeader } from "../components/patterns";
+import { HomeSectionHeader } from "../components/patterns";
 import { ErrorState, LoadingState } from "../components/ui";
 import {
-  buildHomeDestinations,
-  buildHomeDestinationsFromRegionRecommendations,
   getDeadlinePolicies,
   getFeaturedPolicy,
   getHomePolicyIcon,
@@ -34,6 +33,7 @@ import { dday } from "../utils";
 const PROFILE_PROMPT_DISMISSAL_PREFIX =
   "travel-hunter-profile-completion-dismissed:";
 const AI_CAROUSEL_SWIPE_THRESHOLD_PX = 42;
+const POLICY_RAIL_DRAG_CLICK_THRESHOLD_PX = 6;
 
 export function isProfileComplete(profile: Profile) {
   const regionCount = profile.preferredRegions?.length ?? 0;
@@ -57,15 +57,6 @@ export function HomePage() {
     error: policiesError,
     isLoading: policiesLoading,
   } = useAsyncResource(() => appDataApi.listPolicies(), []);
-  const { data: regionRecommendations } = useAsyncResource(
-    () =>
-      appDataApi.listRegionRecommendations({
-        style: profile.style,
-        ...(profile.region ? { region: profile.region } : {}),
-        limit: 3,
-      }),
-    [profile.style, profile.region],
-  );
   useEffect(() => {
     setIsProfilePromptDismissed(
       dismissalKey
@@ -76,13 +67,6 @@ export function HomePage() {
   const name = currentUser?.nickname ?? "여행자";
   const featuredPolicy = getFeaturedPolicy(policies);
   const deadlinePolicies = getDeadlinePolicies(policies, 4);
-  const recommendedDestinations =
-    buildHomeDestinationsFromRegionRecommendations(regionRecommendations);
-  const homeDestinations =
-    recommendedDestinations.length > 0
-      ? recommendedDestinations
-      : buildHomeDestinations(policies);
-  const aiDestination = homeDestinations[0];
   const preferredAiRegions = useMemo(
     () =>
       Array.from(
@@ -94,7 +78,7 @@ export function HomePage() {
       ),
     [profile.preferredRegions],
   );
-  const { data: preferredRegionRecommendations } = useAsyncResource(
+  const { data: aiRegionRecommendations } = useAsyncResource(
     () =>
       preferredAiRegions.length > 0
         ? appDataApi.listRegionRecommendations({
@@ -102,29 +86,33 @@ export function HomePage() {
             preferredRegions: preferredAiRegions,
             limit: 3,
           })
-        : Promise.resolve([]),
-    [preferredAiRegions.join(","), profile.style],
+        : appDataApi.listRegionRecommendations({
+            style: profile.style,
+            ...(profile.region ? { region: profile.region } : {}),
+            limit: 1,
+          }),
+    [preferredAiRegions.join(","), profile.region, profile.style],
   );
   const aiRegionCards = useMemo(
     () =>
       buildPreferredAiCards(
         preferredAiRegions,
-        preferredRegionRecommendations,
+        aiRegionRecommendations,
         profile.style,
       ),
-    [preferredAiRegions, profile.style, preferredRegionRecommendations],
+    [preferredAiRegions, profile.style, aiRegionRecommendations],
   );
+  const fallbackAiRecommendation =
+    preferredAiRegions.length === 0 ? aiRegionRecommendations?.[0] : undefined;
   const avatarLabel = name.trim().slice(0, 1).toUpperCase() || "T";
-  const fallbackAiRegion = profile.region ?? "추천 지역";
+  const fallbackAiRegion =
+    fallbackAiRecommendation?.region ?? profile.region ?? "추천 지역";
   const fallbackAiStyle = profile.style ?? "맞춤";
   const aiCardTo =
-    aiDestination?.to ??
-    (profile.region
-      ? `/trips/new?region=${encodeURIComponent(profile.region)}`
-      : "/trips/new");
-  const aiCardTitle = aiDestination
-    ? `${aiDestination.title} ${fallbackAiStyle} 코스 만들기`
-    : `${fallbackAiRegion} ${fallbackAiStyle} 코스 만들기`;
+    fallbackAiRecommendation || profile.region
+      ? `/trips/new?region=${encodeURIComponent(fallbackAiRegion)}`
+      : "/trips/new";
+  const aiCardTitle = `${fallbackAiRegion} ${fallbackAiStyle} 코스 만들기`;
   const shouldShowProfilePrompt = Boolean(
     currentUser && !isProfileComplete(profile) && !isProfilePromptDismissed,
   );
@@ -164,37 +152,6 @@ export function HomePage() {
         <p>이번 주 놓치면 아쉬운 혜택이 있어요</p>
       </div>
 
-      {shouldShowProfilePrompt && (
-        <section
-          className="ds-card profile-completion-card"
-          role="dialog"
-          aria-labelledby="profile-completion-title"
-          aria-describedby="profile-completion-body"
-        >
-          <div>
-            <strong id="profile-completion-title">
-              프로필 설정을 완료해 주세요
-            </strong>
-            <p id="profile-completion-body" className="meta">
-              관심 지역, 여행 스타일, 예산이 모두 설정되어야 추천 정확도가
-              높아져요.
-            </p>
-          </div>
-          <div className="sheet-actions">
-            <Link className="btn line" to="/profile-setup?redirect=/home">
-              설정하러 가기
-            </Link>
-            <button
-              className="btn ghost"
-              type="button"
-              onClick={dismissProfilePrompt}
-            >
-              나중에
-            </button>
-          </div>
-        </section>
-      )}
-
       {policiesLoading && <LoadingState label="혜택을 불러오는 중입니다" />}
       {policiesError && (
         <ErrorState title="혜택을 불러오지 못했어요" message={policiesError} />
@@ -219,30 +176,7 @@ export function HomePage() {
         actionLabel="더보기"
         to="/policies"
       />
-      <div
-        className="prototype-home-policy-rail"
-        aria-label="이번 주 혜택 정책 목록"
-      >
-        {deadlinePolicies.map((policy) => (
-          <PrototypePolicyCard key={policy.id} policy={policy} />
-        ))}
-      </div>
-
-      <HomeRail title="인기 국내 여행지" ariaLabel="인기 국내 여행지 목록">
-        {homeDestinations.map((destination) => (
-          <Link
-            key={destination.title}
-            className="prototype-home-destination-card"
-            style={
-              { "--destination-color": destination.color } as CSSProperties
-            }
-            to={destination.to}
-          >
-            <strong>{destination.title}</strong>
-            <span>{destination.badge}</span>
-          </Link>
-        ))}
-      </HomeRail>
+      <WeeklyPolicyRail policies={deadlinePolicies} />
 
       <div className="prototype-home-ai-title">AI 추천 맞춤 일정</div>
       {aiRegionCards.length > 1 ? (
@@ -255,12 +189,152 @@ export function HomePage() {
         <AiRecommendationCard
           to={aiCardTo}
           title={aiCardTitle}
-          saving={aiDestination?.badge ?? "정책과 일정을 함께 추천"}
+          saving={
+            fallbackAiRecommendation
+              ? getRecommendationSaving(fallbackAiRecommendation)
+              : "정책과 일정을 함께 추천"
+          }
           detail="추천 지역으로 새 일정 만들기"
           visual={aiCardVisual}
         />
       )}
+
+      {shouldShowProfilePrompt && (
+        <div
+          className="profile-completion-backdrop"
+          role="presentation"
+          onMouseDown={dismissProfilePrompt}
+        >
+          <section
+            aria-describedby="profile-completion-body"
+            aria-labelledby="profile-completion-title"
+            aria-modal="true"
+            className="profile-completion-dialog"
+            onMouseDown={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <div className="profile-completion-dialog-head">
+              <div className="profile-completion-icon" aria-hidden="true">
+                🎯
+              </div>
+              <button
+                aria-label="프로필 설정 안내 닫기"
+                className="profile-completion-close"
+                onClick={dismissProfilePrompt}
+                type="button"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="profile-completion-copy">
+              <h2 id="profile-completion-title">프로필 설정을 완료해 주세요</h2>
+              <p id="profile-completion-body">
+                관심 지역, 여행 스타일, 예산을 설정하면 홈 추천이 더 정확해져요.
+              </p>
+            </div>
+            <div className="profile-completion-actions">
+              <Link
+                className="btn primary full profile-completion-primary"
+                to="/profile-setup?redirect=/home"
+              >
+                설정하러 가기
+              </Link>
+              <button
+                className="profile-completion-later"
+                type="button"
+                onClick={dismissProfilePrompt}
+              >
+                나중에
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </section>
+  );
+}
+
+function WeeklyPolicyRail({ policies }: { policies: Policy[] }) {
+  const railRef = useRef<HTMLDivElement>(null);
+  const dragState = useRef<{
+    pointerId: number;
+    startX: number;
+    scrollLeft: number;
+    hasMoved: boolean;
+  } | null>(null);
+  const suppressNextClick = useRef(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    const rail = railRef.current;
+    if (!rail) return;
+    dragState.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      scrollLeft: rail.scrollLeft,
+      hasMoved: false,
+    };
+    rail.setPointerCapture?.(event.pointerId);
+    setIsDragging(true);
+  };
+
+  const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    const rail = railRef.current;
+    const drag = dragState.current;
+    if (!rail || !drag || drag.pointerId !== event.pointerId) return;
+    const distance = event.clientX - drag.startX;
+    if (Math.abs(distance) >= POLICY_RAIL_DRAG_CLICK_THRESHOLD_PX) {
+      drag.hasMoved = true;
+      event.preventDefault();
+    }
+    rail.scrollLeft = drag.scrollLeft - distance;
+  };
+
+  const finishDrag = (event: PointerEvent<HTMLDivElement>) => {
+    const rail = railRef.current;
+    const drag = dragState.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (drag.hasMoved) suppressNextClick.current = true;
+    rail?.releasePointerCapture?.(event.pointerId);
+    dragState.current = null;
+    setIsDragging(false);
+  };
+
+  const cancelDrag = (event: PointerEvent<HTMLDivElement>) => {
+    const rail = railRef.current;
+    const drag = dragState.current;
+    if (drag && drag.pointerId === event.pointerId) {
+      rail?.releasePointerCapture?.(event.pointerId);
+    }
+    dragState.current = null;
+    setIsDragging(false);
+  };
+
+  const handleClickCapture = (event: MouseEvent<HTMLDivElement>) => {
+    if (!suppressNextClick.current) return;
+    suppressNextClick.current = false;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  return (
+    <div
+      ref={railRef}
+      className="prototype-home-policy-rail"
+      aria-label="이번 주 혜택 정책 목록"
+      data-dragging={isDragging ? "true" : "false"}
+      onClickCapture={handleClickCapture}
+      onDragStart={(event) => event.preventDefault()}
+      onPointerCancel={cancelDrag}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={finishDrag}
+    >
+      {policies.map((policy) => (
+        <PrototypePolicyCard key={policy.id} policy={policy} />
+      ))}
+    </div>
   );
 }
 
@@ -441,17 +515,44 @@ function PrototypePolicyCard({ policy }: { policy: Policy }) {
   return (
     <Link
       className="prototype-home-policy-card"
+      draggable={false}
       to={`/policies/${policy.slug}`}
     >
-      <div className="prototype-home-policy-label" aria-hidden="true">
-        {getHomePolicyIcon(policy)}
+      <div className="prototype-home-policy-card-head">
+        <div className="prototype-home-policy-label" aria-hidden="true">
+          {getHomePolicyIcon(policy)}
+        </div>
+        <em className="prototype-home-policy-category">{policy.category}</em>
       </div>
-      <em className="prototype-home-policy-category">{policy.category}</em>
-      <span>{policy.amount}</span>
       <strong>{policy.title}</strong>
+      <p className="prototype-home-policy-summary">
+        {getPolicyCardSummary(policy)}
+      </p>
+      <span className="prototype-home-policy-condition">
+        조건: {getPolicyCardCondition(policy)}
+      </span>
       <small>
-        {policy.region} · {dday(policy.deadline)}
+        <span>{policy.amount}</span>
+        <span>{dday(policy.deadline)}</span>
       </small>
     </Link>
   );
+}
+
+function getPolicyCardSummary(policy: Policy) {
+  const summary = policy.summary.trim();
+  if (summary) return summary;
+  return `${policy.amount || "혜택"}을 받을 수 있는 정책입니다.`;
+}
+
+function getPolicyCardCondition(policy: Policy) {
+  const condition = policy.requirements[0]?.trim();
+  return condition || "조건 확인 필요";
+}
+
+function getRecommendationSaving(recommendation: RegionRecommendation) {
+  if (recommendation.endingSoonCount > 0) {
+    return `마감 임박 ${recommendation.endingSoonCount}개`;
+  }
+  return `혜택 ${recommendation.policyCount}개`;
 }

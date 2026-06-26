@@ -13,7 +13,7 @@ import { getPreviewTrip } from "../../test/fixtures";
 import { login, renderAppRoute } from "../../test/renderAppRoute";
 
 describe("Travel Hunter app — home", () => {
-  it("renders the prototype home rails with real policy links", async () => {
+  it("renders the larger weekly benefit rail with real policy links", async () => {
     await login();
     cleanup();
     renderAppRoute("/home");
@@ -27,65 +27,48 @@ describe("Travel Hunter app — home", () => {
     expect(document.body).toHaveTextContent(
       "이번 주 놓치면 아쉬운 혜택이 있어요",
     );
-    expect(document.body).toHaveTextContent("인기 국내 여행지");
     expect(document.body).toHaveTextContent("AI 추천 맞춤 일정");
+    expect(document.body).not.toHaveTextContent("인기 국내 여행지");
     expect(document.body).not.toHaveTextContent("추천 혜택");
-    expect(screen.getByLabelText("이번 주 혜택 정책 목록")).toBeInTheDocument();
-    expect(document.querySelector(".ds-home-rail")).toBeTruthy();
-    const destinationRail = screen.getByLabelText("인기 국내 여행지 목록");
-    expect(destinationRail).toBeInTheDocument();
-    await waitFor(() => {
-      const destinationLinks = within(destinationRail).getAllByRole("link");
-      expect(destinationLinks.length).toBeGreaterThan(0);
-      expect(destinationLinks[0]).toHaveAttribute(
-        "href",
-        expect.stringMatching(/^\/trips\/new\?region=/),
-      );
-    });
-    await waitFor(() =>
-      expect(
-        within(destinationRail).getAllByText(/(혜택|마감 임박) \d+개/).length,
-      ).toBeGreaterThan(0),
-    );
+    const benefitRail = screen.getByLabelText("이번 주 혜택 정책 목록");
+    expect(benefitRail).toBeInTheDocument();
+    expect(screen.queryByLabelText("인기 국내 여행지 목록")).toBeNull();
+    expect(document.querySelector(".ds-home-rail")).toBeNull();
     expect(document.body).not.toHaveTextContent("⭐ 4.9");
     await waitFor(() =>
       expect(screen.getByText("이번 주 인기 정책")).toBeInTheDocument(),
     );
-    await waitFor(() =>
+    await waitFor(() => {
+      const policyLinks = within(benefitRail).getAllByRole("link");
+      expect(policyLinks.length).toBeGreaterThan(0);
+      expect(policyLinks[0]).toHaveClass("prototype-home-policy-card");
       expect(
-        within(screen.getByLabelText("이번 주 혜택 정책 목록")).getAllByRole(
-          "link",
-        ).length,
-      ).toBeGreaterThan(0),
-    );
-    await waitFor(() =>
+        policyLinks[0].querySelector(".prototype-home-policy-summary"),
+      ).toHaveTextContent(/\S/);
       expect(
-        within(screen.getByLabelText("이번 주 혜택 정책 목록")).getAllByRole(
-          "link",
-        ).length,
-      ).toBeGreaterThan(0),
-    );
+        policyLinks[0].querySelector(".prototype-home-policy-condition"),
+      ).toHaveTextContent(/^조건: \S/);
+      expect(policyLinks[0].querySelector("small")).toHaveTextContent(/D-|상시|마감/);
+      expect(policyLinks[0].querySelector("small")).not.toHaveTextContent("·");
+      expect(
+        within(policyLinks[0]).queryByRole("button", { name: /신청|공식/ }),
+      ).toBeNull();
+    });
+
+    firePolicyRailPointerEvent(benefitRail, "pointerdown", 260);
+    firePolicyRailPointerEvent(benefitRail, "pointermove", 120);
+    firePolicyRailPointerEvent(benefitRail, "pointerup", 120);
+    expect(benefitRail).toHaveAttribute("data-dragging", "false");
+    expect(benefitRail.scrollLeft).toBeGreaterThan(0);
   });
 
-  it("keeps the home destination rail on legacy region recommendations even when preferred regions are set", async () => {
+  it("uses preferred-region recommendations only for the home AI trip cards", async () => {
     const getProfileSpy = vi.spyOn(appDataApi, "getProfile").mockResolvedValue({
       region: "부산",
       preferredRegions: ["부산", "강원"],
       style: "맛집",
       budget: "40만원 이하",
     });
-    const railRegionRecommendations: RegionRecommendation[] = [
-      {
-        region: "서울",
-        title: "서울 전시 지원",
-        reason: "관심지역 밖이지만 기존 인기 여행지 rail 후보입니다.",
-        policyCount: 8,
-        endingSoonCount: 1,
-        estimatedValueKrw: 70000,
-        score: 14,
-        styleMatchedCount: 2,
-      },
-    ];
     const preferredRegionRecommendations: RegionRecommendation[] = [
       {
         region: "강원",
@@ -110,13 +93,7 @@ describe("Travel Hunter app — home", () => {
     ];
     const listRegionRecommendationsSpy = vi
       .spyOn(appDataApi, "listRegionRecommendations")
-      .mockImplementation((params) =>
-        Promise.resolve(
-          params?.preferredRegions
-            ? preferredRegionRecommendations
-            : railRegionRecommendations,
-        ),
-      );
+      .mockResolvedValue(preferredRegionRecommendations);
 
     try {
       await login();
@@ -126,24 +103,14 @@ describe("Travel Hunter app — home", () => {
       await waitFor(() =>
         expect(listRegionRecommendationsSpy).toHaveBeenCalledWith({
           style: "맛집",
-          region: "부산",
-          limit: 3,
-        }),
-      );
-      await waitFor(() =>
-        expect(listRegionRecommendationsSpy).toHaveBeenCalledWith({
-          style: "맛집",
           preferredRegions: ["부산", "강원"],
           limit: 3,
         }),
       );
-      const destinationRail = screen.getByLabelText("인기 국내 여행지 목록");
       expect(
-        within(destinationRail).getByRole("link", { name: /서울/ }),
-      ).toHaveAttribute("href", "/trips/new?region=%EC%84%9C%EC%9A%B8");
-      expect(
-        within(destinationRail).getByText("마감 임박 1개"),
-      ).toBeInTheDocument();
+        listRegionRecommendationsSpy,
+      ).not.toHaveBeenCalledWith(expect.objectContaining({ region: "부산" }));
+      expect(screen.queryByLabelText("인기 국내 여행지 목록")).toBeNull();
       expect(
         await screen.findByRole("link", { name: /부산 맛집 코스 만들기/ }),
       ).toHaveAttribute("href", "/trips/new?region=%EB%B6%80%EC%82%B0");
@@ -156,7 +123,7 @@ describe("Travel Hunter app — home", () => {
     }
   });
 
-  it("passes legacy region only when preferred regions are unset", async () => {
+  it("uses the legacy region only for the fallback home AI trip card when preferred regions are unset", async () => {
     const getProfileSpy = vi.spyOn(appDataApi, "getProfile").mockResolvedValue({
       region: "부산",
       preferredRegions: null,
@@ -176,9 +143,10 @@ describe("Travel Hunter app — home", () => {
         expect(listRegionRecommendationsSpy).toHaveBeenCalledWith({
           style: "맛집",
           region: "부산",
-          limit: 3,
+          limit: 1,
         }),
       );
+      expect(screen.queryByLabelText("인기 국내 여행지 목록")).toBeNull();
     } finally {
       getProfileSpy.mockRestore();
       listRegionRecommendationsSpy.mockRestore();
@@ -203,8 +171,10 @@ describe("Travel Hunter app — home", () => {
       const dialog = await screen.findByRole("dialog", {
         name: "프로필 설정을 완료해 주세요",
       });
+      expect(dialog).toHaveClass("profile-completion-dialog");
+      expect(document.querySelector(".profile-completion-card")).toBeNull();
       expect(dialog).toHaveTextContent(
-        "관심 지역, 여행 스타일, 예산이 모두 설정되어야 추천 정확도가 높아져요.",
+        "관심 지역, 여행 스타일, 예산을 설정하면 홈 추천이 더 정확해져요.",
       );
       expect(
         within(dialog).getByRole("link", { name: "설정하러 가기" }),
@@ -229,6 +199,68 @@ describe("Travel Hunter app — home", () => {
           name: "프로필 설정을 완료해 주세요",
         }),
       ).not.toBeInTheDocument();
+
+      window.sessionStorage.clear();
+      cleanup();
+      renderAppRoute("/home");
+      expect(
+        await screen.findByRole("dialog", {
+          name: "프로필 설정을 완료해 주세요",
+        }),
+      ).toBeInTheDocument();
+    } finally {
+      getProfileSpy.mockRestore();
+      window.sessionStorage.clear();
+    }
+  });
+
+  it("dismisses the profile prompt modal with close and backdrop for the current session", async () => {
+    const getProfileSpy = vi.spyOn(appDataApi, "getProfile").mockResolvedValue({
+      region: null,
+      preferredRegions: null,
+      style: null,
+      budget: null,
+    });
+
+    try {
+      window.sessionStorage.clear();
+      await login();
+      cleanup();
+      renderAppRoute("/home");
+      const user = userEvent.setup();
+
+      const firstDialog = await screen.findByRole("dialog", {
+        name: "프로필 설정을 완료해 주세요",
+      });
+      await user.click(
+        within(firstDialog).getByRole("button", {
+          name: "프로필 설정 안내 닫기",
+        }),
+      );
+      await waitFor(() =>
+        expect(
+          screen.queryByRole("dialog", {
+            name: "프로필 설정을 완료해 주세요",
+          }),
+        ).not.toBeInTheDocument(),
+      );
+
+      window.sessionStorage.clear();
+      cleanup();
+      renderAppRoute("/home");
+      await screen.findByRole("dialog", {
+        name: "프로필 설정을 완료해 주세요",
+      });
+      fireEvent.mouseDown(
+        document.querySelector(".profile-completion-backdrop")!,
+      );
+      await waitFor(() =>
+        expect(
+          screen.queryByRole("dialog", {
+            name: "프로필 설정을 완료해 주세요",
+          }),
+        ).not.toBeInTheDocument(),
+      );
     } finally {
       getProfileSpy.mockRestore();
       window.sessionStorage.clear();
@@ -427,7 +459,7 @@ describe("Travel Hunter app — home", () => {
     }
   });
 
-  it("keeps policy-based home destinations when region recommendations fail", async () => {
+  it("keeps the fallback AI trip card when region recommendations fail", async () => {
     const listRegionRecommendationsSpy = vi
       .spyOn(appDataApi, "listRegionRecommendations")
       .mockRejectedValue(new Error("recommendation API unavailable"));
@@ -437,22 +469,15 @@ describe("Travel Hunter app — home", () => {
       cleanup();
       renderAppRoute("/home");
 
-      const destinationRail =
-        await screen.findByLabelText("인기 국내 여행지 목록");
-      expect(
-        within(destinationRail).getByRole("link", { name: /부산/ }),
-      ).toHaveAttribute("href", "/trips/new?region=%EB%B6%80%EC%82%B0");
-      await waitFor(() =>
-        expect(
-          within(destinationRail).getAllByText(/혜택 \d+개/).length,
-        ).toBeGreaterThan(0),
-      );
+      expect(screen.queryByLabelText("인기 국내 여행지 목록")).toBeNull();
+      expect(await screen.findByText("AI 추천 맞춤 일정")).toBeInTheDocument();
+      expect(document.querySelector(".prototype-home-ai-card")).toBeTruthy();
     } finally {
       listRegionRecommendationsSpy.mockRestore();
     }
   });
 
-  it("keeps policy-based home destinations when region recommendations are empty", async () => {
+  it("keeps the fallback AI trip card when region recommendations are empty", async () => {
     const listRegionRecommendationsSpy = vi
       .spyOn(appDataApi, "listRegionRecommendations")
       .mockResolvedValue([]);
@@ -462,18 +487,26 @@ describe("Travel Hunter app — home", () => {
       cleanup();
       renderAppRoute("/home");
 
-      const destinationRail =
-        await screen.findByLabelText("인기 국내 여행지 목록");
-      expect(
-        within(destinationRail).getByRole("link", { name: /부산/ }),
-      ).toHaveAttribute("href", "/trips/new?region=%EB%B6%80%EC%82%B0");
-      await waitFor(() =>
-        expect(
-          within(destinationRail).getAllByText(/혜택 \d+개/).length,
-        ).toBeGreaterThan(0),
-      );
+      expect(screen.queryByLabelText("인기 국내 여행지 목록")).toBeNull();
+      expect(await screen.findByText("AI 추천 맞춤 일정")).toBeInTheDocument();
+      expect(document.querySelector(".prototype-home-ai-card")).toBeTruthy();
     } finally {
       listRegionRecommendationsSpy.mockRestore();
     }
   });
 });
+
+function firePolicyRailPointerEvent(
+  target: Element,
+  type: "pointerdown" | "pointermove" | "pointerup",
+  clientX: number,
+) {
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperties(event, {
+    button: { value: 0 },
+    clientX: { value: clientX },
+    pointerId: { value: 1 },
+    pointerType: { value: "mouse" },
+  });
+  fireEvent(target, event);
+}
