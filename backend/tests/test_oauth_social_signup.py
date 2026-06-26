@@ -174,3 +174,18 @@ def test_complete_pending_social_signup_rejects_missing_required_agreement(monke
     assert error.value.status_code == 400
     assert error.value.detail == auth_service.REQUIRED_AGREEMENT_ERROR
     assert db.committed is False
+
+
+def test_pending_social_signup_response_returns_server_redirect_path(monkeypatch) -> None:
+    pending = SimpleNamespace(
+        provider="google",
+        email="new.user@example.com",
+        nickname="신규 소셜",
+        expires_at=security.utc_now_naive() + timedelta(minutes=30),
+        redirect_path="https://evil.example/phish",
+    )
+    monkeypatch.setattr(oauth_service, "_get_active_pending_social_signup", lambda _db, token: pending)
+
+    result = oauth_service.get_pending_social_signup(FakeDb(), "pending-social-token")
+
+    assert result.redirect_path == "/home"

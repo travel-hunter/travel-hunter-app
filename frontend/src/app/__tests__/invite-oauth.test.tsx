@@ -309,6 +309,69 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
     }
   });
 
+  it("uses the server pending social redirect when completing social signup", async () => {
+    const pendingSpy = vi.spyOn(appDataApi, "getPendingSocialSignup").mockResolvedValue({
+      provider: "google",
+      email: "social@example.com",
+      nickname: "소셜유저",
+      expiresAt: "2026-06-26T10:00:00Z",
+      redirectPath: "/invites/server-token/accept",
+    });
+    const completeSpy = vi.spyOn(appDataApi, "completeSocialSignup").mockResolvedValue({
+      accessToken: "social-access-token",
+      user: {
+        id: "social-user",
+        nickname: "소셜유저",
+        email: "social@example.com",
+        role: "user",
+        birthDate: null,
+        gender: null,
+        region: null,
+        homeRegion: "서울",
+        residenceArea: null,
+        preferredRegions: null,
+        persona: "소셜유저님",
+        savedAmount: 0,
+        onboardingCompleted: true,
+        nicknameSetupCompleted: true,
+        socialAccounts: [{ provider: "google", providerNickname: "소셜유저", connectedAt: "2026-06-26T00:00:00Z" }],
+        createdAt: "2026-06-26T00:00:00Z",
+        updatedAt: "2026-06-26T00:00:00Z",
+      },
+    });
+    const getProfileSpy = vi.spyOn(appDataApi, "getProfile").mockResolvedValue({
+      region: "서울",
+      preferredRegions: ["서울"],
+      style: "휴식",
+      budget: "1인 40만원 이하",
+    });
+    const acceptInviteSpy = vi
+      .spyOn(appDataApi, "acceptInvite")
+      .mockResolvedValue(makeInviteState({ inviteToken: "server-token", invited: true, acceptedAt: "2026-06-26T00:00:00Z" }));
+
+    try {
+      renderAppRoute("/signup/social-agreement?token=pending-social-token&redirect=/home");
+
+      await waitFor(() => expect(screen.getAllByRole("heading", { name: "소셜 가입 약관 동의" }).length).toBeGreaterThan(0));
+      expect(await screen.findByText("social@example.com")).toBeInTheDocument();
+
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: /전체 동의/ }));
+      await user.click(screen.getByRole("button", { name: "동의하고 가입 완료" }));
+
+      await waitFor(() =>
+        expect(completeSpy).toHaveBeenCalledWith({ token: "pending-social-token", agreements: acceptedAgreements }),
+      );
+      await waitFor(() => expect(acceptInviteSpy).toHaveBeenCalledWith("server-token"));
+      expect(pendingSpy).toHaveBeenCalledWith("pending-social-token");
+    } finally {
+      pendingSpy.mockRestore();
+      completeSpy.mockRestore();
+      getProfileSpy.mockRestore();
+      acceptInviteSpy.mockRestore();
+    }
+  });
+
   it("shows a local-friendly OAuth callback error", async () => {
     const refreshSpy = vi.spyOn(appDataApi, "refreshSession");
 

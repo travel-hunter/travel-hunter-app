@@ -213,7 +213,7 @@ def test_oauth_callback_rejects_missing_code() -> None:
     assert exc_info.value.status_code == 400
 
 
-def test_google_profile_requires_verified_email(monkeypatch) -> None:
+def test_google_profile_requires_verified_email() -> None:
     profile = oauth_service._extract_profile(
         "google",
         {
@@ -224,10 +224,8 @@ def test_google_profile_requires_verified_email(monkeypatch) -> None:
         },
     )
 
-    monkeypatch.setattr(oauth_service.user_repository, "get_social_account", lambda *args, **kwargs: None)
-
     with pytest.raises(oauth_service.OAuthServiceError) as exc_info:
-        oauth_service._find_or_create_user(FakeDb(), provider="google", profile=profile)
+        oauth_service._candidate_email_or_error("google", profile)
 
     assert exc_info.value.status_code == 400
     assert "email policy" in exc_info.value.detail
@@ -251,7 +249,7 @@ def test_google_verified_email_links_existing_user(monkeypatch) -> None:
         lambda _db, **kwargs: captured.update(kwargs),
     )
 
-    user = oauth_service._find_or_create_user(FakeDb(), provider="google", profile=profile)
+    user = oauth_service._find_existing_oauth_user(FakeDb(), provider="google", profile=profile)
 
     assert user is existing_user
     assert captured["user"] is existing_user
@@ -259,35 +257,44 @@ def test_google_verified_email_links_existing_user(monkeypatch) -> None:
     assert captured["provider_id"] == "google-user-1"
 
 
-def test_kakao_unverified_email_does_not_link_existing_email_user(monkeypatch) -> None:
+def test_kakao_unverified_email_creates_pending_placeholder_without_linking_existing_email_user(monkeypatch) -> None:
     existing_user = UserModel(email="owner@example.com", nickname="Owner", password_hash="hash")
-    created_user = _user(user_id=10, email=KAKAO_PLACEHOLDER_EMAIL)
     calls: dict[str, list[str] | object] = {"lookups": []}
     profile = _kakao_profile(
         email="owner@example.com",
         email_verified=False,
     )
 
-    monkeypatch.setattr(oauth_service.user_repository, "get_social_account", lambda *args, **kwargs: None)
+    monkeypatch.setattr(oauth_service.security, "create_urlsafe_token", lambda: "pending-social-token")
+    monkeypatch.setattr(
+        oauth_service.pending_social_signup_repository,
+        "delete_pending_social_signup_by_provider",
+        lambda *_args, **kwargs: calls.update({"deleted": kwargs}),
+    )
+    monkeypatch.setattr(
+        oauth_service.pending_social_signup_repository,
+        "create_pending_social_signup",
+        lambda *_args, **kwargs: calls.update({"pending": kwargs}),
+    )
 
     def get_user_by_email(_db, email):
         calls["lookups"].append(email)
         return existing_user if email == "owner@example.com" else None
 
-    def create_user(_db, **kwargs):
-        calls["created"] = kwargs
-        return created_user
-
     monkeypatch.setattr(oauth_service.user_repository, "get_user_by_email", get_user_by_email)
-    monkeypatch.setattr(oauth_service.user_repository, "create_user", create_user)
-    monkeypatch.setattr(oauth_service.user_repository, "create_social_account", lambda *args, **kwargs: None)
 
-    user = oauth_service._find_or_create_user(FakeDb(), provider="kakao", profile=profile)
+    token = oauth_service._create_pending_social_signup(
+        FakeDb(),
+        provider="kakao",
+        profile=profile,
+        redirect="/invites/abc/accept",
+    )
 
-    assert user is created_user
+    assert token == "pending-social-token"
     assert calls["lookups"] == []
-    assert calls["created"]["email"] == KAKAO_PLACEHOLDER_EMAIL
-    assert calls["created"]["nickname_setup_completed"] is False
+    pending = calls["pending"]
+    assert pending["email"] == KAKAO_PLACEHOLDER_EMAIL
+    assert pending["redirect_path"] == "/invites/abc/accept"
 
 
 def test_existing_kakao_placeholder_email_upgrades_to_verified_email(monkeypatch) -> None:
@@ -312,7 +319,7 @@ def test_existing_kakao_placeholder_email_upgrades_to_verified_email(monkeypatch
 
     monkeypatch.setattr(oauth_service.user_repository, "update_user_email", update_user_email)
 
-    user = oauth_service._find_or_create_user(FakeDb(), provider="kakao", profile=profile)
+    user = oauth_service._find_existing_oauth_user(FakeDb(), provider="kakao", profile=profile)
 
     assert user is linked_user
     assert user.email == KAKAO_VERIFIED_EMAIL
@@ -342,7 +349,7 @@ def test_existing_kakao_placeholder_email_does_not_upgrade_when_email_belongs_to
 
     monkeypatch.setattr(oauth_service.user_repository, "update_user_email", fail_update)
 
-    user = oauth_service._find_or_create_user(FakeDb(), provider="kakao", profile=profile)
+    user = oauth_service._find_existing_oauth_user(FakeDb(), provider="kakao", profile=profile)
 
     assert user is linked_user
     assert user.email == KAKAO_PLACEHOLDER_EMAIL
@@ -364,7 +371,7 @@ def test_existing_social_account_wins_even_when_email_unverified(monkeypatch) ->
         lambda *args, **kwargs: social_account,
     )
 
-    assert oauth_service._find_or_create_user(FakeDb(), provider="google", profile=profile) is linked_user
+    assert oauth_service._find_existing_oauth_user(FakeDb(), provider="google", profile=profile) is linked_user
 
 
 def test_oauth_callback_rejects_missing_state() -> None:

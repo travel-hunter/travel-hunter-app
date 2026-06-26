@@ -396,3 +396,19 @@ def test_oauth_callback_service_invalid_state_redirects_home_without_refresh_coo
     )
     assert "travel_hunter_refresh=" not in response.headers.get("set-cookie", "")
     assert "travel_hunter_oauth_state=" in response.headers["set-cookie"]
+
+
+def test_agreement_versions_match_frontend_contract() -> None:
+    """Guard the lightweight shared-contract boundary until versions are API-driven."""
+    import re
+    from pathlib import Path
+
+    frontend_source = Path(__file__).resolve().parents[2] / "frontend/src/pages/AuthPages.tsx"
+    text = frontend_source.read_text(encoding="utf-8")
+    terms = re.search(r'CURRENT_TERMS_VERSION = "([^"]+)"', text)
+    privacy = re.search(r'CURRENT_PRIVACY_VERSION = "([^"]+)"', text)
+
+    assert terms is not None
+    assert privacy is not None
+    assert terms.group(1) == auth_service.CURRENT_TERMS_VERSION
+    assert privacy.group(1) == auth_service.CURRENT_PRIVACY_VERSION

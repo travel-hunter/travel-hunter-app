@@ -264,6 +264,7 @@ def get_pending_social_signup(
         email=result.email,
         nickname=result.nickname,
         expiresAt=result.expires_at,
+        redirectPath=result.redirect_path,
     )
 
 
