@@ -239,6 +239,60 @@ def test_local_half_trip_replaces_existing_phone_target_condition_on_backfill(db
     assert policy.target_condition == "제로페이 가맹점 결제내역"
 
 
+def test_local_half_trip_extracts_condition_from_raw_detail_without_contact_phone(db: Session) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                title="합천 대한민국 반값여행 지원",
+                region="경남",
+                city="합천",
+                canonical_key="hapcheon-raw-detail-only",
+                external_id="hapcheon-raw-detail-only",
+                contact_text="1660-3067",
+                raw_detail_text="문의전화 : 1660-3067 특이사항 : 지정관광지 2개소 방문 인증사진 및 제로페이 가맹점 2개소 결제내역",
+                raw_payload={"contact": "1660-3067"},
+            )
+        ],
+    )
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+
+    promote_external_benefits_to_policies(db)
+
+    policy = get_policy_by_slug(db, f"travelmonth-{rows[0].id}")
+    assert policy is not None
+    assert policy.target_condition == "지정관광지 2개소 방문 인증사진 및 제로페이 가맹점 2개소 결제내역"
+    assert "1660-3067" not in policy.target_condition
+
+
+def test_local_half_trip_does_not_use_mixed_unlabeled_raw_detail_with_phone(db: Session) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                title="비라벨 문의 혼합 반값여행",
+                canonical_key="mixed-unlabeled-phone",
+                external_id="mixed-unlabeled-phone",
+                contact_text="1660-3067",
+                raw_detail_text="1660-3067로 문의 후 지정관광지 방문 인증사진과 제로페이 결제내역을 준비",
+                raw_payload={},
+            )
+        ],
+    )
+
+    from app.services.policy_normalization import (
+        DEFAULT_TARGET_CONDITION,
+        promote_external_benefits_to_policies,
+    )
+
+    promote_external_benefits_to_policies(db)
+
+    policy = get_policy_by_slug(db, f"travelmonth-{rows[0].id}")
+    assert policy is not None
+    assert policy.target_condition == DEFAULT_TARGET_CONDITION
+
+
 def test_local_half_trip_uses_default_condition_when_only_contact_exists(db: Session) -> None:
     rows = upsert_external_source_records(
         db,

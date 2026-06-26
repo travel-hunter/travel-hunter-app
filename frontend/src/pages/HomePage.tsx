@@ -36,12 +36,15 @@ const AI_CAROUSEL_SWIPE_THRESHOLD_PX = 42;
 const POLICY_RAIL_DRAG_CLICK_THRESHOLD_PX = 6;
 const HOME_POLICY_CONDITION_FALLBACK = "조건 확인 필요";
 const PHONE_ONLY_CONDITION_PATTERN = /^\s*(?:문의전화|문의|전화|tel|contact|고객센터|운영사무국)?\s*[:：-]?\s*(?:\+?\d[\d\s().-]{5,}\d)\s*$/i;
+const PHONE_IN_CONDITION_PATTERN = /(?:\+?\d[\d\s().-]{5,}\d)/;
 const CONTACT_OR_NOTICE_CONDITION_PATTERN =
   /문의|전화|tel|contact|고객센터|운영사무국|공식|공고|안내|확인|서류|캡처|캡쳐|증빙/;
+const OFFICIAL_CONFIRMATION_ONLY_CONDITION_PATTERN =
+  /^\s*(?:공식|공고|상세)?\s*(?:혜택|정책)?\s*(?:안내|조건|내용)?\s*(?:에서)?\s*(?:확인(?:하세요|해 주세요)?|참고(?:하세요|해 주세요)?)\s*[.!。]?\s*$/;
 const CARD_SUITABLE_CONDITION_PATTERN =
-  /조건|인증|방문|결제|가맹점|지역화폐|제로페이|상품|예약|쿠폰|할인|환급|지원|사용|이용|대상|숙박|식사|체험|국내|여행자|주민|거주|청년|가족|관광객|만\s*\d|세/;
+  /조건|인증|방문|결제|가맹점|지역화폐|제로페이|상품|예약|쿠폰|할인|환급|지원|사용|이용|대상|숙박|식사|체험|국내|여행자|주민|거주|청년|가족|관광객|(?:만\s*)?\d+\s*세/;
 const CONCRETE_CARD_CONDITION_PATTERN =
-  /인증|방문|결제|가맹점|지역화폐|제로페이|상품|예약|쿠폰|할인|환급|사용|이용|대상|숙박|식사|체험|국내|여행자|주민|거주|청년|가족|관광객|만\s*\d|세/;
+  /인증|방문|결제|가맹점|지역화폐|제로페이|상품|예약|쿠폰|할인|환급|사용|이용|대상|숙박|식사|체험|국내|여행자|주민|거주|청년|가족|관광객|(?:만\s*)?\d+\s*세/;
 
 export function isProfileComplete(profile: Profile) {
   const regionCount = profile.preferredRegions?.length ?? 0;
@@ -564,6 +567,8 @@ function getPolicyCardCondition(policy: Policy) {
 function isHomePolicyCardConditionCandidate(condition: string) {
   if (!condition) return false;
   if (PHONE_ONLY_CONDITION_PATTERN.test(condition)) return false;
+  if (PHONE_IN_CONDITION_PATTERN.test(condition)) return false;
+  if (OFFICIAL_CONFIRMATION_ONLY_CONDITION_PATTERN.test(condition)) return false;
   if (CONTACT_OR_NOTICE_CONDITION_PATTERN.test(condition)) {
     return CONCRETE_CARD_CONDITION_PATTERN.test(condition);
   }
