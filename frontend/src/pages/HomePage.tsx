@@ -5,7 +5,6 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type MouseEvent,
   type PointerEvent,
 } from "react";
 import { Link } from "react-router-dom";
@@ -33,7 +32,6 @@ import { dday } from "../utils";
 const PROFILE_PROMPT_DISMISSAL_PREFIX =
   "travel-hunter-profile-completion-dismissed:";
 const AI_CAROUSEL_SWIPE_THRESHOLD_PX = 42;
-const POLICY_RAIL_DRAG_CLICK_THRESHOLD_PX = 6;
 const HOME_POLICY_CONDITION_FALLBACK = "조건 확인 필요";
 const PHONE_ONLY_CONDITION_PATTERN = /^\s*(?:문의전화|문의|전화|tel|contact|고객센터|운영사무국)?\s*[:：-]?\s*(?:\+?\d[\d\s().-]{5,}\d)\s*$/i;
 const PHONE_IN_CONDITION_PATTERN = /(?:\+?\d[\d\s().-]{5,}\d)/;
@@ -77,7 +75,7 @@ export function HomePage() {
   }, [dismissalKey]);
   const name = currentUser?.nickname ?? "여행자";
   const featuredPolicy = getFeaturedPolicy(policies);
-  const deadlinePolicies = getDeadlinePolicies(policies, 4);
+  const deadlinePolicies = getDeadlinePolicies(policies, 3);
   const preferredAiRegions = useMemo(
     () =>
       Array.from(
@@ -172,13 +170,21 @@ export function HomePage() {
           className="prototype-home-hero"
           to={`/policies/${featuredPolicy.slug}`}
         >
-          <div className="prototype-home-hero-kicker">이번 주 인기 정책</div>
-          <strong>{featuredPolicy.amount}</strong>
-          <p>
-            {featuredPolicy.title} · {featuredPolicy.region} ·{" "}
-            {dday(featuredPolicy.deadline)}
-          </p>
-          <span className="prototype-home-hero-cta">지금 확인하기</span>
+          <span className="prototype-home-hero-accent" aria-hidden="true">
+            ★
+          </span>
+          <span className="prototype-home-hero-copy">
+            <span className="prototype-home-hero-kicker">이번 주 인기 정책</span>
+            <strong>{featuredPolicy.title}</strong>
+            <span className="prototype-home-hero-description">
+              {featuredPolicy.amount}
+            </span>
+            <span className="prototype-home-hero-meta">
+              <span>{featuredPolicy.region}</span>
+              <span>{dday(featuredPolicy.deadline)}</span>
+            </span>
+          </span>
+          <span className="prototype-home-hero-cta">자세히 보기 →</span>
         </Link>
       )}
 
@@ -187,7 +193,7 @@ export function HomePage() {
         actionLabel="더보기"
         to="/policies"
       />
-      <WeeklyPolicyRail policies={deadlinePolicies} />
+      <WeeklyPolicyList policies={deadlinePolicies} />
 
       <div className="prototype-home-ai-title">AI 추천 맞춤 일정</div>
       {aiRegionCards.length > 1 ? (
@@ -265,86 +271,17 @@ export function HomePage() {
   );
 }
 
-function WeeklyPolicyRail({ policies }: { policies: Policy[] }) {
-  const railRef = useRef<HTMLDivElement>(null);
-  const dragState = useRef<{
-    pointerId: number;
-    startX: number;
-    scrollLeft: number;
-    hasMoved: boolean;
-  } | null>(null);
-  const suppressNextClick = useRef(false);
-  const [isDragging, setIsDragging] = useState(false);
-
-  const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.pointerType === "mouse" && event.button !== 0) return;
-    const rail = railRef.current;
-    if (!rail) return;
-    dragState.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      scrollLeft: rail.scrollLeft,
-      hasMoved: false,
-    };
-    rail.setPointerCapture?.(event.pointerId);
-    setIsDragging(true);
-  };
-
-  const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    const rail = railRef.current;
-    const drag = dragState.current;
-    if (!rail || !drag || drag.pointerId !== event.pointerId) return;
-    const distance = event.clientX - drag.startX;
-    if (Math.abs(distance) >= POLICY_RAIL_DRAG_CLICK_THRESHOLD_PX) {
-      drag.hasMoved = true;
-      event.preventDefault();
-    }
-    rail.scrollLeft = drag.scrollLeft - distance;
-  };
-
-  const finishDrag = (event: PointerEvent<HTMLDivElement>) => {
-    const rail = railRef.current;
-    const drag = dragState.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    if (drag.hasMoved) suppressNextClick.current = true;
-    rail?.releasePointerCapture?.(event.pointerId);
-    dragState.current = null;
-    setIsDragging(false);
-  };
-
-  const cancelDrag = (event: PointerEvent<HTMLDivElement>) => {
-    const rail = railRef.current;
-    const drag = dragState.current;
-    if (drag && drag.pointerId === event.pointerId) {
-      rail?.releasePointerCapture?.(event.pointerId);
-    }
-    dragState.current = null;
-    setIsDragging(false);
-  };
-
-  const handleClickCapture = (event: MouseEvent<HTMLDivElement>) => {
-    if (!suppressNextClick.current) return;
-    suppressNextClick.current = false;
-    event.preventDefault();
-    event.stopPropagation();
-  };
-
+function WeeklyPolicyList({ policies }: { policies: Policy[] }) {
   return (
-    <div
-      ref={railRef}
-      className="prototype-home-policy-rail"
-      aria-label="이번 주 혜택 정책 목록"
-      data-dragging={isDragging ? "true" : "false"}
-      onClickCapture={handleClickCapture}
-      onDragStart={(event) => event.preventDefault()}
-      onPointerCancel={cancelDrag}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={finishDrag}
-    >
-      {policies.map((policy) => (
-        <PrototypePolicyCard key={policy.id} policy={policy} />
-      ))}
+    <div className="prototype-home-policy-list-wrap">
+      <div
+        className="prototype-home-policy-list"
+        aria-label="이번 주 혜택 정책 목록"
+      >
+        {policies.map((policy) => (
+          <PrototypePolicyCard key={policy.id} policy={policy} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -535,13 +472,20 @@ function PrototypePolicyCard({ policy }: { policy: Policy }) {
         </div>
         <em className="prototype-home-policy-category">{policy.category}</em>
       </div>
-      <strong>{policy.title}</strong>
-      <p className="prototype-home-policy-summary">
-        {getPolicyCardSummary(policy)}
-      </p>
-      <span className="prototype-home-policy-condition">
-        조건: {getPolicyCardCondition(policy)}
-      </span>
+      <div className="prototype-home-policy-card-copy">
+        <strong>{policy.title}</strong>
+        <p className="prototype-home-policy-summary">
+          {getPolicyCardSummary(policy)}
+        </p>
+      </div>
+      <div className="prototype-home-policy-card-meta">
+        <span className="prototype-home-policy-schedule">
+          신청 마감 {formatPolicyCardDeadline(policy.deadline)} · {dday(policy.deadline)}
+        </span>
+        <span className="prototype-home-policy-condition">
+          조건: {getPolicyCardCondition(policy)}
+        </span>
+      </div>
       <small>
         <span>{policy.amount}</span>
         <span>{dday(policy.deadline)}</span>
@@ -592,6 +536,12 @@ function summarizeHomePolicyCondition(condition: string) {
     .trim();
   if (compact.length <= 26) return compact;
   return `${compact.slice(0, 25).trim()}…`;
+}
+
+function formatPolicyCardDeadline(deadline: string) {
+  const date = new Date(deadline);
+  if (Number.isNaN(date.getTime())) return "상시";
+  return `${date.getMonth() + 1}.${date.getDate()}`;
 }
 
 function getRecommendationSaving(recommendation: RegionRecommendation) {
