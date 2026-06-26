@@ -98,6 +98,33 @@ describe("Travel Hunter app — home", () => {
           "7만원 미만 국내 숙박상품: 2만원 할인 (1박 이상)",
         ],
       },
+      {
+        ...examplePolicyDetail,
+        id: "official-fallback-policy",
+        slug: "official-fallback-policy",
+        title: "청년 여행 지원",
+        region: "서울",
+        deadline: "2026-09-30",
+        amount: "최대 5만원 지원",
+        summary: "청년 대상 여행 지원",
+        category: "여행상품",
+        requirements: ["공식 혜택 안내에서 조건을 확인하세요.", "만 19세 이상 청년"],
+      },
+      {
+        ...examplePolicyDetail,
+        id: "mixed-phone-condition-policy",
+        slug: "mixed-phone-condition-policy",
+        title: "제로페이 인증 지원",
+        region: "경남",
+        deadline: "2026-10-31",
+        amount: "최대 3만원 지원",
+        summary: "지역 결제 인증 지원",
+        category: "지역할인",
+        requirements: [
+          "문의전화 1660-3067 특이사항 지정관광지 방문 인증",
+          "제로페이 결제내역",
+        ],
+      },
     ];
     const listPoliciesSpy = vi
       .spyOn(appDataApi, "listPolicies")
@@ -118,6 +145,10 @@ describe("Travel Hunter app — home", () => {
         "조건: 지정관광지 2개소 방문 인증사진 및 제로페이…",
       );
       expect(document.body).toHaveTextContent("조건: 7만원 미만 숙박 2만원 할인");
+      expect(document.body).not.toHaveTextContent("조건: 공식 혜택 안내");
+      expect(document.body).toHaveTextContent("조건: 만 19세 이상 청년");
+      expect(document.body).not.toHaveTextContent("조건: 문의전화 1660-3067");
+      expect(document.body).toHaveTextContent("조건: 제로페이 결제내역");
     } finally {
       listPoliciesSpy.mockRestore();
     }

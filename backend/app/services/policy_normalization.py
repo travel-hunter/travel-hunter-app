@@ -20,9 +20,23 @@ CONTACT_ONLY_PATTERN = re.compile(
     re.IGNORECASE,
 )
 CONTACT_HINT_PATTERN = re.compile(r"문의|전화|tel|contact|고객센터|운영사무국", re.IGNORECASE)
+CONTACT_NUMBER_PATTERN = re.compile(r"(?:\+?\d[\d\s().-]{5,}\d)")
 CONDITION_HINT_PATTERN = re.compile(
     r"특이사항|조건|인증|방문|결제|가맹점|지역화폐|제로페이|상품|예약|쿠폰|할인|환급|지원|사용|이용|대상|숙박|식사|체험"
 )
+LOCAL_HALF_TRIP_CONDITION_FIELDS = ("특이사항", "지역화폐", "신청조건", "사용조건", "이용조건")
+RAW_DETAIL_FIELD_LABELS = (
+    "문의전화",
+    "문의",
+    "전화",
+    "연락처",
+    "특이사항",
+    "지역화폐",
+    "신청조건",
+    "사용조건",
+    "이용조건",
+)
+RAW_DETAIL_FIELD_LABEL_PATTERN = "|".join(re.escape(label) for label in RAW_DETAIL_FIELD_LABELS)
 
 
 @dataclass(frozen=True)
@@ -47,6 +61,8 @@ def _is_condition_candidate(value: str) -> bool:
         return False
     if _is_contact_only_text(text):
         return False
+    if CONTACT_NUMBER_PATTERN.search(text):
+        return False
     if CONTACT_HINT_PATTERN.search(text) and not CONDITION_HINT_PATTERN.search(text):
         return False
     return bool(CONDITION_HINT_PATTERN.search(text))
@@ -60,14 +76,42 @@ def _raw_field_value(record: ExternalSourceRecord, field_name: str) -> str:
     return _normalized_text(field_values.get(field_name))
 
 
+def _raw_detail_field_value(record: ExternalSourceRecord, field_name: str) -> str:
+    raw_detail_text = _normalized_text(record.raw_detail_text)
+    if not raw_detail_text:
+        return ""
+    match = re.search(
+        rf"(?:^|\s){re.escape(field_name)}\s*[:：-]\s*(.*?)(?=\s*(?:{RAW_DETAIL_FIELD_LABEL_PATTERN})\s*[:：-]|$)",
+        raw_detail_text,
+    )
+    if not match:
+        return ""
+    return _normalized_text(match.group(1))
+
+
+def _safe_unlabeled_raw_detail_condition(record: ExternalSourceRecord) -> str:
+    raw_detail_text = _normalized_text(record.raw_detail_text)
+    if not raw_detail_text:
+        return ""
+    if (
+        CONTACT_HINT_PATTERN.search(raw_detail_text)
+        or CONTACT_NUMBER_PATTERN.search(raw_detail_text)
+    ):
+        return ""
+    return raw_detail_text
+
+
 def _local_half_trip_target_condition(record: ExternalSourceRecord) -> str:
     candidates = [
-        _raw_field_value(record, "특이사항"),
-        _raw_field_value(record, "지역화폐"),
-        _raw_field_value(record, "신청조건"),
-        _raw_field_value(record, "사용조건"),
-        _raw_field_value(record, "이용조건"),
-        _normalized_text(record.raw_detail_text),
+        *(
+            _raw_field_value(record, field_name)
+            for field_name in LOCAL_HALF_TRIP_CONDITION_FIELDS
+        ),
+        *(
+            _raw_detail_field_value(record, field_name)
+            for field_name in LOCAL_HALF_TRIP_CONDITION_FIELDS
+        ),
+        _safe_unlabeled_raw_detail_condition(record),
     ]
     for candidate in candidates:
         if _is_condition_candidate(candidate):
