@@ -1,6 +1,7 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -12,11 +13,75 @@ from app.services.travelmonth_normalizer import extract_benefit_value
 
 
 DEFAULT_TARGET_CONDITION = "공식 혜택 안내에서 조건을 확인하세요."
+LOCAL_HALF_TRIP_SOURCE_CATEGORY = "local_half_trip"
+CONTACT_ONLY_PATTERN = re.compile(
+    r"^\s*(?:문의전화|문의|전화|tel|contact|고객센터|운영사무국)?\s*[:：-]?\s*"
+    r"(?:\+?\d[\d\s().-]{5,}\d)\s*$",
+    re.IGNORECASE,
+)
+CONTACT_HINT_PATTERN = re.compile(r"문의|전화|tel|contact|고객센터|운영사무국", re.IGNORECASE)
+CONDITION_HINT_PATTERN = re.compile(
+    r"특이사항|조건|인증|방문|결제|가맹점|지역화폐|제로페이|상품|예약|쿠폰|할인|환급|지원|사용|이용|대상|숙박|식사|체험"
+)
 
 
 @dataclass(frozen=True)
 class PolicyPromotionResult:
     promoted_count: int
+
+
+def _normalized_text(value: object) -> str:
+    return " ".join(str(value or "").split())
+
+
+def _is_contact_only_text(value: str) -> bool:
+    text = _normalized_text(value)
+    if not text:
+        return False
+    return bool(CONTACT_ONLY_PATTERN.match(text))
+
+
+def _is_condition_candidate(value: str) -> bool:
+    text = _normalized_text(value)
+    if not text:
+        return False
+    if _is_contact_only_text(text):
+        return False
+    if CONTACT_HINT_PATTERN.search(text) and not CONDITION_HINT_PATTERN.search(text):
+        return False
+    return bool(CONDITION_HINT_PATTERN.search(text))
+
+
+def _raw_field_value(record: ExternalSourceRecord, field_name: str) -> str:
+    raw_payload = record.raw_payload if isinstance(record.raw_payload, dict) else {}
+    field_values = raw_payload.get("field_values")
+    if not isinstance(field_values, dict):
+        return ""
+    return _normalized_text(field_values.get(field_name))
+
+
+def _local_half_trip_target_condition(record: ExternalSourceRecord) -> str:
+    candidates = [
+        _raw_field_value(record, "특이사항"),
+        _raw_field_value(record, "지역화폐"),
+        _raw_field_value(record, "신청조건"),
+        _raw_field_value(record, "사용조건"),
+        _raw_field_value(record, "이용조건"),
+        _normalized_text(record.raw_detail_text),
+    ]
+    for candidate in candidates:
+        if _is_condition_candidate(candidate):
+            return candidate
+    return DEFAULT_TARGET_CONDITION
+
+
+def _target_condition_for_record(record: ExternalSourceRecord) -> str:
+    if record.source_category == LOCAL_HALF_TRIP_SOURCE_CATEGORY:
+        return _local_half_trip_target_condition(record)
+    contact_text = _normalized_text(record.contact_text)
+    if contact_text and not _is_contact_only_text(contact_text):
+        return contact_text
+    return DEFAULT_TARGET_CONDITION
 
 
 def _policy_slug_for_external_record(record: ExternalSourceRecord) -> str:
@@ -62,7 +127,7 @@ def _assign_policy_from_external_record(
     policy.description = record.raw_detail_text or record.benefit_text
     policy.benefit_amount = record.extracted_amount_krw or benefit_value.amount_krw
     policy.benefit_detail = benefit_detail
-    policy.target_condition = record.contact_text or DEFAULT_TARGET_CONDITION
+    policy.target_condition = _target_condition_for_record(record)
     policy.region = record.region or "전국"
     policy.start_date = record.start_date
     policy.end_date = record.end_date

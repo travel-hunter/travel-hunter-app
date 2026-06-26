@@ -8,8 +8,13 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { appDataApi, type RegionRecommendation, type Trip } from "../../api";
-import { getPreviewTrip } from "../../test/fixtures";
+import {
+  appDataApi,
+  type Policy,
+  type RegionRecommendation,
+  type Trip,
+} from "../../api";
+import { examplePolicyDetail, getPreviewTrip } from "../../test/fixtures";
 import { login, renderAppRoute } from "../../test/renderAppRoute";
 
 describe("Travel Hunter app — home", () => {
@@ -60,6 +65,62 @@ describe("Travel Hunter app — home", () => {
     firePolicyRailPointerEvent(benefitRail, "pointerup", 120);
     expect(benefitRail).toHaveAttribute("data-dragging", "false");
     expect(benefitRail.scrollLeft).toBeGreaterThan(0);
+  });
+
+  it("shows safe concise condition labels on weekly benefit cards", async () => {
+    const policies: Policy[] = [
+      {
+        ...examplePolicyDetail,
+        id: "travelmonth-25",
+        slug: "travelmonth-25",
+        title: "[합천] 대한민국 반값여행 지원",
+        region: "경남",
+        deadline: "2026-07-31",
+        amount: "최대 20만원 환급",
+        summary: "숙박, 식사, 체험 환급 혜택",
+        category: "지역할인",
+        requirements: [
+          "1660-3067",
+          "지정관광지 2개소 방문 인증사진 및 제로페이 가맹점 2개소 결제내역",
+        ],
+      },
+      {
+        ...examplePolicyDetail,
+        id: "stay-discount-gangwon-goseong",
+        slug: "stay-discount-gangwon-goseong",
+        title: "[고성] 대한민국 숙박세일 페스타 숙박 할인",
+        region: "강원",
+        deadline: "2026-08-31",
+        amount: "최대 7만원 할인",
+        summary: "비수도권 숙박 할인 혜택",
+        category: "숙박",
+        requirements: [
+          "7만원 미만 국내 숙박상품: 2만원 할인 (1박 이상)",
+        ],
+      },
+    ];
+    const listPoliciesSpy = vi
+      .spyOn(appDataApi, "listPolicies")
+      .mockResolvedValue(policies);
+
+    try {
+      await login();
+      cleanup();
+      renderAppRoute("/home");
+
+      const benefitRail = await screen.findByLabelText("이번 주 혜택 정책 목록");
+      await waitFor(() =>
+        expect(within(benefitRail).getByText("[합천] 대한민국 반값여행 지원"))
+          .toBeInTheDocument(),
+      );
+      expect(document.body).not.toHaveTextContent("조건: 1660-3067");
+      expect(document.body).toHaveTextContent(
+        "조건: 지정관광지 2개소 방문 인증사진 및 제로페이…",
+      );
+      expect(document.body).toHaveTextContent("조건: 7만원 미만 숙박 2만원 할인");
+    } finally {
+      listPoliciesSpy.mockRestore();
+    }
   });
 
   it("uses preferred-region recommendations only for the home AI trip cards", async () => {

@@ -161,6 +161,111 @@ def test_promotion_is_idempotent_by_external_source_record_id(db: Session) -> No
     assert len(db.query(Policy).filter(Policy.external_source_record_id == rows[0].id).all()) == 1
 
 
+def test_local_half_trip_uses_usage_condition_instead_of_contact_phone(db: Session) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                title="합천 대한민국 반값여행 지원",
+                region="경남",
+                city="합천",
+                canonical_key="hapcheon-half-trip",
+                external_id="hapcheon-half-trip",
+                contact_text="1660-3067",
+                raw_detail_text="문의전화 : 1660-3067 특이사항 : 지정관광지 2개소 방문 인증사진 및 제로페이 가맹점 2개소 결제내역",
+                raw_payload={
+                    "contact": "1660-3067",
+                    "field_values": {
+                        "문의전화": "1660-3067",
+                        "지역화폐": "제로페이 앱",
+                        "특이사항": "지정관광지 2개소 방문 인증사진 및 제로페이 가맹점 2개소 결제내역",
+                    },
+                },
+            )
+        ],
+    )
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+
+    promote_external_benefits_to_policies(db)
+
+    policy = get_policy_by_slug(db, f"travelmonth-{rows[0].id}")
+    assert policy is not None
+    assert policy.target_condition == "지정관광지 2개소 방문 인증사진 및 제로페이 가맹점 2개소 결제내역"
+
+
+def test_local_half_trip_replaces_existing_phone_target_condition_on_backfill(db: Session) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                title="합천 대한민국 반값여행 지원",
+                region="경남",
+                city="합천",
+                canonical_key="hapcheon-existing-phone",
+                external_id="hapcheon-existing-phone",
+                contact_text="1660-3067",
+                raw_detail_text="문의전화 : 1660-3067 특이사항 : 제로페이 가맹점 결제내역",
+                raw_payload={
+                    "field_values": {
+                        "문의전화": "1660-3067",
+                        "특이사항": "제로페이 가맹점 결제내역",
+                    },
+                },
+            )
+        ],
+    )
+    existing = Policy(
+        slug=f"travelmonth-{rows[0].id}",
+        title="합천 대한민국 반값여행 지원",
+        organization="합천 지자체",
+        policy_type="지역할인",
+        description="legacy",
+        benefit_detail="최대 20만원 환급",
+        target_condition="1660-3067",
+        region="경남",
+        source_category="local_half_trip",
+        external_source_record_id=rows[0].id,
+    )
+    db.add(existing)
+    db.flush()
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+
+    promote_external_benefits_to_policies(db)
+
+    policy = get_policy_by_slug(db, f"travelmonth-{rows[0].id}")
+    assert policy is not None
+    assert policy.target_condition == "제로페이 가맹점 결제내역"
+
+
+def test_local_half_trip_uses_default_condition_when_only_contact_exists(db: Session) -> None:
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                title="문의만 있는 반값여행",
+                canonical_key="contact-only-half-trip",
+                external_id="contact-only-half-trip",
+                contact_text="1660-3067",
+                raw_detail_text="문의전화 : 1660-3067",
+                raw_payload={"field_values": {"문의전화": "1660-3067"}},
+            )
+        ],
+    )
+
+    from app.services.policy_normalization import (
+        DEFAULT_TARGET_CONDITION,
+        promote_external_benefits_to_policies,
+    )
+
+    promote_external_benefits_to_policies(db)
+
+    policy = get_policy_by_slug(db, f"travelmonth-{rows[0].id}")
+    assert policy is not None
+    assert policy.target_condition == DEFAULT_TARGET_CONDITION
+
+
 def test_promotion_reclassifies_existing_policy_type(db: Session) -> None:
     rows = upsert_external_source_records(
         db,
