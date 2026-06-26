@@ -18,7 +18,7 @@ import { examplePolicyDetail, getPreviewTrip } from "../../test/fixtures";
 import { login, renderAppRoute } from "../../test/renderAppRoute";
 
 describe("Travel Hunter app — home", () => {
-  it("renders the larger weekly benefit rail with real policy links", async () => {
+  it("renders the vertical top-three weekly benefit list with real policy links", async () => {
     await login();
     cleanup();
     renderAppRoute("/home");
@@ -35,8 +35,9 @@ describe("Travel Hunter app — home", () => {
     expect(document.body).toHaveTextContent("AI 추천 맞춤 일정");
     expect(document.body).not.toHaveTextContent("인기 국내 여행지");
     expect(document.body).not.toHaveTextContent("추천 혜택");
-    const benefitRail = screen.getByLabelText("이번 주 혜택 정책 목록");
-    expect(benefitRail).toBeInTheDocument();
+    const benefitList = screen.getByLabelText("이번 주 혜택 정책 목록");
+    expect(benefitList).toBeInTheDocument();
+    expect(benefitList).toHaveClass("prototype-home-policy-list");
     expect(screen.queryByLabelText("인기 국내 여행지 목록")).toBeNull();
     expect(document.querySelector(".ds-home-rail")).toBeNull();
     expect(document.body).not.toHaveTextContent("⭐ 4.9");
@@ -44,8 +45,9 @@ describe("Travel Hunter app — home", () => {
       expect(screen.getByText("이번 주 인기 정책")).toBeInTheDocument(),
     );
     await waitFor(() => {
-      const policyLinks = within(benefitRail).getAllByRole("link");
+      const policyLinks = within(benefitList).getAllByRole("link");
       expect(policyLinks.length).toBeGreaterThan(0);
+      expect(policyLinks.length).toBeLessThanOrEqual(3);
       expect(policyLinks[0]).toHaveClass("prototype-home-policy-card");
       expect(
         policyLinks[0].querySelector(".prototype-home-policy-summary"),
@@ -60,11 +62,9 @@ describe("Travel Hunter app — home", () => {
       ).toBeNull();
     });
 
-    firePolicyRailPointerEvent(benefitRail, "pointerdown", 260);
-    firePolicyRailPointerEvent(benefitRail, "pointermove", 120);
-    firePolicyRailPointerEvent(benefitRail, "pointerup", 120);
-    expect(benefitRail).toHaveAttribute("data-dragging", "false");
-    expect(benefitRail.scrollLeft).toBeGreaterThan(0);
+    expect(benefitList).not.toHaveAttribute("data-dragging");
+    expect(document.body).not.toHaveTextContent("이번 주 혜택은 최대 3개만 보여줘요");
+    expect(screen.getByText("자세히 보기 →")).toBeInTheDocument();
   });
 
   it("shows safe concise condition labels on weekly benefit cards", async () => {
@@ -110,20 +110,62 @@ describe("Travel Hunter app — home", () => {
         category: "여행상품",
         requirements: ["공식 혜택 안내에서 조건을 확인하세요.", "만 19세 이상 청년"],
       },
+    ];
+    const listPoliciesSpy = vi
+      .spyOn(appDataApi, "listPolicies")
+      .mockResolvedValue(policies);
+
+    try {
+      await login();
+      cleanup();
+      renderAppRoute("/home");
+
+      const benefitList = await screen.findByLabelText("이번 주 혜택 정책 목록");
+      await waitFor(() =>
+        expect(within(benefitList).getByText("[합천] 대한민국 반값여행 지원"))
+          .toBeInTheDocument(),
+      );
+      expect(document.body).not.toHaveTextContent("조건: 1660-3067");
+      expect(document.body).toHaveTextContent(
+        "조건: 지정관광지 2개소 방문 인증사진 및 제로페이…",
+      );
+      expect(document.body).toHaveTextContent("조건: 7만원 미만 숙박 2만원 할인");
+      expect(document.body).not.toHaveTextContent("조건: 공식 혜택 안내");
+      expect(document.body).toHaveTextContent("조건: 만 19세 이상 청년");
+    } finally {
+      listPoliciesSpy.mockRestore();
+    }
+  });
+
+  it("shows only the three soonest weekly benefits by deadline", async () => {
+    const policies: Policy[] = [
       {
         ...examplePolicyDetail,
-        id: "mixed-phone-condition-policy",
-        slug: "mixed-phone-condition-policy",
-        title: "제로페이 인증 지원",
-        region: "경남",
-        deadline: "2026-10-31",
-        amount: "최대 3만원 지원",
-        summary: "지역 결제 인증 지원",
-        category: "지역할인",
-        requirements: [
-          "문의전화 1660-3067 특이사항 지정관광지 방문 인증",
-          "제로페이 결제내역",
-        ],
+        id: "later-fourth",
+        slug: "later-fourth",
+        title: "네 번째 늦은 혜택",
+        deadline: "2026-12-31",
+      },
+      {
+        ...examplePolicyDetail,
+        id: "soon-first",
+        slug: "soon-first",
+        title: "첫 번째 임박 혜택",
+        deadline: "2026-07-01",
+      },
+      {
+        ...examplePolicyDetail,
+        id: "soon-third",
+        slug: "soon-third",
+        title: "세 번째 임박 혜택",
+        deadline: "2026-07-03",
+      },
+      {
+        ...examplePolicyDetail,
+        id: "soon-second",
+        slug: "soon-second",
+        title: "두 번째 임박 혜택",
+        deadline: "2026-07-02",
       },
     ];
     const listPoliciesSpy = vi
@@ -135,20 +177,18 @@ describe("Travel Hunter app — home", () => {
       cleanup();
       renderAppRoute("/home");
 
-      const benefitRail = await screen.findByLabelText("이번 주 혜택 정책 목록");
+      const benefitList = await screen.findByLabelText("이번 주 혜택 정책 목록");
       await waitFor(() =>
-        expect(within(benefitRail).getByText("[합천] 대한민국 반값여행 지원"))
-          .toBeInTheDocument(),
+        expect(within(benefitList).getAllByRole("link")).toHaveLength(3),
       );
-      expect(document.body).not.toHaveTextContent("조건: 1660-3067");
-      expect(document.body).toHaveTextContent(
-        "조건: 지정관광지 2개소 방문 인증사진 및 제로페이…",
-      );
-      expect(document.body).toHaveTextContent("조건: 7만원 미만 숙박 2만원 할인");
-      expect(document.body).not.toHaveTextContent("조건: 공식 혜택 안내");
-      expect(document.body).toHaveTextContent("조건: 만 19세 이상 청년");
-      expect(document.body).not.toHaveTextContent("조건: 문의전화 1660-3067");
-      expect(document.body).toHaveTextContent("조건: 제로페이 결제내역");
+      expect(within(benefitList).getByText("첫 번째 임박 혜택"))
+        .toBeInTheDocument();
+      expect(within(benefitList).getByText("두 번째 임박 혜택"))
+        .toBeInTheDocument();
+      expect(within(benefitList).getByText("세 번째 임박 혜택"))
+        .toBeInTheDocument();
+      expect(within(benefitList).queryByText("네 번째 늦은 혜택"))
+        .not.toBeInTheDocument();
     } finally {
       listPoliciesSpy.mockRestore();
     }
@@ -587,18 +627,3 @@ describe("Travel Hunter app — home", () => {
     }
   });
 });
-
-function firePolicyRailPointerEvent(
-  target: Element,
-  type: "pointerdown" | "pointermove" | "pointerup",
-  clientX: number,
-) {
-  const event = new Event(type, { bubbles: true, cancelable: true });
-  Object.defineProperties(event, {
-    button: { value: 0 },
-    clientX: { value: clientX },
-    pointerId: { value: 1 },
-    pointerType: { value: "mouse" },
-  });
-  fireEvent(target, event);
-}
