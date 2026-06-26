@@ -2,32 +2,34 @@
 
 ## Current Status
 
-- Active task: Home `이번 주 혜택` card content addition after deep-interview and Visual Ralph reference approval.
+- Active task: `/policies` premium unified filter sheet redesign from `.omx/specs/deep-interview-policies-filter-unified-ux-redesign.md`.
 - Current branch: `develop`.
-- Scope: add one-line policy summary and one compact 신청 조건 chip to the Home weekly-benefit cards while preserving horizontal swipe, PC mouse drag, policy detail links, and the removed `인기 국내 여행지` section/API path.
-- Non-goals: no official/apply buttons inside cards, no full detailed condition sentences, no backend/API/schema changes, no new dependencies, no full Home redesign, no AI 추천 맞춤 일정 removal.
-- Visual/planning source of truth: `.omx/specs/deep-interview-home-weekly-benefit-card-content.md`, `.omx/artifacts/visual-ralph/home-weekly-benefit-card-content/reference.html`, and `.omx/artifacts/visual-ralph/home-weekly-benefit-card-content/reference-390.png`.
+- Scope: frontend `/policies` filter UX only — integrated search/filter bar, bottom filter sheet, category/region/period/amount/saved-only controls, URL state, and policy-list filtering behavior.
+- Approved direction: Visual Ralph B reference, 권역 그룹형 지역 선택, mixed apply model, close-to-discard draft changes.
+- Removed copy: `필터 한 번에 설정`, `닫으면 변경은 취소되고, 적용하면 목록이 바뀌어요`, `임시 선택`.
 
 ## Current Source Documents
 
 - Product/status/plan/API: `docs/requirements.md`, `docs/implemented-feature-spec.md`, `docs/next-work-plan.md`, `docs/mvp-api-contract.md`.
 - Frontend rules: `frontend/AGENTS.md`.
-- Home screen status: `docs/screen-feature-status-screens.md`.
+- Task spec: `.omx/specs/deep-interview-policies-filter-unified-ux-redesign.md`.
+- Approved reference: `.omx/artifacts/visual-ralph/policies-filter-unified-ux-redesign/reference-b-final.html`.
 
 ## Latest Validation Evidence
 
-- Visual Ralph reference approval: user approved the reference showing icon/category, title, summary 1 line, condition chip, and amount/deadline with no official/apply button.
-- Browser/Visual Ralph implementation capture: PASS, score 93, verdict `pass` in `.omx/artifacts/visual-ralph/home-weekly-benefit-card-content/visual-ralph-verdict.json`; screenshots and metrics captured at 360/390/430/1024/1440 px under `.omx/artifacts/visual-ralph/home-weekly-benefit-card-content/`.
-- Responsive/browser metrics: no document horizontal overflow, `인기 국내 여행지` text absent, weekly rail scrollable, 4 policy cards, summary text present with one-line ellipsis styling, condition chip present, official/apply buttons count 0.
-- Typecheck: `cd frontend && npm run typecheck` PASS.
-- Targeted Home tests: `cd frontend && npx vitest run src/app/__tests__/home.test.tsx` PASS (10 tests).
-- Frontend unit suite: `cd frontend && npm test` PASS (21 files, 199 tests, mojibake check PASS).
-- Frontend e2e suite: `cd frontend && npm run test:e2e` PASS (11 Playwright backend-mode tests).
-- Production build: `cd frontend && npm run build` PASS.
+- Typecheck: `npm --prefix frontend run typecheck` PASS.
+- Targeted policies tests: `cd frontend && npm run test -- --run src/app/__tests__/policies.test.tsx` PASS (11 tests, mojibake check PASS).
+- Full frontend tests: `cd frontend && npm run test` PASS (21 files, 201 tests).
+- Production build: `cd frontend && npm run build` PASS (`index-BXK6FDaW.js`, `index-AX2Y-4lD.css`).
+- Visual smoke: temporary Playwright smoke PASS; screenshots saved to `.omx/artifacts/visual-ralph/policies-filter-unified-ux-redesign/implemented-unified-filter-closed.png` and `implemented-unified-filter-sheet.png`.
+- Frontend rebuild: `docker compose up -d --build frontend` PASS; frontend container restarted on `127.0.0.1:4173`.
+- Served bundle check: `prototype-filter-sheet` present in built JS/CSS and forbidden helper copy absent from served JS.
+- Diff hygiene: `git diff --check -- frontend/src/pages/PolicyPages.tsx frontend/src/styles/app.css frontend/src/app/__tests__/policies.test.tsx` PASS.
 
 ## Remaining Risks
 
-- React Router v7 future-flag warnings still appear in existing test/browser logs and are unrelated to this change.
+- React Router v7 future-flag warnings still appear in existing test logs and are unrelated to this change.
+- Region chips intentionally show all 17 fixed administrative regions even if current seed data has no matching policies; selecting an empty region can produce an empty result state.
 
 ## Cleanup Policy
 
