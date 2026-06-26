@@ -16,6 +16,11 @@ from app.schemas.admin import (
     AdminUserUpdateRequest,
 )
 from app.services import nicknames
+from app.services.policy_requirements import (
+    sanitize_requirement_items,
+    sanitize_target_condition,
+    split_requirement_lines,
+)
 from app.services.profile_preferences import ProfilePreferenceError, serialize_preferred_regions
 
 
@@ -32,12 +37,6 @@ def _iso(value: datetime | None) -> str:
 
 def _date_iso(value: date | None) -> str | None:
     return value.isoformat() if value is not None else None
-
-
-def _split_lines(value: str | None) -> list[str]:
-    if not value:
-        return []
-    return [line.strip() for line in value.splitlines() if line.strip()]
 
 
 def _clean_items(values: list[str] | None) -> list[str]:
@@ -124,7 +123,7 @@ def _policy_detail(policy: Policy) -> dict[str, object]:
         "benefitAmount": policy.benefit_amount,
         "benefitDetail": policy.benefit_detail,
         "description": policy.description,
-        "requirements": _split_lines(policy.target_condition),
+        "requirements": sanitize_requirement_items(split_requirement_lines(policy.target_condition)),
         "documents": [document.document_name for document in policy.documents],
         "officialUrl": policy.official_url,
         "applyUrl": policy.apply_url,
@@ -333,9 +332,9 @@ def _validate_policy_category(value: str | None) -> None:
 
 def _target_condition_from_values(values: dict[str, Any]) -> str | None:
     if "requirements" in values and values["requirements"] is not None:
-        return "\n".join(_clean_items(values["requirements"]))
+        return sanitize_target_condition("\n".join(_clean_items(values["requirements"])))
     if "targetCondition" in values:
-        return values["targetCondition"]
+        return sanitize_target_condition(values["targetCondition"])
     return None
 
 

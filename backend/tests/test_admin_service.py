@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from datetime import date, datetime
 
@@ -185,6 +185,58 @@ def test_admin_policy_create_maps_save_fields_and_records_audit(db: Session) -> 
     assert policy.status == "hidden"
     assert [document.document_name for document in policy.documents] == ["ID card", "Receipt"]
     assert admin_service.list_audit_logs(db, admin, limit=10, offset=0)["items"][0]["action"] == "policy.create"
+
+
+def test_admin_policy_create_filters_phone_contact_requirements(db: Session) -> None:
+    admin = make_user(1, email="admin@example.com", role="admin")
+    db.add(admin)
+    db.commit()
+
+    result = admin_service.create_policy(
+        db,
+        admin,
+        AdminPolicyCreateRequest(
+            slug="admin-phone-filtered-policy",
+            title="Admin phone filtered policy",
+            organization="Travel Hunter",
+            policyType=CATEGORY,
+            region="Nationwide",
+            requirements=[
+                "1660-3067",
+                "문의전화 1660-3067 특이사항 지정관광지 방문 인증",
+                "국내 거주자",
+            ],
+        ),
+    )
+
+    policy = db.get(Policy, int(result["id"]))
+    assert policy is not None
+    assert policy.target_condition == "국내 거주자"
+    assert result["requirements"] == ["국내 거주자"]
+
+
+def test_admin_policy_create_replaces_only_phone_requirements_with_default(db: Session) -> None:
+    admin = make_user(1, email="admin@example.com", role="admin")
+    db.add(admin)
+    db.commit()
+
+    result = admin_service.create_policy(
+        db,
+        admin,
+        AdminPolicyCreateRequest(
+            slug="admin-only-phone-policy",
+            title="Admin only phone policy",
+            organization="Travel Hunter",
+            policyType=CATEGORY,
+            region="Nationwide",
+            requirements=["1660-3067"],
+        ),
+    )
+
+    policy = db.get(Policy, int(result["id"]))
+    assert policy is not None
+    assert policy.target_condition == "공식 혜택 안내에서 조건을 확인하세요."
+    assert result["requirements"] == ["공식 혜택 안내에서 조건을 확인하세요."]
 
 
 def test_hidden_policy_is_excluded_from_public_surfaces_but_trip_link_keeps_status(db: Session) -> None:
