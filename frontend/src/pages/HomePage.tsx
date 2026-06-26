@@ -34,6 +34,14 @@ const PROFILE_PROMPT_DISMISSAL_PREFIX =
   "travel-hunter-profile-completion-dismissed:";
 const AI_CAROUSEL_SWIPE_THRESHOLD_PX = 42;
 const POLICY_RAIL_DRAG_CLICK_THRESHOLD_PX = 6;
+const HOME_POLICY_CONDITION_FALLBACK = "조건 확인 필요";
+const PHONE_ONLY_CONDITION_PATTERN = /^\s*(?:문의전화|문의|전화|tel|contact|고객센터|운영사무국)?\s*[:：-]?\s*(?:\+?\d[\d\s().-]{5,}\d)\s*$/i;
+const CONTACT_OR_NOTICE_CONDITION_PATTERN =
+  /문의|전화|tel|contact|고객센터|운영사무국|공식|공고|안내|확인|서류|캡처|캡쳐|증빙/;
+const CARD_SUITABLE_CONDITION_PATTERN =
+  /조건|인증|방문|결제|가맹점|지역화폐|제로페이|상품|예약|쿠폰|할인|환급|지원|사용|이용|대상|숙박|식사|체험|국내|여행자|주민|거주|청년|가족|관광객|만\s*\d|세/;
+const CONCRETE_CARD_CONDITION_PATTERN =
+  /인증|방문|결제|가맹점|지역화폐|제로페이|상품|예약|쿠폰|할인|환급|사용|이용|대상|숙박|식사|체험|국내|여행자|주민|거주|청년|가족|관광객|만\s*\d|세/;
 
 export function isProfileComplete(profile: Profile) {
   const regionCount = profile.preferredRegions?.length ?? 0;
@@ -546,8 +554,39 @@ function getPolicyCardSummary(policy: Policy) {
 }
 
 function getPolicyCardCondition(policy: Policy) {
-  const condition = policy.requirements[0]?.trim();
-  return condition || "조건 확인 필요";
+  const condition = policy.requirements
+    .map((requirement) => requirement.trim())
+    .find(isHomePolicyCardConditionCandidate);
+  if (!condition) return HOME_POLICY_CONDITION_FALLBACK;
+  return summarizeHomePolicyCondition(condition);
+}
+
+function isHomePolicyCardConditionCandidate(condition: string) {
+  if (!condition) return false;
+  if (PHONE_ONLY_CONDITION_PATTERN.test(condition)) return false;
+  if (CONTACT_OR_NOTICE_CONDITION_PATTERN.test(condition)) {
+    return CONCRETE_CARD_CONDITION_PATTERN.test(condition);
+  }
+  return CARD_SUITABLE_CONDITION_PATTERN.test(condition);
+}
+
+function summarizeHomePolicyCondition(condition: string) {
+  const normalized = condition.replace(/\s+/g, " ").trim();
+  const stayDiscount = normalized.match(
+    /(\d+만원\s*(?:미만|이상)).*?(\d+만원)\s*할인/,
+  );
+  if (stayDiscount) return `${stayDiscount[1]} 숙박 ${stayDiscount[2]} 할인`;
+
+  const compact = normalized
+    .replace(/국내\s*/g, "")
+    .replace(/숙박상품/g, "숙박")
+    .replace(/예약\s*시/g, "")
+    .replace(/[()]/g, "")
+    .replace(/\s*:\s*/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (compact.length <= 26) return compact;
+  return `${compact.slice(0, 25).trim()}…`;
 }
 
 function getRecommendationSaving(recommendation: RegionRecommendation) {
