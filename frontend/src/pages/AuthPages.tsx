@@ -564,7 +564,8 @@ export function SocialSignupAgreementPage() {
   const [searchParams] = useSearchParams();
   const { completeSocialSignup } = useSession();
   const token = searchParams.get("token") ?? "";
-  const redirect = getSafeRedirect(searchParams) ?? "/home";
+  const initialRedirect = getSafeRedirect(searchParams) ?? "/home";
+  const [redirect, setRedirect] = useState(initialRedirect);
   const [provider, setProvider] = useState<keyof typeof oauthProviderLabels | null>(null);
   const [email, setEmail] = useState("");
   const [nickname, setNickname] = useState<string | null>(null);
@@ -588,6 +589,7 @@ export function SocialSignupAgreementPage() {
         setProvider(result.provider);
         setEmail(result.email);
         setNickname(result.nickname);
+        setRedirect(result.redirectPath || initialRedirect);
       } catch {
         if (!cancelled) setError("소셜 가입 확인이 만료되었어요. 다시 로그인해 주세요.");
       } finally {
@@ -598,7 +600,7 @@ export function SocialSignupAgreementPage() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [initialRedirect, token]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

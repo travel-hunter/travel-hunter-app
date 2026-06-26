@@ -272,9 +272,10 @@
         "provider": "string enum(kakao|google)",
         "email": "string",
         "nickname": "string|null",
-        "expiresAt": "datetime string"
+        "expiresAt": "datetime string",
+        "redirectPath": "safe path string"
       },
-      "dbModeBehavior": "Reads an active pending_social_signups row by token hash and returns display-only provider/email/nickname metadata without creating a user."
+      "dbModeBehavior": "Reads an active pending_social_signups row by token hash and returns display-only provider/email/nickname metadata plus the persisted safe redirect path without creating a user."
     },
     {
       "method": "POST",

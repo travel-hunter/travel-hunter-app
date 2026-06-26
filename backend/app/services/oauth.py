@@ -45,6 +45,7 @@ class PendingSocialSignupResult:
     email: str
     nickname: str | None
     expires_at: str
+    redirect_path: str
 
 
 @dataclass(frozen=True)
@@ -278,54 +279,6 @@ def _maybe_upgrade_kakao_placeholder_email(
     return user_repository.update_user_email(db, user, email=target_email)
 
 
-def _find_or_create_user(
-    db: Session,
-    *,
-    provider: str,
-    profile: OAuthProfile,
-) -> UserModel:
-    social_account = user_repository.get_social_account(
-        db,
-        provider=provider,
-        provider_id=profile.provider_id,
-    )
-    if social_account is not None:
-        user = social_account.user
-        if provider == "kakao":
-            user = _maybe_upgrade_kakao_placeholder_email(db, user, profile=profile)
-        return user
-
-    if provider == "google" and (not profile.email or not profile.email_verified):
-        raise OAuthServiceError(400, "OAuth email policy requires a verified Google email")
-
-    if profile.email and profile.email_verified:
-        normalized_email = auth_service.normalize_email(profile.email)
-        user = user_repository.get_user_by_email(db, normalized_email)
-    elif provider == "kakao":
-        normalized_email = _kakao_placeholder_email(profile.provider_id)
-        user = None
-    else:
-        raise OAuthServiceError(400, "OAuth email policy requires a verified email")
-
-    if user is None:
-        user = user_repository.create_user(
-            db,
-            email=normalized_email,
-            nickname=profile.nickname or f"{provider} 사용자",
-            password_hash=None,
-            nickname_setup_completed=False,
-        )
-
-    user_repository.create_social_account(
-        db,
-        user=user,
-        provider=provider,
-        provider_id=profile.provider_id,
-        provider_nickname=profile.nickname,
-    )
-    return user
-
-
 def _candidate_email_or_error(provider: str, profile: OAuthProfile) -> str:
     if provider == "google" and (not profile.email or not profile.email_verified):
         raise OAuthServiceError(400, "OAuth email policy requires a verified Google email")
@@ -459,6 +412,7 @@ def get_pending_social_signup(db: Session, token: str) -> PendingSocialSignupRes
         email=pending.email,
         nickname=pending.nickname,
         expires_at=pending.expires_at.isoformat(),
+        redirect_path=safe_redirect_path(pending.redirect_path),
     )
 
 

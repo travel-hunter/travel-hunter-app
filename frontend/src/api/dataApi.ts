@@ -67,6 +67,7 @@ export type PendingSocialSignupResponse = {
   email: string;
   nickname: string | null;
   expiresAt: string;
+  redirectPath: string;
 };
 
 export type CompleteSocialSignupRequest = {

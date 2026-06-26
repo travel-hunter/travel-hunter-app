@@ -245,7 +245,7 @@ DB 연결 상태 포함 서버 헬스 확인. 인증 불필요.
 
 ### GET /auth/oauth/pending-signup
 
-신규 소셜 로그인 callback에서 아직 계정을 만들지 않고 발급한 pending social signup token의 화면 표시용 정보를 조회한다. 기존 소셜 계정은 이 흐름을 타지 않고 바로 로그인된다.
+신규 소셜 로그인 callback에서 아직 계정을 만들지 않고 발급한 pending social signup token의 화면 표시용 정보와 서버에 저장된 안전한 완료 후 이동 경로를 조회한다. 기존 소셜 계정은 이 흐름을 타지 않고 바로 로그인된다.
 
 **Query**
 ```text
@@ -258,7 +258,8 @@ token=<pending-social-signup-token>
   "provider": "google",
   "email": "user@example.com",
   "nickname": "홍길동",
-  "expiresAt": "2026-06-26T06:30:00"
+  "expiresAt": "2026-06-26T06:30:00",
+  "redirectPath": "/home"
 }
 ```
 

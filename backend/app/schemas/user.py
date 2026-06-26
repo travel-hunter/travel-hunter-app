@@ -125,6 +125,7 @@ class PendingSocialSignupResponse(BaseModel):
     email: str
     nickname: str | None = None
     expiresAt: str
+    redirectPath: str
 
 
 class CompleteSocialSignupRequest(BaseModel):
