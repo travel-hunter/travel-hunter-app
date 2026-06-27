@@ -85,6 +85,40 @@ export function getDeadlinePolicies(
     .slice(0, limit);
 }
 
+const HOME_RECOMMENDED_POLICY_MATCH_THRESHOLD = 90;
+
+function compareRecommendedHomePolicies(left: Policy, right: Policy): number {
+  const matchDifference = right.match - left.match;
+  if (matchDifference !== 0) return matchDifference;
+  const deadlineDifference = policyDeadlineTime(left) - policyDeadlineTime(right);
+  if (deadlineDifference !== 0) return deadlineDifference;
+  return left.title.localeCompare(right.title, "ko");
+}
+
+function compareDeadlineHomePolicies(left: Policy, right: Policy): number {
+  const deadlineDifference = policyDeadlineTime(left) - policyDeadlineTime(right);
+  if (deadlineDifference !== 0) return deadlineDifference;
+  const matchDifference = right.match - left.match;
+  if (matchDifference !== 0) return matchDifference;
+  return left.title.localeCompare(right.title, "ko");
+}
+
+export function getHomeBenefitPolicies(
+  policies: Policy[] | null | undefined,
+  limit: number,
+): Policy[] {
+  const source = [...(policies ?? [])];
+  const recommendedPolicies = source
+    .filter((policy) => policy.match >= HOME_RECOMMENDED_POLICY_MATCH_THRESHOLD)
+    .sort(compareRecommendedHomePolicies);
+  const recommendedPolicyIds = new Set(recommendedPolicies.map((policy) => policy.id));
+  const deadlinePolicies = source
+    .filter((policy) => !recommendedPolicyIds.has(policy.id))
+    .sort(compareDeadlineHomePolicies);
+
+  return [...recommendedPolicies, ...deadlinePolicies].slice(0, limit);
+}
+
 const homePolicyIcons: Record<string, string> = {};
 
 export function getFeaturedPolicy(policies: Policy[] | null | undefined): Policy | undefined {

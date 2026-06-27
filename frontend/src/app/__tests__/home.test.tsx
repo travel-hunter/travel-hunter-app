@@ -137,7 +137,7 @@ describe("Travel Hunter app — home", () => {
     }
   });
 
-  it("shows only the three soonest weekly benefits by deadline", async () => {
+  it("uses deadline order for weekly benefits when no recommended policy is present", async () => {
     const policies: Policy[] = [
       {
         ...examplePolicyDetail,
@@ -188,6 +188,69 @@ describe("Travel Hunter app — home", () => {
       expect(within(benefitList).getByText("세 번째 임박 혜택"))
         .toBeInTheDocument();
       expect(within(benefitList).queryByText("네 번째 늦은 혜택"))
+        .not.toBeInTheDocument();
+    } finally {
+      listPoliciesSpy.mockRestore();
+    }
+  });
+
+  it("prioritizes strongly recommended weekly benefits before filling by deadline", async () => {
+    const policies: Policy[] = [
+      {
+        ...examplePolicyDetail,
+        id: "soon-first",
+        slug: "soon-first",
+        title: "첫 번째 임박 혜택",
+        deadline: "2026-07-01",
+        match: 72,
+      },
+      {
+        ...examplePolicyDetail,
+        id: "soon-second",
+        slug: "soon-second",
+        title: "두 번째 임박 혜택",
+        deadline: "2026-07-02",
+        match: 74,
+      },
+      {
+        ...examplePolicyDetail,
+        id: "soon-third",
+        slug: "soon-third",
+        title: "세 번째 임박 혜택",
+        deadline: "2026-07-03",
+        match: 76,
+      },
+      {
+        ...examplePolicyDetail,
+        id: "recommended-later",
+        slug: "recommended-later",
+        title: "추천 우선 혜택",
+        deadline: "2026-12-31",
+        match: 94,
+      },
+    ];
+    const listPoliciesSpy = vi
+      .spyOn(appDataApi, "listPolicies")
+      .mockResolvedValue(policies);
+
+    try {
+      await login();
+      cleanup();
+      renderAppRoute("/home");
+
+      const benefitList = await screen.findByLabelText("이번 주 혜택 정책 목록");
+      await waitFor(() =>
+        expect(within(benefitList).getAllByRole("link")).toHaveLength(3),
+      );
+      const policyTitles = within(benefitList)
+        .getAllByRole("link")
+        .map((link) => link.querySelector("strong")?.textContent);
+      expect(policyTitles).toEqual([
+        "추천 우선 혜택",
+        "첫 번째 임박 혜택",
+        "두 번째 임박 혜택",
+      ]);
+      expect(within(benefitList).queryByText("세 번째 임박 혜택"))
         .not.toBeInTheDocument();
     } finally {
       listPoliciesSpy.mockRestore();

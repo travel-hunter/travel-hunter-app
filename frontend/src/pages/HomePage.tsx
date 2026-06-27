@@ -23,8 +23,8 @@ import {
 import { HomeSectionHeader } from "../components/patterns";
 import { ErrorState, LoadingState } from "../components/ui";
 import {
-  getDeadlinePolicies,
   getFeaturedPolicy,
+  getHomeBenefitPolicies,
   getHomePolicyIcon,
 } from "../data/displayConfig";
 import { dday } from "../utils";
@@ -75,7 +75,7 @@ export function HomePage() {
   }, [dismissalKey]);
   const name = currentUser?.nickname ?? "여행자";
   const featuredPolicy = getFeaturedPolicy(policies);
-  const deadlinePolicies = getDeadlinePolicies(policies, 3);
+  const weeklyBenefitPolicies = getHomeBenefitPolicies(policies, 3);
   const preferredAiRegions = useMemo(
     () =>
       Array.from(
@@ -193,7 +193,7 @@ export function HomePage() {
         actionLabel="더보기"
         to="/policies"
       />
-      <WeeklyPolicyList policies={deadlinePolicies} />
+      <WeeklyPolicyList policies={weeklyBenefitPolicies} />
 
       <div className="prototype-home-ai-title">AI 추천 맞춤 일정</div>
       {aiRegionCards.length > 1 ? (
