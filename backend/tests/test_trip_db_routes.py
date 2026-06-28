@@ -61,6 +61,13 @@ def invite_payload(trip_id: str = "7") -> dict[str, object]:
     }
 
 
+
+
+def invite_links_payload(trip_id: str = "7") -> dict[str, object]:
+    viewer = {**invite_payload(trip_id), "id": "10", "inviteToken": "viewer-token", "inviteUrl": "http://127.0.0.1:5173/invites/viewer-token/accept", "role": "viewer"}
+    editor = {**invite_payload(trip_id), "id": "11", "inviteToken": "editor-token", "inviteUrl": "http://127.0.0.1:5173/invites/editor-token/accept", "role": "editor"}
+    return {"tripId": trip_id, "viewer": viewer, "editor": editor}
+
 def clear_overrides() -> None:
     app.dependency_overrides.pop(trip_routes.get_optional_db, None)
     app.dependency_overrides.pop(trip_routes.get_current_user, None)
@@ -565,7 +572,7 @@ def test_db_recommendation_and_invite_routes(monkeypatch) -> None:
     monkeypatch.setattr(
         trip_routes.trip_service,
         "get_invite_state",
-        lambda db, current_user, trip_id: invite_payload(trip_id)
+        lambda db, current_user, trip_id: invite_links_payload(trip_id)
         if db is fake_db and current_user is user and trip_id == "7"
         else None,
     )
@@ -589,6 +596,9 @@ def test_db_recommendation_and_invite_routes(monkeypatch) -> None:
     assert "sourceType" in recommendations.json()[0]
     assert invite.status_code == 200
     assert invite.json()["tripId"] == "7"
+    assert invite.json()["viewer"]["role"] == "viewer"
+    assert invite.json()["editor"]["role"] == "editor"
+    assert invite.json()["viewer"]["inviteToken"] != invite.json()["editor"]["inviteToken"]
     assert confirm.status_code == 200
     assert confirm.json()["invited"] is True
     assert confirm.json()["role"] == "viewer"

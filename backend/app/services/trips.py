@@ -20,6 +20,7 @@ from app.repositories import trips as trip_repository
 from app.schemas.trip import (
     CreateTripPlaceRequest,
     CreateTripRequest,
+    MAX_TRIP_PARTICIPANTS,
     MoveTripPlaceRequest,
     SendInviteEmailRequest,
     UpdateTripPlaceRequest,
@@ -721,6 +722,16 @@ def _trip_role_for_user(trip: Trip, user: User | None) -> str:
     return "viewer"
 
 
+def _actual_participant_user_ids(trip: Trip | None) -> set[int]:
+    if trip is None:
+        return set()
+    user_ids = {int(trip.owner_id)}
+    for membership in trip.members:
+        if membership.user_id is not None:
+            user_ids.add(int(membership.user_id))
+    return user_ids
+
+
 def _require_trip_editor(trip: Trip, user: User) -> None:
     if _trip_role_for_user(trip, user) not in TRIP_EDIT_ROLES:
         raise TripServiceError(403, "Trip edit permission required")
@@ -1312,12 +1323,19 @@ def _invite_accept_url(invite_token: str) -> str:
     return f"{settings.frontend_base_url()}/invites/{invite_token}/accept"
 
 
+INVITE_ROLES: tuple[str, str] = ("viewer", "editor")
+
+
 def _ensure_invite(db: Session, trip: Trip, user: User, role: str | None = None) -> TripInvite:
+    invite_role = role or "editor"
     now = security.utc_now_naive()
-    invite = trip_repository.get_latest_active_invite(db, trip_id=trip.id, now=now)
+    invite = trip_repository.get_latest_active_invite(
+        db,
+        trip_id=trip.id,
+        now=now,
+        role=invite_role,
+    )
     if invite is not None:
-        if role is not None:
-            invite.role = role
         return invite
 
     return trip_repository.create_invite(
@@ -1326,7 +1344,7 @@ def _ensure_invite(db: Session, trip: Trip, user: User, role: str | None = None)
         invite_token=_new_invite_token(),
         created_by=user.id,
         expires_at=now + timedelta(days=60),
-        role=role or "editor",
+        role=invite_role,
     )
 
 
@@ -1352,6 +1370,19 @@ def invite_to_api(
     }
 
 
+def invite_links_to_api(
+    *,
+    trip_id: int,
+    viewer: TripInvite | None,
+    editor: TripInvite | None,
+) -> dict[str, object]:
+    return {
+        "tripId": str(trip_id),
+        "viewer": invite_to_api(viewer, trip_id=trip_id) if viewer is not None else None,
+        "editor": invite_to_api(editor, trip_id=trip_id) if editor is not None else None,
+    }
+
+
 def get_invite_state(
     db: Session,
     user: User,
@@ -1360,9 +1391,10 @@ def get_invite_state(
     trip = _resolve_editable_trip(db, trip_handle, user)
     if trip is None:
         return None
-    invite = _ensure_invite(db, trip, user)
+    viewer = _ensure_invite(db, trip, user, "viewer")
+    editor = _ensure_invite(db, trip, user, "editor")
     db.commit()
-    return invite_to_api(invite, trip_id=trip.id)
+    return invite_links_to_api(trip_id=trip.id, viewer=viewer, editor=editor)
 
 
 def confirm_invite_sent(
@@ -1427,9 +1459,6 @@ def accept_invite(db: Session, user: User, invite_token: str) -> dict[str, objec
     if invite is None:
         return None
 
-    if invite.accepted_at is None:
-        invite.accepted_at = now
-
     is_owner = invite.trip is not None and invite.trip.owner_id == user.id
     existing_member = trip_repository.get_trip_member(
         db,
@@ -1437,6 +1466,12 @@ def accept_invite(db: Session, user: User, invite_token: str) -> dict[str, objec
         user_id=user.id,
     )
     already_member = is_owner or existing_member is not None
+    if not already_member and len(_actual_participant_user_ids(invite.trip)) >= MAX_TRIP_PARTICIPANTS:
+        raise TripServiceError(409, "Trip participant limit reached")
+
+    if invite.accepted_at is None:
+        invite.accepted_at = now
+
     if not already_member:
         trip_repository.add_trip_member(
             db,

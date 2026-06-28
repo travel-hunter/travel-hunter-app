@@ -49,6 +49,7 @@ import {
   ExternalCollectionOpsHealth,
   ExternalCollectionRunResponse,
   InviteEmailResult,
+  InviteLinksState,
   InviteRole,
   InviteState,
   NotificationSettings,
@@ -163,7 +164,7 @@ export const backendApi: AppDataApi = {
   listRecommendations: (tripId: string): Promise<Recommendation[]> => apiClient.get<Recommendation[]>(`/api/trips/${tripId}/recommendations`),
   searchTripPlaces: (tripId: string, options: TripPlaceSearchOptions): Promise<PlaceSearchCandidate[]> =>
     apiClient.get<PlaceSearchCandidate[]>(`/api/trips/${tripId}/place-search${queryString(options)}`),
-  getInviteState: (tripId: string): Promise<InviteState> => apiClient.get<InviteState>(`/api/trips/${tripId}/invite`),
+  getInviteState: (tripId: string): Promise<InviteLinksState> => apiClient.get<InviteLinksState>(`/api/trips/${tripId}/invite`),
   confirmInviteSent: (tripId: string, role?: InviteRole): Promise<InviteState> => apiClient.post<InviteState>(`/api/trips/${tripId}/invite`, role ? { role } : undefined),
   sendInviteEmail: (tripId: string, request: SendInviteEmailRequest): Promise<InviteEmailResult> => apiClient.post<InviteEmailResult>(`/api/trips/${tripId}/invite/email`, request),
   acceptInvite: (inviteToken: string): Promise<InviteState> => apiClient.post<InviteState>(`/api/invites/${inviteToken}/accept`),

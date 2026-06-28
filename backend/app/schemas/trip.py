@@ -128,6 +128,12 @@ class InviteState(BaseModel):
     alreadyMember: bool = False
 
 
+class InviteLinksState(BaseModel):
+    tripId: str
+    viewer: InviteState | None = None
+    editor: InviteState | None = None
+
+
 class ConfirmInviteRequest(BaseModel):
     role: InviteRole = "editor"
 

@@ -50,7 +50,7 @@
 
 | 기능 | 사용자 동작 | 연결 |
 |---|---|---|
-| 일정 목록/생성 | `/trips`에서 목록을 보고 `/trips/new`에서 지역, 스타일, 기간으로 일정을 만든다. `/home`의 추천 지역 링크가 넘긴 `/trips/new?region=...` 값은 새 일정 생성 지역으로 유지된다. 여행 지역 1단계는 17개 광역시도 버튼(`서울`, `부산`, `대구`, `인천`, `광주`, `대전`, `울산`, `세종`, `경기`, `강원`, `충북`, `충남`, `전북`, `전남`, `경북`, `경남`, `제주`)을 모두 제공해야 하며, backend travel-area 추천도 동일 17개 catalog를 broad fallback으로 지원한다. 정책 상세에서 `policySlug`만 들고 새 일정으로 진입하면 정책 제목의 `[지역명]`과 광역 `region`을 기준으로 세부 지역을 자동 조회·선택하며, 정적 여행권역에 없는 정책 지자체는 `policy-region:{sido}:{city}` 동적 단일 지역 카드로 표시해 선택된 `travelAreaId`를 일정 생성 payload에 포함한다. 생성 성공 직후 상세의 Day bucket은 비어 있으며, 장소/추천 저장은 수동 장소 추가 또는 상세의 추천 미리보기 저장 액션에서만 발생한다. | `GET /api/recommendations/travel-areas`, `GET/POST /api/trips` |
+| 일정 목록/생성 | `/trips`에서 목록을 보고 `/trips/new`에서 지역, 제목, 기간, 스타일로 일정을 만든다. `/trips` 카드의 참여 정보는 생성 시 계획 인원이 아니라 실제 owner/member 표시 이름(`Trip.people`) 기준으로 아바타 최대 3개, `n명 참여 중`, 닉네임 축약 문구를 보여준다. `/trips/new`는 여행 인원을 묻지 않으며 생성 payload에도 `participantCount`를 보내지 않는다. `/home`의 추천 지역 링크가 넘긴 `/trips/new?region=...` 값은 새 일정 생성 지역으로 유지된다. 여행 지역 1단계는 17개 광역시도 버튼(`서울`, `부산`, `대구`, `인천`, `광주`, `대전`, `울산`, `세종`, `경기`, `강원`, `충북`, `충남`, `전북`, `전남`, `경북`, `경남`, `제주`)을 모두 제공해야 하며, backend travel-area 추천도 동일 17개 catalog를 broad fallback으로 지원한다. 정책 상세에서 `policySlug`만 들고 새 일정으로 진입하면 정책 제목의 `[지역명]`과 광역 `region`을 기준으로 세부 지역을 자동 조회·선택하며, 정적 여행권역에 없는 정책 지자체는 `policy-region:{sido}:{city}` 동적 단일 지역 카드로 표시해 선택된 `travelAreaId`를 일정 생성 payload에 포함한다. 생성 성공 직후 상세의 Day bucket은 비어 있으며, 장소/추천 저장은 수동 장소 추가 또는 상세의 추천 미리보기 저장 액션에서만 발생한다. | `GET /api/recommendations/travel-areas`, `GET/POST /api/trips` |
 | 일정 확정 저장 | `/trips` 카드에서 draft 일정을 확정 선택 후 저장해 DB 상태를 `confirmed`로 바꾼다. | `trips.status`, `PATCH /api/trips/{tripId}/status` |
 | 생성 draft autosave | `/trips/new`의 지역, 스타일, 기간, policySlug draft를 24시간 localStorage에 저장한다. 생성 성공 시 삭제한다. | `frontend/src/utils/draftStorage.ts` |
 | 상세/삭제 | `/trips/:id`에서 상세를 보고 owner는 목록에서 일정을 삭제한다. 일정 상세는 정책 맥락, 장소 추가/추천 일정 만들기 CTA, Day 탭, 지도, 저장된 일정 리스트 순서의 map-first 화면이다. `/ai-results?tripId=...`는 `/trips/{tripId}?mode=recommend`로 대체 이동하는 호환 진입점이다. 추천 정책 카드는 `recommendedPolicies`를 사용해 정규화된 정책과 TravelMonth/반값여행/숙박세일 혜택 상세 페이지로 연결하며 지역, 날짜 겹침, 카테고리, 스타일 텍스트만으로 deterministic ranking한다. | `GET/DELETE /api/trips/{tripId}`, `Trip.recommendedPolicies` |
@@ -72,8 +72,8 @@
 
 | 기능 | 사용자 동작 | 연결 |
 |---|---|---|
-| 초대 링크/email 생성 | `/friend-invite?tripId=...`에서 owner/editor가 viewer/editor 권한을 골라 링크를 활성화하거나 email 초대를 보낸다. 백엔드가 반환하는 `inviteUrl`은 `TRAVEL_HUNTER_PUBLIC_BASE_URL` 기준 `/invites/{token}/accept` 공개 수락 경로를 사용하며, email 본문에는 일정 상세를 담지 않는다. SMTP 미설정/실패 시 링크 복사 fallback을 안내한다. | `trip_invites.role`, `TRAVEL_HUNTER_PUBLIC_BASE_URL`, SMTP env |
-| 초대 수락 | `/invites/:token/accept`로 진입해 로그인 후 초대를 수락한다. 비로그인 사용자는 로그인/가입 후 redirect로 원래 초대 링크에 복귀하고, 만료/오류 상태는 새 초대 링크 요청 안내를 표시한다. | `trip_invites.accepted_at`, `trip_members` |
+| 초대 링크/email 생성 | `/friend-invite?tripId=...`에서 owner/editor가 viewer/editor 권한별 링크 카드를 확인하고, 각 권한 전용 링크를 복사하거나 email 초대를 보낸다. viewer/editor는 서로 다른 token/URL을 쓰며 이미 공유한 링크의 role은 다른 권한 링크 생성으로 바뀌지 않는다. 백엔드가 반환하는 `inviteUrl`은 `TRAVEL_HUNTER_PUBLIC_BASE_URL` 기준 `/invites/{token}/accept` 공개 수락 경로를 사용하며, email 본문에는 일정 상세를 담지 않는다. SMTP 미설정/실패 시 해당 권한 링크 복사 fallback을 안내한다. | `trip_invites.role`, `TRAVEL_HUNTER_PUBLIC_BASE_URL`, SMTP env |
+| 초대 수락 | `/invites/:token/accept`로 진입해 로그인 후 초대를 수락한다. 비로그인 사용자는 로그인/가입 후 redirect로 원래 초대 링크에 복귀하고, 만료/오류 상태는 새 초대 링크 요청 안내를 표시한다. 새 참여자는 owner + 수락된 member 기준 실제 참여자 10명까지만 추가하며, 기존 참여자의 재수락은 멤버 중복 생성 없이 허용한다. | `trip_invites.accepted_at`, `trip_members` |
 | 권한 적용 | owner/editor만 장소를 편집하고 viewer는 읽기 전용으로 본다. | trip service authorization |
 | 상세 작업흐름 | 링크 기반 초대, 로그인/가입 후 수락, 중복 수락, 상세 일정 편집 권한, 장소 저장 충돌, email 초대와 예외 흐름은 별도 workflow spec을 따른다. | `docs/specs/invite-trip-edit-workflow.md` |
 

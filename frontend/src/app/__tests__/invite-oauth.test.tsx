@@ -7,6 +7,8 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import {
   appDataApi,
+  type InviteLinksState,
+  type InviteRole,
   type InviteState,
   type Trip,
 } from "../../api";
@@ -40,6 +42,25 @@ function makeInviteState(overrides: Partial<InviteState> = {}): InviteState {
     copied: false,
     role: "editor",
     alreadyMember: false,
+    ...overrides,
+  };
+}
+
+function makeInviteLinksState(overrides: Partial<InviteLinksState> = {}): InviteLinksState {
+  return {
+    tripId: "55",
+    viewer: makeInviteState({
+      id: "10",
+      inviteToken: "viewer-token",
+      inviteUrl: "http://127.0.0.1:5173/invites/viewer-token/accept",
+      role: "viewer",
+    }),
+    editor: makeInviteState({
+      id: "11",
+      inviteToken: "editor-token",
+      inviteUrl: "http://127.0.0.1:5173/invites/editor-token/accept",
+      role: "editor",
+    }),
     ...overrides,
   };
 }
@@ -81,25 +102,28 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
     expect(document.body).toHaveTextContent(/코스 만들기/);
   });
 
-  it("saves selected invite roles from the friend invite page", async () => {
+  it("renders separate invite links and prepares each role independently", async () => {
     const trip: Trip = {
       ...getPreviewTrip(),
       id: "55",
       title: "Invite role trip",
     };
-    const inviteState = makeInviteState();
+    const inviteLinks = makeInviteLinksState();
     const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(trip);
     const getInviteSpy = vi
       .spyOn(appDataApi, "getInviteState")
-      .mockResolvedValue(inviteState);
+      .mockResolvedValue(inviteLinks);
     const confirmInviteSpy = vi
       .spyOn(appDataApi, "confirmInviteSent")
-      .mockImplementation(async (tripId, role = "editor") => ({
-        ...inviteState,
-        tripId: tripId ?? "55",
-        role,
-        invited: true,
-      }));
+      .mockImplementation(async (tripId, role: InviteRole = "editor") =>
+        makeInviteState({
+          tripId: tripId ?? "55",
+          role,
+          inviteToken: `${role}-prepared-token`,
+          inviteUrl: `http://127.0.0.1:5173/invites/${role}-prepared-token/accept`,
+          invited: true,
+        }),
+      );
 
     try {
       await login();
@@ -108,20 +132,15 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
       const user = userEvent.setup();
 
       await waitFor(() => expect(getInviteSpy).toHaveBeenCalledWith("55"));
-      await user.click(
-        await screen.findByRole("button", { name: /보기만 가능/ }),
-      );
-      await user.click(
-        screen.getByRole("button", { name: "초대 링크 활성화" }),
-      );
+      expect(await screen.findByText("http://127.0.0.1:5173/invites/viewer-token/accept")).toBeInTheDocument();
+      expect(screen.getByText("http://127.0.0.1:5173/invites/editor-token/accept")).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "보기 링크 만들기" }));
       await waitFor(() =>
         expect(confirmInviteSpy).toHaveBeenCalledWith("55", "viewer"),
       );
 
-      await user.click(screen.getByRole("button", { name: /함께 편집/ }));
-      await user.click(
-        screen.getByRole("button", { name: "초대 링크 준비 완료" }),
-      );
+      await user.click(screen.getByRole("button", { name: "함께 편집 링크 준비 완료" }));
       await waitFor(() =>
         expect(confirmInviteSpy).toHaveBeenLastCalledWith("55", "editor"),
       );
@@ -516,11 +535,11 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
       currentUserRole: "editor",
       title: "Invite share trip",
     };
-    const inviteState = makeInviteState();
+    const inviteLinks = makeInviteLinksState();
     const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(trip);
     const getInviteSpy = vi
       .spyOn(appDataApi, "getInviteState")
-      .mockResolvedValue(inviteState);
+      .mockResolvedValue(inviteLinks);
 
     try {
       await login();
@@ -530,7 +549,7 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
       await waitFor(() => expect(getInviteSpy).toHaveBeenCalledWith("55"));
       await userEvent
         .setup()
-        .click(await screen.findByRole("button", { name: "링크 복사" }));
+        .click(await screen.findByRole("button", { name: "보기만 가능 링크 복사" }));
 
       await waitFor(() =>
         expect(
@@ -553,11 +572,12 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
       currentUserRole: "editor",
       title: "Invite email trip",
     };
-    const inviteState = makeInviteState();
+    const inviteLinks = makeInviteLinksState();
+    const viewerInvite = inviteLinks.viewer ?? makeInviteState({ role: "viewer" });
     const getTripSpy = vi.spyOn(appDataApi, "getTrip").mockResolvedValue(trip);
-    const getInviteSpy = vi.spyOn(appDataApi, "getInviteState").mockResolvedValue(inviteState);
+    const getInviteSpy = vi.spyOn(appDataApi, "getInviteState").mockResolvedValue(inviteLinks);
     const sendInviteEmailSpy = vi.spyOn(appDataApi, "sendInviteEmail").mockResolvedValue({
-      invite: { ...inviteState, invited: true, role: "viewer" },
+      invite: { ...viewerInvite, invited: true },
       deliveryStatus: "notConfigured",
       message: "Email delivery is not configured.",
     });
@@ -569,9 +589,8 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
       const user = userEvent.setup();
 
       await waitFor(() => expect(getInviteSpy).toHaveBeenCalledWith("55"));
-      await user.click(await screen.findByRole("button", { name: /보기만 가능/ }));
-      await user.type(screen.getByRole("textbox", { name: "친구 email" }), "friend@example.com");
-      await user.click(screen.getByRole("button", { name: "email 초대 보내기" }));
+      await user.type(screen.getByRole("textbox", { name: "보기만 가능 친구 email" }), "friend@example.com");
+      await user.click(screen.getByRole("button", { name: "보기만 가능 email 보내기" }));
 
       await waitFor(() =>
         expect(sendInviteEmailSpy).toHaveBeenCalledWith("55", {
@@ -579,8 +598,8 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
           role: "viewer",
         }),
       );
-      expect(await screen.findByText("email 발송 설정이 아직 없어요. 아래 초대 링크를 복사해 직접 보내 주세요.")).toBeInTheDocument();
-      expect(document.body).toHaveTextContent("http://127.0.0.1:5173/invites/abc/accept");
+      expect(await screen.findByText("email 발송 설정이 아직 없어요. 해당 권한 링크를 복사해 직접 보내 주세요.")).toBeInTheDocument();
+      expect(document.body).toHaveTextContent("http://127.0.0.1:5173/invites/viewer-token/accept");
     } finally {
       getTripSpy.mockRestore();
       getInviteSpy.mockRestore();

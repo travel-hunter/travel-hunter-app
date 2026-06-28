@@ -1636,11 +1636,16 @@ def test_invite_to_api_uses_public_frontend_base_url(monkeypatch) -> None:
     assert payload["inviteUrl"] == "https://travel-hunter.co.kr/invites/abc/accept"
 
 
-def test_get_invite_state_allows_editor(monkeypatch) -> None:
+def test_get_invite_state_returns_role_specific_links(monkeypatch) -> None:
     fake_db = FakeDb()
     user = make_user(2, "Editor")
     trip = make_trip()
-    invite = make_invite()
+    viewer_invite = make_invite(role="viewer")
+    viewer_invite.id = 10
+    viewer_invite.invite_token = "viewer-token"
+    editor_invite = make_invite(role="editor")
+    editor_invite.id = 11
+    editor_invite.invite_token = "editor-token"
 
     monkeypatch.setattr(
         trip_service.trip_repository,
@@ -1652,7 +1657,7 @@ def test_get_invite_state_allows_editor(monkeypatch) -> None:
     monkeypatch.setattr(
         trip_service.trip_repository,
         "get_latest_active_invite",
-        lambda db, **kwargs: invite
+        lambda db, **kwargs: {"viewer": viewer_invite, "editor": editor_invite}.get(kwargs.get("role"))
         if db is fake_db and kwargs["trip_id"] == 7
         else None,
     )
@@ -1661,14 +1666,19 @@ def test_get_invite_state_allows_editor(monkeypatch) -> None:
 
     assert payload is not None
     assert payload["tripId"] == "7"
-    assert payload["role"] == "editor"
+    assert payload["viewer"]["role"] == "viewer"
+    assert payload["editor"]["role"] == "editor"
+    assert payload["viewer"]["inviteToken"] != payload["editor"]["inviteToken"]
+    assert fake_db.commits == 1
 
 
-def test_confirm_invite_sent_updates_active_invite_role_for_editor(monkeypatch) -> None:
+def test_confirm_invite_sent_preserves_other_role_invite_token(monkeypatch) -> None:
     fake_db = FakeDb()
     user = make_user(2, "Editor")
     trip = make_trip()
-    invite = make_invite()
+    existing_editor = make_invite(role="editor")
+    existing_editor.invite_token = "editor-token"
+    created_invites: list[TripInvite] = []
 
     monkeypatch.setattr(
         trip_service.trip_repository, "get_accessible_trip_by_id", lambda db, trip_id, user_id: trip
@@ -1678,17 +1688,34 @@ def test_confirm_invite_sent_updates_active_invite_role_for_editor(monkeypatch) 
     monkeypatch.setattr(
         trip_service.trip_repository,
         "get_latest_active_invite",
-        lambda db, **kwargs: invite
-        if db is fake_db and kwargs["trip_id"] == 7
+        lambda db, **kwargs: existing_editor
+        if db is fake_db and kwargs["trip_id"] == 7 and kwargs.get("role") == "editor"
         else None,
     )
 
-    payload = trip_service.confirm_invite_sent(fake_db, user, "7", "viewer")
+    def create_invite_stub(_db, **kwargs):
+        invite = make_invite(role=kwargs["role"])
+        invite.id = 10 + len(created_invites)
+        invite.invite_token = kwargs["invite_token"]
+        invite.expires_at = kwargs["expires_at"]
+        created_invites.append(invite)
+        return invite
 
-    assert payload is not None
-    assert payload["role"] == "viewer"
-    assert invite.role == "viewer"
-    assert fake_db.commits == 1
+    monkeypatch.setattr(trip_service.trip_repository, "create_invite", create_invite_stub)
+    monkeypatch.setattr(trip_service, "_new_invite_token", lambda: "viewer-token")
+
+    viewer_payload = trip_service.confirm_invite_sent(fake_db, user, "7", "viewer")
+    editor_payload = trip_service.confirm_invite_sent(fake_db, user, "7", "editor")
+
+    assert viewer_payload is not None
+    assert editor_payload is not None
+    assert viewer_payload["role"] == "viewer"
+    assert viewer_payload["inviteToken"] == "viewer-token"
+    assert editor_payload["role"] == "editor"
+    assert editor_payload["inviteToken"] == "editor-token"
+    assert existing_editor.role == "editor"
+    assert len(created_invites) == 1
+    assert fake_db.commits == 2
 
 
 def test_confirm_invite_sent_rejects_viewer(monkeypatch) -> None:
@@ -1717,7 +1744,8 @@ def test_send_invite_email_returns_sent_status(monkeypatch) -> None:
     fake_db = FakeDb()
     user = make_user(2, "Editor")
     trip = make_trip()
-    invite = make_invite()
+    invite = make_invite(role="viewer")
+    invite.invite_token = "viewer-token"
     sent_payload: dict[str, str] = {}
     monkeypatch.setattr(
         trip_service.trip_repository,
@@ -1726,7 +1754,11 @@ def test_send_invite_email_returns_sent_status(monkeypatch) -> None:
         if db is fake_db and trip_id == 7 and user_id == 2
         else None,
     )
-    monkeypatch.setattr(trip_service.trip_repository, "get_latest_active_invite", lambda *_args, **_kwargs: invite)
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_latest_active_invite",
+        lambda _db, **kwargs: invite if kwargs.get("role") == "viewer" else None,
+    )
     monkeypatch.setattr(
         trip_service.email_service,
         "send_trip_invite_email",
@@ -1744,7 +1776,7 @@ def test_send_invite_email_returns_sent_status(monkeypatch) -> None:
     assert result["deliveryStatus"] == "sent"
     assert result["invite"]["role"] == "viewer"
     assert sent_payload["to_email"] == "friend@example.com"
-    assert sent_payload["invite_url"].endswith("/invites/abc/accept")
+    assert sent_payload["invite_url"].endswith("/invites/viewer-token/accept")
     assert invite.role == "viewer"
     assert fake_db.commits == 1
 
@@ -1781,7 +1813,7 @@ def test_send_invite_email_returns_fallback_when_smtp_not_configured(monkeypatch
     fake_db = FakeDb()
     user = make_user(2, "Editor")
     trip = make_trip()
-    invite = make_invite()
+    invite = make_invite(role="editor")
     monkeypatch.setattr(
         trip_service.trip_repository,
         "get_accessible_trip_by_id",
@@ -1789,7 +1821,11 @@ def test_send_invite_email_returns_fallback_when_smtp_not_configured(monkeypatch
         if db is fake_db and trip_id == 7 and user_id == 2
         else None,
     )
-    monkeypatch.setattr(trip_service.trip_repository, "get_latest_active_invite", lambda *_args, **_kwargs: invite)
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_latest_active_invite",
+        lambda _db, **kwargs: invite if kwargs.get("role") == "editor" else None,
+    )
 
     def raise_not_configured(**_kwargs):
         raise trip_service.email_service.EmailNotConfiguredError("Email delivery is not configured")
@@ -2301,6 +2337,83 @@ def test_accept_invite_is_idempotent_for_existing_member(monkeypatch) -> None:
     assert payload["acceptedAt"] == "2026-05-05T00:00:00Z"
     assert payload["alreadyMember"] is True
     assert invite.accepted_at == accepted_at
+    assert added_members == []
+    assert fake_db.commits == 1
+
+
+def test_accept_invite_rejects_new_member_when_actual_participants_are_full(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user(11, "Late Friend")
+    trip = make_trip()
+    for user_id in range(3, 11):
+        trip.members.append(
+            TripMember(id=10 + user_id, trip_id=7, user_id=user_id, role="viewer"),
+        )
+    invite = make_invite(role="viewer")
+    invite.trip = trip
+    added_members: list[dict[str, object]] = []
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_active_invite_by_token",
+        lambda *_args, **_kwargs: invite,
+    )
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_trip_member",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "add_trip_member",
+        lambda _db, **kwargs: added_members.append(kwargs),
+    )
+
+    with pytest.raises(trip_service.TripServiceError) as error:
+        trip_service.accept_invite(fake_db, user, "abc")
+
+    assert error.value.status_code == 409
+    assert error.value.detail == "Trip participant limit reached"
+    assert invite.accepted_at is None
+    assert added_members == []
+    assert fake_db.commits == 0
+
+
+def test_accept_invite_stays_idempotent_for_existing_member_when_trip_is_full(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user(10, "Existing Friend")
+    trip = make_trip()
+    existing_member = TripMember(id=30, trip_id=7, user_id=10, role="viewer")
+    for user_id in range(3, 10):
+        trip.members.append(
+            TripMember(id=10 + user_id, trip_id=7, user_id=user_id, role="viewer"),
+        )
+    trip.members.append(existing_member)
+    invite = make_invite(role="viewer")
+    invite.trip = trip
+    added_members: list[dict[str, object]] = []
+
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_active_invite_by_token",
+        lambda *_args, **_kwargs: invite,
+    )
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "get_trip_member",
+        lambda *_args, **_kwargs: existing_member,
+    )
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "add_trip_member",
+        lambda _db, **kwargs: added_members.append(kwargs),
+    )
+
+    payload = trip_service.accept_invite(fake_db, user, "abc")
+
+    assert payload is not None
+    assert payload["alreadyMember"] is True
+    assert invite.accepted_at is not None
     assert added_members == []
     assert fake_db.commits == 1
 

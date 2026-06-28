@@ -358,6 +358,12 @@ export type InviteState = {
   alreadyMember: boolean;
 };
 
+export type InviteLinksState = {
+  tripId: string;
+  viewer: InviteState | null;
+  editor: InviteState | null;
+};
+
 export type InviteEmailResult = {
   invite: InviteState;
   deliveryStatus: InviteEmailDeliveryStatus;
