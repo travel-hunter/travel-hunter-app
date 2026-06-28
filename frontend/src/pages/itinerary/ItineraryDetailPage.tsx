@@ -2342,8 +2342,7 @@ export function ItineraryDetailPage() {
             <div>
               <strong>저장 전 미리보기</strong>
               <p className="meta">
-                기존 장소와 추천 후보를 임시로 편집 중입니다. 완료 또는 전체
-                저장 전까지 서버 일정은 바뀌지 않아요.
+                기존 장소와 추천 후보를 임시로 편집 중입니다.
               </p>
               {recommendationPreview.places.length === 0 ? (
                 <p className="place-search-status">

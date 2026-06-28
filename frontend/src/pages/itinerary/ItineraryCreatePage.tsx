@@ -15,8 +15,6 @@ import { getDefaultTripDateRange } from "../../utils/dateDefaults";
 const TRIP_CREATE_TOTAL_STEPS = 2;
 const tripCreateMaxDays = 7;
 const tripCreateMinDays = 2;
-const tripCreateMinParticipants = 1;
-const tripCreateMaxParticipants = 10;
 const broadTravelAreaRegions = new Set<string>(tripCreatePrimaryRegionValues);
 const NO_TRAVEL_AREA_HEADING = "세부 지역 선택";
 type TripCreateStep = 1 | 2;
@@ -156,7 +154,6 @@ export function ItineraryCreatePage() {
   const [styleDraft, setStyleDraft] = useState(profile.style ?? "");
   const [startDate, setStartDate] = useState(defaultTripStartDate);
   const [endDate, setEndDate] = useState(defaultTripEndDate);
-  const [participantCount, setParticipantCount] = useState(1);
   const [titleDraft, setTitleDraft] = useState(
     generatedTripTitle(initialRegion, initialDayCount),
   );
@@ -452,15 +449,6 @@ export function ItineraryCreatePage() {
     );
   };
 
-  const updateParticipantCount = (direction: -1 | 1) => {
-    setParticipantCount((current) =>
-      Math.min(
-        tripCreateMaxParticipants,
-        Math.max(tripCreateMinParticipants, current + direction),
-      ),
-    );
-  };
-
   const goNext = () => {
     if (!canProceed) return;
     if (step === 1) {
@@ -494,7 +482,6 @@ export function ItineraryCreatePage() {
         title,
         region: selectedRegion,
         travelAreaId: selectedTravelArea?.travelAreaId ?? undefined,
-        participantCount,
         style: profile.style ?? undefined,
         ...(linkablePolicySlug ? { policySlug: linkablePolicySlug } : {}),
         startDate,
@@ -661,7 +648,7 @@ export function ItineraryCreatePage() {
               <div className="prototype-checkout-section-head">
                 <span>2</span>
                 <div>
-                  <h3 id="trip-date-section-title">여행 기간과 인원</h3>
+                  <h3 id="trip-date-section-title">여행 기간</h3>
                   <p>2일부터 7일까지 선택할 수 있습니다.</p>
                 </div>
               </div>
@@ -686,34 +673,6 @@ export function ItineraryCreatePage() {
                     }
                   />
                 </label>
-              </div>
-              <div
-                className="prototype-party-stepper"
-                aria-label="여행 인원 선택"
-              >
-                <div>
-                  <span>여행 인원</span>
-                  <strong>{participantCount}명</strong>
-                </div>
-                <div className="prototype-party-stepper-controls">
-                  <button
-                    aria-label="여행 인원 1명 줄이기"
-                    disabled={participantCount <= tripCreateMinParticipants}
-                    onClick={() => updateParticipantCount(-1)}
-                    type="button"
-                  >
-                    -
-                  </button>
-                  <span aria-live="polite">{participantCount}명</span>
-                  <button
-                    aria-label="여행 인원 1명 늘리기"
-                    disabled={participantCount >= tripCreateMaxParticipants}
-                    onClick={() => updateParticipantCount(1)}
-                    type="button"
-                  >
-                    +
-                  </button>
-                </div>
               </div>
               {dateRangeError && (
                 <p className="prototype-checkout-error">{dateRangeError}</p>
@@ -751,7 +710,6 @@ export function ItineraryCreatePage() {
                 일정 · {formatTripCreateDate(startDate)} ~{" "}
                 {formatTripCreateDate(endDate)} ({dayCount ?? "-"}일)
               </div>
-              <div>인원 · {participantCount}명</div>
               <div>취향 · {profile.style || "미선택"}</div>
               {linkablePolicySlug && (
                 <div className="linked">연결 정책 · 선택한 정책</div>

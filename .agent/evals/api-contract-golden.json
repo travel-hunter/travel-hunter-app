@@ -709,6 +709,7 @@
         "1.0"
       ],
       "nonNumericHandleBehavior": "Returns 404 not found.",
+      "actualParticipantDisplayBehavior": "Trip list UI must display actual participants from people/real owner-member data, not legacy participantCount.",
       "dbModeRecommendationBehavior": "recommendedPolicies only includes policies whose municipality/city matches the trip destination. Province-only 광역 matches are not sufficient. Whole-sido travel areas such as 서울 전체 may show policies with explicit localities inside that sido only."
     },
     {
@@ -744,7 +745,7 @@
       },
       "dbModePolicySlugBehavior": "When policySlug is present, create the trip and link trip_policies; unknown policySlug returns 404 Policy not found.",
       "durationDaysBehavior": "Optional durationDays defaults to 3, accepts 2 through 7, controls trips.end_date and generated trip_days when startDate/endDate are absent.",
-      "participantCountBehavior": "Optional participantCount defaults to 1, accepts 1 through 10, and is stored as planned party size separate from the real member/invite list.",
+      "participantCountBehavior": "Optional legacy participantCount defaults to 1, accepts 1 through 10, and is stored as planned party size separate from the real member/invite list. Current /trips/new UI omits this field; actual participant display uses people.",
       "dateRangeBehavior": "Optional startDate/endDate must be provided together, accept 2 through 7 days inclusive, override durationDays, and control trips.start_date/end_date plus generated trip_days.date.",
       "dbModeRecommendationBehavior": "The returned recommendedPolicies follows strict municipality/city matching; province-only 광역 matches are excluded except explicit localities inside whole-sido travel areas.",
       "travelAreaIdBehavior": "Valid static or dynamic policy-region travelAreaId resolves to backend travel area, stores trips.travel_area_id, and uses the travel-area display name as trips.region. Invalid travelAreaId returns 400 Travel area not found.",
@@ -1008,7 +1009,7 @@
         "role": "string enum(viewer|editor)",
         "alreadyMember": "boolean"
       },
-      "dbModeBehavior": "Requires bearer auth, marks trip_invites.accepted_at, inserts trip_members idempotently with the invite role, and returns alreadyMember=true without downgrading existing members."
+      "dbModeBehavior": "Requires bearer auth, marks trip_invites.accepted_at, inserts trip_members idempotently with the invite role, returns alreadyMember=true without downgrading existing members, and rejects new members with 409 Trip participant limit reached when actual owner/member participants already total 10."
     },
     {
       "method": "GET",

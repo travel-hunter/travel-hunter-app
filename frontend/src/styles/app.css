@@ -3912,6 +3912,78 @@
   font-weight: 800;
 }
 
+
+.invite-role-card-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.invite-role-card {
+  border-color: rgba(251, 113, 133, 0.24);
+}
+
+.invite-role-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.invite-role-card-head h3 {
+  margin: 3px 0 0;
+  color: var(--gray-950);
+  font-size: 17px;
+  letter-spacing: -0.02em;
+}
+
+.invite-role-eyebrow {
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.invite-role-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 54px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 113, 133, 0.32);
+  background: rgba(255, 241, 242, 0.92);
+  color: var(--primary-strong);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.invite-role-badge.viewer {
+  border-color: rgba(148, 163, 184, 0.36);
+  background: rgba(248, 250, 252, 0.94);
+  color: var(--gray-700);
+}
+
+.invite-link.role-link {
+  align-items: stretch;
+  background: #fff;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+}
+
+.invite-link.role-link span {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.invite-role-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.invite-email-field {
+  margin-top: 2px;
+}
+
 .setting-row {
   min-height: 58px;
   display: flex;
@@ -5801,14 +5873,14 @@
 .prototype-trip-list-screen .itinerary-card {
   position: relative;
   display: grid;
-  grid-template-columns: 68px minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 10px;
   align-items: center;
-  min-height: 108px;
-  padding: 12px;
+  min-height: 100px;
+  padding: 10px;
   overflow: visible;
   border: 1px solid var(--border-trip-card);
-  border-radius: 26px;
+  border-radius: 24px;
   background: var(--surface-card);
   box-shadow: var(--shadow-trip-card);
 }
@@ -5820,10 +5892,10 @@
   grid-template-rows: 1fr;
   place-items: center;
   align-self: center;
-  width: 68px;
-  min-width: 68px;
-  height: 68px;
-  min-height: 68px;
+  width: 64px;
+  min-width: 64px;
+  height: 64px;
+  min-height: 64px;
   margin: 0;
   padding: 0;
   overflow: hidden;
@@ -5833,10 +5905,10 @@
 
 .prototype-trip-list-screen .trip-visual-emoji {
   display: grid;
-  width: 68px;
-  height: 68px;
+  width: 64px;
+  height: 64px;
   place-items: center;
-  font-size: 32px;
+  font-size: 31px;
   line-height: 1;
   transform: translateY(-2px);
 }
@@ -5851,9 +5923,9 @@
 
 .prototype-trip-list-screen .itinerary-body > a {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   min-width: 0;
-  gap: 2px 10px;
+  gap: 5px;
   padding: 0;
   color: inherit;
   text-decoration: none;
@@ -5913,18 +5985,86 @@
 .prototype-trip-list-screen .itinerary-card .meta {
   grid-column: 1;
   color: #5d687d;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  line-height: 1.7;
+  line-height: 1.45;
+}
+
+.prototype-trip-list-screen .itinerary-participants {
+  display: flex;
+  grid-column: 1;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid rgba(255, 94, 91, 0.16);
+  border-radius: 16px;
+  padding: 6px 8px 6px 7px;
+  background: linear-gradient(135deg, #fff7f6 0%, #fffdfb 100%);
+}
+
+.prototype-trip-list-screen .itinerary-participant-avatars {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  padding-right: 5px;
+}
+
+.prototype-trip-list-screen .itinerary-participant-avatars .avatar-mini {
+  width: 22px;
+  height: 22px;
+  margin-right: -6px;
+  border: 2px solid #fff;
+  box-shadow: 0 3px 8px rgba(255, 94, 91, 0.12);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.prototype-trip-list-screen .itinerary-participant-avatars .avatar-mini:nth-child(1) {
+  background: #ff5e5b;
+}
+
+.prototype-trip-list-screen .itinerary-participant-avatars .avatar-mini:nth-child(2) {
+  background: #ff8a65;
+}
+
+.prototype-trip-list-screen .itinerary-participant-avatars .avatar-mini:nth-child(3) {
+  background: #ffb84d;
+}
+
+.prototype-trip-list-screen .itinerary-participant-copy {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.prototype-trip-list-screen .itinerary-participant-copy span {
+  overflow: hidden;
+  color: #071b33;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.12;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prototype-trip-list-screen .itinerary-participant-copy small {
+  overflow: hidden;
+  color: #8a6370;
+  font-size: 10px;
+  font-weight: 680;
+  line-height: 1.12;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .prototype-trip-list-screen .itinerary-policy-row {
-  grid-column: 2;
-  grid-row: 1 / span 2;
+  grid-column: 1;
   display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
-  align-self: end;
+  align-items: center;
+  justify-content: flex-start;
+  align-self: start;
   min-width: max-content;
   margin-top: 0;
 }
@@ -6326,76 +6466,17 @@
   gap: 12px;
 }
 
-.prototype-date-summary-row span,
-.prototype-party-stepper span {
+.prototype-date-summary-row span {
   color: var(--text-muted);
   font-size: 13px;
   font-weight: 700;
 }
 
 .prototype-date-summary strong,
-.prototype-create-summary div,
-.prototype-party-stepper strong {
+.prototype-create-summary div {
   font-size: 14px;
   font-weight: 700;
   line-height: 1.45;
-}
-
-.prototype-party-stepper {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border: 1px solid var(--border-card);
-  border-radius: 14px;
-  padding: 10px 12px;
-  color: #1a1a2e;
-  background: var(--surface-app);
-}
-
-.prototype-party-stepper > div:first-child {
-  display: grid;
-  gap: 2px;
-}
-
-.prototype-party-stepper-controls {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: 999px;
-  padding: 4px;
-  background: #fff;
-  border: 1px solid var(--border-card);
-}
-
-.prototype-party-stepper-controls button {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border: 0;
-  border-radius: 999px;
-  color: #1a1a2e;
-  background: #f7f2ed;
-  font: inherit;
-  font-size: 18px;
-  font-weight: 800;
-}
-
-.prototype-party-stepper-controls button:not(:disabled) {
-  cursor: pointer;
-}
-
-.prototype-party-stepper-controls button:disabled {
-  color: #b7b0aa;
-  background: #f3eee8;
-}
-
-.prototype-party-stepper-controls > span {
-  min-width: 36px;
-  color: #1a1a2e;
-  text-align: center;
-  font-weight: 800;
 }
 
 .prototype-create-summary > span {
@@ -8529,7 +8610,79 @@ a.prototype-stat-card:active {
   font-weight: 700;
 }
 
-.prototype-notification-block .setting-row {
+.prototype-notification-block
+.invite-role-card-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.invite-role-card {
+  border-color: rgba(251, 113, 133, 0.24);
+}
+
+.invite-role-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.invite-role-card-head h3 {
+  margin: 3px 0 0;
+  color: var(--gray-950);
+  font-size: 17px;
+  letter-spacing: -0.02em;
+}
+
+.invite-role-eyebrow {
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.invite-role-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 54px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 113, 133, 0.32);
+  background: rgba(255, 241, 242, 0.92);
+  color: var(--primary-strong);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.invite-role-badge.viewer {
+  border-color: rgba(148, 163, 184, 0.36);
+  background: rgba(248, 250, 252, 0.94);
+  color: var(--gray-700);
+}
+
+.invite-link.role-link {
+  align-items: stretch;
+  background: #fff;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+}
+
+.invite-link.role-link span {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.invite-role-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.invite-email-field {
+  margin-top: 2px;
+}
+
+.setting-row {
   min-height: 44px;
   padding: 0;
   border-bottom: 0;
@@ -8548,7 +8701,79 @@ a.prototype-stat-card:active {
   background: var(--surface-app);
 }
 
-.prototype-mypage-screen .setting-row {
+.prototype-mypage-screen
+.invite-role-card-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.invite-role-card {
+  border-color: rgba(251, 113, 133, 0.24);
+}
+
+.invite-role-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.invite-role-card-head h3 {
+  margin: 3px 0 0;
+  color: var(--gray-950);
+  font-size: 17px;
+  letter-spacing: -0.02em;
+}
+
+.invite-role-eyebrow {
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.invite-role-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 54px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 113, 133, 0.32);
+  background: rgba(255, 241, 242, 0.92);
+  color: var(--primary-strong);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.invite-role-badge.viewer {
+  border-color: rgba(148, 163, 184, 0.36);
+  background: rgba(248, 250, 252, 0.94);
+  color: var(--gray-700);
+}
+
+.invite-link.role-link {
+  align-items: stretch;
+  background: #fff;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+}
+
+.invite-link.role-link span {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.invite-role-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.invite-email-field {
+  margin-top: 2px;
+}
+
+.setting-row {
   min-height: 60px;
 }
 

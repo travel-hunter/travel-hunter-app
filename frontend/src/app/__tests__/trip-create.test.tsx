@@ -77,6 +77,7 @@ describe("Travel Hunter app — trip creation", () => {
       title: "부산 맛집 여행",
       dates: "2026.07.12 - 07.18",
       participantCount: 3,
+      people: ["나"],
       days: {
         1: [],
         2: [],
@@ -124,7 +125,7 @@ describe("Travel Hunter app — trip creation", () => {
         screen.getByRole("heading", { name: "일정 제목" }),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole("heading", { name: "여행 기간과 인원" }),
+        screen.getByRole("heading", { name: "여행 기간" }),
       ).toBeInTheDocument();
       expect(
         screen.getByRole("heading", { name: "코스 취향" }),
@@ -153,15 +154,10 @@ describe("Travel Hunter app — trip creation", () => {
       expect(
         screen.getByText(/2026\.07\.12.*2026\.07\.18.*7일/),
       ).toBeInTheDocument();
-      await user.click(
-        screen.getByRole("button", { name: "여행 인원 1명 늘리기" }),
-      );
-      await user.click(
-        screen.getByRole("button", { name: "여행 인원 1명 늘리기" }),
-      );
-      expect(screen.getAllByText("3명").length).toBeGreaterThan(0);
-
-      expect(screen.getByText("인원 · 3명")).toBeInTheDocument();
+      expect(
+        screen.queryByLabelText("여행 인원 선택"),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText(/인원 ·/)).not.toBeInTheDocument();
       const titleInput = screen.getByRole("textbox", { name: "일정 제목" });
       expect((titleInput as HTMLInputElement).value).toMatch(/^.+ \d일 여행$/);
       await user.clear(titleInput);
@@ -173,13 +169,15 @@ describe("Travel Hunter app — trip creation", () => {
           expect.objectContaining({
             title: "부산 맛집 여행",
             region: expect.any(String),
-            participantCount: 3,
             style: expect.any(String),
             policySlug: examplePolicySlug,
             startDate: "2026-07-12",
             endDate: "2026-07-18",
           }),
         ),
+      );
+      expect(createTripSpy.mock.calls[0]?.[0]).not.toHaveProperty(
+        "participantCount",
       );
       expect(
         await screen.findByRole("button", { name: "✨ 추천 일정만들기" }),
@@ -196,7 +194,8 @@ describe("Travel Hunter app — trip creation", () => {
           screen.getByRole("heading", { name: "부산 맛집 여행", level: 4 }),
         ).toBeInTheDocument(),
       );
-      expect(screen.getByText(/👥 3명 참여/)).toBeInTheDocument();
+      expect(screen.getByText("1명 참여 중")).toBeInTheDocument();
+      expect(document.body).toHaveTextContent("나");
     } finally {
       createTripSpy.mockRestore();
       addPolicySpy.mockRestore();
@@ -206,7 +205,7 @@ describe("Travel Hunter app — trip creation", () => {
     }
   });
 
-  it("keeps trip participant selection between 1 and 10 on the date step", async () => {
+  it("does not ask for planned party size on the checkout step", async () => {
     await login();
     cleanup();
     const user = userEvent.setup();
@@ -223,20 +222,18 @@ describe("Travel Hunter app — trip creation", () => {
       );
       await user.click(screen.getByRole("button", { name: "다음" }));
 
-      const decrease = screen.getByRole("button", {
-        name: "여행 인원 1명 줄이기",
-      });
-      const increase = screen.getByRole("button", {
-        name: "여행 인원 1명 늘리기",
-      });
-      expect(decrease).toBeDisabled();
-
-      for (let count = 0; count < 9; count += 1) {
-        await user.click(increase);
-      }
-
-      expect(screen.getAllByText("10명").length).toBeGreaterThan(0);
-      expect(increase).toBeDisabled();
+      expect(
+        screen.getByRole("heading", { name: "여행 기간" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByLabelText("여행 인원 선택"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "여행 인원 1명 줄이기" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "여행 인원 1명 늘리기" }),
+      ).not.toBeInTheDocument();
     } finally {
       travelAreasSpy.mockRestore();
     }

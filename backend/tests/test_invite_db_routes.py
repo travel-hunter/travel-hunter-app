@@ -79,6 +79,25 @@ def test_db_invite_accept_missing_token_returns_404(monkeypatch) -> None:
     assert response.json() == {"detail": "Invite not found"}
 
 
+def test_db_invite_accept_returns_service_conflict(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    install_db_route_dependencies(monkeypatch, fake_db, user)
+
+    def raise_participant_limit(*_args):
+        raise invite_routes.trip_service.TripServiceError(409, "Trip participant limit reached")
+
+    monkeypatch.setattr(invite_routes.trip_service, "accept_invite", raise_participant_limit)
+
+    try:
+        response = client.post("/api/invites/abc/accept")
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "Trip participant limit reached"}
+
+
 def test_db_invite_accept_returns_invite_state(monkeypatch) -> None:
     fake_db = object()
     user = make_user()

@@ -67,7 +67,7 @@ describe("Travel Hunter app — trips list", () => {
         "2026.06.15 - 06.18 · 4일 · 장소 0개",
       );
       expect(document.body).not.toHaveTextContent("추천 정책 확인 가능");
-      expect(document.body).toHaveTextContent("👥 1명 참여");
+      expect(document.body).toHaveTextContent("1명 참여 중");
       expect(document.body).toHaveTextContent("예상 혜택");
 
       const deleteButton = await screen.findByRole("button", { name: "삭제" });
@@ -439,7 +439,8 @@ describe("Travel Hunter app — trips list", () => {
         id: "77",
         title: "부산 4일 여행",
         dates: "2026.06.15 - 06.18",
-        participantCount: 4,
+        participantCount: 1,
+        people: ["나", "민수", "지윤", "현우"],
         days: { 1: [], 2: [], 3: [], 4: [] },
       },
       {
@@ -462,7 +463,9 @@ describe("Travel Hunter app — trips list", () => {
       await screen.findByText("부산 4일 여행");
       expect(screen.getByText("경주 3일 여행")).toBeInTheDocument();
       expect(document.querySelectorAll(".itinerary-card")).toHaveLength(2);
-      expect(screen.getByText(/👥 4명 참여/)).toBeInTheDocument();
+      expect(screen.getByText("4명 참여 중")).toBeInTheDocument();
+      expect(screen.getByText("나, 민수 외 2명")).toBeInTheDocument();
+      expect(document.body).not.toHaveTextContent("실제");
       expect(getLink("/trips/77")).toBeInTheDocument();
       expect(getLink("/trips/78")).toBeInTheDocument();
     } finally {

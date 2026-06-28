@@ -876,6 +876,7 @@ Account linking policy:
 `revision`은 일정 상세 장소 add/update/move/delete optimistic conflict 처리용 정수 버전이다. 장소 변경 성공 시 1씩 증가하며, 클라이언트는 마지막으로 조회한 `revision`을 `expectedRevision`으로 보내야 한다. stale revision이면 409 `Trip has changed. Refresh before saving.`을 반환한다.
 
 Frontend behavior: `/trips` does not expose trip confirmation controls or draft/confirmed status badges. `/trips/{tripId}` keeps owner/editor editing controls available regardless of persisted `draft` or `confirmed` status. Viewer users remain read-only by role.
+Frontend behavior: `/trips` participant UI uses `people.length` and `people` names from real owner/member data. It must not use legacy `participantCount` as the displayed actual participation count.
 `currentUserRole` 허용 값: `"owner" | "editor" | "viewer"`
 
 ---
@@ -893,14 +894,13 @@ Frontend behavior: `/trips` does not expose trip confirmation controls or draft/
   "description": "제주 자연 중심 여행",
   "policySlug": "dgtourcard-2026",
   "durationDays": 3,
-  "participantCount": 3,
   "startDate": "2026-07-12",
   "endDate": "2026-07-14"
 }
 ```
 
 - `durationDays`: 2~7 범위
-- `participantCount`: 1~10. Planned travel party size, stored separately from real member/invite list `people`.
+- `participantCount`: optional legacy/back-compat field. 1~10. Planned travel party size only; it is stored separately from real member/invite list `people`. The current `/trips/new` frontend does not ask for or send this value.
 - `startDate`/`endDate`: 함께 제공하거나 모두 생략. 기간은 2~7일.
 
 **Response 200** → `Trip`. 새로 생성된 응답의 `days`는 예를 들어 3일 일정이면 `{"1": [], "2": [], "3": []}`처럼 빈 Day 배열만 포함한다. `recommendedPolicies`는 일정 지역에 맞는 정책 추천일 수 있지만, `days` 안의 장소와 `GET /trips/{trip_id}/recommendations`의 saved summary를 create 시점에 seed하지 않는다.
@@ -1177,22 +1177,38 @@ AI 추천 장소 목록 조회.
 
 ### GET /trips/{trip_id}/invite
 
-초대 링크 상태 조회. owner 또는 editor만 가능.
+초대 링크 상태 조회. owner 또는 editor만 가능. viewer/editor 권한별 링크를 동시에 반환한다. 기존 active invite는 현재 저장된 role의 전용 링크로 보존되고, 반대 role 링크가 없으면 새 token을 만든다.
 
-**Response 200** → `InviteState`
+**Response 200** → `InviteLinksState`
 ```json
 {
-  "id": "uuid",
   "tripId": "1",
-  "inviteToken": "<token>",
-  "inviteUrl": "https://<domain>/invites/<token>/accept",
-  "expiresAt": "2026-05-25T00:00:00",
-  "createdAt": "2026-05-19T00:00:00",
-  "acceptedAt": null,
-  "invited": false,
-  "copied": false,
-  "role": "editor",
-  "alreadyMember": false
+  "viewer": {
+    "id": "uuid-viewer",
+    "tripId": "1",
+    "inviteToken": "<viewer-token>",
+    "inviteUrl": "https://<domain>/invites/<viewer-token>/accept",
+    "expiresAt": "2026-05-25T00:00:00",
+    "createdAt": "2026-05-19T00:00:00",
+    "acceptedAt": null,
+    "invited": false,
+    "copied": false,
+    "role": "viewer",
+    "alreadyMember": false
+  },
+  "editor": {
+    "id": "uuid-editor",
+    "tripId": "1",
+    "inviteToken": "<editor-token>",
+    "inviteUrl": "https://<domain>/invites/<editor-token>/accept",
+    "expiresAt": "2026-05-25T00:00:00",
+    "createdAt": "2026-05-19T00:00:00",
+    "acceptedAt": null,
+    "invited": false,
+    "copied": false,
+    "role": "editor",
+    "alreadyMember": false
+  }
 }
 ```
 
@@ -1203,7 +1219,7 @@ AI 추천 장소 목록 조회.
 
 ### POST /trips/{trip_id}/invite
 
-초대 링크 생성 또는 role 업데이트. owner 또는 editor만 가능.
+선택한 role의 초대 링크 생성 또는 확인. owner 또는 editor만 가능. 같은 trip에서 viewer/editor 링크는 서로 다른 token이며, 다른 role의 기존 token/role을 덮어쓰지 않는다.
 
 **Request** (optional)
 ```json
@@ -1221,7 +1237,7 @@ AI 추천 장소 목록 조회.
 
 ### POST /trips/{trip_id}/invite/email
 
-초대 링크를 생성/업데이트한 뒤 email로 전송. owner 또는 editor만 가능. email 본문에는 일정 상세를 포함하지 않고 “트래블헌터 일정 초대입니다 / 로그인 또는 회원가입 후 수락할 수 있습니다 / 초대가 만료됐으면 다시 요청하세요” 수준의 안전 안내와 초대 링크만 포함한다.
+선택한 role의 전용 초대 링크를 생성/확인한 뒤 email로 전송. owner 또는 editor만 가능. email 본문에는 일정 상세를 포함하지 않고 “트래블헌터 일정 초대입니다 / 로그인 또는 회원가입 후 수락할 수 있습니다 / 초대가 만료됐으면 다시 요청하세요” 수준의 안전 안내와 초대 링크만 포함한다.
 
 **Request**
 ```json
@@ -1277,11 +1293,13 @@ AI 추천 장소 목록 조회.
 ### POST /invites/{invite_token}/accept
 
 초대 링크로 일정에 참여. 인증 필요. 이미 참여 중인 사용자가 다시 수락하면 중복 멤버를 만들거나 기존 권한을 낮추지 않고 `alreadyMember: true`를 반환한다.
+새 참여자 수락은 owner + accepted/authenticated members 기준 실제 참여자 10명까지 허용한다. 이미 참여 중인 사용자의 재수락은 10명 제한에 막히지 않는다.
 
 **Response 200** → `InviteState`
 
 **Errors**
 - 404: 초대 토큰 없음 또는 만료
+- 409: 실제 참여자 10명 초과 (`Trip participant limit reached`)
 
 ---
 
@@ -1380,8 +1398,8 @@ SOLAPI 발송 결과 webhook 수신. `X-Solapi-Secret` 헤더로 검증.
 | status | string | `"draft" \| "confirmed"` |
 | revision | number | 장소 add/update/move/delete optimistic conflict 처리용 일정 버전. 변경 성공 시 1 증가 |
 | dates | string | 날짜 표시 문자열 |
-| people | string[] | 참여자 닉네임 목록 |
-| participantCount | number | Planned travel party size, separate from real member/invite list `people`. |
+| people | string[] | 실제 참여자 닉네임 목록. owner와 수락된 member 표시 이름을 중복 제거해 제공한다. `/trips` 화면의 참여 인원 수 기준이다. |
+| participantCount | number | Legacy planned travel party size, separate from real member/invite list `people`. 실제 참여자 수 표시 기준으로 사용하지 않는다. |
 | expectedSaving | string | 예상 절약 금액 표시 |
 | linkedPolicies | LinkedTripPolicy[] | 연결된 정책 목록 |
 | recommendedPolicies | LinkedTripPolicy[] | 일정 지역에 맞춰 추천된 정규화 정책 및 공개 TravelMonth/반값여행/숙박세일 혜택 목록. 기본적으로 일정의 실제 시/군/구와 정책 지자체가 일치해야 하며, `서울 전체` 같은 광역 전체 여행만 해당 광역 내부 자치구 정책을 예외로 허용한다. 광역자치단체만 같은 정책은 추천하지 않는다. 숙박세일은 canonical 1건을 직접 추천하지 않고 `raw_payload.eligibleAreas`에서 파생한 지역 alias 후보만 추천한다. 이미 연결된 정규화 정책은 canonical id/slug 기준으로 제외하며 각 항목은 `/policies/{slug}` 상세로 이동 가능하다. 추천 순서는 지역, 일정 날짜 겹침, 정책 카테고리, 여행 스타일 텍스트/태그만 사용하며 AI/LLM 판단을 사용하지 않는다. |
@@ -1513,7 +1531,6 @@ Request example:
   "title": "속초·고성·양양 3일 여행",
   "region": "속초·고성·양양",
   "travelAreaId": "gangwon-sokcho-goseong-yangyang",
-  "participantCount": 3,
   "style": "바다",
   "startDate": "2026-06-15",
   "endDate": "2026-06-17"

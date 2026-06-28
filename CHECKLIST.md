@@ -2,66 +2,43 @@
 
 ## Current Status
 
-- Active task: local dirty work cleanup for commit/PR prep.
-- Current branch: `develop`, now ahead of `origin/develop` with local cleanup commits; push/PR/deploy have not been performed.
-- Local commits created so far:
-  - `92a124f Clarify trip preview actions before saving`
-  - `a348258 Streamline new trip creation before checkout`
-- Final cleanup commit in progress: shared gutter CSS + handoff/checklist evidence.
-- Tomorrow handoff source of truth remains `.omx/specs/deep-interview-today-local-wrap-tomorrow-start.md`.
+- Active task: current dirty worktree has been reflected to the remote dev domain for review.
+- Branch: `develop`; push, PR creation, and merge have not been performed.
+- Note: existing uncommitted UI/participant-count work and the earlier trip-detail preview-copy cleanup remain intentionally preserved.
 
 ## Local Work Summary
 
-- `/trips/{tripId}` recommendation preview/save UX: preview sandbox semantics, saved-place reorder recovery, compact recommendation metadata, unified action buttons/time controls, related trip-detail tests and e2e spec changes.
-- `/trips/new` creation UX: policy-linked region step skip when resolvable, unified checkout-style form, course-style modal with confirm-only apply behavior, red/coral visual tone, and course-style emoji labels.
-- Shared UI spacing: app gutter token direction for `/home`, `/policies`, `/trips`, `/mypage`, with most current visual validation focused on `/trips/new`.
-- Key artifacts:
-  - `.omx/specs/deep-interview-today-local-wrap-tomorrow-start.md`
-  - `.omx/specs/deep-interview-trip-detail-recommendation-save-ux.md`
-  - `.omx/specs/deep-interview-trip-detail-saved-place-reorder.md`
-  - `.omx/specs/deep-interview-trip-button-style-unification.md`
-  - `.omx/specs/deep-interview-policy-new-trip-skip-region-step.md`
-  - `.omx/specs/deep-interview-new-trip-unified-checkout-form.md`
-  - `.omx/specs/deep-interview-home-card-gutter-unification.md`
-  - `.omx/artifacts/visual-ralph/new-trip-red-coral-gutter/visual-verdict-final.json`
-  - `.omx/artifacts/visual-ralph/trip-button-style-audit/`
-  - `.omx/artifacts/visual-ralph/trip-preview-button-unification/`
-  - `.omx/artifacts/trip-card-slim-plan/`
+- `/friend-invite?tripId=...` now renders two role-specific invite cards: `보기만 가능` and `함께 편집`.
+- `GET /api/trips/{tripId}/invite` returns `InviteLinksState` with `viewer` and `editor` invite states.
+- Backend invite lookup/creation is role-aware: same-role active invite is reused; the other role's token/role is not mutated.
+- Email invite sends the selected role's dedicated link and shows role-specific fallback copy when SMTP is unavailable.
+- Existing participant-count work remains: `/trips` uses actual `Trip.people`, `/trips/new` omits planned party size, and invite acceptance caps actual participants at 10.
+- API docs, workflow spec, implemented-feature notes, DB schema notes, and `.agent/evals/api-contract-golden.json` were updated for role-specific invite links.
 
 ## Latest Validation Evidence
 
-- Final HEAD: `cd frontend && npm test -- trip-create.test.tsx` PASS (19 tests).
-- Final HEAD: `cd frontend && npm run build` PASS; includes `npm run typecheck`.
-- Final HEAD: `cd frontend && npm test -- trip-detail.test.tsx` PASS (31 tests).
-- Local Docker frontend rebuild/recreate for `/trips/new` visual pass: `docker compose -f compose.yaml build frontend && docker compose -f compose.yaml up -d --force-recreate frontend` PASS; `http://127.0.0.1:4173/trips/new` returned 200 OK.
-- `/trips/new` Playwright visual/computed check against `http://127.0.0.1:4173` PASS with Browser plugin absent fallback:
-  - 390x844 and 1024x900 checked.
-  - Red/coral computed accents confirmed: primary CTA/progress/step badges `rgb(255, 94, 91)`, soft surfaces `rgb(255, 245, 244)`.
-  - Mobile card left/right gutter is 16px; desktop unified cards fill app-shell width instead of previous 560px cap.
-- Visual Ralph `/trips/new` verdict: `.omx/artifacts/visual-ralph/new-trip-red-coral-gutter/visual-verdict-final.json` score 94 PASS.
-- Hygiene: `git diff --check origin/develop..HEAD` PASS; no U+FFFD replacement characters found in changed Korean-bearing files.
+- Remote dev deploy: synced modified tracked files to `deploy@192.168.32.15:/home/deploy/travel-hunter-app`, backed up pre-sync server state at `/home/deploy/.travel-hunter-recovery/20260628T093539Z`, rebuilt `backend`/`frontend`, ran `alembic upgrade head`, and restarted tunnel compose services.
+- Remote dev smoke: `https://dev.travel-hunter.co.kr/api/health` returned `{"status":"ok","service":"travel-hunter-backend","environment":"staging","database":"connected"}`; `/`, `/login`, `/policies`, `/trips`, `/mypage`, and `/friend-invite` returned HTTP 200 over HTTPS.
+- Backend targeted invite/trip tests: `cd backend && .venv/bin/python -m pytest tests/test_trip_db_service.py tests/test_trip_db_routes.py tests/test_invite_db_routes.py tests/test_trip_auth_edge_cases.py` PASS (119 tests, 1 warning).
+- Frontend invite tests: `npm --prefix frontend test -- invite-oauth.test.tsx` PASS (22 tests); mojibake check PASS.
+- Frontend trip detail regression tests: `npm --prefix frontend test -- trip-detail.test.tsx` PASS (31 tests); mojibake check PASS.
+- Frontend typecheck/build: `npm --prefix frontend run typecheck` PASS; `npm --prefix frontend run build` PASS.
+- Contract/hygiene: `.agent/evals/api-contract-golden.json` parses; `git diff --check` PASS; changed files are UTF-8 readable and contain no U+FFFD.
 
 ## PR Prep Next Steps
 
-1. Confirm final worktree is clean after the cleanup/evidence commit.
-2. Rerun or decide whether to rely on latest targeted evidence:
-   - `cd frontend && npm test -- trip-create.test.tsx`
-   - `cd frontend && npm test -- trip-detail.test.tsx`
-   - `cd frontend && npm run build`
-3. If preparing release/dev sync, also run `cd frontend && npm test` and `cd frontend && npm run test:e2e` if time allows.
-4. Push only after explicit user approval.
-5. PR body should describe three scopes:
+1. Keep the recommended commit split unless the final review suggests otherwise:
    - trip detail recommendation preview/save/reorder/button UX,
-   - `/trips/new` unified creation flow,
-   - shared gutter + red/coral/emoji visual polish.
+   - new trip creation flow,
+   - shared gutter + red/coral/emoji visual polish,
+   - actual participants + role-specific invite links.
+2. Push only after explicit user approval.
 
 ## Remaining Risks
 
-- Full frontend test suite and full Playwright e2e were not rerun after all local changes.
-- `/home`, `/policies`, `/trips`, `/mypage` shared gutter change has not had a fresh full 360/390/430/1024/1440 four-page responsive audit during this wrap.
-- Course-style emoji preview-render smoke at `127.0.0.1:4174` timed out before modal entry; targeted tests and production build passed.
-- Browser plugin was not available in this session, so rendered validation used Playwright fallback.
-- Push, PR creation, deployment, and cross-browser manual QA have not been performed.
+- Full backend suite, full frontend suite, and full Playwright e2e were not rerun after the role-specific invite link change.
+- Live browser visual screenshots for the new two-card invite UI were not captured in this pass.
+- No DB migration was added because existing `trip_invites.role` is sufficient for role-specific active invite coexistence.
 
 ## Cleanup Policy
 

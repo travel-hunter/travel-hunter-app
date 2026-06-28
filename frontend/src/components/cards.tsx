@@ -15,6 +15,20 @@ function tripRegionEmoji(trip: Trip) {
   return getTripRegionEmojiFromTitle(trip.title);
 }
 
+function tripParticipantNames(trip: Trip) {
+  const names = trip.people.map((name) => name.trim()).filter(Boolean);
+  return names.length ? names : ["나"];
+}
+
+function participantInitial(name: string) {
+  return Array.from(name.trim())[0]?.toUpperCase() ?? "?";
+}
+
+function participantPreview(names: string[]) {
+  if (names.length <= 2) return names.join(", ");
+  return `${names.slice(0, 2).join(", ")} 외 ${names.length - 2}명`;
+}
+
 export function PolicyListCard({
   policy,
   isSaved = false,
@@ -84,7 +98,8 @@ export function ItineraryCard({
   const detailPath = `/trips/${trip.id}`;
   const totalPlaces = Object.values(trip.days).reduce((sum, places) => sum + places.length, 0);
   const dayCount = Object.keys(trip.days).length || 1;
-  const participantCount = trip.participantCount ?? (trip.people.length || 1);
+  const participantNames = tripParticipantNames(trip);
+  const participantCount = participantNames.length;
 
   return (
     <SurfaceCard as="article" className="itinerary-card">
@@ -110,8 +125,23 @@ export function ItineraryCard({
           <div className="meta">
             📅 {trip.dates} · {dayCount}일 · 장소 {totalPlaces}개
           </div>
-          <div className="meta">
-            👥 {participantCount}명 참여{addedPolicy ? " · 정책 연결됨" : ""}
+          <div
+            className="itinerary-participants"
+            aria-label={`참여자 ${participantCount}명`}
+          >
+            <div className="itinerary-participant-avatars" aria-hidden="true">
+              {participantNames.slice(0, 3).map((name, index) => (
+                <span className="avatar-mini" key={`${name}-${index}`}>
+                  {participantInitial(name)}
+                </span>
+              ))}
+            </div>
+            <div className="itinerary-participant-copy">
+              <span>
+                {participantCount}명 참여 중{addedPolicy ? " · 정책 연결됨" : ""}
+              </span>
+              <small>{participantPreview(participantNames)}</small>
+            </div>
           </div>
           <div className="itinerary-policy-row">
             <Tag tone="benefit">예상 혜택 {trip.expectedSaving}</Tag>

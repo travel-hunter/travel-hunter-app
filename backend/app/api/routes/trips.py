@@ -10,6 +10,7 @@ from app.schemas.trip import (
     CreateTripRequest,
     DeleteTripResponse,
     InviteEmailResult,
+    InviteLinksState,
     InviteState,
     MoveTripPlaceRequest,
     PlaceSearchCandidate,
@@ -269,12 +270,12 @@ def search_trip_places(
     return [PlaceSearchCandidate(**item) for item in candidates]
 
 
-@router.get("/{trip_id}/invite", response_model=InviteState)
+@router.get("/{trip_id}/invite", response_model=InviteLinksState)
 def get_invite_state(
     trip_id: str,
     db: Session | None = Depends(get_optional_db),
     current_user: User | None = Depends(get_current_user),
-) -> InviteState:
+) -> InviteLinksState:
     invite_state = trip_service.get_invite_state(
         _require_db(db),
         _require_user(current_user),
@@ -282,7 +283,7 @@ def get_invite_state(
     )
     if invite_state is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trip not found")
-    return InviteState(**invite_state)
+    return InviteLinksState(**invite_state)
 
 
 @router.post("/{trip_id}/invite", response_model=InviteState)

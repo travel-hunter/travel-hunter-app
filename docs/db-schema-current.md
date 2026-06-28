@@ -73,6 +73,7 @@ Migration metadata:
 - `users.phone_verified_at`
 - `policies.apply_url`
 - `trip_invites.role`
+  - 초대 token에 고정되는 권한(`viewer`/`editor`)이다. 같은 일정에서 role별 active invite가 공존할 수 있으며, 다른 role 링크 생성은 기존 token의 role을 변경하지 않는다.
 - `trips.status`
 - `trips.revision`
 
@@ -163,7 +164,7 @@ Migration metadata:
 
 ## 2026-05-27 trips.participant_count
 
-`trips.participant_count` stores the planned travel party size for itinerary creation. It is separate from `trip_members`, which continues to represent real invited/authenticated trip members and permissions. The API exposes this field as `participantCount`.
+`trips.participant_count` stores a legacy planned travel party size. It remains exposed as `participantCount` for backward compatibility, but the current `/trips/new` flow no longer asks for it and actual participation UI must use `trip_members`/`Trip.people` instead. Real owner/member participation is capped in invite acceptance logic, not by this column.
 
 
 ## 2026-06-11 trips.revision

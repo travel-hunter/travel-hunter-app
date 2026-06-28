@@ -1,7 +1,7 @@
 # 친구 초대와 일정 상세 수정 작업흐름 명세
 
-> Status: active local UX workflow spec.  
-> Scope: 현재 구현된 링크 기반 친구 초대와 일정 상세 편집 흐름을 현실적인 사용자 작업 순서로 설명하고, 가까운 다음 개선 후보인 email 초대 발송 흐름을 별도 future-ready 범위로 정의한다.  
+> Status: active local UX workflow spec.
+> Scope: 현재 구현된 링크 기반 친구 초대와 일정 상세 편집 흐름을 현실적인 사용자 작업 순서로 설명하고, 가까운 다음 개선 후보인 email 초대 발송 흐름을 별도 future-ready 범위로 정의한다.
 > Authority: API wire shape는 `docs/mvp-api-contract.md`, 구현 상태 요약은 `docs/implemented-feature-spec.md`, 릴리즈 우선순위는 `docs/next-work-plan.md`를 따른다.
 
 ## 1. 목적
@@ -96,19 +96,23 @@
 
 ### 4.3 초대 링크를 활성화한다
 
-1. owner/editor가 `링크 만들기`, `초대 링크 활성화`, 또는 `공유 링크 만들기` 버튼을 누른다.
-2. 프론트엔드는 선택한 role을 전송한다.
+1. owner/editor가 `/friend-invite?tripId={tripId}`에 진입하면 프론트엔드는 권한별 링크 상태를 조회한다.
+   - API: `GET /api/trips/{tripId}/invite`
+   - Response: `{ "tripId": "...", "viewer": InviteState, "editor": InviteState }`
+2. 화면은 `보기만 가능`과 `함께 편집` 링크 카드를 분리해 보여준다. 두 카드의 URL/token은 달라야 한다.
+3. owner/editor가 특정 카드에서 `링크 만들기` 또는 `링크 준비` 버튼을 누르면 프론트엔드는 해당 role을 전송한다.
    - API: `POST /api/trips/{tripId}/invite`
    - Request: `{ "role": "viewer" }` 또는 `{ "role": "editor" }`
-3. 백엔드는 다음을 수행한다.
+4. 백엔드는 다음을 수행한다.
    - 요청자가 owner/editor인지 확인한다.
    - role이 `viewer` 또는 `editor`인지 검증한다.
-   - 기존 활성 초대가 있으면 role을 갱신하거나 같은 invite token 상태를 반환한다.
-   - 없으면 `trip_invites`에 token과 role을 저장한다.
+   - 같은 role의 active invite가 있으면 그 token을 그대로 반환한다.
+   - 다른 role의 active invite는 절대 role을 갱신하거나 token을 재사용하지 않는다.
+   - 같은 role의 active invite가 없으면 `trip_invites`에 새 token과 role을 저장한다.
    - `TRAVEL_HUNTER_PUBLIC_BASE_URL` 기준 `inviteUrl`을 만든다.
-4. 프론트엔드는 반환된 `inviteUrl`을 화면에 표시한다.
+5. 프론트엔드는 role 카드별 `inviteUrl`을 화면에 표시한다.
    - URL 형태: `https://<domain>/invites/{token}/accept`
-5. owner/editor는 `링크 복사` 또는 OS 공유 기능을 사용해 외부 메신저에 직접 붙여넣는다.
+6. owner/editor는 각 role 카드의 `링크 복사` 또는 OS 공유 기능을 사용해 외부 메신저에 직접 붙여넣는다.
 
 성공 상태 copy 예시:
 
@@ -125,12 +129,12 @@
 | 404 일정 없음 | `일정을 찾을 수 없어요.` | 일정 목록으로 이동 |
 | 네트워크 오류 | `초대 링크를 만들지 못했어요. 잠시 후 다시 시도해 주세요.` | 재시도 버튼 제공 |
 
-### 4.4 초대 권한을 바꾼다
+### 4.4 다른 권한 링크를 만든다
 
-1. owner/editor가 같은 초대 화면에서 `보기만 가능`과 `함께 편집 가능` 중 다른 role을 선택한다.
-2. owner/editor가 다시 `저장`, `권한 적용`, 또는 `링크 업데이트`를 누른다.
-3. 프론트엔드는 `POST /api/trips/{tripId}/invite`로 새 role을 전송한다.
-4. 이후 새로 수락하는 사용자는 새 role을 받는다.
+1. owner/editor가 같은 초대 화면에서 반대 role 카드의 링크를 만든다.
+2. 프론트엔드는 `POST /api/trips/{tripId}/invite`로 해당 role을 전송한다.
+3. 백엔드는 기존에 공유된 다른 role 링크를 변경하지 않고, 요청 role의 active invite만 반환하거나 새 token을 발급한다.
+4. 이후 새로 수락하는 사용자는 본인이 연 token에 고정된 role을 받는다.
 5. 이미 수락해 `trip_members`에 들어간 사용자의 기존 role은 이 동작만으로 자동 변경하지 않는다.
 
 ## 5. 현재 구현: 초대받은 사람의 수락 흐름
@@ -353,11 +357,11 @@
 5. 프론트엔드는 email 발송 API를 호출한다.
    - API: `POST /api/trips/{tripId}/invite/email`
    - Request 예시: `{ "email": "friend@example.com", "role": "editor" }`
-6. 백엔드는 링크 생성/갱신과 email 발송을 같은 service 흐름에서 처리한다.
+6. 백엔드는 선택 role 전용 링크 확인/생성과 email 발송을 같은 service 흐름에서 처리한다.
 7. 백엔드는 다음을 수행한다.
-   - 요청자가 owner인지 확인한다.
+   - 요청자가 owner/editor인지 확인한다.
    - email 형식을 검증한다.
-   - 초대 token과 role을 확인한다.
+   - 선택한 role의 초대 token과 role을 확인한다.
    - public invite URL을 포함한 email을 발송한다.
    - 발송 결과를 audit/log로 남긴다. secret 또는 SMTP credential은 로그에 남기지 않는다.
 8. 성공 시 화면은 발송 완료를 보여준다.
@@ -387,7 +391,7 @@ Email 본문에서도 로그인 전 일정 상세 미리보기는 제공하지 �
 
 | 상황 | 사용자 안내 | 시스템 동작 | 회복 행동 |
 | --- | --- | --- | --- |
-| SMTP 미설정 | `email 발송 설정이 아직 없어요. 아래 초대 링크를 복사해 직접 보내 주세요.` | API는 200과 `deliveryStatus=notConfigured`를 반환하고 초대 링크는 유지 | 링크 복사 fallback |
+| SMTP 미설정 | `email 발송 설정이 아직 없어요. 해당 권한 링크를 복사해 직접 보내 주세요.` | API는 200과 `deliveryStatus=notConfigured`를 반환하고 선택 role 링크는 유지 | 링크 복사 fallback |
 | 잘못된 email 형식 | `email 주소를 확인해 주세요.` | API 호출 전 client 검증 또는 422 | 입력 수정 |
 | SMTP provider 실패 | `email을 보내지 못했어요. 링크를 복사해 직접 보내세요.` | 초대 token은 유지, 실패 로그 기록 | 링크 복사/재시도 |
 | rate limit | `잠시 후 다시 시도해 주세요.` | 과도한 발송 차단 | 시간 후 재시도 |

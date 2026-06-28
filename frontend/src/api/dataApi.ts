@@ -11,6 +11,7 @@ import {
   ExternalCollectionOpsHealth,
   ExternalCollectionRunResponse,
   InviteEmailResult,
+  InviteLinksState,
   InviteRole,
   InviteState,
   NotificationSettings,
@@ -258,7 +259,7 @@ export type AppDataApi = {
   removePolicyFromTrip: (tripId: string, policySlug: string) => Promise<TripPolicyResponse>;
   listRecommendations: (tripId: string) => Promise<Recommendation[]>;
   searchTripPlaces: (tripId: string, options: TripPlaceSearchOptions) => Promise<PlaceSearchCandidate[]>;
-  getInviteState: (tripId: string) => Promise<InviteState>;
+  getInviteState: (tripId: string) => Promise<InviteLinksState>;
   confirmInviteSent: (tripId: string, role?: InviteRole) => Promise<InviteState>;
   sendInviteEmail: (tripId: string, request: SendInviteEmailRequest) => Promise<InviteEmailResult>;
   acceptInvite: (inviteToken: string) => Promise<InviteState>;
