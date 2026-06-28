@@ -1,16 +1,77 @@
-import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, type DragEndEvent, type DragStartEvent, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
-import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import {
+  DndContext,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  closestCenter,
+  type DragEndEvent,
+  type DragStartEvent,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Car, ChevronLeft, GripVertical, Info, Map as MapIcon, X } from "lucide-react";
+import {
+  Car,
+  ChevronLeft,
+  GripVertical,
+  Info,
+  Map as MapIcon,
+  X,
+} from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { appDataApi, isApiError, type ItineraryPlace, type LinkedTripPolicy, type PlaceSearchCandidate, type Recommendation, type Trip, type TripPlaceMutationRequest, type TripPlaceRequest } from "../../api";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
+import {
+  appDataApi,
+  isApiError,
+  type ItineraryPlace,
+  type LinkedTripPolicy,
+  type PlaceSearchCandidate,
+  type Recommendation,
+  type Trip,
+  type TripPlaceMutationRequest,
+  type TripPlaceRequest,
+} from "../../api";
 import { useSession } from "../../app/session";
 import { useAsyncResource } from "../../api/useAsyncResource";
-import { KakaoMapView, type KakaoMapMarker } from "../../components/map/KakaoMapView";
-import { Button, ConfirmDialog, EmptyState, ErrorState, IconButton, LinkButton, LoadingState, Toast, TopBar } from "../../components/ui";
-import { getPolicyMoodIcon, getPolicyMoodTone, getTripRegionEmojiFromTitle } from "../../data/displayConfig";
-import { clearDraft, createDraftKey, readDraft, saveDraft } from "../../utils/draftStorage";
+import {
+  KakaoMapView,
+  type KakaoMapMarker,
+} from "../../components/map/KakaoMapView";
+import {
+  Button,
+  ConfirmDialog,
+  EmptyState,
+  ErrorState,
+  IconButton,
+  LinkButton,
+  LoadingState,
+  Toast,
+  TopBar,
+} from "../../components/ui";
+import {
+  getPolicyMoodIcon,
+  getPolicyMoodTone,
+  getTripRegionEmojiFromTitle,
+} from "../../data/displayConfig";
+import {
+  clearDraft,
+  createDraftKey,
+  readDraft,
+  saveDraft,
+} from "../../utils/draftStorage";
 import { DraftRestoreNotice } from "./_shared";
 
 const defaultPlaceTime = "09:00";
@@ -46,7 +107,11 @@ type DisplayedPlace = ItineraryPlace & {
   isRecommendationPreview?: boolean;
   previewId?: string;
   previewDayNumber?: number;
+  previewTimelineId?: string;
+  previewOriginalDayNumber?: number;
+  isRecommendationSelected?: boolean;
 };
+type RecommendationPreviewTimeline = Record<number, DisplayedPlace[]>;
 type RecommendationTimeBucket = "attraction" | "food" | "cafe" | "stay";
 type RecommendationPreviewKind = {
   bucket: RecommendationTimeBucket;
@@ -56,10 +121,22 @@ type RecommendationPreviewKind = {
 type RecommendationPreviewState = {
   status: "idle" | "loading" | "ready" | "saving";
   places: PreviewPlace[];
+  selectedPreviewIds: string[];
+  timeline: RecommendationPreviewTimeline;
   error: string;
 };
-type PlacePreviewSource = "empty" | "draft" | "recommendation" | "searchPreview" | "selected" | "manual";
-type PlaceSaveEligibility = "empty" | "saveSelected" | "requiresExplicitCandidate" | "manualAllowed";
+type PlacePreviewSource =
+  | "empty"
+  | "draft"
+  | "recommendation"
+  | "searchPreview"
+  | "selected"
+  | "manual";
+type PlaceSaveEligibility =
+  | "empty"
+  | "saveSelected"
+  | "requiresExplicitCandidate"
+  | "manualAllowed";
 type PlacePreviewCandidate = TripPlaceRequest & {
   previewId: string;
   source: Exclude<PlacePreviewSource, "empty">;
@@ -67,7 +144,10 @@ type PlacePreviewCandidate = TripPlaceRequest & {
 };
 type PlacePreviewState =
   | { source: "empty"; place: null }
-  | { source: Exclude<PlacePreviewSource, "empty">; place: PlacePreviewCandidate };
+  | {
+      source: Exclude<PlacePreviewSource, "empty">;
+      place: PlacePreviewCandidate;
+    };
 
 function tripDayNumbers(days: Record<number, unknown[]>): number[] {
   return Object.keys(days)
@@ -98,7 +178,8 @@ function linkedTripPoliciesForDisplay(
     policies.push(policy);
   };
 
-  if (!routePolicy || !hiddenRoutePolicySlugs.has(routePolicy.slug)) append(routePolicy);
+  if (!routePolicy || !hiddenRoutePolicySlugs.has(routePolicy.slug))
+    append(routePolicy);
   for (const policy of apiPolicies ?? []) append(policy);
   return policies;
 }
@@ -106,17 +187,31 @@ function linkedTripPoliciesForDisplay(
 function formatDayDateLabel(dates: string, dayNumber: number): string {
   const match = /^(\d{4})\.(\d{2})\.(\d{2})/.exec(dates);
   if (!match) return `Day ${dayNumber}`;
-  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]) + dayNumber - 1);
+  const date = new Date(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3]) + dayNumber - 1,
+  );
   return `${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
 }
 
 function formatTripDday(dates: string): string {
   const match = /^(\d{4})\.(\d{2})\.(\d{2})/.exec(dates);
   if (!match) return "D-day";
-  const start = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  const start = new Date(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3]),
+  );
   const today = new Date();
-  const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const diffDays = Math.ceil((start.getTime() - todayDate.getTime()) / 86_400_000);
+  const todayDate = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  );
+  const diffDays = Math.ceil(
+    (start.getTime() - todayDate.getTime()) / 86_400_000,
+  );
   if (diffDays > 0) return `D-${diffDays}`;
   if (diffDays === 0) return "D-day";
   return `D+${Math.abs(diffDays)}`;
@@ -125,14 +220,18 @@ function formatTripDday(dates: string): string {
 function getPlaceEmoji(place: ItineraryPlace): string {
   const text = `${place.label} ${place.meta}`.toLowerCase();
   if (/카페|커피|tea|cafe|오설록/.test(text)) return "☕";
-  if (/식당|맛집|해녀|국수|흑돼지|밥|restaurant|food|meal/.test(text)) return "🍽️";
+  if (/식당|맛집|해녀|국수|흑돼지|밥|restaurant|food|meal/.test(text))
+    return "🍽️";
   if (/바다|해변|해수욕|beach|sea|월정|섭지/.test(text)) return "🌊";
   if (/산|오름|일출|숲|공원|nature|park|peak/.test(text)) return "⛰️";
   if (/공항|역|터미널|airport|station/.test(text)) return "🧳";
   return "📍";
 }
 
-function getPlaceMapPoint(index: number, dayNumber: number): { x: number; y: number } {
+function getPlaceMapPoint(
+  index: number,
+  dayNumber: number,
+): { x: number; y: number } {
   const basePoints = [
     { x: 78, y: 30 },
     { x: 72, y: 52 },
@@ -161,12 +260,41 @@ function placeDragId(placeId: string): string {
   return `place:${placeId}`;
 }
 
+function previewPlaceDragId(previewId: string): string {
+  return `preview:${previewId}`;
+}
+
+function displayedPlaceSortableId(
+  place: Pick<DisplayedPlace, "id" | "previewTimelineId" | "previewId">,
+): string | null {
+  if (place.previewTimelineId) return place.previewTimelineId;
+  if (place.previewId) return previewPlaceDragId(place.previewId);
+  if (place.id) return placeDragId(place.id);
+  return null;
+}
+
 function dayDropId(dayNumber: number): string {
   return `day:${dayNumber}`;
 }
 
-function draggingPlaceLabel(trip: Trip | null, placeId: string | null): string {
-  if (!trip || !placeId) return "장소";
+function draggingPlaceLabel(
+  trip: Trip | null,
+  placeId: string | null,
+  timeline?: RecommendationPreviewTimeline,
+): string {
+  if (!placeId) return "장소";
+  if (timeline) {
+    for (const places of Object.values(timeline)) {
+      const place = places.find(
+        (item) =>
+          item.previewTimelineId === placeId ||
+          item.id === placeId ||
+          item.previewId === placeId,
+      );
+      if (place) return place.label;
+    }
+  }
+  if (!trip) return "장소";
   for (const places of Object.values(trip.days)) {
     const place = places.find((item) => item.id === placeId);
     if (place) return place.label;
@@ -174,9 +302,24 @@ function draggingPlaceLabel(trip: Trip | null, placeId: string | null): string {
   return "장소";
 }
 
+type ParsedTimelineDragId =
+  | { type: "saved"; id: string }
+  | { type: "preview"; id: string };
+
 function parsePlaceDragId(id: unknown): string | null {
   const value = String(id);
   return value.startsWith("place:") ? value.slice("place:".length) : null;
+}
+
+function parseTimelineDragId(id: unknown): ParsedTimelineDragId | null {
+  const value = String(id);
+  if (value.startsWith("place:"))
+    return { type: "saved", id: value.slice("place:".length) };
+  if (value.startsWith("saved:"))
+    return { type: "saved", id: value.slice("saved:".length) };
+  if (value.startsWith("preview:"))
+    return { type: "preview", id: value.slice("preview:".length) };
+  return null;
 }
 
 function parseDayDropId(id: unknown): number | null {
@@ -186,7 +329,9 @@ function parseDayDropId(id: unknown): number | null {
   return Number.isFinite(dayNumber) ? dayNumber : null;
 }
 
-function parsePlaceTime(value: string | null | undefined): { hour: number; minute: number } | null {
+function parsePlaceTime(
+  value: string | null | undefined,
+): { hour: number; minute: number } | null {
   const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec((value ?? "").trim());
   if (!match) return null;
   return { hour: Number(match[1]), minute: Number(match[2]) };
@@ -199,22 +344,35 @@ function formatPlaceTime(hour: number, minute: number): string {
 function isTenMinutePlaceTime(value: string | null | undefined): boolean {
   if (!value || value.trim() === "") return true;
   const parsed = parsePlaceTime(value);
-  return Boolean(parsed && placeMinuteOptions.includes(parsed.minute as (typeof placeMinuteOptions)[number]));
+  return Boolean(
+    parsed &&
+    placeMinuteOptions.includes(
+      parsed.minute as (typeof placeMinuteOptions)[number],
+    ),
+  );
 }
 
-function placeTimeBase(value: string | null | undefined): { hour: number; minute: number } {
+function placeTimeBase(value: string | null | undefined): {
+  hour: number;
+  minute: number;
+} {
   const parsed = parsePlaceTime(value);
   if (parsed && parsed.minute % placeMinuteStep === 0) return parsed;
   return parsePlaceTime(defaultPlaceTime) ?? { hour: 9, minute: 0 };
 }
 
 function recommendationPlaceDescription(item: Recommendation): string {
-  const parts = [item.categoryName, item.address].filter((part): part is string => Boolean(part?.trim()));
+  const parts = [item.categoryName, item.address].filter(
+    (part): part is string => Boolean(part?.trim()),
+  );
   if (parts.length > 0) return parts.join(" · ");
   return item.meta || item.reason || "장소 정보 확인";
 }
 
-function recommendationPlacePayload(item: Recommendation, time: string | undefined): TripPlaceRequest {
+function recommendationPlacePayload(
+  item: Recommendation,
+  time: string | undefined,
+): TripPlaceRequest {
   return {
     time: time ?? "",
     label: item.title,
@@ -234,13 +392,20 @@ function explicitRecommendationPlaceTime(item: Recommendation): string | null {
   return item.meta.match(/\b\d{2}:\d{2}\b/)?.[0] ?? null;
 }
 
-function recommendationPreviewKind(bucket: RecommendationTimeBucket, time: string | undefined): RecommendationPreviewKind {
+function recommendationPreviewKind(
+  bucket: RecommendationTimeBucket,
+  time: string | undefined,
+): RecommendationPreviewKind {
   if (bucket === "food") return { bucket, rank: 1, phaseLabel: "점심" };
   if (bucket === "cafe") return { bucket, rank: 2, phaseLabel: "카페" };
   if (bucket === "stay") return { bucket, rank: 3, phaseLabel: "숙소" };
 
   const timeValue = previewPlaceTimeValue(time);
-  return { bucket, rank: 0, phaseLabel: timeValue < 12 * 60 ? "오전 일정" : "오후 일정" };
+  return {
+    bucket,
+    rank: 0,
+    phaseLabel: timeValue < 12 * 60 ? "오전 일정" : "오후 일정",
+  };
 }
 
 function recommendationTimeBucketFromFields(fields: {
@@ -258,15 +423,30 @@ function recommendationTimeBucketFromFields(fields: {
   if (fields.categoryGroup === "food") return "food";
   if (fields.categoryGroup === "stay") return "stay";
 
-  const categoryText = [fields.category, fields.meta, fields.reason, fields.label].filter(Boolean).join(" ");
+  const categoryText = [
+    fields.category,
+    fields.meta,
+    fields.reason,
+    fields.label,
+  ]
+    .filter(Boolean)
+    .join(" ");
   if (/관광|명소/.test(categoryText)) return "attraction";
   if (/카페|커피|디저트/.test(categoryText)) return "cafe";
-  if (/식당|음식|점심|맛집|밥|한식|양식|일식|중식|분식|레스토랑/.test(categoryText)) return "food";
-  if (/숙소|숙박|호텔|리조트|펜션|게스트하우스/.test(categoryText)) return "stay";
+  if (
+    /식당|음식|점심|맛집|밥|한식|양식|일식|중식|분식|레스토랑/.test(
+      categoryText,
+    )
+  )
+    return "food";
+  if (/숙소|숙박|호텔|리조트|펜션|게스트하우스/.test(categoryText))
+    return "stay";
   return "attraction";
 }
 
-function recommendationTimeBucket(item: Recommendation): RecommendationTimeBucket {
+function recommendationTimeBucket(
+  item: Recommendation,
+): RecommendationTimeBucket {
   return recommendationTimeBucketFromFields({
     category: item.categoryName,
     categoryCode: item.categoryCode,
@@ -277,7 +457,9 @@ function recommendationTimeBucket(item: Recommendation): RecommendationTimeBucke
   });
 }
 
-function recommendationBucketBaseTime(bucket: RecommendationTimeBucket): string {
+function recommendationBucketBaseTime(
+  bucket: RecommendationTimeBucket,
+): string {
   switch (bucket) {
     case "food":
       return "12:00";
@@ -292,14 +474,21 @@ function recommendationBucketBaseTime(bucket: RecommendationTimeBucket): string 
 }
 
 function addHoursToPlaceTime(time: string, hours: number): string {
-  const parsed = parsePlaceTime(time) ?? parsePlaceTime(defaultPlaceTime) ?? { hour: 9, minute: 0 };
+  const parsed = parsePlaceTime(time) ??
+    parsePlaceTime(defaultPlaceTime) ?? { hour: 9, minute: 0 };
   return formatPlaceTime((parsed.hour + hours) % 24, parsed.minute);
 }
 
-function recommendationPlaceTime(item: Recommendation, bucketOffset = 0): string {
+function recommendationPlaceTime(
+  item: Recommendation,
+  bucketOffset = 0,
+): string {
   const explicitTime = explicitRecommendationPlaceTime(item);
   if (explicitTime) return explicitTime;
-  return addHoursToPlaceTime(recommendationBucketBaseTime(recommendationTimeBucket(item)), bucketOffset);
+  return addHoursToPlaceTime(
+    recommendationBucketBaseTime(recommendationTimeBucket(item)),
+    bucketOffset,
+  );
 }
 
 function recommendationPreviewId(item: Recommendation, index: number): string {
@@ -309,8 +498,15 @@ function recommendationPreviewId(item: Recommendation, index: number): string {
   return randomId ?? `preview-${index}-${Date.now()}`;
 }
 
-function previewPlaceFromRecommendation(item: Recommendation, index: number, dayNumber: number): PreviewPlace {
-  const payload = recommendationPlacePayload(item, recommendationPlaceTime(item));
+function previewPlaceFromRecommendation(
+  item: Recommendation,
+  index: number,
+  dayNumber: number,
+): PreviewPlace {
+  const payload = recommendationPlacePayload(
+    item,
+    recommendationPlaceTime(item),
+  );
   return {
     previewId: recommendationPreviewId(item, index),
     dayNumber,
@@ -328,7 +524,10 @@ function previewPlaceFromRecommendation(item: Recommendation, index: number, day
   };
 }
 
-type RecommendationPreviewOrderFields = Pick<PreviewPlace, "category" | "categoryCode" | "label" | "meta" | "time">;
+type RecommendationPreviewOrderFields = Pick<
+  PreviewPlace,
+  "category" | "categoryCode" | "label" | "meta" | "time"
+>;
 
 function previewPlaceTimeValue(time: string | undefined): number {
   const parsed = parsePlaceTime(time);
@@ -336,25 +535,41 @@ function previewPlaceTimeValue(time: string | undefined): number {
   return parsed.hour * 60 + parsed.minute;
 }
 
-function recommendationPreviewCategoryRank(place: RecommendationPreviewOrderFields): number {
-  return recommendationPreviewKind(recommendationTimeBucketFromFields(place), place.time).rank;
+function recommendationPreviewCategoryRank(
+  place: RecommendationPreviewOrderFields,
+): number {
+  return recommendationPreviewKind(
+    recommendationTimeBucketFromFields(place),
+    place.time,
+  ).rank;
 }
 
-function recommendationPreviewPhaseLabel(place: RecommendationPreviewOrderFields): string {
-  return recommendationPreviewKind(recommendationTimeBucketFromFields(place), place.time).phaseLabel;
+function recommendationPreviewPhaseLabel(
+  place: RecommendationPreviewOrderFields,
+): string {
+  return recommendationPreviewKind(
+    recommendationTimeBucketFromFields(place),
+    place.time,
+  ).phaseLabel;
 }
 
-function sortRecommendationPreviewPlaces(places: PreviewPlace[]): PreviewPlace[] {
+function sortRecommendationPreviewPlaces(
+  places: PreviewPlace[],
+): PreviewPlace[] {
   return places
     .map((place, originalIndex) => ({ place, originalIndex }))
     .sort((left, right) => {
       const dayDiff = left.place.dayNumber - right.place.dayNumber;
       if (dayDiff !== 0) return dayDiff;
 
-      const timeDiff = previewPlaceTimeValue(left.place.time) - previewPlaceTimeValue(right.place.time);
+      const timeDiff =
+        previewPlaceTimeValue(left.place.time) -
+        previewPlaceTimeValue(right.place.time);
       if (timeDiff !== 0) return timeDiff;
 
-      const categoryDiff = recommendationPreviewCategoryRank(left.place) - recommendationPreviewCategoryRank(right.place);
+      const categoryDiff =
+        recommendationPreviewCategoryRank(left.place) -
+        recommendationPreviewCategoryRank(right.place);
       if (categoryDiff !== 0) return categoryDiff;
 
       return left.originalIndex - right.originalIndex;
@@ -362,16 +577,25 @@ function sortRecommendationPreviewPlaces(places: PreviewPlace[]): PreviewPlace[]
     .map(({ place }) => place);
 }
 
-function previewPlacesFromRecommendations(items: Recommendation[], dayNumbers: number[], visibleDay: number): PreviewPlace[] {
+function previewPlacesFromRecommendations(
+  items: Recommendation[],
+  dayNumbers: number[],
+  visibleDay: number,
+): PreviewPlace[] {
   const bucketCounts = new Map<string, number>();
   const places = items.map((item, index) => {
-    const dayNumber = dayNumbers.includes(item.suggestedDay ?? 1) ? item.suggestedDay ?? 1 : visibleDay;
+    const dayNumber = dayNumbers.includes(item.suggestedDay ?? 1)
+      ? (item.suggestedDay ?? 1)
+      : visibleDay;
     const explicitTime = explicitRecommendationPlaceTime(item);
     const bucket = recommendationTimeBucket(item);
     const bucketKey = `${dayNumber}:${bucket}`;
-    const offset = explicitTime ? 0 : bucketCounts.get(bucketKey) ?? 0;
+    const offset = explicitTime ? 0 : (bucketCounts.get(bucketKey) ?? 0);
     if (!explicitTime) bucketCounts.set(bucketKey, offset + 1);
-    const payload = recommendationPlacePayload(item, recommendationPlaceTime(item, offset));
+    const payload = recommendationPlacePayload(
+      item,
+      recommendationPlaceTime(item, offset),
+    );
     return {
       previewId: recommendationPreviewId(item, index),
       dayNumber,
@@ -391,7 +615,10 @@ function previewPlacesFromRecommendations(items: Recommendation[], dayNumbers: n
   return sortRecommendationPreviewPlaces(places);
 }
 
-function tripPlaceMutationFromPreviewPlace(place: PreviewPlace, expectedRevision: number): TripPlaceMutationRequest {
+function tripPlaceMutationFromPreviewPlace(
+  place: PreviewPlace,
+  expectedRevision: number,
+): TripPlaceMutationRequest {
   return {
     time: place.time ?? "",
     label: place.label,
@@ -408,7 +635,10 @@ function tripPlaceMutationFromPreviewPlace(place: PreviewPlace, expectedRevision
   };
 }
 
-function timelinePlaceFromPreviewPlace(place: PreviewPlace): DisplayedPlace {
+function timelinePlaceFromPreviewPlace(
+  place: PreviewPlace,
+  isSelected = false,
+): DisplayedPlace {
   return {
     time: place.time ?? "",
     label: place.label,
@@ -422,9 +652,152 @@ function timelinePlaceFromPreviewPlace(place: PreviewPlace): DisplayedPlace {
     sourceProvider: place.sourceProvider,
     externalPlaceId: place.externalPlaceId,
     isRecommendationPreview: true,
+    isRecommendationSelected: isSelected,
     previewId: place.previewId,
     previewDayNumber: place.dayNumber,
+    previewTimelineId: previewPlaceDragId(place.previewId),
   };
+}
+
+function recommendationPreviewTimelineFromTrip(
+  trip: Trip,
+  previewPlaces: PreviewPlace[],
+  dayNumbers: number[],
+): RecommendationPreviewTimeline {
+  const timeline: RecommendationPreviewTimeline = {};
+  for (const day of dayNumbers) {
+    timeline[day] = (trip.days[day] ?? []).map((place) => ({
+      ...place,
+      previewOriginalDayNumber: day,
+      previewTimelineId: place.id
+        ? placeDragId(place.id)
+        : `saved:${day}:${place.label}`,
+    }));
+  }
+  for (const previewPlace of previewPlaces) {
+    const day = previewPlace.dayNumber;
+    timeline[day] = [
+      ...(timeline[day] ?? []),
+      timelinePlaceFromPreviewPlace(previewPlace),
+    ];
+  }
+  return timeline;
+}
+
+function findDisplayedPlaceDay(
+  timeline: RecommendationPreviewTimeline,
+  timelineId: string,
+): number | null {
+  for (const [day, places] of Object.entries(timeline)) {
+    if (places.some((place) => place.previewTimelineId === timelineId))
+      return Number(day);
+  }
+  return null;
+}
+
+function moveTimelinePlace(
+  timeline: RecommendationPreviewTimeline,
+  timelineId: string,
+  targetDay: number,
+  targetIndex: number,
+): RecommendationPreviewTimeline {
+  let movingPlace: DisplayedPlace | null = null;
+  const next: RecommendationPreviewTimeline = {};
+  for (const [dayText, places] of Object.entries(timeline)) {
+    const day = Number(dayText);
+    next[day] = [];
+    for (const place of places) {
+      if (place.previewTimelineId === timelineId) movingPlace = place;
+      else next[day].push(place);
+    }
+  }
+  if (!movingPlace) return timeline;
+  const targetPlaces = [...(next[targetDay] ?? [])];
+  const boundedIndex = Math.max(0, Math.min(targetIndex, targetPlaces.length));
+  targetPlaces.splice(boundedIndex, 0, {
+    ...movingPlace,
+    previewDayNumber: movingPlace.isRecommendationPreview
+      ? targetDay
+      : movingPlace.previewDayNumber,
+  });
+  next[targetDay] = targetPlaces;
+  return next;
+}
+
+function updateTimelinePlaceTime(
+  timeline: RecommendationPreviewTimeline,
+  timelineId: string,
+  time: string,
+): RecommendationPreviewTimeline {
+  const next: RecommendationPreviewTimeline = {};
+  for (const [dayText, places] of Object.entries(timeline)) {
+    const day = Number(dayText);
+    next[day] = places.map((place) =>
+      place.previewTimelineId === timelineId ? { ...place, time } : place,
+    );
+  }
+  return next;
+}
+
+function findTripPlaceById(
+  trip: Trip,
+  placeId: string,
+): { dayNumber: number; place: ItineraryPlace; index: number } | null {
+  for (const [dayText, places] of Object.entries(trip.days)) {
+    const index = places.findIndex((place) => place.id === placeId);
+    if (index >= 0)
+      return { dayNumber: Number(dayText), place: places[index], index };
+  }
+  return null;
+}
+
+function tripPlaceMutationFromDisplayedPlace(
+  place: DisplayedPlace,
+  expectedRevision: number,
+): TripPlaceMutationRequest {
+  return {
+    time: place.time ?? "",
+    label: place.label,
+    meta: place.meta,
+    address: place.address,
+    latitude: place.latitude,
+    longitude: place.longitude,
+    category: place.category,
+    categoryCode: place.categoryCode,
+    placeUrl: place.placeUrl,
+    sourceProvider: place.sourceProvider,
+    externalPlaceId: place.externalPlaceId,
+    expectedRevision,
+  };
+}
+
+function findAddedPlaceId(
+  previousTrip: Trip,
+  nextTrip: Trip,
+  dayNumber: number,
+  place: DisplayedPlace,
+  usedPlaceIds: Set<string>,
+): string | null {
+  const previousIds = new Set(
+    (previousTrip.days[dayNumber] ?? []).map((item) => item.id).filter(Boolean),
+  );
+  const candidates = (nextTrip.days[dayNumber] ?? []).filter(
+    (item) =>
+      item.id && !previousIds.has(item.id) && !usedPlaceIds.has(item.id),
+  );
+  const exact = candidates.find(
+    (item) =>
+      item.externalPlaceId && item.externalPlaceId === place.externalPlaceId,
+  );
+  const matched =
+    exact ??
+    candidates.find(
+      (item) =>
+        item.label === place.label && (item.time ?? "") === (place.time ?? ""),
+    ) ??
+    candidates.find((item) => item.label === place.label) ??
+    candidates[candidates.length - 1];
+  return matched?.id ?? null;
 }
 
 function previewFromPayload(
@@ -443,12 +816,24 @@ function previewFromPayload(
   };
 }
 
-function previewFromRecommendation(item: Recommendation, index: number, dayNumber: number): PlacePreviewCandidate {
+function previewFromRecommendation(
+  item: Recommendation,
+  index: number,
+  dayNumber: number,
+): PlacePreviewCandidate {
   const time = recommendationPlaceTime(item);
-  return previewFromPayload(recommendationPlacePayload(item, time), "recommendation", dayNumber, recommendationPreviewId(item, index));
+  return previewFromPayload(
+    recommendationPlacePayload(item, time),
+    "recommendation",
+    dayNumber,
+    recommendationPreviewId(item, index),
+  );
 }
 
-function placeSearchCandidatePayload(item: PlaceSearchCandidate, time: string | undefined): TripPlaceRequest {
+function placeSearchCandidatePayload(
+  item: PlaceSearchCandidate,
+  time: string | undefined,
+): TripPlaceRequest {
   return {
     time: time ?? "",
     label: item.title,
@@ -464,11 +849,26 @@ function placeSearchCandidatePayload(item: PlaceSearchCandidate, time: string | 
   };
 }
 
-function previewFromSearchCandidate(item: PlaceSearchCandidate, dayNumber: number, source: "searchPreview" | "selected", time = ""): PlacePreviewCandidate {
-  return previewFromPayload(placeSearchCandidatePayload(item, time), source, dayNumber, item.id ?? item.externalPlaceId ?? `${item.title}:${item.address ?? item.meta}`);
+function previewFromSearchCandidate(
+  item: PlaceSearchCandidate,
+  dayNumber: number,
+  source: "searchPreview" | "selected",
+  time = "",
+): PlacePreviewCandidate {
+  return previewFromPayload(
+    placeSearchCandidatePayload(item, time),
+    source,
+    dayNumber,
+    item.id ??
+      item.externalPlaceId ??
+      `${item.title}:${item.address ?? item.meta}`,
+  );
 }
 
-function previewFromDraft(draft: TripPlaceAddDraft, dayNumber: number): PlacePreviewCandidate {
+function previewFromDraft(
+  draft: TripPlaceAddDraft,
+  dayNumber: number,
+): PlacePreviewCandidate {
   return previewFromPayload(
     {
       time: draft.time ?? "",
@@ -481,8 +881,11 @@ function previewFromDraft(draft: TripPlaceAddDraft, dayNumber: number): PlacePre
   );
 }
 
-function placePreviewMarker(place: PlacePreviewCandidate): KakaoMapMarker | null {
-  const query = place.address?.trim() || place.label.trim() || place.meta?.trim() || null;
+function placePreviewMarker(
+  place: PlacePreviewCandidate,
+): KakaoMapMarker | null {
+  const query =
+    place.address?.trim() || place.label.trim() || place.meta?.trim() || null;
   if (!place.label.trim() && !query) return null;
   return {
     id: place.previewId,
@@ -494,9 +897,13 @@ function placePreviewMarker(place: PlacePreviewCandidate): KakaoMapMarker | null
   };
 }
 
-function saveEligibilityForPreview(preview: PlacePreviewState): PlaceSaveEligibility {
+function saveEligibilityForPreview(
+  preview: PlacePreviewState,
+): PlaceSaveEligibility {
   if (preview.source === "empty") return "empty";
-  return preview.source === "searchPreview" ? "requiresExplicitCandidate" : "saveSelected";
+  return preview.source === "searchPreview"
+    ? "requiresExplicitCandidate"
+    : "saveSelected";
 }
 
 function placeSearchText(item: PlaceSearchCandidate): string {
@@ -506,8 +913,8 @@ function placeSearchText(item: PlaceSearchCandidate): string {
     .toLocaleLowerCase("ko-KR");
 }
 
-const TRIP_CONFLICT_MESSAGE = "다른 사용자가 먼저 일정을 수정했어요. 최신 내용을 확인한 뒤 다시 저장해 주세요.";
-const REPLACE_PREVIEW_CLEANUP_MESSAGE = "새 추천 장소는 저장됐지만 기존 장소 정리가 끝나지 않았어요. 최신 일정을 확인해 남은 기존 장소를 정리해 주세요.";
+const TRIP_CONFLICT_MESSAGE =
+  "다른 사용자가 먼저 일정을 수정했어요. 최신 내용을 확인한 뒤 다시 저장해 주세요.";
 
 function isTripConflict(error: unknown): boolean {
   return isApiError(error) && error.status === 409;
@@ -520,74 +927,151 @@ export function ItineraryDetailPage() {
   const { removeAddedPolicy } = useSession();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeDay, setActiveDay] = useState(1);
-  const [selectedMapPlaceId, setSelectedMapPlaceId] = useState<string | null>(() => searchParams.get("place"));
-  const { data: loadedTrip, error, isLoading } = useAsyncResource(() => {
+  const [selectedMapPlaceId, setSelectedMapPlaceId] = useState<string | null>(
+    () => searchParams.get("place"),
+  );
+  const {
+    data: loadedTrip,
+    error,
+    isLoading,
+  } = useAsyncResource(() => {
     if (!tripId) return Promise.reject(new Error("Trip not found"));
     return appDataApi.getTrip(tripId);
   }, [tripId]);
   const [trip, setTrip] = useState<Trip | null>(null);
-  const [placeEditor, setPlaceEditor] = useState<{ mode: "add"; dayNumber: number } | { mode: "edit"; dayNumber: number; place: ItineraryPlace } | null>(null);
-  const [placeForm, setPlaceForm] = useState<TripPlaceRequest>({ time: "", label: "", meta: "" });
+  const [placeEditor, setPlaceEditor] = useState<
+    | { mode: "add"; dayNumber: number }
+    | { mode: "edit"; dayNumber: number; place: ItineraryPlace }
+    | null
+  >(null);
+  const [placeForm, setPlaceForm] = useState<TripPlaceRequest>({
+    time: "",
+    label: "",
+    meta: "",
+  });
   const [placeError, setPlaceError] = useState("");
   const [placeDeleteError, setPlaceDeleteError] = useState("");
   const [isSavingPlace, setIsSavingPlace] = useState(false);
   const [placeSearchQuery, setPlaceSearchQuery] = useState("");
-  const [placeSearchCandidates, setPlaceSearchCandidates] = useState<PlaceSearchCandidate[]>([]);
+  const [placeSearchCandidates, setPlaceSearchCandidates] = useState<
+    PlaceSearchCandidate[]
+  >([]);
   const [isLoadingPlaceSearch, setIsLoadingPlaceSearch] = useState(false);
   const [placeSearchError, setPlaceSearchError] = useState("");
-  const [placePreview, setPlacePreview] = useState<PlacePreviewState>({ source: "empty", place: null });
-  const [placeSaveEligibility, setPlaceSaveEligibility] = useState<PlaceSaveEligibility>("empty");
+  const [placePreview, setPlacePreview] = useState<PlacePreviewState>({
+    source: "empty",
+    place: null,
+  });
+  const [placeSaveEligibility, setPlaceSaveEligibility] =
+    useState<PlaceSaveEligibility>("empty");
   const [movingPlaceId, setMovingPlaceId] = useState<string | null>(null);
   const [draggingPlaceId, setDraggingPlaceId] = useState<string | null>(null);
   const [moveError, setMoveError] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
-  const [placeDetail, setPlaceDetail] = useState<{ dayNumber: number; place: ItineraryPlace } | null>(null);
-  const [deleteCandidatePlace, setDeleteCandidatePlace] = useState<ItineraryPlace | null>(null);
-  const [removingPolicySlug, setRemovingPolicySlug] = useState<string | null>(null);
+  const [placeDetail, setPlaceDetail] = useState<{
+    dayNumber: number;
+    place: ItineraryPlace;
+  } | null>(null);
+  const [deleteCandidatePlace, setDeleteCandidatePlace] =
+    useState<ItineraryPlace | null>(null);
+  const [removingPolicySlug, setRemovingPolicySlug] = useState<string | null>(
+    null,
+  );
   const [policyRemoveError, setPolicyRemoveError] = useState("");
-  const [hiddenRoutePolicySlugs, setHiddenRoutePolicySlugs] = useState<Set<string>>(() => new Set());
+  const [hiddenRoutePolicySlugs, setHiddenRoutePolicySlugs] = useState<
+    Set<string>
+  >(() => new Set());
   const [placeDraftNotice, setPlaceDraftNotice] = useState("");
-  const [recommendationPreview, setRecommendationPreview] = useState<RecommendationPreviewState>({ status: "idle", places: [], error: "" });
-  const [replacePreviewConfirmOpen, setReplacePreviewConfirmOpen] = useState(false);
-  const [replacePreviewFinalizeOpen, setReplacePreviewFinalizeOpen] = useState(false);
+  const [recommendationPreview, setRecommendationPreview] =
+    useState<RecommendationPreviewState>({
+      status: "idle",
+      places: [],
+      selectedPreviewIds: [],
+      timeline: {},
+      error: "",
+    });
   const placeEditorSessionRef = useRef(0);
   const placeSearchRequestRef = useRef(0);
-  const placePreviewRef = useRef<PlacePreviewState>({ source: "empty", place: null });
+  const placePreviewRef = useRef<PlacePreviewState>({
+    source: "empty",
+    place: null,
+  });
   const dayNumbers = trip ? tripDayNumbers(trip.days) : [];
-  const visibleDay = dayNumbers.includes(activeDay) ? activeDay : (dayNumbers[0] ?? 1);
+  const visibleDay = dayNumbers.includes(activeDay)
+    ? activeDay
+    : (dayNumbers[0] ?? 1);
   const dayPlaces = trip?.days[visibleDay] ?? [];
-  const isPreviewActive = recommendationPreview.status === "ready" || recommendationPreview.status === "saving";
-  const previewDayPlaces = isPreviewActive ? recommendationPreview.places.filter((place) => place.dayNumber === visibleDay) : [];
-  const displayedPlaces: DisplayedPlace[] = [...dayPlaces, ...previewDayPlaces.map(timelinePlaceFromPreviewPlace)];
-  const selectedPreviewMapPlace = isPreviewActive ? previewDayPlaces.find((place) => place.previewId === selectedMapPlaceId) ?? null : null;
-  const mapPlaces: DisplayedPlace[] = selectedPreviewMapPlace ? [timelinePlaceFromPreviewPlace(selectedPreviewMapPlace)] : dayPlaces;
-  const sortablePlaceIds = dayPlaces.flatMap((place) => (place.id ? [placeDragId(place.id)] : []));
+  const isPreviewActive =
+    recommendationPreview.status === "ready" ||
+    recommendationPreview.status === "saving";
+  const previewDayPlaces = isPreviewActive
+    ? recommendationPreview.places.filter(
+        (place) => place.dayNumber === visibleDay,
+      )
+    : [];
+  const displayedPlaces: DisplayedPlace[] = isPreviewActive
+    ? (recommendationPreview.timeline[visibleDay] ?? [])
+    : dayPlaces;
+  const selectedPreviewMapPlace = isPreviewActive
+    ? (previewDayPlaces.find(
+        (place) => place.previewId === selectedMapPlaceId,
+      ) ?? null)
+    : null;
+  const mapPlaces: DisplayedPlace[] = selectedPreviewMapPlace
+    ? [timelinePlaceFromPreviewPlace(selectedPreviewMapPlace)]
+    : displayedPlaces;
+  const sortablePlaceIds = displayedPlaces.flatMap((place) => {
+    const sortableId = displayedPlaceSortableId(place);
+    return sortableId ? [sortableId] : [];
+  });
   const stayLabel = formatStayLabel(dayNumbers.length || 3);
-  const canManageTripStatus = trip?.currentUserRole === "owner" || trip?.currentUserRole === "editor";
+  const canManageTripStatus =
+    trip?.currentUserRole === "owner" || trip?.currentUserRole === "editor";
   const isTripViewer = Boolean(trip && !canManageTripStatus);
   const canEditTrip = Boolean(canManageTripStatus);
-  const activeDraggingPlaceLabel = draggingPlaceLabel(trip, draggingPlaceId);
-  const tripPeople = trip?.people.length ? trip.people : ["지영", "민수", "수현"];
-  const tripRegionEmojiLabel = trip ? getTripRegionEmojiFromTitle(trip.title) : "🧳";
+  const activeDraggingPlaceLabel = draggingPlaceLabel(
+    trip,
+    draggingPlaceId,
+    isPreviewActive ? recommendationPreview.timeline : undefined,
+  );
+  const tripPeople = trip?.people.length
+    ? trip.people
+    : ["지영", "민수", "수현"];
+  const tripRegionEmojiLabel = trip
+    ? getTripRegionEmojiFromTitle(trip.title)
+    : "🧳";
   const tripDdayLabel = trip ? formatTripDday(trip.dates) : "D-day";
-  const routeLinkedPolicy = (location.state as TripDetailLocationState | null)?.linkedPolicy ?? null;
-  const linkedPolicies = linkedTripPoliciesForDisplay(trip?.linkedPolicies, routeLinkedPolicy, hiddenRoutePolicySlugs);
+  const routeLinkedPolicy =
+    (location.state as TripDetailLocationState | null)?.linkedPolicy ?? null;
+  const linkedPolicies = linkedTripPoliciesForDisplay(
+    trip?.linkedPolicies,
+    routeLinkedPolicy,
+    hiddenRoutePolicySlugs,
+  );
   const recommendedPolicies = trip?.recommendedPolicies ?? [];
-  const hasLinkedPolicyFallback = linkedPolicies.length === 0 && hasPolicySaving(trip?.expectedSaving);
-  const hasSavedPlaces = Object.values(trip?.days ?? {}).some((places) => places.length > 0);
+  const hasLinkedPolicyFallback =
+    linkedPolicies.length === 0 && hasPolicySaving(trip?.expectedSaving);
   const dragSensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 120, tolerance: 8 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
   );
-  const refreshTripAfterConflict = async (setError: (message: string) => void) => {
+  const refreshTripAfterConflict = async (
+    setError: (message: string) => void,
+  ) => {
     if (!trip) return;
     const latestTrip = await appDataApi.getTrip(trip.id).catch(() => null);
     if (latestTrip) setTrip(latestTrip);
     setError(TRIP_CONFLICT_MESSAGE);
   };
   const refreshTripQuietly = async (tripIdToRefresh: string) => {
-    const latestTrip = await appDataApi.getTrip(tripIdToRefresh).catch(() => null);
+    const latestTrip = await appDataApi
+      .getTrip(tripIdToRefresh)
+      .catch(() => null);
     if (latestTrip) setTrip(latestTrip);
   };
   const updatePlacePreview = (nextPreview: PlacePreviewState) => {
@@ -606,14 +1090,22 @@ export function ItineraryDetailPage() {
   useEffect(() => {
     if (dayNumbers.length > 0) {
       const requestedDay = Number(searchParams.get("day"));
-      setActiveDay(dayNumbers.includes(requestedDay) ? requestedDay : dayNumbers[0]);
+      setActiveDay(
+        dayNumbers.includes(requestedDay) ? requestedDay : dayNumbers[0],
+      );
     }
   }, [trip?.id]);
 
   useEffect(() => {
     const nextPlaceId = searchParams.get("place");
     setSelectedMapPlaceId((currentPlaceId) => {
-      if (!nextPlaceId && currentPlaceId && recommendationPreview.places.some((place) => place.previewId === currentPlaceId)) {
+      if (
+        !nextPlaceId &&
+        currentPlaceId &&
+        recommendationPreview.places.some(
+          (place) => place.previewId === currentPlaceId,
+        )
+      ) {
         return currentPlaceId;
       }
       return nextPlaceId;
@@ -626,16 +1118,22 @@ export function ItineraryDetailPage() {
     }
   }, [navigate, trip, tripId]);
 
-  const updateDetailSearchParams = (nextValues: { day?: number; place?: string | null }) => {
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      if (nextValues.day) next.set("day", String(nextValues.day));
-      if ("place" in nextValues) {
-        if (nextValues.place) next.set("place", nextValues.place);
-        else next.delete("place");
-      }
-      return next;
-    }, { replace: true });
+  const updateDetailSearchParams = (nextValues: {
+    day?: number;
+    place?: string | null;
+  }) => {
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        if (nextValues.day) next.set("day", String(nextValues.day));
+        if ("place" in nextValues) {
+          if (nextValues.place) next.set("place", nextValues.place);
+          else next.delete("place");
+        }
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   const selectTripDay = (day: number) => {
@@ -646,7 +1144,11 @@ export function ItineraryDetailPage() {
 
   const selectMapPlace = (placeId: string | null) => {
     setSelectedMapPlaceId(placeId);
-    if (placeId && recommendationPreview.places.some((place) => place.previewId === placeId)) return;
+    if (
+      placeId &&
+      recommendationPreview.places.some((place) => place.previewId === placeId)
+    )
+      return;
     updateDetailSearchParams({ day: visibleDay, place: placeId });
   };
 
@@ -656,7 +1158,9 @@ export function ItineraryDetailPage() {
   };
 
   const showEditPermissionRequired = () => {
-    setNotice("편집 권한이 필요해요. 이 일정은 보기 권한으로 참여 중이라 장소 추가나 추천 일정 저장을 할 수 없어요.");
+    setNotice(
+      "편집 권한이 필요해요. 이 일정은 보기 권한으로 참여 중이라 장소 추가나 추천 일정 저장을 할 수 없어요.",
+    );
     window.setTimeout(() => setNotice(null), 2200);
   };
 
@@ -666,20 +1170,66 @@ export function ItineraryDetailPage() {
       showEditPermissionRequired();
       return;
     }
-    setRecommendationPreview({ status: "loading", places: [], error: "" });
+    setRecommendationPreview({
+      status: "loading",
+      places: [],
+      selectedPreviewIds: [],
+      timeline: {},
+      error: "",
+    });
     try {
       const recommendations = await appDataApi.listRecommendations(trip.id);
-      const nextPlaces = previewPlacesFromRecommendations(recommendations, dayNumbers, visibleDay);
-      setRecommendationPreview({ status: "ready", places: nextPlaces, error: "" });
+      const nextPlaces = previewPlacesFromRecommendations(
+        recommendations,
+        dayNumbers,
+        visibleDay,
+      );
+      setRecommendationPreview({
+        status: "ready",
+        places: nextPlaces,
+        selectedPreviewIds: [],
+        timeline: recommendationPreviewTimelineFromTrip(
+          trip,
+          nextPlaces,
+          dayNumbers,
+        ),
+        error: "",
+      });
     } catch {
-      setRecommendationPreview({ status: "idle", places: [], error: "추천 일정을 불러오지 못했어요. 잠시 후 다시 시도해 주세요." });
+      setRecommendationPreview({
+        status: "idle",
+        places: [],
+        selectedPreviewIds: [],
+        timeline: {},
+        error: "추천 일정을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
+      });
     }
   };
 
-  const saveRecommendationPreview = async ({ replaceExisting }: { replaceExisting: boolean }) => {
-    const previewPlaces = recommendationPreview.places;
-    if (!trip || previewPlaces.length === 0) return;
-    const invalidTimePlace = previewPlaces.find((place) => !isTenMinutePlaceTime(place.time ?? ""));
+  const commitRecommendationPreview = async ({
+    saveAllCandidates,
+  }: {
+    saveAllCandidates: boolean;
+  }) => {
+    if (!trip) return;
+    const selectedPreviewIds = new Set(
+      recommendationPreview.selectedPreviewIds,
+    );
+    const timeline = recommendationPreview.timeline;
+    const candidatePlaces = Object.entries(timeline).flatMap(
+      ([dayText, places]) =>
+        places
+          .filter(
+            (place) =>
+              place.isRecommendationPreview &&
+              place.previewId &&
+              (saveAllCandidates || selectedPreviewIds.has(place.previewId)),
+          )
+          .map((place) => ({ dayNumber: Number(dayText), place })),
+    );
+    const invalidTimePlace = Object.values(timeline)
+      .flat()
+      .find((place) => !isTenMinutePlaceTime(place.time ?? ""));
     if (invalidTimePlace) {
       setRecommendationPreview((current) => ({
         ...current,
@@ -688,75 +1238,141 @@ export function ItineraryDetailPage() {
       }));
       return;
     }
-    setRecommendationPreview((current) => ({ ...current, status: "saving", error: "" }));
+    setRecommendationPreview((current) => ({
+      ...current,
+      status: "saving",
+      error: "",
+    }));
     const savedPreviewIds = new Set<string>();
-    const originalPlaceIds = replaceExisting
-      ? Object.values(trip.days)
-          .flat()
-          .map((place) => place.id)
-          .filter((placeId): placeId is string => Boolean(placeId))
-      : [];
-    let replaceCleanupStarted = false;
+    const addedPlaceIdsByPreviewId = new Map<string, string>();
     try {
       let currentTrip = trip;
-      for (const previewPlace of previewPlaces) {
+      for (const places of Object.values(timeline)) {
+        for (const place of places) {
+          if (place.isRecommendationPreview || !place.id) continue;
+          const currentPlace = findTripPlaceById(currentTrip, place.id)?.place;
+          if (!currentPlace) continue;
+          if ((currentPlace.time ?? "") === (place.time ?? "")) continue;
+          currentTrip = await appDataApi.updateTripPlace(
+            currentTrip.id,
+            place.id,
+            {
+              ...currentPlace,
+              time: place.time ?? "",
+              expectedRevision: currentTrip.revision,
+            },
+          );
+        }
+      }
+      for (const { dayNumber, place } of candidatePlaces) {
+        if (!place.previewId) continue;
+        const beforeAddTrip = currentTrip;
         currentTrip = await appDataApi.addTripPlace(
           currentTrip.id,
-          previewPlace.dayNumber,
-          tripPlaceMutationFromPreviewPlace(previewPlace, currentTrip.revision),
+          dayNumber,
+          tripPlaceMutationFromDisplayedPlace(place, currentTrip.revision),
         );
-        savedPreviewIds.add(previewPlace.previewId);
+        savedPreviewIds.add(place.previewId);
+        const addedPlaceId = findAddedPlaceId(
+          beforeAddTrip,
+          currentTrip,
+          dayNumber,
+          place,
+          new Set(addedPlaceIdsByPreviewId.values()),
+        );
+        if (addedPlaceId)
+          addedPlaceIdsByPreviewId.set(place.previewId, addedPlaceId);
       }
-      if (replaceExisting) {
-        replaceCleanupStarted = true;
-        for (const placeId of originalPlaceIds) {
-          currentTrip = await appDataApi.deleteTripPlace(currentTrip.id, placeId, currentTrip.revision);
+      for (const [dayText, places] of Object.entries(timeline)) {
+        const dayNumber = Number(dayText);
+        const targetPlaceIds = places
+          .map((place) => {
+            if (place.isRecommendationPreview)
+              return place.previewId
+                ? (addedPlaceIdsByPreviewId.get(place.previewId) ?? null)
+                : null;
+            return place.id ?? null;
+          })
+          .filter((placeId): placeId is string => Boolean(placeId));
+        for (const [index, placeId] of targetPlaceIds.entries()) {
+          const currentLocation = findTripPlaceById(currentTrip, placeId);
+          if (!currentLocation) continue;
+          if (
+            currentLocation.dayNumber === dayNumber &&
+            currentLocation.index === index
+          )
+            continue;
+          currentTrip = await appDataApi.moveTripPlace(
+            currentTrip.id,
+            placeId,
+            {
+              dayNumber,
+              position: index + 1,
+              expectedRevision: currentTrip.revision,
+            },
+          );
         }
       }
       setTrip(currentTrip);
-      setRecommendationPreview((current) => {
-        const remainingPlaces = current.places.filter((place) => !savedPreviewIds.has(place.previewId));
-        return remainingPlaces.length > 0 ? { status: "ready", places: remainingPlaces, error: "" } : { status: "idle", places: [], error: "" };
+      setRecommendationPreview({
+        status: "idle",
+        places: [],
+        selectedPreviewIds: [],
+        timeline: {},
+        error: "",
       });
-      setSelectedMapPlaceId((currentPlaceId) => (currentPlaceId && savedPreviewIds.has(currentPlaceId) ? null : currentPlaceId));
-      setReplacePreviewConfirmOpen(false);
-      setReplacePreviewFinalizeOpen(false);
+      setSelectedMapPlaceId((currentPlaceId) =>
+        currentPlaceId && savedPreviewIds.has(currentPlaceId)
+          ? null
+          : currentPlaceId,
+      );
       setNotice(
-        replaceExisting
-          ? "추천 일정으로 교체했어요."
-          : previewPlaces.length === 1
-            ? `${previewPlaces[0].label}을(를) 저장했어요.`
-            : "추천 일정을 저장했어요.",
+        saveAllCandidates
+          ? "추천 후보 전체를 기존 일정에 추가했어요."
+          : "선택한 추천 후보를 일정에 반영했어요.",
       );
       window.setTimeout(() => setNotice(null), 1800);
     } catch (error) {
-      const replaceCleanupFailed = replaceExisting && replaceCleanupStarted && savedPreviewIds.size === previewPlaces.length;
-      const keepUnsavedPreview = (current: RecommendationPreviewState, message: string): RecommendationPreviewState => ({
-        ...current,
-        status: "ready",
-        error: message,
-        places: current.places.filter((place) => !savedPreviewIds.has(place.previewId)),
-      });
       const preservePreviewState = (message: string) => {
-        setRecommendationPreview((current) => keepUnsavedPreview(current, message));
+        setRecommendationPreview((current) => ({
+          ...current,
+          status: "ready",
+          error: message,
+          places: current.places.filter(
+            (place) => !savedPreviewIds.has(place.previewId),
+          ),
+          selectedPreviewIds: current.selectedPreviewIds.filter(
+            (previewId) => !savedPreviewIds.has(previewId),
+          ),
+          timeline: Object.fromEntries(
+            Object.entries(current.timeline).map(([day, places]) => [
+              day,
+              places.filter(
+                (place) =>
+                  !place.previewId || !savedPreviewIds.has(place.previewId),
+              ),
+            ]),
+          ),
+        }));
       };
-      if (replaceCleanupFailed) {
-        await refreshTripQuietly(trip.id);
-        preservePreviewState(REPLACE_PREVIEW_CLEANUP_MESSAGE);
-        setReplacePreviewConfirmOpen(false);
-        setReplacePreviewFinalizeOpen(false);
-      } else if (isTripConflict(error)) {
-        await refreshTripAfterConflict((message) => preservePreviewState(message));
+      if (isTripConflict(error)) {
+        await refreshTripAfterConflict((message) =>
+          preservePreviewState(message),
+        );
       } else {
         await refreshTripQuietly(trip.id);
-        preservePreviewState("추천 일정을 저장하지 못했어요. 최신 일정은 다시 불러왔고, 저장되지 않은 미리보기 입력은 그대로 보존했어요.");
+        preservePreviewState(
+          "추천 일정을 저장하지 못했어요. 최신 일정은 다시 불러왔고, 저장되지 않은 미리보기 입력은 그대로 보존했어요.",
+        );
       }
     }
   };
 
-  const saveRecommendationPreviewPlace = async (previewId: string) => {
-    const previewPlace = recommendationPreview.places.find((place) => place.previewId === previewId);
-    if (!trip || !previewPlace) return;
+  const saveRecommendationPreviewPlace = (previewId: string) => {
+    const previewPlace = recommendationPreview.places.find(
+      (place) => place.previewId === previewId,
+    );
+    if (!previewPlace) return;
     if (!isTenMinutePlaceTime(previewPlace.time ?? "")) {
       setRecommendationPreview((current) => ({
         ...current,
@@ -765,32 +1381,29 @@ export function ItineraryDetailPage() {
       }));
       return;
     }
-    setRecommendationPreview((current) => ({ ...current, status: "saving", error: "" }));
-    try {
-      const nextTrip = await appDataApi.addTripPlace(
-        trip.id,
-        previewPlace.dayNumber,
-        tripPlaceMutationFromPreviewPlace(previewPlace, trip.revision),
-      );
-      setTrip(nextTrip);
-      setRecommendationPreview((current) => ({
+    setRecommendationPreview((current) => {
+      const selectedPreviewIds = current.selectedPreviewIds.includes(previewId)
+        ? current.selectedPreviewIds
+        : [...current.selectedPreviewIds, previewId];
+      return {
+        ...current,
         status: "ready",
-        places: current.places.filter((place) => place.previewId !== previewId),
         error: "",
-      }));
-      setNotice(`${previewPlace.label}을(를) 저장했어요.`);
-      window.setTimeout(() => setNotice(null), 1800);
-    } catch (error) {
-      const preservePreviewState = (message: string) => {
-        setRecommendationPreview((current) => ({ ...current, status: "ready", error: message }));
+        selectedPreviewIds,
+        timeline: Object.fromEntries(
+          Object.entries(current.timeline).map(([day, places]) => [
+            day,
+            places.map((place) =>
+              place.previewId === previewId
+                ? { ...place, isRecommendationSelected: true }
+                : place,
+            ),
+          ]),
+        ),
       };
-      if (isTripConflict(error)) {
-        await refreshTripAfterConflict((message) => preservePreviewState(message));
-      } else {
-        await refreshTripQuietly(trip.id);
-        preservePreviewState("추천 일정을 저장하지 못했어요. 최신 일정은 다시 불러왔고, 저장되지 않은 미리보기 입력은 그대로 보존했어요.");
-      }
-    }
+    });
+    setNotice(`${previewPlace.label} 후보를 저장 대상으로 선택했어요.`);
+    window.setTimeout(() => setNotice(null), 1800);
   };
 
   const cancelRecommendationPreviewPlace = (previewId: string) => {
@@ -798,27 +1411,100 @@ export function ItineraryDetailPage() {
       ...current,
       status: current.status === "saving" ? current.status : "ready",
       places: current.places.filter((place) => place.previewId !== previewId),
+      selectedPreviewIds: current.selectedPreviewIds.filter(
+        (id) => id !== previewId,
+      ),
+      timeline: Object.fromEntries(
+        Object.entries(current.timeline).map(([day, places]) => [
+          day,
+          places.filter((place) => place.previewId !== previewId),
+        ]),
+      ),
     }));
   };
 
-  const chooseAddPlaceRecommendation = (items: Recommendation[], dayNumber: number): { item: Recommendation; index: number } | null => {
+  const cancelRecommendationPreview = () => {
+    if (recommendationPreview.status === "saving") return;
+    setRecommendationPreview({
+      status: "idle",
+      places: [],
+      selectedPreviewIds: [],
+      timeline: {},
+      error: "",
+    });
+    setSelectedMapPlaceId((currentPlaceId) =>
+      currentPlaceId &&
+      recommendationPreview.places.some(
+        (place) => place.previewId === currentPlaceId,
+      )
+        ? null
+        : currentPlaceId,
+    );
+  };
+
+  const updateRecommendationPreviewPlaceTime = (
+    place: DisplayedPlace,
+    time: string,
+  ) => {
+    if (!place.previewTimelineId) return;
+    setRecommendationPreview((current) => ({
+      ...current,
+      timeline: updateTimelinePlaceTime(
+        current.timeline,
+        place.previewTimelineId!,
+        time,
+      ),
+      places: place.previewId
+        ? current.places.map((previewPlace) =>
+            previewPlace.previewId === place.previewId
+              ? { ...previewPlace, time }
+              : previewPlace,
+          )
+        : current.places,
+      error: "",
+    }));
+  };
+
+  const chooseAddPlaceRecommendation = (
+    items: Recommendation[],
+    dayNumber: number,
+  ): { item: Recommendation; index: number } | null => {
     if (items.length === 0) return null;
-    const visibleDayMatch = items.findIndex((item) => item.suggestedDay === dayNumber);
-    if (visibleDayMatch >= 0) return { item: items[visibleDayMatch], index: visibleDayMatch };
-    const tripDayMatch = items.findIndex((item) => item.suggestedDay != null && dayNumbers.includes(item.suggestedDay));
-    if (tripDayMatch >= 0) return { item: items[tripDayMatch], index: tripDayMatch };
+    const visibleDayMatch = items.findIndex(
+      (item) => item.suggestedDay === dayNumber,
+    );
+    if (visibleDayMatch >= 0)
+      return { item: items[visibleDayMatch], index: visibleDayMatch };
+    const tripDayMatch = items.findIndex(
+      (item) =>
+        item.suggestedDay != null && dayNumbers.includes(item.suggestedDay),
+    );
+    if (tripDayMatch >= 0)
+      return { item: items[tripDayMatch], index: tripDayMatch };
     return { item: items[0], index: 0 };
   };
 
-  const hydrateDefaultPlaceRecommendation = async (nextTrip: Trip, dayNumber: number, sessionId: number, searchRequestId: number) => {
+  const hydrateDefaultPlaceRecommendation = async (
+    nextTrip: Trip,
+    dayNumber: number,
+    sessionId: number,
+    searchRequestId: number,
+  ) => {
     try {
       const recommendations = await appDataApi.listRecommendations(nextTrip.id);
       if (placeEditorSessionRef.current !== sessionId) return;
       if (placeSearchRequestRef.current !== searchRequestId) return;
       if (placePreviewRef.current.source !== "empty") return;
-      const recommendation = chooseAddPlaceRecommendation(recommendations, dayNumber);
+      const recommendation = chooseAddPlaceRecommendation(
+        recommendations,
+        dayNumber,
+      );
       if (!recommendation) return;
-      const preview = previewFromRecommendation(recommendation.item, recommendation.index, dayNumber);
+      const preview = previewFromRecommendation(
+        recommendation.item,
+        recommendation.index,
+        dayNumber,
+      );
       updatePlacePreview({ source: "recommendation", place: preview });
       setPlaceSaveEligibility("saveSelected");
       updatePlaceForm({
@@ -835,7 +1521,10 @@ export function ItineraryDetailPage() {
         externalPlaceId: preview.externalPlaceId,
       });
     } catch {
-      if (placeEditorSessionRef.current === sessionId && placePreviewRef.current.source === "empty") {
+      if (
+        placeEditorSessionRef.current === sessionId &&
+        placePreviewRef.current.source === "empty"
+      ) {
         setPlaceSaveEligibility("empty");
       }
     }
@@ -846,7 +1535,9 @@ export function ItineraryDetailPage() {
       showEditPermissionRequired();
       return;
     }
-    const draft = trip ? readDraft<TripPlaceAddDraft>(tripPlaceAddDraftKey(trip.id, visibleDay)) : null;
+    const draft = trip
+      ? readDraft<TripPlaceAddDraft>(tripPlaceAddDraftKey(trip.id, visibleDay))
+      : null;
     const sessionId = placeEditorSessionRef.current + 1;
     placeEditorSessionRef.current = sessionId;
     placeSearchRequestRef.current = 0;
@@ -854,16 +1545,29 @@ export function ItineraryDetailPage() {
     setPlaceSearchCandidates([]);
     setPlaceSearchError("");
     setPlaceEditor({ mode: "add", dayNumber: visibleDay });
-    setPlaceForm(draft ? { time: draft.time ?? "", label: draft.label, meta: draft.meta ?? "" } : { time: "", label: "", meta: "" });
+    setPlaceForm(
+      draft
+        ? { time: draft.time ?? "", label: draft.label, meta: draft.meta ?? "" }
+        : { time: "", label: "", meta: "" },
+    );
     if (draft?.label?.trim()) {
-      updatePlacePreview({ source: "draft", place: previewFromDraft(draft, visibleDay) });
+      updatePlacePreview({
+        source: "draft",
+        place: previewFromDraft(draft, visibleDay),
+      });
       setPlaceSaveEligibility("saveSelected");
     } else {
       clearPlacePreview();
     }
     setPlaceDraftNotice(draft ? "작성 중이던 장소 내용을 불러왔어요." : "");
     setPlaceError("");
-    if (trip) void hydrateDefaultPlaceRecommendation(trip, visibleDay, sessionId, placeSearchRequestRef.current);
+    if (trip)
+      void hydrateDefaultPlaceRecommendation(
+        trip,
+        visibleDay,
+        sessionId,
+        placeSearchRequestRef.current,
+      );
   };
 
   const openEditPlace = (place: ItineraryPlace) => {
@@ -871,49 +1575,91 @@ export function ItineraryDetailPage() {
       setPlaceError("이 일정은 보기 권한으로 참여 중이라 편집할 수 없어요.");
       return;
     }
-    const draft = trip && place.id ? readDraft<TripPlaceEditDraft>(tripPlaceEditDraftKey(trip.id, place.id)) : null;
+    const draft =
+      trip && place.id
+        ? readDraft<TripPlaceEditDraft>(
+            tripPlaceEditDraftKey(trip.id, place.id),
+          )
+        : null;
     placeEditorSessionRef.current += 1;
     setPlaceSearchQuery("");
     setPlaceSearchError("");
     setPlaceSearchCandidates([]);
     clearPlacePreview();
     setPlaceEditor({ mode: "edit", dayNumber: visibleDay, place });
-    setPlaceForm(draft ? { time: draft.time ?? "", label: draft.label, meta: draft.meta ?? "" } : { ...place, time: place.time, label: place.label, meta: place.meta });
+    setPlaceForm(
+      draft
+        ? { time: draft.time ?? "", label: draft.label, meta: draft.meta ?? "" }
+        : { ...place, time: place.time, label: place.label, meta: place.meta },
+    );
     setPlaceDraftNotice(draft ? "수정 중이던 장소 내용을 불러왔어요." : "");
     setPlaceError("");
   };
 
-  const loadPlaceSearchCandidates = async (nextTripId: string, query: string, sessionId: number, requestId: number) => {
+  const loadPlaceSearchCandidates = async (
+    nextTripId: string,
+    query: string,
+    sessionId: number,
+    requestId: number,
+  ) => {
     const trimmedQuery = query.trim();
     if (!trimmedQuery) {
-      if (placeEditorSessionRef.current === sessionId && placeSearchRequestRef.current === requestId) {
+      if (
+        placeEditorSessionRef.current === sessionId &&
+        placeSearchRequestRef.current === requestId
+      ) {
         setPlaceSearchCandidates([]);
         setPlaceSearchError("");
         setIsLoadingPlaceSearch(false);
-        setPlaceSaveEligibility(placePreviewRef.current.source === "searchPreview" ? "manualAllowed" : saveEligibilityForPreview(placePreviewRef.current));
+        setPlaceSaveEligibility(
+          placePreviewRef.current.source === "searchPreview"
+            ? "manualAllowed"
+            : saveEligibilityForPreview(placePreviewRef.current),
+        );
       }
       return;
     }
     setIsLoadingPlaceSearch(true);
     setPlaceSearchError("");
     try {
-      const candidates = await appDataApi.searchTripPlaces(nextTripId, { query: trimmedQuery });
-      if (placeEditorSessionRef.current !== sessionId || placeSearchRequestRef.current !== requestId) return;
+      const candidates = await appDataApi.searchTripPlaces(nextTripId, {
+        query: trimmedQuery,
+      });
+      if (
+        placeEditorSessionRef.current !== sessionId ||
+        placeSearchRequestRef.current !== requestId
+      )
+        return;
       setPlaceSearchCandidates(candidates);
       if (candidates.length > 0 && placeEditor?.mode === "add") {
-        const preview = previewFromSearchCandidate(candidates[0], placeEditor.dayNumber, "searchPreview", placeForm.time ?? "");
+        const preview = previewFromSearchCandidate(
+          candidates[0],
+          placeEditor.dayNumber,
+          "searchPreview",
+          placeForm.time ?? "",
+        );
         updatePlacePreview({ source: "searchPreview", place: preview });
         setPlaceSaveEligibility("requiresExplicitCandidate");
       } else if (placeEditor?.mode === "add") {
         setPlaceSaveEligibility("manualAllowed");
       }
     } catch {
-      if (placeEditorSessionRef.current !== sessionId || placeSearchRequestRef.current !== requestId) return;
+      if (
+        placeEditorSessionRef.current !== sessionId ||
+        placeSearchRequestRef.current !== requestId
+      )
+        return;
       setPlaceSearchCandidates([]);
-      setPlaceSearchError("장소 검색 결과를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
+      setPlaceSearchError(
+        "장소 검색 결과를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
+      );
       if (placeEditor?.mode === "add") setPlaceSaveEligibility("manualAllowed");
     } finally {
-      if (placeEditorSessionRef.current === sessionId && placeSearchRequestRef.current === requestId) setIsLoadingPlaceSearch(false);
+      if (
+        placeEditorSessionRef.current === sessionId &&
+        placeSearchRequestRef.current === requestId
+      )
+        setIsLoadingPlaceSearch(false);
     }
   };
 
@@ -922,21 +1668,39 @@ export function ItineraryDetailPage() {
     if (placeEditor?.mode === "add") {
       setPlaceError("");
       const trimmedQuery = query.trim();
-      const blankSearchPreviewEligibility = placePreviewRef.current.source === "searchPreview" ? "manualAllowed" : saveEligibilityForPreview(placePreviewRef.current);
-      setPlaceSaveEligibility(trimmedQuery ? "requiresExplicitCandidate" : blankSearchPreviewEligibility);
+      const blankSearchPreviewEligibility =
+        placePreviewRef.current.source === "searchPreview"
+          ? "manualAllowed"
+          : saveEligibilityForPreview(placePreviewRef.current);
+      setPlaceSaveEligibility(
+        trimmedQuery
+          ? "requiresExplicitCandidate"
+          : blankSearchPreviewEligibility,
+      );
       setPlaceForm((current) => ({
         time: current.time ?? "",
         label: trimmedQuery ? "" : current.label,
-        meta: trimmedQuery ? "" : current.meta ?? "",
+        meta: trimmedQuery ? "" : (current.meta ?? ""),
       }));
     }
     const requestId = placeSearchRequestRef.current + 1;
     placeSearchRequestRef.current = requestId;
-    if (trip) void loadPlaceSearchCandidates(trip.id, query, placeEditorSessionRef.current, requestId);
+    if (trip)
+      void loadPlaceSearchCandidates(
+        trip.id,
+        query,
+        placeEditorSessionRef.current,
+        requestId,
+      );
   };
 
   const selectPlaceSearchCandidate = (candidate: PlaceSearchCandidate) => {
-    const preview = previewFromSearchCandidate(candidate, placeEditor?.dayNumber ?? visibleDay, "selected", placeForm.time ?? "");
+    const preview = previewFromSearchCandidate(
+      candidate,
+      placeEditor?.dayNumber ?? visibleDay,
+      "selected",
+      placeForm.time ?? "",
+    );
     updatePlacePreview({ source: "selected", place: preview });
     setPlaceSaveEligibility("saveSelected");
     updatePlaceForm(placeSearchCandidatePayload(candidate, placeForm.time));
@@ -950,7 +1714,10 @@ export function ItineraryDetailPage() {
       setPlaceError("이 일정은 보기 권한으로 참여 중이라 편집할 수 없어요.");
       return;
     }
-    if (placeEditor.mode === "add" && placeSaveEligibility === "requiresExplicitCandidate") {
+    if (
+      placeEditor.mode === "add" &&
+      placeSaveEligibility === "requiresExplicitCandidate"
+    ) {
       setPlaceError("검색 결과에서 저장할 장소를 직접 선택해 주세요.");
       return;
     }
@@ -960,7 +1727,11 @@ export function ItineraryDetailPage() {
     }
     const label = placeForm.label.trim();
     if (!label) {
-      setPlaceError(placeEditor.mode === "add" ? "검색 결과를 선택하거나 장소명을 직접 입력해 주세요." : "장소명을 입력해 주세요.");
+      setPlaceError(
+        placeEditor.mode === "add"
+          ? "검색 결과를 선택하거나 장소명을 직접 입력해 주세요."
+          : "장소명을 입력해 주세요.",
+      );
       return;
     }
     const time = placeForm.time?.trim() ?? "";
@@ -978,30 +1749,53 @@ export function ItineraryDetailPage() {
         expectedRevision: trip.revision,
       };
       if (placeForm.address !== undefined) payload.address = placeForm.address;
-      if (placeForm.latitude !== undefined) payload.latitude = placeForm.latitude;
-      if (placeForm.longitude !== undefined) payload.longitude = placeForm.longitude;
-      if (placeForm.category !== undefined) payload.category = placeForm.category;
-      if (placeForm.categoryCode !== undefined) payload.categoryCode = placeForm.categoryCode;
-      if (placeForm.placeUrl !== undefined) payload.placeUrl = placeForm.placeUrl;
-      if (placeForm.sourceProvider !== undefined) payload.sourceProvider = placeForm.sourceProvider;
-      if (placeForm.externalPlaceId !== undefined) payload.externalPlaceId = placeForm.externalPlaceId;
+      if (placeForm.latitude !== undefined)
+        payload.latitude = placeForm.latitude;
+      if (placeForm.longitude !== undefined)
+        payload.longitude = placeForm.longitude;
+      if (placeForm.category !== undefined)
+        payload.category = placeForm.category;
+      if (placeForm.categoryCode !== undefined)
+        payload.categoryCode = placeForm.categoryCode;
+      if (placeForm.placeUrl !== undefined)
+        payload.placeUrl = placeForm.placeUrl;
+      if (placeForm.sourceProvider !== undefined)
+        payload.sourceProvider = placeForm.sourceProvider;
+      if (placeForm.externalPlaceId !== undefined)
+        payload.externalPlaceId = placeForm.externalPlaceId;
       const nextTrip =
         placeEditor.mode === "add"
-          ? await appDataApi.addTripPlace(trip.id, placeEditor.dayNumber, payload)
-          : await appDataApi.updateTripPlace(trip.id, placeEditor.place.id ?? "", payload);
-      if (placeEditor.mode === "add") clearDraft(tripPlaceAddDraftKey(trip.id, placeEditor.dayNumber));
-      if (placeEditor.mode === "edit" && placeEditor.place.id) clearDraft(tripPlaceEditDraftKey(trip.id, placeEditor.place.id));
+          ? await appDataApi.addTripPlace(
+              trip.id,
+              placeEditor.dayNumber,
+              payload,
+            )
+          : await appDataApi.updateTripPlace(
+              trip.id,
+              placeEditor.place.id ?? "",
+              payload,
+            );
+      if (placeEditor.mode === "add")
+        clearDraft(tripPlaceAddDraftKey(trip.id, placeEditor.dayNumber));
+      if (placeEditor.mode === "edit" && placeEditor.place.id)
+        clearDraft(tripPlaceEditDraftKey(trip.id, placeEditor.place.id));
       setTrip(nextTrip);
       setPlaceEditor(null);
       clearPlacePreview();
       setPlaceDraftNotice("");
-      setNotice(placeEditor.mode === "add" ? "장소를 일정에 추가했어요." : "장소 정보를 수정했어요.");
+      setNotice(
+        placeEditor.mode === "add"
+          ? "장소를 일정에 추가했어요."
+          : "장소 정보를 수정했어요.",
+      );
       window.setTimeout(() => setNotice(null), 1800);
     } catch (error) {
       if (isTripConflict(error)) {
         await refreshTripAfterConflict(setPlaceError);
       } else {
-        setPlaceError("장소 정보를 저장하지 못했어요. 입력값을 확인하고 다시 시도해 주세요.");
+        setPlaceError(
+          "장소 정보를 저장하지 못했어요. 입력값을 확인하고 다시 시도해 주세요.",
+        );
       }
     } finally {
       setIsSavingPlace(false);
@@ -1018,7 +1812,25 @@ export function ItineraryDetailPage() {
     setPlaceDeleteError("");
   };
 
-  const movePlaceTo = async (place: ItineraryPlace, dayNumber: number, position: number) => {
+  const movePlaceTo = async (
+    place: DisplayedPlace,
+    dayNumber: number,
+    position: number,
+  ) => {
+    if (isPreviewActive && place.previewTimelineId) {
+      setRecommendationPreview((current) => ({
+        ...current,
+        timeline: moveTimelinePlace(
+          current.timeline,
+          place.previewTimelineId!,
+          dayNumber,
+          position - 1,
+        ),
+      }));
+      setActiveDay(dayNumber);
+      updateDetailSearchParams({ day: dayNumber, place: null });
+      return;
+    }
     if (!trip || !place.id || movingPlaceId) return;
     if (!canEditTrip) {
       setPlaceError("이 일정은 보기 권한으로 참여 중이라 편집할 수 없어요.");
@@ -1027,7 +1839,11 @@ export function ItineraryDetailPage() {
     setMovingPlaceId(place.id);
     setMoveError("");
     try {
-      const nextTrip = await appDataApi.moveTripPlace(trip.id, place.id, { dayNumber, position, expectedRevision: trip.revision });
+      const nextTrip = await appDataApi.moveTripPlace(trip.id, place.id, {
+        dayNumber,
+        position,
+        expectedRevision: trip.revision,
+      });
       setTrip(nextTrip);
       setActiveDay(dayNumber);
       updateDetailSearchParams({ day: dayNumber, place: null });
@@ -1037,7 +1853,9 @@ export function ItineraryDetailPage() {
       if (isTripConflict(error)) {
         await refreshTripAfterConflict(setMoveError);
       } else {
-        setMoveError("장소 순서를 변경하지 못했어요. 잠시 후 다시 시도해 주세요.");
+        setMoveError(
+          "장소 순서를 변경하지 못했어요. 잠시 후 다시 시도해 주세요.",
+        );
       }
     } finally {
       setMovingPlaceId(null);
@@ -1045,13 +1863,66 @@ export function ItineraryDetailPage() {
   };
 
   const handlePlaceDragStart = (event: DragStartEvent) => {
-    const placeId = parsePlaceDragId(event.active.id);
+    const placeId = isPreviewActive
+      ? String(event.active.id)
+      : parsePlaceDragId(event.active.id);
     if (placeId) setDraggingPlaceId(placeId);
   };
 
   const handlePlaceDragEnd = (event: DragEndEvent) => {
     setDraggingPlaceId(null);
     if (!trip || !canEditTrip || movingPlaceId || !event.over) return;
+    if (isPreviewActive) {
+      const activeId = String(event.active.id);
+      const activeDay = findDisplayedPlaceDay(
+        recommendationPreview.timeline,
+        activeId,
+      );
+      if (!activeDay) return;
+      const overTimelineId = parseTimelineDragId(event.over.id)
+        ? String(event.over.id)
+        : null;
+      if (overTimelineId) {
+        const targetDay = findDisplayedPlaceDay(
+          recommendationPreview.timeline,
+          overTimelineId,
+        );
+        if (!targetDay || overTimelineId === activeId) return;
+        const targetIndex =
+          recommendationPreview.timeline[targetDay]?.findIndex(
+            (place) => place.previewTimelineId === overTimelineId,
+          ) ?? -1;
+        if (targetIndex < 0) return;
+        setRecommendationPreview((current) => ({
+          ...current,
+          timeline: moveTimelinePlace(
+            current.timeline,
+            activeId,
+            targetDay,
+            targetIndex,
+          ),
+        }));
+        setActiveDay(targetDay);
+        updateDetailSearchParams({ day: targetDay, place: null });
+        return;
+      }
+      const targetDay = parseDayDropId(event.over.id);
+      if (!targetDay || !dayNumbers.includes(targetDay)) return;
+      const targetCount =
+        recommendationPreview.timeline[targetDay]?.length ?? 0;
+      setRecommendationPreview((current) => ({
+        ...current,
+        timeline: moveTimelinePlace(
+          current.timeline,
+          activeId,
+          targetDay,
+          targetCount,
+        ),
+      }));
+      setActiveDay(targetDay);
+      updateDetailSearchParams({ day: targetDay, place: null });
+      return;
+    }
     const placeId = parsePlaceDragId(event.active.id);
     if (!placeId) return;
     const place = dayPlaces.find((item) => item.id === placeId);
@@ -1059,14 +1930,21 @@ export function ItineraryDetailPage() {
 
     const overPlaceId = parsePlaceDragId(event.over.id);
     if (overPlaceId) {
-      const targetIndex = dayPlaces.findIndex((item) => item.id === overPlaceId);
+      const targetIndex = dayPlaces.findIndex(
+        (item) => item.id === overPlaceId,
+      );
       if (targetIndex < 0 || overPlaceId === placeId) return;
       void movePlaceTo(place, visibleDay, targetIndex + 1);
       return;
     }
 
     const targetDay = parseDayDropId(event.over.id);
-    if (!targetDay || targetDay === visibleDay || !dayNumbers.includes(targetDay)) return;
+    if (
+      !targetDay ||
+      targetDay === visibleDay ||
+      !dayNumbers.includes(targetDay)
+    )
+      return;
     const targetCount = trip.days[targetDay]?.length ?? 0;
     void movePlaceTo(place, targetDay, targetCount + 1);
   };
@@ -1083,7 +1961,11 @@ export function ItineraryDetailPage() {
     setIsSavingPlace(true);
     setPlaceDeleteError("");
     try {
-      const nextTrip = await appDataApi.deleteTripPlace(trip.id, place.id, trip.revision);
+      const nextTrip = await appDataApi.deleteTripPlace(
+        trip.id,
+        place.id,
+        trip.revision,
+      );
       clearDraft(tripPlaceEditDraftKey(trip.id, place.id));
       setTrip(nextTrip);
       setDeleteCandidatePlace(null);
@@ -1094,7 +1976,9 @@ export function ItineraryDetailPage() {
       if (isTripConflict(error)) {
         await refreshTripAfterConflict(setPlaceDeleteError);
       } else {
-        setPlaceDeleteError("장소를 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.");
+        setPlaceDeleteError(
+          "장소를 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.",
+        );
       }
     } finally {
       setIsSavingPlace(false);
@@ -1104,7 +1988,9 @@ export function ItineraryDetailPage() {
   const removeLinkedPolicy = async (policy: LinkedTripPolicy) => {
     if (!trip || removingPolicySlug) return;
     if (!canEditTrip) {
-      setPolicyRemoveError("이 일정은 보기 권한으로 참여 중이라 정책 연결을 삭제할 수 없어요.");
+      setPolicyRemoveError(
+        "이 일정은 보기 권한으로 참여 중이라 정책 연결을 삭제할 수 없어요.",
+      );
       return;
     }
     setRemovingPolicySlug(policy.slug);
@@ -1112,19 +1998,26 @@ export function ItineraryDetailPage() {
     try {
       await appDataApi.removePolicyFromTrip(trip.id, policy.slug);
       if (routeLinkedPolicy?.slug === policy.slug) {
-        setHiddenRoutePolicySlugs((current) => new Set(current).add(policy.slug));
+        setHiddenRoutePolicySlugs((current) =>
+          new Set(current).add(policy.slug),
+        );
       }
       removeAddedPolicy(policy.slug);
-      const nextLinkedPolicies = trip.linkedPolicies.filter((linkedPolicy) => linkedPolicy.slug !== policy.slug);
+      const nextLinkedPolicies = trip.linkedPolicies.filter(
+        (linkedPolicy) => linkedPolicy.slug !== policy.slug,
+      );
       setTrip({
         ...trip,
-        expectedSaving: nextLinkedPolicies.length === 0 ? "0원" : trip.expectedSaving,
+        expectedSaving:
+          nextLinkedPolicies.length === 0 ? "0원" : trip.expectedSaving,
         linkedPolicies: nextLinkedPolicies,
       });
       setNotice("정책 연결을 해제했어요.");
       window.setTimeout(() => setNotice(null), 1800);
     } catch {
-      setPolicyRemoveError("정책 연결을 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.");
+      setPolicyRemoveError(
+        "정책 연결을 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.",
+      );
     } finally {
       setRemovingPolicySlug(null);
     }
@@ -1134,27 +2027,35 @@ export function ItineraryDetailPage() {
     setPlaceForm(nextForm);
     if (!trip || !placeEditor) return;
     if (placeEditor.mode === "add") {
-      saveDraft<TripPlaceAddDraft>(tripPlaceAddDraftKey(trip.id, placeEditor.dayNumber), {
-        dayNumber: placeEditor.dayNumber,
-        time: nextForm.time ?? "",
-        label: nextForm.label,
-        meta: nextForm.meta ?? "",
-      });
+      saveDraft<TripPlaceAddDraft>(
+        tripPlaceAddDraftKey(trip.id, placeEditor.dayNumber),
+        {
+          dayNumber: placeEditor.dayNumber,
+          time: nextForm.time ?? "",
+          label: nextForm.label,
+          meta: nextForm.meta ?? "",
+        },
+      );
     }
     if (placeEditor.mode === "edit" && placeEditor.place.id) {
-      saveDraft<TripPlaceEditDraft>(tripPlaceEditDraftKey(trip.id, placeEditor.place.id), {
-        placeId: placeEditor.place.id,
-        time: nextForm.time ?? "",
-        label: nextForm.label,
-        meta: nextForm.meta ?? "",
-      });
+      saveDraft<TripPlaceEditDraft>(
+        tripPlaceEditDraftKey(trip.id, placeEditor.place.id),
+        {
+          placeId: placeEditor.place.id,
+          time: nextForm.time ?? "",
+          label: nextForm.label,
+          meta: nextForm.meta ?? "",
+        },
+      );
     }
   };
 
   const closePlaceEditor = () => {
     if (isSavingPlace) return;
-    if (trip && placeEditor?.mode === "add") clearDraft(tripPlaceAddDraftKey(trip.id, placeEditor.dayNumber));
-    if (trip && placeEditor?.mode === "edit" && placeEditor.place.id) clearDraft(tripPlaceEditDraftKey(trip.id, placeEditor.place.id));
+    if (trip && placeEditor?.mode === "add")
+      clearDraft(tripPlaceAddDraftKey(trip.id, placeEditor.dayNumber));
+    if (trip && placeEditor?.mode === "edit" && placeEditor.place.id)
+      clearDraft(tripPlaceEditDraftKey(trip.id, placeEditor.place.id));
     placeEditorSessionRef.current += 1;
     setPlaceDraftNotice("");
     setPlaceSearchCandidates([]);
@@ -1172,12 +2073,18 @@ export function ItineraryDetailPage() {
     }
     if (placeEditor.mode === "edit" && placeEditor.place.id) {
       clearDraft(tripPlaceEditDraftKey(trip.id, placeEditor.place.id));
-      setPlaceForm({ time: placeEditor.place.time, label: placeEditor.place.label, meta: placeEditor.place.meta });
+      setPlaceForm({
+        time: placeEditor.place.time,
+        label: placeEditor.place.label,
+        meta: placeEditor.place.meta,
+      });
     }
     setPlaceDraftNotice("");
   };
 
-  const normalizedPlaceSearchQuery = placeSearchQuery.trim().toLocaleLowerCase("ko-KR");
+  const normalizedPlaceSearchQuery = placeSearchQuery
+    .trim()
+    .toLocaleLowerCase("ko-KR");
   const placeSearchResults = placeSearchCandidates
     .filter((candidate) => {
       if (!normalizedPlaceSearchQuery) return true;
@@ -1196,13 +2103,30 @@ export function ItineraryDetailPage() {
   if (error || !trip) {
     return (
       <section className="screen with-tabs prototype-trip-detail-screen">
-        <ErrorState message={error ?? "일정 정보를 찾지 못했어요."} action={<LinkButton to="/trips" variant="line">일정 목록으로</LinkButton>} />
+        <ErrorState
+          message={error ?? "일정 정보를 찾지 못했어요."}
+          action={
+            <LinkButton to="/trips" variant="line">
+              일정 목록으로
+            </LinkButton>
+          }
+        />
       </section>
     );
   }
 
   return (
-    <section className={canEditTrip ? "screen with-tabs prototype-trip-detail-screen" : "screen with-tabs readonly-trip prototype-trip-detail-screen"}>
+    <section
+      className={
+        [
+          "screen with-tabs prototype-trip-detail-screen",
+          canEditTrip ? "" : "readonly-trip",
+          isPreviewActive ? "recommendation-preview-active" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")
+      }
+    >
       <TopBar
         title={trip.title}
         left={
@@ -1234,30 +2158,53 @@ export function ItineraryDetailPage() {
             <span className="meta">{tripPeople.length}명 참여 중</span>
           </div>
           {canManageTripStatus && (
-            <Link className="prototype-invite-pill" to={`/friend-invite?tripId=${encodeURIComponent(trip.id)}`}>
+            <Link
+              className="prototype-invite-pill"
+              to={`/friend-invite?tripId=${encodeURIComponent(trip.id)}`}
+            >
               + 친구 초대
             </Link>
           )}
         </div>
       </div>
-      <section className="prototype-linked-policy-section" aria-label="연결된 정책">
+      <section
+        className="prototype-linked-policy-section"
+        aria-label="연결된 정책"
+      >
         <h2>🎯 연결된 정책</h2>
         {linkedPolicies.length > 0 ? (
           linkedPolicies.map((policy) => {
             const isHiddenPolicy = policy.status === "hidden";
             return (
-              <div className={isHiddenPolicy ? "benefit-banner linked-policy-card hidden-policy" : "benefit-banner linked-policy-card"} key={policy.slug}>
+              <div
+                className={
+                  isHiddenPolicy
+                    ? "benefit-banner linked-policy-card hidden-policy"
+                    : "benefit-banner linked-policy-card"
+                }
+                key={policy.slug}
+              >
                 {isHiddenPolicy ? (
-                  <div className="linked-policy-card-main" aria-label={`${policy.title} 숨김 정책`}>
-                    <span className="benefit-banner-icon" aria-hidden="true">🚫</span>
+                  <div
+                    className="linked-policy-card-main"
+                    aria-label={`${policy.title} 숨김 정책`}
+                  >
+                    <span className="benefit-banner-icon" aria-hidden="true">
+                      🚫
+                    </span>
                     <div>
                       <strong>{policy.title}</strong>
                       <div className="meta">{`${policy.amount || "혜택 확인"} · 숨김 처리됨`}</div>
                     </div>
                   </div>
                 ) : (
-                  <Link className="linked-policy-card-main" to={`/policies/${policy.slug}`}>
-                    <span className="benefit-banner-icon" aria-hidden="true">💴</span>
+                  <Link
+                    className="linked-policy-card-main"
+                    to={`/policies/${policy.slug}`}
+                  >
+                    <span className="benefit-banner-icon" aria-hidden="true">
+                      💴
+                    </span>
                     <div>
                       <strong>{policy.title}</strong>
                       <div className="meta">{`${policy.amount || "혜택 확인"} · ${policy.region || "전국"}`}</div>
@@ -1280,24 +2227,41 @@ export function ItineraryDetailPage() {
           })
         ) : (
           <Link className="benefit-banner" to="/policies">
-            <span className="benefit-banner-icon" aria-hidden="true">💴</span>
+            <span className="benefit-banner-icon" aria-hidden="true">
+              💴
+            </span>
             <div>
-              <strong>{hasLinkedPolicyFallback ? "연결된 정책이 있어요" : "연결된 정책이 없어요"}</strong>
+              <strong>
+                {hasLinkedPolicyFallback
+                  ? "연결된 정책이 있어요"
+                  : "연결된 정책이 없어요"}
+              </strong>
               <div className="meta">
-                {hasLinkedPolicyFallback ? `${trip?.expectedSaving ?? "혜택 확인"} · 정책 목록에서 확인` : "정책 상세에서 일정을 연결할 수 있어요"}
+                {hasLinkedPolicyFallback
+                  ? `${trip?.expectedSaving ?? "혜택 확인"} · 정책 목록에서 확인`
+                  : "정책 상세에서 일정을 연결할 수 있어요"}
               </div>
             </div>
-            <span className="benefit-banner-arrow" aria-hidden="true">›</span>
+            <span className="benefit-banner-arrow" aria-hidden="true">
+              ›
+            </span>
           </Link>
         )}
         {policyRemoveError && <p className="form-error">{policyRemoveError}</p>}
       </section>
-      <section className="trip-benefit-grid" aria-label="이 일정에 어울리는 정책">
+      <section
+        className="trip-benefit-grid"
+        aria-label="이 일정에 어울리는 정책"
+      >
         <h2>💡 이 일정에 어울리는 정책</h2>
         <div className="prototype-matching-policy-rail">
           {recommendedPolicies.length > 0 ? (
             recommendedPolicies.map((policy) => (
-              <Link className="prototype-matching-policy-card" key={policy.slug} to={`/policies/${policy.slug}`}>
+              <Link
+                className="prototype-matching-policy-card"
+                key={policy.slug}
+                to={`/policies/${policy.slug}`}
+              >
                 <div className="matching-card-head">
                   <span aria-hidden="true">💡</span>
                   <em>{policy.amount || "정책 확인"}</em>
@@ -1328,40 +2292,18 @@ export function ItineraryDetailPage() {
           <div className="card">
             <div className="card-body stack tight">
               <strong>보기 권한으로 참여 중입니다</strong>
-              <p className="meta">일정과 정책은 확인할 수 있지만 장소 편집은 할 수 없어요.</p>
+              <p className="meta">
+                일정과 정책은 확인할 수 있지만 장소 편집은 할 수 없어요.
+              </p>
             </div>
           </div>
         )}
 
-        {recommendationPreview.status === "loading" && <p className="place-search-status">추천 일정을 불러오는 중입니다.</p>}
-        {recommendationPreview.error && <p className="form-error">{recommendationPreview.error}</p>}
-        {isPreviewActive && (
-          <section className="recommendation-preview-banner" aria-label="추천 일정 저장 전 미리보기">
-            <div>
-              <strong>저장 전 미리보기</strong>
-              <p className="meta">추천 일정은 저장 전 후보 카드로 확인하고, 카드별 저장/취소 또는 취소/전체 저장을 할 수 있어요.</p>
-              {recommendationPreview.places.length === 0 ? <p className="place-search-status">저장할 추천 일정이 없어요. 다시 추천을 불러와 주세요.</p> : null}
-            </div>
-            <div className="recommendation-preview-actions">
-              <button className="btn sm line" type="button" disabled={recommendationPreview.status === "saving"} onClick={() => setRecommendationPreview({ status: "idle", places: [], error: "" })}>
-                취소
-              </button>
-              {recommendationPreview.places.length > 0 ? (
-                <button
-                  className="btn sm primary"
-                  type="button"
-                  disabled={recommendationPreview.status === "saving"}
-                  onClick={() => {
-                    setRecommendationPreview((current) => ({ ...current, error: "" }));
-                    setReplacePreviewFinalizeOpen(false);
-                    setReplacePreviewConfirmOpen(true);
-                  }}
-                >
-                  {recommendationPreview.status === "saving" ? "저장 중" : "전체 저장"}
-                </button>
-              ) : null}
-            </div>
-          </section>
+        {recommendationPreview.status === "loading" && (
+          <p className="place-search-status">추천 일정을 불러오는 중입니다.</p>
+        )}
+        {recommendationPreview.error && (
+          <p className="form-error">{recommendationPreview.error}</p>
         )}
 
         <PrototypeTripMap
@@ -1376,13 +2318,41 @@ export function ItineraryDetailPage() {
         />
 
         <section className="trip-primary-actions" aria-label="일정 편집 작업">
-          <button className="prototype-trip-action-button prototype-trip-action-add" type="button" onClick={openAddPlace}>
+          <button
+            className="prototype-trip-action-button prototype-trip-action-add"
+            type="button"
+            onClick={openAddPlace}
+          >
             + 장소 추가
           </button>
-          <button className="prototype-trip-action-button prototype-trip-action-ai" type="button" onClick={() => void openRecommendationPreview()}>
+          <button
+            className="prototype-trip-action-button prototype-trip-action-ai"
+            type="button"
+            onClick={() => void openRecommendationPreview()}
+          >
             ✨ 추천 일정만들기
           </button>
         </section>
+
+        {isPreviewActive && (
+          <section
+            className="recommendation-preview-banner"
+            aria-label="추천 일정 저장 전 미리보기"
+          >
+            <div>
+              <strong>저장 전 미리보기</strong>
+              <p className="meta">
+                기존 장소와 추천 후보를 임시로 편집 중입니다. 완료 또는 전체
+                저장 전까지 서버 일정은 바뀌지 않아요.
+              </p>
+              {recommendationPreview.places.length === 0 ? (
+                <p className="place-search-status">
+                  저장할 추천 일정이 없어요. 다시 추천을 불러와 주세요.
+                </p>
+              ) : null}
+            </div>
+          </section>
+        )}
 
         <div className="day-tabs" aria-label="일정 날짜 선택">
           {dayNumbers.map((day) => (
@@ -1400,25 +2370,52 @@ export function ItineraryDetailPage() {
 
         {displayedPlaces.length > 0 && (
           <>
-            <div className={draggingPlaceId ? "timeline dnd-active" : "timeline"}>
-              <SortableContext items={sortablePlaceIds} strategy={verticalListSortingStrategy}>
+            <div
+              className={draggingPlaceId ? "timeline dnd-active" : "timeline"}
+            >
+              <SortableContext
+                items={sortablePlaceIds}
+                strategy={verticalListSortingStrategy}
+              >
                 {displayedPlaces.map((place, index) => (
                   <SortablePlaceItem
-                    canEditTrip={canEditTrip && !isPreviewActive}
+                    canEditTrip={canEditTrip}
                     currentDay={visibleDay}
                     dayNumbers={dayNumbers}
-                    disabled={Boolean(movingPlaceId) || isSavingPlace || recommendationPreview.status === "saving"}
+                    disabled={
+                      Boolean(movingPlaceId) ||
+                      isSavingPlace ||
+                      recommendationPreview.status === "saving"
+                    }
                     isMoving={movingPlaceId === place.id}
-                    key={place.id ?? place.previewId ?? `${place.time}-${place.label}`}
-                    onCancelRecommendationPreviewPlace={cancelRecommendationPreviewPlace}
+                    isPreviewMode={isPreviewActive}
+                    previewDayPlaceCounts={Object.fromEntries(
+                      dayNumbers.map((day) => [
+                        day,
+                        recommendationPreview.timeline[day]?.length ?? 0,
+                      ]),
+                    )}
+                    key={
+                      place.id ??
+                      place.previewId ??
+                      `${place.time}-${place.label}`
+                    }
+                    onCancelRecommendationPreviewPlace={
+                      cancelRecommendationPreviewPlace
+                    }
                     onDelete={requestDeletePlace}
                     onEdit={openEditPlace}
                     onMove={movePlaceTo}
-                    onSelectRecommendationPreviewPlace={selectRecommendationPreviewMapPlace}
-                    onSaveRecommendationPreviewPlace={(previewId) => void saveRecommendationPreviewPlace(previewId)}
+                    onSelectRecommendationPreviewPlace={
+                      selectRecommendationPreviewMapPlace
+                    }
+                    onSaveRecommendationPreviewPlace={(previewId) =>
+                      void saveRecommendationPreviewPlace(previewId)
+                    }
                     place={place}
                     placeNumber={index + 1}
-                    places={dayPlaces}
+                    places={displayedPlaces}
+                    onPreviewTimeChange={updateRecommendationPreviewPlaceTime}
                     trip={trip}
                   />
                 ))}
@@ -1427,6 +2424,46 @@ export function ItineraryDetailPage() {
           </>
         )}
       </DndContext>
+      {isPreviewActive && (
+        <aside
+          className="recommendation-preview-action-bar"
+          aria-label="추천 일정 미리보기 저장 작업"
+        >
+          <button
+            className="btn sm ghost"
+            type="button"
+            disabled={recommendationPreview.status === "saving"}
+            onClick={cancelRecommendationPreview}
+          >
+            미리보기 취소
+          </button>
+          <button
+            className="btn sm line"
+            type="button"
+            disabled={recommendationPreview.status === "saving"}
+            onClick={() =>
+              void commitRecommendationPreview({ saveAllCandidates: false })
+            }
+          >
+            완료
+          </button>
+          <button
+            className="btn sm primary"
+            type="button"
+            disabled={
+              recommendationPreview.status === "saving" ||
+              recommendationPreview.places.length === 0
+            }
+            onClick={() =>
+              void commitRecommendationPreview({
+                saveAllCandidates: true,
+              })
+            }
+          >
+            {recommendationPreview.status === "saving" ? "저장 중" : "전체 저장"}
+          </button>
+        </aside>
+      )}
       {placeError && !placeEditor && <Toast>{placeError}</Toast>}
       {moveError && <Toast>{moveError}</Toast>}
       {notice && <Toast>{notice}</Toast>}
@@ -1459,29 +2496,6 @@ export function ItineraryDetailPage() {
         />
       )}
       <ConfirmDialog
-        open={replacePreviewConfirmOpen}
-        title="추천 일정으로 바꿀까요?"
-        body={hasSavedPlaces ? "기존 일정은 삭제되고, 남아있는 추천 후보 전체가 저장됩니다." : "남아있는 추천 후보 전체가 일정으로 저장됩니다."}
-        error={recommendationPreview.error}
-        confirmLabel="저장"
-        isSubmitting={recommendationPreview.status === "saving"}
-        onCancel={() => setReplacePreviewConfirmOpen(false)}
-        onConfirm={() => {
-          setReplacePreviewConfirmOpen(false);
-          setReplacePreviewFinalizeOpen(true);
-        }}
-      />
-      <ConfirmDialog
-        open={replacePreviewFinalizeOpen}
-        title="전체 저장을 확정할까요?"
-        body={hasSavedPlaces ? "기존 일정을 삭제하고 남아있는 추천 후보 전체를 저장합니다. 확정하면 되돌릴 수 없어요." : "남아있는 추천 후보 전체를 일정으로 저장합니다."}
-        error={recommendationPreview.error}
-        confirmLabel="확정"
-        isSubmitting={recommendationPreview.status === "saving"}
-        onCancel={() => setReplacePreviewFinalizeOpen(false)}
-        onConfirm={() => void saveRecommendationPreview({ replaceExisting: true })}
-      />
-      <ConfirmDialog
         open={Boolean(deleteCandidatePlace)}
         title="장소를 삭제할까요?"
         body={`${deleteCandidatePlace?.label ?? "선택한 장소"} 장소가 이 일정에서 삭제됩니다.`}
@@ -1508,13 +2522,20 @@ function PrototypeTripMap({
   places: DisplayedPlace[];
   selectedPlaceId: string | null;
 }) {
-  const selectedPlace = places.find((place, index) => mapPlaceId(place, index) === selectedPlaceId && !place.isRecommendationPreview) ?? null;
+  const selectedPlace =
+    places.find(
+      (place, index) =>
+        mapPlaceId(place, index) === selectedPlaceId &&
+        !place.isRecommendationPreview,
+    ) ?? null;
   const mapPlaces = places.map((place, index) => ({
     place,
     index,
     point: getPlaceMapPoint(index, dayNumber),
   }));
-  const routePoints = mapPlaces.map(({ point }) => `${point.x},${point.y}`).join(" ");
+  const routePoints = mapPlaces
+    .map(({ point }) => `${point.x},${point.y}`)
+    .join(" ");
   const markers: KakaoMapMarker[] = places.map((place, index) => ({
     id: mapPlaceId(place, index),
     label: place.label,
@@ -1538,40 +2559,86 @@ function PrototypeTripMap({
 
   const fallbackMap = (
     <div className="prototype-full-map" onMouseDown={() => onSelectPlace(null)}>
-        <svg className="prototype-map-terrain" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-          <path d="M 8,22 Q 30,5 55,15 T 95,30 L 95,75 Q 70,90 40,82 Q 12,78 5,55 Z" fill="rgba(255,255,255,.2)" stroke="rgba(255,255,255,.45)" strokeWidth=".3" />
-          <path d="M 8,42 Q 35,46 55,42 T 95,55" fill="none" stroke="rgba(255,255,255,.55)" strokeWidth=".7" strokeDasharray="1.5,1" />
-          <path d="M 25,15 Q 30,40 35,60 T 50,90" fill="none" stroke="rgba(255,255,255,.45)" strokeWidth=".55" strokeDasharray="1,1" />
-          <circle cx="50" cy="50" r="3" fill="rgba(255,255,255,.5)" />
-          <text x="50" y="46" textAnchor="middle" fontSize="2.5" fill="rgba(255,255,255,.85)" fontWeight="700">
-            중심지
-          </text>
-          {mapPlaces.length > 1 && <polyline points={routePoints} fill="none" stroke="#ff5e5b" strokeWidth=".9" strokeDasharray="2.5,1.5" opacity=".85" />}
-        </svg>
-        <div className="prototype-map-controls" aria-label="지도 컨트롤">
-          <button aria-label="확대" type="button">＋</button>
-          <button aria-label="축소" type="button">−</button>
-          <button aria-label="전체 보기" type="button">🧭</button>
-        </div>
-        {mapPlaces.map(({ index, place, point }) => {
-          const markerId = mapPlaceId(place, index);
-          const selected = markerId === selectedPlaceId;
-          return (
-            <button
-              aria-label={`${index + 1}번 장소: ${place.label}`}
-              className={selected ? "prototype-map-pin selected" : "prototype-map-pin"}
-              key={markerId}
-              onMouseDown={(event) => event.stopPropagation()}
-              onClick={() => onSelectPlace(selected ? null : markerId)}
-              style={{ left: `${point.x}%`, top: `${point.y}%` }}
-              type="button"
-            >
-              <span className="prototype-map-pin-dot">{index + 1}</span>
-              <span className="prototype-map-pin-label">{place.label}</span>
-            </button>
-          );
-        })}
+      <svg
+        className="prototype-map-terrain"
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M 8,22 Q 30,5 55,15 T 95,30 L 95,75 Q 70,90 40,82 Q 12,78 5,55 Z"
+          fill="rgba(255,255,255,.2)"
+          stroke="rgba(255,255,255,.45)"
+          strokeWidth=".3"
+        />
+        <path
+          d="M 8,42 Q 35,46 55,42 T 95,55"
+          fill="none"
+          stroke="rgba(255,255,255,.55)"
+          strokeWidth=".7"
+          strokeDasharray="1.5,1"
+        />
+        <path
+          d="M 25,15 Q 30,40 35,60 T 50,90"
+          fill="none"
+          stroke="rgba(255,255,255,.45)"
+          strokeWidth=".55"
+          strokeDasharray="1,1"
+        />
+        <circle cx="50" cy="50" r="3" fill="rgba(255,255,255,.5)" />
+        <text
+          x="50"
+          y="46"
+          textAnchor="middle"
+          fontSize="2.5"
+          fill="rgba(255,255,255,.85)"
+          fontWeight="700"
+        >
+          중심지
+        </text>
+        {mapPlaces.length > 1 && (
+          <polyline
+            points={routePoints}
+            fill="none"
+            stroke="#ff5e5b"
+            strokeWidth=".9"
+            strokeDasharray="2.5,1.5"
+            opacity=".85"
+          />
+        )}
+      </svg>
+      <div className="prototype-map-controls" aria-label="지도 컨트롤">
+        <button aria-label="확대" type="button">
+          ＋
+        </button>
+        <button aria-label="축소" type="button">
+          −
+        </button>
+        <button aria-label="전체 보기" type="button">
+          🧭
+        </button>
       </div>
+      {mapPlaces.map(({ index, place, point }) => {
+        const markerId = mapPlaceId(place, index);
+        const selected = markerId === selectedPlaceId;
+        return (
+          <button
+            aria-label={`${index + 1}번 장소: ${place.label}`}
+            className={
+              selected ? "prototype-map-pin selected" : "prototype-map-pin"
+            }
+            key={markerId}
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={() => onSelectPlace(selected ? null : markerId)}
+            style={{ left: `${point.x}%`, top: `${point.y}%` }}
+            type="button"
+          >
+            <span className="prototype-map-pin-dot">{index + 1}</span>
+            <span className="prototype-map-pin-label">{place.label}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 
   return (
@@ -1591,7 +2658,9 @@ function PrototypeTripMap({
         />
       )}
       <div className="prototype-map-caption">
-        <span>Day {dayNumber} · <strong>{places.length}곳</strong></span>
+        <span>
+          Day {dayNumber} · <strong>{places.length}곳</strong>
+        </span>
         <span>핀을 탭하면 상세가 나타나요</span>
       </div>
     </div>
@@ -1611,13 +2680,22 @@ function PlaceMapBottomSheet({
   onShowPlaceDetail: (place: ItineraryPlace) => void;
   place: ItineraryPlace;
 }) {
-  const kakaoSearchUrl = place.placeUrl || `https://map.kakao.com/link/search/${encodeURIComponent(place.label)}`;
+  const kakaoSearchUrl =
+    place.placeUrl ||
+    `https://map.kakao.com/link/search/${encodeURIComponent(place.label)}`;
   const detailText = place.address || place.meta || "상세 메모가 아직 없어요.";
 
   return (
-    <section className="place-map-bottom-sheet" aria-label={`${place.label} 지도 상세`} role="dialog" onMouseDown={(event) => event.stopPropagation()}>
+    <section
+      className="place-map-bottom-sheet"
+      aria-label={`${place.label} 지도 상세`}
+      role="dialog"
+      onMouseDown={(event) => event.stopPropagation()}
+    >
       <div className="place-map-sheet-main">
-        <div className="place-map-sheet-icon" aria-hidden="true">{getPlaceEmoji(place)}</div>
+        <div className="place-map-sheet-icon" aria-hidden="true">
+          {getPlaceEmoji(place)}
+        </div>
         <div>
           <div className="place-map-sheet-tags">
             {place.time && <span>{place.time}</span>}
@@ -1626,7 +2704,12 @@ function PlaceMapBottomSheet({
           <strong>{place.label}</strong>
           <p>{detailText}</p>
         </div>
-        <button aria-label="지도 장소 상세 닫기" className="place-map-sheet-close" onClick={onClose} type="button">
+        <button
+          aria-label="지도 장소 상세 닫기"
+          className="place-map-sheet-close"
+          onClick={onClose}
+          type="button"
+        >
           <X size={14} />
         </button>
       </div>
@@ -1657,13 +2740,20 @@ function PlaceDetailDialog({
   const detailText = place.meta || "메모가 아직 없어요.";
   const addressText = place.address || "주소 정보 없음";
   const categoryText = place.category || place.categoryCode || "장소";
-  const coordinateText = Number.isFinite(place.latitude) && Number.isFinite(place.longitude)
-    ? `${place.latitude}, ${place.longitude}`
-    : "좌표 정보 없음";
-  const kakaoPlaceUrl = place.placeUrl || `https://map.kakao.com/link/search/${encodeURIComponent(place.address || place.label)}`;
+  const coordinateText =
+    Number.isFinite(place.latitude) && Number.isFinite(place.longitude)
+      ? `${place.latitude}, ${place.longitude}`
+      : "좌표 정보 없음";
+  const kakaoPlaceUrl =
+    place.placeUrl ||
+    `https://map.kakao.com/link/search/${encodeURIComponent(place.address || place.label)}`;
 
   return (
-    <div className="sheet-backdrop place-detail-backdrop" role="presentation" onMouseDown={onClose}>
+    <div
+      className="sheet-backdrop place-detail-backdrop"
+      role="presentation"
+      onMouseDown={onClose}
+    >
       <section
         aria-labelledby={titleId}
         aria-modal="true"
@@ -1699,7 +2789,12 @@ function PlaceDetailDialog({
             <p>{coordinateText}</p>
           </section>
         </div>
-        <a className="btn primary" href={kakaoPlaceUrl} rel="noreferrer" target="_blank">
+        <a
+          className="btn primary"
+          href={kakaoPlaceUrl}
+          rel="noreferrer"
+          target="_blank"
+        >
           카카오맵에서 보기
         </a>
       </section>
@@ -1722,12 +2817,26 @@ function DroppableDayTab({
   onSelect: (day: number) => void;
   placeLabel: string;
 }) {
-  const { isOver, setNodeRef } = useDroppable({ id: dayDropId(day), disabled: !canDrop });
-  const className = ["day-tab", isActive ? "active" : "", canDrop ? "drop-target" : "", isOver ? "over" : ""].filter(Boolean).join(" ");
+  const { isOver, setNodeRef } = useDroppable({
+    id: dayDropId(day),
+    disabled: !canDrop,
+  });
+  const className = [
+    "day-tab",
+    isActive ? "active" : "",
+    canDrop ? "drop-target" : "",
+    isOver ? "over" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <button
-      aria-label={canDrop ? `Day ${day} ${dateLabel}에 ${placeLabel} 놓기` : `Day ${day} ${dateLabel}`}
+      aria-label={
+        canDrop
+          ? `Day ${day} ${dateLabel}에 ${placeLabel} 놓기`
+          : `Day ${day} ${dateLabel}`
+      }
       className={className}
       key={day}
       onClick={() => onSelect(day)}
@@ -1747,13 +2856,16 @@ function SortablePlaceItem({
   dayNumbers,
   disabled,
   isMoving,
+  isPreviewMode,
   onCancelRecommendationPreviewPlace,
   onDelete,
   onEdit,
   onMove,
+  onPreviewTimeChange,
   onSaveRecommendationPreviewPlace,
   onSelectRecommendationPreviewPlace,
   place,
+  previewDayPlaceCounts,
   placeNumber,
   places,
   trip,
@@ -1763,32 +2875,61 @@ function SortablePlaceItem({
   dayNumbers: number[];
   disabled: boolean;
   isMoving: boolean;
+  isPreviewMode: boolean;
   onCancelRecommendationPreviewPlace: (previewId: string) => void;
   onDelete: (place: ItineraryPlace) => void;
   onEdit: (place: ItineraryPlace) => void;
-  onMove: (place: ItineraryPlace, dayNumber: number, position: number) => Promise<void>;
+  onMove: (
+    place: DisplayedPlace,
+    dayNumber: number,
+    position: number,
+  ) => Promise<void>;
+  onPreviewTimeChange: (place: DisplayedPlace, time: string) => void;
   onSaveRecommendationPreviewPlace: (previewId: string) => void;
   onSelectRecommendationPreviewPlace: (previewId: string) => void;
   place: DisplayedPlace;
+  previewDayPlaceCounts: Record<number, number>;
   placeNumber: number;
-  places: ItineraryPlace[];
+  places: DisplayedPlace[];
   trip: Trip;
 }) {
-  const sortableId = place.id ? placeDragId(place.id) : `missing:${place.time}-${place.label}`;
-  const isRecommendationPreviewPlace = Boolean(place.isRecommendationPreview && place.previewId);
-  const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
+  const sortablePlaceId = displayedPlaceSortableId(place);
+  const sortableId =
+    sortablePlaceId ?? `missing:${place.time}-${place.label}`;
+  const canSortPlace = Boolean(sortablePlaceId);
+  const isRecommendationPreviewPlace = Boolean(
+    place.isRecommendationPreview && place.previewId,
+  );
+  const {
+    attributes,
+    isDragging,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({
     id: sortableId,
-    disabled: isRecommendationPreviewPlace || !canEditTrip || !place.id || disabled,
+    disabled: !canEditTrip || !canSortPlace || disabled,
   });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
-  const className = ["timeline-item", isDragging ? "dragging" : "", isMoving ? "moving" : ""].filter(Boolean).join(" ");
+  const className = [
+    "timeline-item",
+    isDragging ? "dragging" : "",
+    isMoving ? "moving" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
   const sortableListeners = listeners ?? {};
-  const moveWithKeyboard = (event: KeyboardEvent<HTMLButtonElement>): boolean => {
-    if (!place.id || disabled) return false;
-    const currentIndex = places.findIndex((item) => item.id === place.id);
+  const moveWithKeyboard = (
+    event: KeyboardEvent<HTMLButtonElement>,
+  ): boolean => {
+    if (!canSortPlace || disabled) return false;
+    const currentIndex = places.findIndex(
+      (item) => displayedPlaceSortableId(item) === sortableId,
+    );
     if (currentIndex < 0) return false;
     if (event.key === "ArrowUp" && currentIndex > 0) {
       event.preventDefault();
@@ -1800,13 +2941,19 @@ function SortablePlaceItem({
       void onMove(place, currentDay, currentIndex + 2);
       return true;
     }
-    if (event.shiftKey && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+    if (
+      event.shiftKey &&
+      (event.key === "ArrowLeft" || event.key === "ArrowRight")
+    ) {
       const currentDayIndex = dayNumbers.indexOf(currentDay);
-      const nextDayIndex = event.key === "ArrowRight" ? currentDayIndex + 1 : currentDayIndex - 1;
+      const nextDayIndex =
+        event.key === "ArrowRight" ? currentDayIndex + 1 : currentDayIndex - 1;
       const targetDay = dayNumbers[nextDayIndex];
       if (!targetDay) return false;
       event.preventDefault();
-      const targetCount = trip.days[targetDay]?.length ?? 0;
+      const targetCount = isPreviewMode
+        ? (previewDayPlaceCounts[targetDay] ?? 0)
+        : (trip.days[targetDay]?.length ?? 0);
       void onMove(place, targetDay, targetCount + 1);
       return true;
     }
@@ -1814,12 +2961,23 @@ function SortablePlaceItem({
   };
 
   return (
-    <div className={className} data-place-id={place.id} ref={setNodeRef} style={style}>
+    <div
+      className={className}
+      data-place-id={place.id}
+      ref={setNodeRef}
+      style={style}
+    >
       <div className="timeline-marker" aria-hidden="true">
         <span>{placeNumber}</span>
       </div>
-      <article className={isRecommendationPreviewPlace ? "place-detail recommendation-preview-place" : "place-detail"}>
-        {canEditTrip && place.id && !isRecommendationPreviewPlace && (
+      <article
+        className={
+          isRecommendationPreviewPlace
+            ? "place-detail recommendation-preview-place"
+            : "place-detail"
+        }
+      >
+        {canEditTrip && canSortPlace && (
           <button
             className="drag-handle"
             type="button"
@@ -1828,7 +2986,8 @@ function SortablePlaceItem({
             {...attributes}
             {...sortableListeners}
             onKeyDown={(event) => {
-              if (!moveWithKeyboard(event)) sortableListeners.onKeyDown?.(event);
+              if (!moveWithKeyboard(event))
+                sortableListeners.onKeyDown?.(event);
             }}
           >
             <GripVertical size={16} />
@@ -1842,11 +3001,28 @@ function SortablePlaceItem({
             onClick={() => onSelectRecommendationPreviewPlace(place.previewId!)}
             disabled={disabled}
           >
-            <div className="place-prototype-meta">
-              {place.time && <span>{place.time}</span>}
+            <div className="place-prototype-meta recommendation-preview-meta">
+              {place.time && (
+                <>
+                  <span>{place.time}</span>
+                  <span className="preview-meta-separator" aria-hidden="true">
+                    ·
+                  </span>
+                </>
+              )}
               <em aria-hidden="true">{getPlaceEmoji(place)}</em>
-              <span className="preview-candidate-index">추천 후보</span>
-              <span className="preview-phase-label">{recommendationPreviewPhaseLabel(place)}</span>
+              <span className="preview-meta-separator" aria-hidden="true">
+                ·
+              </span>
+              <span className="preview-candidate-index">
+                {place.isRecommendationSelected ? "저장 선택" : "추천 후보"}
+              </span>
+              <span className="preview-meta-separator" aria-hidden="true">
+                ·
+              </span>
+              <span className="preview-phase-label">
+                {recommendationPreviewPhaseLabel(place)}
+              </span>
             </div>
             <h4>{place.label}</h4>
             <div className="meta">{place.meta}</div>
@@ -1865,38 +3041,75 @@ function SortablePlaceItem({
         {isRecommendationPreviewPlace && place.previewId ? (
           <div className="place-actions recommendation-preview-place-actions">
             <button
-              className="btn sm primary"
+              className="btn sm ghost"
               type="button"
-              aria-label={`${place.label} 미리보기 저장`}
+              aria-label={`${place.label} 후보 저장`}
               onClick={(event) => {
                 event.stopPropagation();
                 onSaveRecommendationPreviewPlace(place.previewId!);
               }}
-              disabled={disabled}
+              disabled={disabled || place.isRecommendationSelected}
             >
-              저장
+              {place.isRecommendationSelected ? "저장됨" : "저장"}
             </button>
+            <details
+              className="preview-time-edit"
+              aria-label={`${place.label} 시간 수정`}
+            >
+              <summary>수정</summary>
+              <PlaceTimePicker
+                disabled={disabled}
+                value={place.time ?? ""}
+                onChange={(time) => onPreviewTimeChange(place, time)}
+              />
+            </details>
             <button
               className="btn sm line"
               type="button"
-              aria-label={`${place.label} 미리보기 취소`}
+              aria-label={`${place.label} 후보 제외`}
               onClick={(event) => {
                 event.stopPropagation();
                 onCancelRecommendationPreviewPlace(place.previewId!);
               }}
               disabled={disabled}
             >
-              취소
+              후보 제외
             </button>
           </div>
         ) : canEditTrip ? (
           <div className="place-actions">
-            <button className="btn sm ghost" type="button" onClick={() => onEdit(place)} disabled={!place.id || disabled}>
-              수정
-            </button>
-            <button className="btn sm line" type="button" onClick={() => onDelete(place)} disabled={!place.id || disabled || isMoving}>
-              삭제
-            </button>
+            {isPreviewMode ? (
+              <details
+                className="preview-time-edit"
+                aria-label={`${place.label} 시간 수정`}
+              >
+                <summary>수정</summary>
+                <PlaceTimePicker
+                  disabled={disabled}
+                  value={place.time ?? ""}
+                  onChange={(time) => onPreviewTimeChange(place, time)}
+                />
+              </details>
+            ) : (
+              <button
+                className="btn sm ghost"
+                type="button"
+                onClick={() => onEdit(place)}
+                disabled={!place.id || disabled}
+              >
+                수정
+              </button>
+            )}
+            {!isPreviewMode && (
+              <button
+                className="btn sm line"
+                type="button"
+                onClick={() => onDelete(place)}
+                disabled={!place.id || disabled || isMoving}
+              >
+                삭제
+              </button>
+            )}
           </div>
         ) : null}
       </article>
@@ -1916,7 +3129,10 @@ function PlaceTimePicker({
   const parsed = parsePlaceTime(value);
   const isTimeSet = Boolean(value && parsed);
   const base = placeTimeBase(value);
-  const displayValue = isTimeSet && parsed ? formatPlaceTime(parsed.hour, parsed.minute) : "시간 없음";
+  const displayValue =
+    isTimeSet && parsed
+      ? formatPlaceTime(parsed.hour, parsed.minute)
+      : "시간 없음";
 
   const setTime = (hour: number, minute: number) => {
     onChange(formatPlaceTime((hour + 24) % 24, minute));
@@ -1933,39 +3149,77 @@ function PlaceTimePicker({
   return (
     <div className="field place-time-picker">
       <span>방문 시간</span>
-      <div className="time-picker-control" role="group" aria-label="방문 시간 선택">
+      <div
+        className="time-picker-control"
+        role="group"
+        aria-label="방문 시간 선택"
+      >
         <div className="time-picker-display" aria-live="polite">
           <strong>{displayValue}</strong>
         </div>
         <div className="time-picker-spinners">
           <div className="time-stepper" aria-label="방문 시 조절">
             <span>시</span>
-            <button type="button" className="time-stepper-button" onClick={() => shiftHour(-1)} disabled={disabled} aria-label="방문 시간 1시간 감소">
+            <button
+              type="button"
+              className="time-stepper-button"
+              onClick={() => shiftHour(-1)}
+              disabled={disabled}
+              aria-label="방문 시간 1시간 감소"
+            >
               -
             </button>
             <strong>{String(base.hour).padStart(2, "0")}</strong>
-            <button type="button" className="time-stepper-button" onClick={() => shiftHour(1)} disabled={disabled} aria-label="방문 시간 1시간 증가">
+            <button
+              type="button"
+              className="time-stepper-button"
+              onClick={() => shiftHour(1)}
+              disabled={disabled}
+              aria-label="방문 시간 1시간 증가"
+            >
               +
             </button>
           </div>
           <div className="time-stepper" aria-label="방문 분 조절">
             <span>분</span>
-            <button type="button" className="time-stepper-button" onClick={() => shiftMinute(-placeMinuteStep)} disabled={disabled} aria-label="방문 시간 10분 감소">
+            <button
+              type="button"
+              className="time-stepper-button"
+              onClick={() => shiftMinute(-placeMinuteStep)}
+              disabled={disabled}
+              aria-label="방문 시간 10분 감소"
+            >
               -10
             </button>
             <strong>{String(base.minute).padStart(2, "0")}</strong>
-            <button type="button" className="time-stepper-button" onClick={() => shiftMinute(placeMinuteStep)} disabled={disabled} aria-label="방문 시간 10분 증가">
+            <button
+              type="button"
+              className="time-stepper-button"
+              onClick={() => shiftMinute(placeMinuteStep)}
+              disabled={disabled}
+              aria-label="방문 시간 10분 증가"
+            >
               +10
             </button>
           </div>
         </div>
         <div className="time-picker-actions">
           {!isTimeSet && (
-            <button type="button" className="btn sm ghost" onClick={() => onChange(defaultPlaceTime)} disabled={disabled}>
+            <button
+              type="button"
+              className="btn sm ghost"
+              onClick={() => onChange(defaultPlaceTime)}
+              disabled={disabled}
+            >
               {defaultPlaceTime} 설정
             </button>
           )}
-          <button type="button" className="btn sm line" onClick={() => onChange("")} disabled={disabled || !isTimeSet}>
+          <button
+            type="button"
+            className="btn sm line"
+            onClick={() => onChange("")}
+            disabled={disabled || !isTimeSet}
+          >
             시간 비우기
           </button>
         </div>
@@ -1992,11 +3246,19 @@ function PlacePreviewMapCard({
           ? "검색 결과가 없어도 장소명을 직접 입력해 저장할 수 있어요."
           : "장소를 검색하면 지도에 표시돼요.";
   const fallback = (
-    <div className={place ? "place-preview-fallback has-place" : "place-preview-fallback"}>
+    <div
+      className={
+        place ? "place-preview-fallback has-place" : "place-preview-fallback"
+      }
+    >
       <MapIcon size={18} aria-hidden="true" />
       <div>
         <strong>{place?.label || "장소를 검색하면 지도에 표시돼요"}</strong>
-        <span>{place?.address || place?.meta || "추천 장소나 검색 후보가 여기에 미리 표시됩니다."}</span>
+        <span>
+          {place?.address ||
+            place?.meta ||
+            "추천 장소나 검색 후보가 여기에 미리 표시됩니다."}
+        </span>
       </div>
     </div>
   );
@@ -2008,8 +3270,19 @@ function PlacePreviewMapCard({
           <span className="eyebrow">지도 미리보기</span>
           <h3>{place?.label || "선택할 장소 확인"}</h3>
         </div>
-        <span className={saveEligibility === "saveSelected" || saveEligibility === "manualAllowed" ? "place-preview-state ready" : "place-preview-state"}>
-          {saveEligibility === "saveSelected" ? "저장 가능" : saveEligibility === "manualAllowed" ? "직접 입력" : "확인 필요"}
+        <span
+          className={
+            saveEligibility === "saveSelected" ||
+            saveEligibility === "manualAllowed"
+              ? "place-preview-state ready"
+              : "place-preview-state"
+          }
+        >
+          {saveEligibility === "saveSelected"
+            ? "저장 가능"
+            : saveEligibility === "manualAllowed"
+              ? "직접 입력"
+              : "확인 필요"}
         </span>
       </div>
       {marker ? (
@@ -2071,26 +3344,64 @@ function PlaceEditorSheet({
   searchQuery: string;
   restoredDraftMessage: string;
 }) {
-  const showEmptySearch = mode === "add" && searchQuery.trim() && !isLoadingSearch && searchCandidates.length === 0;
-  const showBlankManualRecovery = mode === "add" && !searchQuery.trim() && saveEligibility === "manualAllowed" && searchCandidates.length === 0 && !isLoadingSearch;
-  const showManualPlaceName = mode === "edit" || showEmptySearch || showBlankManualRecovery || (mode === "add" && Boolean(form.label) && searchCandidates.length === 0 && !isLoadingSearch);
+  const showEmptySearch =
+    mode === "add" &&
+    searchQuery.trim() &&
+    !isLoadingSearch &&
+    searchCandidates.length === 0;
+  const showBlankManualRecovery =
+    mode === "add" &&
+    !searchQuery.trim() &&
+    saveEligibility === "manualAllowed" &&
+    searchCandidates.length === 0 &&
+    !isLoadingSearch;
+  const showManualPlaceName =
+    mode === "edit" ||
+    showEmptySearch ||
+    showBlankManualRecovery ||
+    (mode === "add" &&
+      Boolean(form.label) &&
+      searchCandidates.length === 0 &&
+      !isLoadingSearch);
   const updateManualPlaceName = (label: string) => {
     onChange({ time: form.time ?? "", label, meta: form.meta ?? "" });
   };
   return (
     <div className="sheet-backdrop" role="presentation" onMouseDown={onClose}>
-      <section className="trip-select-sheet" role="dialog" aria-modal="true" aria-labelledby="place-editor-title" onMouseDown={(event) => event.stopPropagation()}>
+      <section
+        className="trip-select-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="place-editor-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
         <div className="sheet-head">
           <div>
-            <h2 id="place-editor-title">{mode === "add" ? "장소 추가" : "장소 수정"}</h2>
-            <p className="meta">{mode === "add" ? "장소를 검색해 선택하거나 직접 입력한 뒤 방문 시간과 메모를 저장하세요." : "장소명, 방문 시간, 메모를 수정하세요."}</p>
+            <h2 id="place-editor-title">
+              {mode === "add" ? "장소 추가" : "장소 수정"}
+            </h2>
+            <p className="meta">
+              {mode === "add"
+                ? "장소를 검색해 선택하거나 직접 입력한 뒤 방문 시간과 메모를 저장하세요."
+                : "장소명, 방문 시간, 메모를 수정하세요."}
+            </p>
           </div>
-          <button className="btn sm ghost" type="button" onClick={onClose} disabled={isSaving}>
+          <button
+            className="btn sm ghost"
+            type="button"
+            onClick={onClose}
+            disabled={isSaving}
+          >
             닫기
           </button>
         </div>
         <div className="form place-editor-form">
-          {restoredDraftMessage && <DraftRestoreNotice message={restoredDraftMessage} onDiscard={onDiscardDraft} />}
+          {restoredDraftMessage && (
+            <DraftRestoreNotice
+              message={restoredDraftMessage}
+              onDiscard={onDiscardDraft}
+            />
+          )}
           {mode === "add" && (
             <div className="place-search-panel">
               <label className="field">
@@ -2102,15 +3413,29 @@ function PlaceEditorSheet({
                   onChange={(event) => onSearchChange(event.target.value)}
                 />
               </label>
-              {isLoadingSearch && <p className="place-search-status">장소 검색 결과를 불러오는 중입니다.</p>}
-              {searchError && <p className="place-search-status error">{searchError}</p>}
+              {isLoadingSearch && (
+                <p className="place-search-status">
+                  장소 검색 결과를 불러오는 중입니다.
+                </p>
+              )}
+              {searchError && (
+                <p className="place-search-status error">{searchError}</p>
+              )}
               {searchCandidates.length > 0 && (
-                <div className="place-search-results" role="list" aria-label="장소 검색 결과">
+                <div
+                  className="place-search-results"
+                  role="list"
+                  aria-label="장소 검색 결과"
+                >
                   {searchCandidates.map((candidate, index) => (
                     <button
                       aria-label={`${candidate.title} 선택`}
                       className="place-search-result"
-                      key={candidate.id ?? candidate.externalPlaceId ?? `${candidate.title}:${index}`}
+                      key={
+                        candidate.id ??
+                        candidate.externalPlaceId ??
+                        `${candidate.title}:${index}`
+                      }
                       type="button"
                       onClick={() => onSelectSearchCandidate(candidate)}
                     >
@@ -2124,17 +3449,38 @@ function PlaceEditorSheet({
                 </div>
               )}
               {form.label && (
-                <div className="place-selected-summary" aria-label="선택한 장소">
+                <div
+                  className="place-selected-summary"
+                  aria-label="선택한 장소"
+                >
                   <strong>{form.label}</strong>
                   <span>{form.meta || "장소 정보 확인"}</span>
                 </div>
               )}
-              {showEmptySearch && <p className="place-search-status">검색 결과가 없어요. 장소명을 직접 입력해 저장할 수 있어요.</p>}
+              {showEmptySearch && (
+                <p className="place-search-status">
+                  검색 결과가 없어요. 장소명을 직접 입력해 저장할 수 있어요.
+                </p>
+              )}
             </div>
           )}
-          {mode === "add" && <PlacePreviewMapCard preview={preview} saveEligibility={saveEligibility} />}
-          <PlaceTimePicker disabled={isSaving} value={form.time ?? ""} onChange={(time) => onChange({ ...form, time })} />
-          <input type="hidden" name="place-time" value={form.time ?? ""} readOnly />
+          {mode === "add" && (
+            <PlacePreviewMapCard
+              preview={preview}
+              saveEligibility={saveEligibility}
+            />
+          )}
+          <PlaceTimePicker
+            disabled={isSaving}
+            value={form.time ?? ""}
+            onChange={(time) => onChange({ ...form, time })}
+          />
+          <input
+            type="hidden"
+            name="place-time"
+            value={form.time ?? ""}
+            readOnly
+          />
           {showManualPlaceName ? (
             <label className="field">
               장소명
@@ -2146,7 +3492,12 @@ function PlaceEditorSheet({
               />
             </label>
           ) : (
-            <input type="hidden" name="place-label" value={form.label} readOnly />
+            <input
+              type="hidden"
+              name="place-label"
+              value={form.label}
+              readOnly
+            />
           )}
           <label className="field">
             메모
@@ -2154,7 +3505,9 @@ function PlaceEditorSheet({
               name="place-meta"
               placeholder="이동 메모나 예약 정보를 적어주세요"
               value={form.meta ?? ""}
-              onChange={(event) => onChange({ ...form, meta: event.target.value })}
+              onChange={(event) =>
+                onChange({ ...form, meta: event.target.value })
+              }
             />
           </label>
           {error && <p className="form-error">{error}</p>}

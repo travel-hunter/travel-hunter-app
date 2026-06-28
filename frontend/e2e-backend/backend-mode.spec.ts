@@ -98,6 +98,34 @@ test("backend data source drives policy, trip, recommendation, invite, and logou
   await expect(page.locator(".prototype-trip-action-ai")).toBeVisible();
   await page.locator(".prototype-trip-action-ai").click();
   await expect(page.locator(".recommendation-preview-banner")).toBeVisible();
+  const previewLayout = await page.evaluate(() => {
+    const actions = document.querySelector(".trip-primary-actions");
+    const preview = document.querySelector(".recommendation-preview-banner");
+    const dayTabs = document.querySelector(".day-tabs");
+    if (!actions || !preview || !dayTabs) return null;
+    const actionsRect = actions.getBoundingClientRect();
+    const previewRect = preview.getBoundingClientRect();
+    const dayTabsRect = dayTabs.getBoundingClientRect();
+    const actionsStyle = window.getComputedStyle(actions);
+    const previewStyle = window.getComputedStyle(preview);
+    return {
+      orderIsActionsPreviewTabs:
+        actionsRect.bottom <= previewRect.top && previewRect.bottom <= dayTabsRect.top,
+      alignedLeft: Math.round(actionsRect.left) === Math.round(previewRect.left),
+      alignedRight: Math.round(actionsRect.right) === Math.round(previewRect.right),
+      actionMarginLeft: actionsStyle.marginLeft,
+      previewMarginLeft: previewStyle.marginLeft,
+      previewRadius: previewStyle.borderRadius,
+    };
+  });
+  expect(previewLayout).toMatchObject({
+    orderIsActionsPreviewTabs: true,
+    alignedLeft: true,
+    alignedRight: true,
+    actionMarginLeft: "16px",
+    previewMarginLeft: "16px",
+    previewRadius: "10px",
+  });
   await page.goto(`/trips/${tripId}`);
 
   await page.goto(`/friend-invite?tripId=${tripId}`);
