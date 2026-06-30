@@ -21,6 +21,7 @@ from app.services.policy_requirements import (
     sanitize_target_condition,
     split_requirement_lines,
 )
+from app.services.policy_structured_detail import build_structured_detail_from_policy
 from app.services.profile_preferences import ProfilePreferenceError, serialize_preferred_regions
 
 
@@ -379,6 +380,10 @@ def _apply_policy_values(policy: Policy, values: dict[str, Any]) -> None:
         policy.status = values["status"]
 
 
+def _refresh_policy_structured_detail(policy: Policy) -> None:
+    policy.structured_detail = build_structured_detail_from_policy(policy)
+
+
 def list_policies(
     db: Session,
     current_admin: User,
@@ -439,6 +444,7 @@ def create_policy(
     admin_repository.add_policy(db, policy)
     if payload.documents is not None:
         admin_repository.replace_policy_documents(db, policy, _clean_items(payload.documents))
+    _refresh_policy_structured_detail(policy)
     after = _policy_audit_snapshot(policy)
     _record_audit(
         db,
@@ -470,6 +476,7 @@ def update_policy(
     _apply_policy_values(policy, values)
     if "documents" in values and values["documents"] is not None:
         admin_repository.replace_policy_documents(db, policy, _clean_items(values["documents"]))
+    _refresh_policy_structured_detail(policy)
     if _policy_source_type(policy) == "external":
         policy.admin_override_enabled = True
     policy.updated_at = security.utc_now_naive()

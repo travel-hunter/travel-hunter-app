@@ -184,6 +184,16 @@ def test_admin_policy_create_maps_save_fields_and_records_audit(db: Session) -> 
     assert policy.target_condition == "Domestic traveler\nReceipt required"
     assert policy.status == "hidden"
     assert [document.document_name for document in policy.documents] == ["ID card", "Receipt"]
+    assert policy.structured_detail is not None
+    assert policy.structured_detail["benefits"][0]["description"] == "30000 KRW discount"
+    assert policy.structured_detail["conditions"] == [
+        {"title": "조건", "description": "Domestic traveler"},
+        {"title": "조건", "description": "Receipt required"},
+    ]
+    assert policy.structured_detail["documents"] == [
+        {"title": "필요 서류", "description": "ID card"},
+        {"title": "필요 서류", "description": "Receipt"},
+    ]
     assert admin_service.list_audit_logs(db, admin, limit=10, offset=0)["items"][0]["action"] == "policy.create"
 
 
@@ -284,6 +294,37 @@ def test_admin_update_external_policy_sets_override_enabled(db: Session) -> None
 
     assert result["adminOverrideEnabled"] is True
     assert policy.admin_override_enabled is True
+
+
+def test_admin_policy_update_refreshes_structured_detail(db: Session) -> None:
+    admin = make_user(1, email="admin@example.com", role="admin")
+    policy = make_policy(21, slug="structured-refresh-policy", status="active")
+    policy.structured_detail = {
+        "benefits": [{"title": "혜택", "description": "Old benefit"}],
+        "conditions": [],
+        "periods": [],
+        "links": [],
+        "documents": [],
+        "notices": [],
+    }
+    db.add_all([admin, policy])
+    db.commit()
+
+    admin_service.update_policy(
+        db,
+        admin,
+        "21",
+        admin_service.AdminPolicyUpdateRequest(
+            benefitDetail="Updated benefit",
+            requirements=["문의전화 1660-3067", "국내 거주자"],
+            documents=["Updated document"],
+        ),
+    )
+
+    assert policy.structured_detail is not None
+    assert policy.structured_detail["benefits"][0]["description"] == "Updated benefit"
+    assert policy.structured_detail["conditions"] == [{"title": "조건", "description": "국내 거주자"}]
+    assert policy.structured_detail["documents"] == [{"title": "필요 서류", "description": "Updated document"}]
 
 
 def test_admin_policy_update_rejects_slug_source_type_label_and_tag() -> None:

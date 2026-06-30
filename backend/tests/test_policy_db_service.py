@@ -6,6 +6,7 @@ from app.models import PolicyDocument
 from app.models import User as UserModel
 from app.models import UserSavedPolicy
 from app.services import policies as policy_service
+from app.services.policy_structured_detail import build_structured_detail_from_policy
 
 
 def make_policy() -> PolicyModel:
@@ -50,6 +51,74 @@ def test_policy_to_api_preserves_contract_shape() -> None:
     assert payload["officialUrl"] == "https://www.mcst.go.kr/site/s_notice/press/pressView.jsp?pMenuCD=0302000000&pSeq=22267"
     assert payload["applyUrl"] is None
     assert payload["category"] == "지역할인"
+
+
+def test_policy_to_api_includes_structured_detail_when_present() -> None:
+    policy = make_policy()
+    policy.structured_detail = {
+        "benefits": [{"title": "혜택", "description": "숙박비 할인", "amount": "최대 7만원"}],
+        "conditions": [{"title": "대상", "description": "비수도권 숙박 예약자"}],
+        "periods": [],
+        "links": [{"label": "공식 안내", "url": "https://example.com"}],
+        "documents": [],
+        "notices": [],
+    }
+
+    payload = policy_service.policy_to_api(policy)
+
+    assert payload["structuredDetail"] == policy.structured_detail
+
+
+def test_policy_to_api_sanitizes_structured_detail_links_and_keys() -> None:
+    policy = make_policy()
+    policy.structured_detail = {
+        "benefits": [{"title": "혜택", "description": "숙박비 할인", "rawPayload": "secret"}],
+        "conditions": [],
+        "periods": [],
+        "links": [
+            {"label": "공식 안내", "url": "https://example.com/ok", "rawPayload": {"internal": True}},
+            {"label": "위험 링크", "url": "javascript:alert(1)"},
+        ],
+        "documents": [],
+        "notices": [],
+    }
+
+    payload = policy_service.policy_to_api(policy)
+
+    assert payload["structuredDetail"] == {
+        "benefits": [{"title": "혜택", "description": "숙박비 할인"}],
+        "conditions": [],
+        "periods": [],
+        "links": [{"label": "공식 안내", "url": "https://example.com/ok"}],
+        "documents": [],
+        "notices": [],
+    }
+
+
+def test_policy_to_api_omits_empty_structured_detail_for_fallback() -> None:
+    policy = make_policy()
+    policy.structured_detail = {
+        "benefits": [],
+        "conditions": [],
+        "periods": [],
+        "links": [],
+        "documents": [],
+        "notices": [],
+    }
+
+    payload = policy_service.policy_to_api(policy)
+
+    assert payload["structuredDetail"] is None
+
+
+def test_build_structured_detail_filters_unsafe_policy_links() -> None:
+    policy = make_policy()
+    policy.apply_url = "javascript:alert(1)"
+    policy.official_url = "https://example.com/official"
+
+    detail = build_structured_detail_from_policy(policy)
+
+    assert detail["links"] == [{"label": "공식 안내", "url": "https://example.com/official"}]
 
 
 def test_policy_to_api_filters_phone_contact_requirements() -> None:

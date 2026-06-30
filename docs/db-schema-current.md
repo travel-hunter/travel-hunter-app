@@ -2,13 +2,14 @@
 
 ## 기준
 
-- 기준일: 2026-06-15
-- 기준 Alembic head: `0019_email_first_signup`
-- PostgreSQL: 16.13
-- SQL 산출물: `docs/db-schema-current.sql`
-- 생성 방식: fresh PostgreSQL DB에 `alembic upgrade head`를 적용한 뒤 `pg_dump --schema-only --no-owner --no-privileges`로 추출했다.
+- 기준일: 2026-06-30
+- 기준 Alembic head: `0023_policy_structured_detail`
+- PostgreSQL: 16.14 (`postgres:16-alpine` fresh container)
+- SQL snapshot: `docs/db-schema-current.sql`
+- ERD/관계 시각화: `docs/db-erd.md`
+- 생성 방식: fresh PostgreSQL DB에 `alembic upgrade head`를 적용한 뒤 `pg_dump --schema-only --no-owner --no-privileges`로 `docs/db-schema-current.sql`을 추출했다. Schema 변경은 Alembic 기준으로 추적하고, 관계/핵심 컬럼 요약은 `docs/db-erd.md`가 제공한다.
 
-이 문서는 현재 앱이 사용하는 PostgreSQL schema의 기준 문서다. 초기 SQL 기준본 이후 Alembic migration `0002`~`0019`이 적용된 현재 구조를 설명한다.
+이 문서는 현재 앱이 사용하는 PostgreSQL schema의 기준 문서다. 초기 SQL 기준본 이후 Alembic migration `0002`~`0023`이 적용된 현재 구조를 설명한다. 테이블 관계, 핵심 컬럼, 제약/index, 문서 drift는 `docs/db-erd.md`를 함께 본다.
 
 ## 테이블 그룹
 
@@ -19,6 +20,8 @@ Auth/User:
 - `social_accounts`
 - `password_reset_tokens`
 - `pending_signups`
+- `pending_social_signups`
+- `phone_verification_codes`
 - `user_notification_settings`
 
 `social_accounts.provider_id`는 Google OIDC `sub` 등 긴 provider subject를 보관할 수 있도록 `varchar(255)`로 유지한다.
@@ -60,6 +63,7 @@ Migration metadata:
 - `notification_deliveries`
 - `password_reset_tokens`
 - `pending_signups`
+- `pending_social_signups`
 - `phone_verification_codes`
 - `admin_audit_logs`
 - `external_source_records`
@@ -71,12 +75,33 @@ Migration metadata:
 - `users.travel_budget`
 - `users.phone_number`
 - `users.phone_verified_at`
+- `users.nickname_setup_completed`
+- `users.profile_setup_skipped`
+- `users.terms_accepted` / `users.terms_accepted_at` / `users.terms_version`
+- `users.privacy_accepted` / `users.privacy_accepted_at` / `users.privacy_version`
+- `pending_signups.terms_accepted` / `pending_signups.privacy_accepted` 계열 약관 동의 컬럼
 - `policies.apply_url`
+- `policies.structured_detail`
 - `trip_invites.role`
   - 초대 token에 고정되는 권한(`viewer`/`editor`)이다. 같은 일정에서 role별 active invite가 공존할 수 있으며, 다른 role 링크 생성은 기존 token의 role을 변경하지 않는다.
 - `trips.status`
 - `trips.revision`
 
+
+
+## 2026-06-30 ERD/current-code 기준
+
+`docs/db-erd.md`는 SQLAlchemy metadata(`backend/app/models/tables.py`)와 Alembic head `0023_policy_structured_detail`를 기준으로 만든 현재 코드 기준 ERD다. 이 ERD는 테이블 관계, 핵심 컬럼, PK/FK/unique/index 요약, `docs/db-schema-current.sql`과의 drift를 함께 기록한다.
+
+이전에 확인됐고 이번 SQL snapshot 재생성으로 해소된 주요 drift:
+
+- 기존 `docs/db-schema-current.sql`은 문서상 `0019_email_first_signup` 기준으로 남아 있었으나, fresh PostgreSQL DB에 Alembic head `0023_policy_structured_detail`까지 적용한 뒤 재생성했다.
+- `0020_oauth_onboarding_state_flags`: `users.nickname_setup_completed`, `users.profile_setup_skipped` 추가.
+- `0021_legacy_social_nickname`: social 계정 onboarding 상태 backfill이며 schema object 추가는 없다.
+- `0022_signup_terms_agreements`: `users`와 `pending_signups`의 terms/privacy 동의 컬럼 추가, `pending_social_signups` 테이블 추가.
+- `0023_policy_structured_detail`: `policies.structured_detail` JSONB 컬럼 추가. 기존 정책 row는 현재 정책 필드에서 느슨한 사용자 상세 섹션 JSON으로 backfill하되, 조건 섹션은 코드의 조건 정제 규칙과 drift가 생기지 않도록 비워 두고 화면에서 기존 조건 fallback을 사용한다.
+
+현재 `docs/db-schema-current.sql`은 위 절차로 재생성된 최신 schema-only snapshot이다. 향후 migration이 추가되면 같은 절차로 다시 생성한다.
 
 ## `pending_signups`
 
@@ -129,6 +154,10 @@ Migration metadata:
 
 `policies`는 사용자에게 노출되는 공식 혜택의 정규화 테이블이다. TravelMonth 등 외부 공식 수집 레코드는 원문 근거를 `external_source_records`에 보존한 뒤 active/fresh 항목을 `policies`로 승격한다. 승격된 정책은 저장, 일정 연결, 추천 카드, 상세 페이지에서 일반 정책과 같은 경로를 사용한다.
 
+정책 상세 화면용 구조화 컬럼:
+
+- `structured_detail`: `benefits`, `conditions`, `periods`, `links`, `documents`, `notices` 섹션을 담는 JSONB 정리본이다. raw 수집 JSON이 아니라 사용자 화면에서 바로 섹션 렌더링하기 위한 보조/장기 기준 데이터이며, 섹션이 없거나 비어 있으면 해당 섹션만 기존 `summary`/`requirements` fallback을 사용한다. public 링크는 `http://`/`https://`만 노출한다.
+
 정규화 출처 추적 컬럼:
 
 - `source_type`
@@ -147,7 +176,7 @@ Migration metadata:
 
 - Schema 생성과 변경은 Alembic으로만 수행한다.
 - 앱 schema 생성을 위해 SQLAlchemy `create_all()`을 사용하지 않는다.
-- `docs/db-schema-current.sql`은 현재 구조 공유와 검토용 기준이다. 실제 배포 적용은 Alembic migration을 사용한다.
+- 현재 구조 공유와 검토는 Alembic head, `docs/db-erd.md`, 그리고 fresh DB에서 생성한 `docs/db-schema-current.sql`을 함께 기준으로 한다. 실제 배포 적용은 여전히 Alembic migration을 사용한다.
 - API DTO는 `camelCase`, DB/SQLAlchemy field는 `snake_case`를 유지한다.
 - `policies.slug`는 정책 상세 route key다.
 - `trips.slug`는 만들지 않는다. 일정 route는 내부 trip id를 사용한다.
@@ -173,12 +202,12 @@ Migration metadata:
 
 ## Admin management additions
 
-??? v1? ?? ?? ??? ?? `users.role` ?? ???? `user`? `admin`? ????. ???? `user`??.
+관리자 관리 기반 migration(`0015_admin_management_foundation`)은 일반 사용자와 관리자를 구분하기 위해 `users.role`을 추가한다. 허용 값은 `user`와 `admin`이며 기본값은 `user`다.
 
-??? ?? ??? public ?? ??? ?? `policies`? ?? ??? ????.
+관리자 화면에서 public 정책 노출 상태를 제어할 수 있도록 `policies`에 다음 컬럼을 추가한다.
 
-- `status`: `active` ?? `hidden`, ??? `active`
-- `admin_override_enabled`: external normalized policy? ???? ????? ??, ??? `false`
-- `updated_at`: ??? ?? ?? ?? ??
+- `status`: `active` 또는 `hidden`, 기본값은 `active`
+- `admin_override_enabled`: external normalized policy를 관리자가 수동 보정했는지 나타내며, 기본값은 `false`
+- `updated_at`: 정책 수정 시각 추적용 timestamp
 
-`admin_audit_logs`? ??/?? ??? ?? ??? ????. `before_json`? `after_json`? sanitized JSON?? password hash, token, OTP, OAuth identifier ?? secret? ???? ???.
+`admin_audit_logs`는 관리자 변경 이력을 남긴다. `before_json`과 `after_json`에는 sanitized JSON만 저장해야 하며 password hash, token, OTP, OAuth identifier 같은 secret/internal 값은 포함하지 않는다.

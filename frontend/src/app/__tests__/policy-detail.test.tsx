@@ -103,6 +103,104 @@ describe("Travel Hunter app — policy detail", () => {
     }
   });
 
+
+
+  it("renders structured detail sections when the policy provides structuredDetail", async () => {
+    const structuredPolicy: Policy = {
+      id: "structured-policy",
+      slug: "structured-policy",
+      label: "ST",
+      tag: "구조화",
+      title: "구조화 상세 정책",
+      org: "Travel Hunter",
+      region: "전국",
+      deadline: "2026-12-31",
+      amount: "확인 필요",
+      summary: "기존 요약 fallback",
+      match: 90,
+      category: "지역할인",
+      requirements: ["기존 조건 fallback"],
+      documents: ["기존 서류 fallback"],
+      structuredDetail: {
+        benefits: [{ title: "혜택", description: "숙박비를 최대 7만원 할인", amount: "최대 7만원" }],
+        conditions: [{ title: "대상", description: "비수도권 숙박 예약자" }],
+        periods: [{ title: "신청 기간", description: "2026-06-01 ~ 2026-07-31" }],
+        links: [{ label: "공식 상세", url: "https://example.com/structured" }],
+        documents: [],
+        notices: [{ title: "주의", description: "예산 소진 시 조기 종료" }],
+      },
+      officialUrl: "https://example.com/official",
+      applyUrl: null,
+    };
+    const getPolicySpy = vi
+      .spyOn(appDataApi, "getPolicy")
+      .mockResolvedValue(structuredPolicy);
+
+    try {
+      await login();
+      cleanup();
+      renderAppRoute("/policies/structured-policy");
+
+      expect(await screen.findByRole("heading", { name: "구조화 상세 정책" })).toBeInTheDocument();
+      expect(screen.getByText("최대 7만원")).toBeInTheDocument();
+      expect(screen.getByText("2026-06-01 ~ 2026-07-31")).toBeInTheDocument();
+      expect(screen.getByText("비수도권 숙박 예약자")).toBeInTheDocument();
+      expect(screen.getByText("예산 소진 시 조기 종료")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /공식 상세/ })).toHaveAttribute("href", "https://example.com/structured");
+      expect(screen.queryByText("기존 조건 fallback")).not.toBeInTheDocument();
+      expect(screen.getByText("기존 서류 fallback")).toBeInTheDocument();
+    } finally {
+      getPolicySpy.mockRestore();
+    }
+  });
+
+  it("falls back per section and ignores unsafe structured links", async () => {
+    const mixedPolicy: Policy = {
+      id: "mixed-structured-policy",
+      slug: "mixed-structured-policy",
+      label: "MX",
+      tag: "구조화",
+      title: "부분 구조화 정책",
+      org: "Travel Hunter",
+      region: "전국",
+      deadline: "2026-12-31",
+      amount: "확인 필요",
+      summary: "기존 요약 fallback",
+      match: 90,
+      category: "지역할인",
+      requirements: ["기존 조건 fallback"],
+      documents: ["기존 서류 fallback"],
+      structuredDetail: {
+        benefits: [{ title: "혜택", description: "구조화 혜택" }],
+        conditions: [],
+        periods: [],
+        links: [{ label: "위험 링크", url: "javascript:alert(1)" }],
+        documents: [],
+        notices: [],
+      },
+      officialUrl: "https://example.com/official",
+      applyUrl: null,
+    };
+    const getPolicySpy = vi
+      .spyOn(appDataApi, "getPolicy")
+      .mockResolvedValue(mixedPolicy);
+
+    try {
+      await login();
+      cleanup();
+      renderAppRoute("/policies/mixed-structured-policy");
+
+      expect(await screen.findByRole("heading", { name: "부분 구조화 정책" })).toBeInTheDocument();
+      expect(screen.getByText("구조화 혜택")).toBeInTheDocument();
+      expect(screen.getByText("기존 조건 fallback")).toBeInTheDocument();
+      expect(screen.getByText("기존 서류 fallback")).toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: /위험 링크/ })).not.toBeInTheDocument();
+    } finally {
+      getPolicySpy.mockRestore();
+    }
+  });
+
+
   it("uses an official policy link as an official information CTA when no direct apply link is available", async () => {
     const officialUrl =
       "https://www.mcst.go.kr/site/s_notice/press/pressView.jsp?pMenuCD=0302000000&pSeq=22267";

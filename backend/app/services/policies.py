@@ -13,6 +13,7 @@ from app.services.policy_category_classifier import classify_external_policy_cat
 from app.services import stay_discount_aliases
 from app.services import local_half_trip_display
 from app.services.policy_requirements import split_requirement_lines, sanitize_requirement_items
+from app.services.policy_structured_detail import structured_detail_for_api
 
 
 LEGACY_CATEGORY_MAP = {
@@ -80,6 +81,7 @@ def policy_to_api(policy: PolicyModel) -> dict[str, object]:
         "category": category,
         "requirements": sanitize_requirement_items(split_requirement_lines(policy.target_condition)),
         "documents": [document.document_name for document in policy.documents],
+        "structuredDetail": structured_detail_for_api(policy),
         "officialUrl": policy.official_url,
         "applyUrl": policy.apply_url,
         "sourceType": source_type,

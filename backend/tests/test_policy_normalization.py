@@ -112,6 +112,10 @@ def test_promotes_active_fresh_external_record_to_policy(db: Session) -> None:
     assert policy.external_source_record_id == rows[0].id
     assert policy.source_category == "local_half_trip"
     assert policy.verification_status == "fresh"
+    assert policy.structured_detail is not None
+    assert policy.structured_detail["benefits"][0]["description"] == "Up to 50,000 KRW"
+    assert policy.structured_detail["conditions"][0]["description"] == "공식 혜택 안내에서 조건을 확인하세요."
+    assert policy.structured_detail["links"][0]["url"] == "https://example.com/detail"
 
     from app.services.policies import policy_to_api
 

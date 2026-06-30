@@ -262,6 +262,11 @@ type PolicyRequirementSection = {
   }>;
 };
 
+type PolicyLinkSectionItem = {
+  label: string;
+  url: string;
+};
+
 function normalizeBenefitText(text: string) {
   return text.replace(/\s+/g, " ").trim();
 }
@@ -306,6 +311,68 @@ function isDiscountBenefitItem(item: string) {
 
 function pushLimited(target: string[], item: string) {
   if (!target.includes(item) && target.length < 5) target.push(item);
+}
+
+function structuredDetailItems(policy: Policy, section: keyof NonNullable<Policy["structuredDetail"]>) {
+  const items = policy.structuredDetail?.[section];
+  return Array.isArray(items) ? items : [];
+}
+
+function structuredText(...values: Array<string | null | undefined>) {
+  return values.map((value) => normalizeBenefitText(value ?? "")).find(Boolean) ?? "";
+}
+
+function isSafeExternalUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function getStructuredBenefitSections(policy: Policy): PolicyBenefitSection[] {
+  const benefits = structuredDetailItems(policy, "benefits")
+    .map((item) => structuredText(item.amount, item.description, item.value, item.title, item.label))
+    .filter(Boolean);
+  return benefits.length > 0 ? [{ title: "핵심 혜택", items: benefits }] : [];
+}
+
+function getStructuredPeriodSections(policy: Policy): PolicyBenefitSection[] {
+  const periods = structuredDetailItems(policy, "periods")
+    .map((item) => structuredText(item.description, [item.startDate, item.endDate].filter(Boolean).join(" ~ "), item.title, item.label))
+    .filter(Boolean);
+  return periods.length > 0 ? [{ title: "신청 기간", items: periods }] : [];
+}
+
+function getStructuredRequirementSections(policy: Policy): PolicyRequirementSection[] {
+  const conditions = structuredDetailItems(policy, "conditions")
+    .map((item) => {
+      const label = structuredText(item.title, item.label, "조건");
+      const description = structuredText(item.description, item.value);
+      return description ? { label, description } : null;
+    })
+    .filter((item): item is { label: string; description: string } => Boolean(item));
+  return conditions.length > 0 ? [{ title: "혜택 적용 조건", items: conditions }] : [];
+}
+
+function getStructuredDocumentItems(policy: Policy) {
+  return structuredDetailItems(policy, "documents")
+    .map((item) => structuredText(item.description, item.title, item.label, item.value))
+    .filter(Boolean);
+}
+
+function getStructuredNoticeSections(policy: Policy): PolicyBenefitSection[] {
+  const notices = structuredDetailItems(policy, "notices")
+    .map((item) => structuredText(item.description, item.value, item.title, item.label))
+    .filter(Boolean);
+  return notices.length > 0 ? [{ title: "확인 필요 사항", items: notices }] : [];
+}
+
+function getStructuredLinks(policy: Policy): PolicyLinkSectionItem[] {
+  return structuredDetailItems(policy, "links")
+    .map((item) => ({ label: structuredText(item.label, item.title, "관련 링크"), url: structuredText(item.url) }))
+    .filter((item): item is PolicyLinkSectionItem => Boolean(item.url) && isSafeExternalUrl(item.url));
 }
 
 function getPolicyBenefitSections(policy: Policy): PolicyBenefitSection[] {
@@ -831,8 +898,16 @@ export function PolicyDetailPage() {
 
   const applicationCta = getPolicyApplicationCta(policy);
   const visual = getPolicyVisual(policy);
-  const benefitSections = getPolicyBenefitSections(policy);
-  const requirementSections = getPolicyRequirementSections(policy);
+  const structuredBenefitSections = getStructuredBenefitSections(policy);
+  const structuredPeriodSections = getStructuredPeriodSections(policy);
+  const structuredRequirementSections = getStructuredRequirementSections(policy);
+  const structuredDocumentItems = getStructuredDocumentItems(policy);
+  const benefitSections = structuredBenefitSections.length > 0 ? structuredBenefitSections : getPolicyBenefitSections(policy);
+  const periodSections = structuredPeriodSections;
+  const requirementSections = structuredRequirementSections.length > 0 ? structuredRequirementSections : getPolicyRequirementSections(policy);
+  const documentItems = structuredDocumentItems.length > 0 ? structuredDocumentItems : policy.documents;
+  const noticeSections = getStructuredNoticeSections(policy);
+  const structuredLinks = getStructuredLinks(policy);
   const canUsePolicyControls = canUsePolicyActions(policy);
   const policyControlsHelpId = "policy-detail-controls-help";
   const policyApplicationHelpId = "policy-detail-application-help";
@@ -933,44 +1008,85 @@ export function PolicyDetailPage() {
           </div>
         </section>
 
-        <section className="section-block">
-          <h3>📅 신청 기간</h3>
-          <div>{getPolicyPeriodLabel(policy)}</div>
-          <div className="warning-text">{dday(policy.deadline)} · 서둘러 신청하세요</div>
-        </section>
+        {periodSections.length > 0 ? (
+          <section className="section-block">
+            <h3>📅 신청 기간</h3>
+            <ul className="bullet-list">
+              {periodSections.flatMap((section) => section.items).map((item) => (
+                <li key={item}><span className="bullet">✓</span><span>{item}</span></li>
+              ))}
+            </ul>
+            {policy.deadline && <div className="warning-text">{dday(policy.deadline)} · 서둘러 신청하세요</div>}
+          </section>
+        ) : (
+          <section className="section-block">
+            <h3>📅 신청 기간</h3>
+            <div>{getPolicyPeriodLabel(policy)}</div>
+            <div className="warning-text">{dday(policy.deadline)} · 서둘러 신청하세요</div>
+          </section>
+        )}
 
-        <section className="section-block">
-          <div className="policy-requirement-grid">
-            {requirementSections.map((section) => (
-              <SurfaceCard tone={section.title.includes("확인") ? "draft" : "default"} className="policy-requirement-group" key={section.title}>
-                <h3>{section.title === "신청 대상" ? "👥 " : section.title === "혜택 적용 조건" ? "💳 " : "🔎 "}{section.title}</h3>
-                <ul className="bullet-list policy-requirement-list">
-                  {section.items.map((item) => (
-                    <li key={item.label}>
-                      <span className="bullet">✓</span>
-                      <span>
-                        <strong>{item.label}</strong>
-                        <em>{item.description}</em>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </SurfaceCard>
-            ))}
-          </div>
-        </section>
+        {requirementSections.length > 0 && (
+          <section className="section-block">
+            <div className="policy-requirement-grid">
+              {requirementSections.map((section) => (
+                <SurfaceCard tone={section.title.includes("확인") ? "draft" : "default"} className="policy-requirement-group" key={section.title}>
+                  <h3>{section.title === "신청 대상" ? "👥 " : section.title === "혜택 적용 조건" ? "💳 " : "🔎 "}{section.title}</h3>
+                  <ul className="bullet-list policy-requirement-list">
+                    {section.items.map((item) => (
+                      <li key={`${item.label}-${item.description}`}>
+                        <span className="bullet">✓</span>
+                        <span>
+                          <strong>{item.label}</strong>
+                          <em>{item.description}</em>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </SurfaceCard>
+              ))}
+            </div>
+          </section>
+        )}
 
-        <section className="section-block">
-          <h3>📄 필요 서류</h3>
-          <div className="check-list">
-            {policy.documents.map((document) => (
-              <div className="check-item" key={document}>
-                <span className="policy-doc-icon" aria-hidden="true">📄</span>
-                <span>{document}</span>
-              </div>
-            ))}
-          </div>
-        </section>
+        {documentItems.length > 0 && (
+          <section className="section-block">
+            <h3>📄 필요 서류</h3>
+            <div className="check-list">
+              {documentItems.map((document) => (
+                <div className="check-item" key={document}>
+                  <span className="policy-doc-icon" aria-hidden="true">📄</span>
+                  <span>{document}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {noticeSections.length > 0 && (
+          <section className="section-block">
+            <h3>🔎 확인 필요 사항</h3>
+            <ul className="bullet-list">
+              {noticeSections.flatMap((section) => section.items).map((item) => (
+                <li key={item}><span className="bullet">✓</span><span>{item}</span></li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {structuredLinks.length > 0 && (
+          <section className="section-block">
+            <h3>🔗 관련 링크</h3>
+            <div className="check-list">
+              {structuredLinks.map((link) => (
+                <a className="check-item" href={link.url} key={`${link.label}-${link.url}`} target="_blank" rel="noreferrer">
+                  <span className="policy-doc-icon" aria-hidden="true">🔗</span>
+                  <span>{link.label}</span>
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
 
         {notice && <Toast>{notice}</Toast>}
       </div>

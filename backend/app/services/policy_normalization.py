@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.models import ExternalSourceRecord, Policy
 from app.repositories import external_sources as external_source_repository
 from app.services.policies import _external_policy_category
+from app.services.policy_structured_detail import build_structured_detail_from_policy
 from app.services.travelmonth_normalizer import extract_benefit_value
 
 
@@ -188,6 +189,7 @@ def _assign_policy_from_external_record(
     policy.normalized_at = record.last_fetched_at
     policy.last_verified_at = record.last_verified_at
     policy.verification_status = record.freshness_status
+    policy.structured_detail = build_structured_detail_from_policy(policy)
     return policy
 
 

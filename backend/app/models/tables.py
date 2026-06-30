@@ -224,6 +224,7 @@ class Policy(Base):
     description: Mapped[str | None] = mapped_column(Text)
     benefit_amount: Mapped[int | None] = mapped_column(Integer)
     benefit_detail: Mapped[str | None] = mapped_column(Text)
+    structured_detail: Mapped[dict[str, Any] | None] = mapped_column(postgres_json)
     target_condition: Mapped[str | None] = mapped_column(Text)
     region: Mapped[str] = mapped_column(String(50), nullable=False)
     start_date: Mapped[date | None] = mapped_column(Date)
