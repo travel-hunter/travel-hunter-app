@@ -415,10 +415,11 @@ function getPolicyBenefitSections(policy: Policy): PolicyBenefitSection[] {
 }
 
 function requirementDescription(item: string, policy: Policy) {
-  if (/디지털관광주민증|방문/.test(item)) return `${policy.region} 방문 또는 디지털관광주민증 발급 대상에 해당하는지 확인하세요.`;
+  if (/디지털관광주민증/.test(item)) return `${policy.region} 디지털관광주민증 발급 대상에 해당하는지 확인하세요.`;
   if (/제휴\s*카드|카드/.test(item)) return "제휴 카드로 결제한 건에 한해 혜택이 적용됩니다.";
   const paymentRegion = item.match(/^(.+?)\s*결제/);
   if (paymentRegion) return `${paymentRegion[1].trim()} 지역 결제 또는 대상 가맹점 이용 건을 기준으로 적용됩니다.`;
+  if (/방문|관광지/.test(item)) return "방문 또는 이용 조건을 충족하는지 공식 안내에서 확인하세요.";
   if (/월|한도/.test(item)) return "월별 할인/캐시백 한도 내에서 혜택이 적용됩니다.";
   if (/온라인|예약/.test(item)) return "온라인 예약 또는 결제 완료 후 혜택 적용 여부를 확인하세요.";
   if (/사용\s*완료|이용\s*완료/.test(item)) return "예약/구매 후 실제 사용 완료 건을 기준으로 혜택이 인정될 수 있습니다.";
@@ -429,9 +430,12 @@ function requirementDescription(item: string, policy: Policy) {
 }
 
 function classifyRequirement(item: string) {
-  if (/디지털관광주민증|방문/.test(item)) return "target";
+  // Legacy-only fallback for policies without a matching structuredDetail section.
+  // Do not expand this into a second semantic normalizer; collected policies should
+  // receive screen-ready categories from backend structuredDetail.
+  if (/디지털관광주민증/.test(item)) return "target";
   if (/공식|공고|안내|확인|캡처|캡쳐|제시|증빙|서류|문의|필요/.test(item)) return "notice";
-  if (/카드|결제|한도|예약|쿠폰|가맹점|이용|사용|구매|온라인|오프라인|탑승|입장|월/.test(item)) return "usage";
+  if (/카드|결제|한도|예약|쿠폰|가맹점|이용|사용|구매|온라인|오프라인|탑승|입장|방문|관광지|월/.test(item)) return "usage";
   if (/국내|여행자|시민|주민|거주|청년|가족|관광객|대상|만\s*\d|세/.test(item)) return "target";
   return "notice";
 }
@@ -461,6 +465,21 @@ function getPolicyRequirementSections(policy: Policy): PolicyRequirementSection[
     { title: "신청 대상", items: targetItems },
     { title: "혜택 적용 조건", items: usageItems },
     { title: "확인 필요 사항", items: noticeItems },
+  ].filter((section) => section.items.length > 0);
+}
+
+function mergeRequirementSectionsByTitle(
+  structuredSections: PolicyRequirementSection[],
+  fallbackSections: PolicyRequirementSection[],
+) {
+  if (structuredSections.length === 0) return fallbackSections;
+  const structuredTitles = new Set(structuredSections.map((section) => section.title));
+  // Preserve legacy compatibility section-by-section only. A structured section
+  // wins for its own title so the frontend does not reclassify backend-owned
+  // semantics, while missing notice/document-like legacy sections can still render.
+  return [
+    ...fallbackSections.filter((section) => !structuredTitles.has(section.title)),
+    ...structuredSections,
   ].filter((section) => section.items.length > 0);
 }
 
@@ -904,7 +923,10 @@ export function PolicyDetailPage() {
   const structuredDocumentItems = getStructuredDocumentItems(policy);
   const benefitSections = structuredBenefitSections.length > 0 ? structuredBenefitSections : getPolicyBenefitSections(policy);
   const periodSections = structuredPeriodSections;
-  const requirementSections = structuredRequirementSections.length > 0 ? structuredRequirementSections : getPolicyRequirementSections(policy);
+  const requirementSections = mergeRequirementSectionsByTitle(
+    structuredRequirementSections,
+    getPolicyRequirementSections(policy),
+  );
   const documentItems = structuredDocumentItems.length > 0 ? structuredDocumentItems : policy.documents;
   const noticeSections = getStructuredNoticeSections(policy);
   const structuredLinks = getStructuredLinks(policy);

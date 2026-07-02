@@ -201,6 +201,27 @@ source_name + source_category + canonical_key
 
 동일한 공식 source 항목이 다시 수집되면 새 row를 계속 만들지 않고 기존 `external_source_records` row를 갱신한다. 이 테이블은 화면에 바로 보여주기 위한 최종 정책 테이블이라기보다, **공식 source에서 가져온 원천/정규화 전 기록**이다.
 
+### 수집 원문 저장과 책임 분리 방향
+
+단기 운영 기준은 DB 유지다. `external_source_records.raw_list_text`, `raw_detail_text`, `raw_payload`는 수집 직후 재처리와 감사에 필요한 **작은 원문 snapshot**을 DB에 보관한다. 다만 이 값들은 사용자 화면 계약이 아니다. 화면 품질을 결정하는 책임은 아래처럼 나눈다.
+
+| 단계 | 책임 | 저장/출력 |
+| --- | --- | --- |
+| Parser | 공식 source에서 식별 가능한 원문 field를 손실 없이 추출한다. 신청 조건/서류/공지 의미를 화면 카드로 확정하지 않는다. | `ExternalBenefitSource`, `raw_detail_text`, `raw_payload.field_values` |
+| Repository | 수집 결과를 중복 판단 가능한 source record로 저장한다. 단기에는 원문 snapshot도 DB에 둔다. | `external_source_records` |
+| Normalizer | source별 규칙으로 public `Policy`와 화면용 `structured_detail`을 만든다. 예: `local_half_trip` 특이사항은 조건/필요 서류/확인 사항으로 분리한다. | `policies`, `policies.structured_detail` |
+| API service | DB 내부 모양을 camelCase `Policy` DTO로 바꾸고, `structuredDetail`을 raw가 아닌 screen-ready contract로 내려준다. | `requirements`, `documents`, `structuredDetail` |
+| Frontend | `structuredDetail` 섹션을 우선 렌더링하고, 비어 있는 섹션만 legacy field로 보수적으로 fallback한다. 원문 의미를 다시 추론하지 않는다. | 정책 상세 카드 |
+
+장기 목표는 원문 artifact 외부화가 가능하도록 seam을 유지하는 것이다. 새 저장소를 바로 도입하지는 않지만, 앞으로 HTML 원문이나 큰 parser artifact가 필요해지면 DB에는 `artifact_key`, `content_hash`, `source_url`, `collected_at`, parser version 같은 pointer metadata만 두고, 실제 원문은 object storage나 파일 artifact 저장소로 이동할 수 있다. 이때도 public API는 원문 artifact를 직접 노출하지 않고, normalizer가 만든 `structured_detail`만 화면 계약으로 유지한다.
+
+외부화 전환 시 지켜야 할 호환 규칙:
+
+- `policies.slug = travelmonth-{external_source_record_id}`와 기존 정책 저장/일정 연결 동작은 바꾸지 않는다.
+- DB의 `raw_detail_text`/`raw_payload`는 작은 snapshot 또는 pointer metadata로 남길 수 있지만, frontend는 이를 직접 사용하지 않는다.
+- Parser output schema와 normalizer input seam을 먼저 문서화하고 테스트한 뒤 storage backend를 바꾼다.
+- 원문 artifact 저장 실패는 수집 record 전체 실패로 처리하거나 재시도 가능 상태로 남긴다. 화면에 불완전한 raw를 그대로 노출하지 않는다.
+
 ## 공개 정책 승격/hidden 처리
 
 파일:
@@ -266,9 +287,9 @@ source_name + source_category + canonical_key
 | `policy_comment` or `description` | `summary` | 지원 내용 section을 쪼개는 주 입력 |
 | display override | `match` | 추천/정렬 보조 점수 |
 | `policy_type` | `category` | 교통/숙박/여행상품/지역할인/이벤트/기타 |
-| `target_condition` | `requirements` | 신청 대상/혜택 적용 조건/확인 필요 사항으로 분류됨 |
-| `policy.documents` | `documents` | 필요 서류 목록 |
-| `structured_detail` | `structuredDetail` | 혜택/조건/기간/링크/필요 서류/주의사항을 화면 섹션으로 보여주는 사용자 화면용 JSON. raw 수집 JSON이 아니다. |
+| `target_condition` | `requirements` | `structuredDetail`이 없는 legacy/simple fallback 재료. 수집 정책 상세에서 비어 있지 않은 `structuredDetail` 섹션이 있으면 frontend가 이 값을 다시 같은 섹션으로 의미 추론하지 않는다. |
+| `policy.documents` | `documents` | 필요 서류 목록. `structuredDetail.documents`가 비어 있거나 없을 때 문서 섹션 fallback으로 사용한다. |
+| `structured_detail` | `structuredDetail` | 혜택/조건/기간/링크/필요 서류/주의사항을 화면 섹션으로 보여주는 사용자 화면용 primary JSON. raw 수집 JSON이 아니며, 외부 수집 정책 상세에서는 비어 있지 않은 섹션을 그대로 우선 렌더링한다. |
 | `official_url` | `officialUrl` | `혜택 안내 보기` CTA |
 | `apply_url` | `applyUrl` | `신청하러 가기` CTA. 있으면 officialUrl보다 우선 |
 | `external_source_record_id`/`source_type` | `sourceType` | internal/external 구분 |
@@ -359,7 +380,7 @@ v1 표준 섹션은 아래 여섯 개다.
 }
 ```
 
-운영 적용은 안전하게 시작한다. `structuredDetail`이 있고 어떤 섹션이 비어 있지 않으면 frontend가 그 섹션을 보여준다. 비어 있는 섹션은 기존처럼 `summary`, `amount`, `requirements`, `documents`, 기간 값을 사용해 채운다. `links.url`은 `http://` 또는 `https://`만 화면에 링크로 보여준다. `structuredDetail`이 없거나 전체가 비어 있으면 기존 방식 그대로 상세 화면을 그린다.
+운영 적용은 안전하게 시작한다. `structuredDetail`이 있고 어떤 섹션이 비어 있지 않으면 frontend가 그 섹션을 primary screen-ready contract로 보고 그대로 보여준다. 비어 있거나 누락된 섹션만 기존처럼 `summary`, `amount`, `requirements`, `documents`, 기간 값을 사용해 section-by-section fallback으로 채운다. `links.url`은 `http://` 또는 `https://`만 화면에 링크로 보여준다. `structuredDetail`이 없거나 전체가 비어 있으면 기존 방식 그대로 상세 화면을 그린다. 단, `structuredDetail`이 제공한 섹션 항목을 frontend가 다시 신청 대상/혜택 조건/필요 서류/확인 사항으로 의미 추론하거나 재분류하지 않는다.
 
 ## 정책 상세 화면 반영
 
@@ -381,10 +402,10 @@ v1 표준 섹션은 아래 여섯 개다.
 | badge/tag | `getPolicyDisplayTag()` | `tag`, `category` | 표시용 tag가 generic이면 category로 대체한다. |
 | D-day | `dday(policy.deadline)` | `deadline` | backend `end_date`가 ISO string으로 온다. |
 | 지원 내용 큰 금액 | `getPolicyAmountLabel()` | `amount`, `title`, `category` | `benefit_detail` 또는 금액 fallback에서 온다. |
-| 지원 내용 항목 | `getPolicyBenefitSections()` | `summary`, `amount` | `summary`를 줄 단위/패턴별로 나눠 핵심 혜택, 운영 기간, 이용 조건, 유의사항으로 분류한다. |
+| 지원 내용 항목 | `getStructuredBenefitSections()` 우선, fallback `getPolicyBenefitSections()` | `structuredDetail.benefits`, fallback `summary`, `amount` | `structuredDetail.benefits`가 있으면 그대로 렌더링하고, 비어 있을 때만 `summary`를 줄 단위/패턴별로 나눠 핵심 혜택, 운영 기간, 이용 조건, 유의사항으로 분류한다. |
 | 신청 기간 | `getPolicyPeriodLabel()` | `deadline` | 현재 frontend는 시작일을 DTO로 받지 않고 고정 시작 문구 + deadline 형태로 표시한다. |
-| 신청 대상/조건 | `getPolicyRequirementSections()` | `requirements`, `region` | backend `target_condition`을 쪼갠 배열을 다시 신청 대상/혜택 조건/확인 사항으로 분류한다. |
-| 필요 서류 | map over `policy.documents` | `documents` | `policy_documents` 관계에서 온다. 외부 fallback은 `혜택 안내 확인`을 쓸 수 있다. |
+| 신청 대상/조건 | `getStructuredRequirementSections()` 우선, fallback `getPolicyRequirementSections()` | `structuredDetail.conditions`, fallback `requirements`, `region` | `structuredDetail.conditions`가 있으면 backend가 정리한 조건 섹션을 그대로 렌더링한다. 비어 있을 때만 backend `target_condition`을 쪼갠 `requirements` 배열을 보수적으로 분류한다. |
+| 필요 서류 | `getStructuredDocumentItems()` 우선, fallback map over `policy.documents` | `structuredDetail.documents`, fallback `documents` | `structuredDetail.documents`가 있으면 그대로 렌더링하고, 비어 있을 때만 `policy_documents` 관계나 외부 fallback 문구를 사용한다. |
 | 저장 버튼 | `savePrototypePolicy()` | `slug`, `actionStatus` | `actionStatus=infoOnly`이면 저장 제한. |
 | 일정 담기 | `addToTrip()` / `attachPolicyToTrip()` | `slug`, `region`, `title`, `actionStatus` | 정규화된 정책만 일정 연결 가능. |
 | CTA | `getPolicyApplicationCta()` | `applyUrl`, `officialUrl` | `applyUrl`이 있으면 `신청하러 가기`, 없고 `officialUrl`이 있으면 `혜택 안내 보기`. |
@@ -416,8 +437,8 @@ v1 표준 섹션은 아래 여섯 개다.
 4. **`stay_discount`는 alias가 있다.**
    DB 정책 1건이 화면에서는 지자체별 alias 여러 개처럼 보일 수 있다. 저장/일정 연결은 canonical 정책으로 처리한다.
 
-5. **상세 화면은 DTO를 다시 가공한다.**
-   backend가 `summary`, `requirements`, `documents`, `officialUrl`을 내려주고, frontend가 이를 화면 section으로 다시 분류한다. 따라서 화면 문구는 DB column 하나와 1:1로만 대응하지 않는다.
+5. **상세 화면은 `structuredDetail`을 먼저 믿는다.**
+   backend가 `structuredDetail`을 내려준 섹션은 화면용 정리본이므로 frontend가 다시 의미를 추론하지 않는다. 해당 섹션이 비어 있거나 없을 때만 `summary`, `requirements`, `documents`, 기간 값을 fallback으로 가공한다. 따라서 화면 품질을 안정화하려면 수집 parser가 raw field를 보존하고, normalizer가 사용자 화면용 `structuredDetail`을 명시적으로 만드는 흐름이 기준이다.
 
 6. **공식 신청 링크와 공식 안내 링크는 다르다.**
    `applyUrl`이 있으면 신청 CTA가 되고, 없으면 `officialUrl`이 안내 CTA가 된다. 외부 수집 승격에서는 현재 `apply_url`을 별도로 채우지 않고 `official_url` 중심으로 연결한다.

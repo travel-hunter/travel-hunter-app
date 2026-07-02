@@ -814,7 +814,7 @@ Account linking policy:
 `category` 허용 값: `"교통" | "숙박" | "여행상품" | "지역할인" | "이벤트" | "기타"`
 `sourceType` 허용 값은 `"internal" | "external"`이며 API 호환과 내부 진단을 위해 유지한다. 사용자 화면은 `internal/external` 같은 구현 구분 문구를 노출하지 않는다. 사용자에게 노출되는 모든 정책은 정규화된 `policies` 레코드이므로 저장/일정 연결 동작을 동일하게 지원한다.
 
-`PolicyStructuredDetail` v1 섹션은 아래 여섯 배열만 표준으로 사용한다. 각 item은 화면 표시용 `title`/`label`, `description`/`value`, `amount`, `url`, `startDate`, `endDate` 같은 문자열 필드를 느슨하게 담을 수 있다. 빈 배열은 허용하며 frontend는 빈 섹션을 숨긴다.
+`PolicyStructuredDetail` v1 섹션은 아래 여섯 배열만 표준으로 사용한다. 각 item은 화면 표시용 `title`/`label`, `description`/`value`, `amount`, `url`, `startDate`, `endDate` 같은 문자열 필드를 느슨하게 담을 수 있다. 빈 배열은 허용하며 frontend는 빈 섹션을 숨긴다. 외부 수집 정책 상세에서 `structuredDetail`은 primary screen-ready contract다. frontend는 비어 있지 않은 `structuredDetail` 섹션을 그대로 우선 렌더링하고, 해당 섹션이 비어 있거나 누락된 경우에만 `summary`/`requirements`/`documents`/기간 값으로 section-by-section fallback을 수행한다. `requirements`는 legacy/simple fallback 재료이며, `structuredDetail`이 제공한 섹션 항목을 다시 신청 대상/혜택 조건/필요 서류/확인 사항으로 의미 추론하거나 재분류하지 않는다.
 
 ```json
 {
@@ -1404,9 +1404,9 @@ SOLAPI 발송 결과 webhook 수신. `X-Solapi-Secret` 헤더로 검증.
 | summary | string | 요약 |
 | match | number | 매칭 점수 (0~100) |
 | category | string | `"교통" \| "숙박" \| "여행상품" \| "지역할인" \| "이벤트" \| "기타"` |
-| requirements | string[] | 신청 조건 목록 |
-| documents | string[] | 필요 서류 목록 |
-| structuredDetail | PolicyStructuredDetail \| null | 사용자 정책 상세 화면용 구조화 JSON. 섹션별로 비어 있지 않은 `benefits`, `conditions`, `periods`, `links`, `documents`, `notices`만 렌더링하고, 비어 있는 섹션은 기존 `summary`/`requirements`/`documents`/기간 fallback을 사용한다. `links.url`은 `http://` 또는 `https://`만 public 화면에 노출한다. raw 수집 JSON이 아니다. |
+| requirements | string[] | 신청 조건 목록. `structuredDetail`이 없는 legacy/simple fallback 재료이며, 수집 정책 상세에서 `structuredDetail` 섹션이 비어 있지 않으면 frontend가 이 값을 다시 의미 추론해 같은 섹션을 재구성하지 않는다. |
+| documents | string[] | 필요 서류 목록. `structuredDetail.documents`가 비어 있거나 없는 경우에만 문서 섹션 fallback으로 사용한다. |
+| structuredDetail | PolicyStructuredDetail \| null | 사용자 정책 상세 화면용 구조화 JSON. 외부 수집 정책 상세의 primary screen-ready contract다. 섹션별로 비어 있지 않은 `benefits`, `conditions`, `periods`, `links`, `documents`, `notices`를 우선 렌더링하고, 해당 섹션이 비어 있거나 없는 경우에만 기존 `summary`/`requirements`/`documents`/기간 fallback을 사용한다. `links.url`은 `http://` 또는 `https://`만 public 화면에 노출한다. raw 수집 JSON이 아니다. |
 | officialUrl | string \| null | 공식 안내 URL. 사용자 화면 CTA 라벨은 `혜택 안내 보기` |
 | applyUrl | string \| null | 신청 URL |
 | sourceType | string | `"internal"` \| `"external"`; 생략 시 internal로 간주 |

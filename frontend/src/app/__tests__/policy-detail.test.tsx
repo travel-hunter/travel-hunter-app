@@ -119,7 +119,7 @@ describe("Travel Hunter app — policy detail", () => {
       summary: "기존 요약 fallback",
       match: 90,
       category: "지역할인",
-      requirements: ["기존 조건 fallback"],
+      requirements: [],
       documents: ["기존 서류 fallback"],
       structuredDetail: {
         benefits: [{ title: "혜택", description: "숙박비를 최대 7만원 할인", amount: "최대 7만원" }],
@@ -147,7 +147,6 @@ describe("Travel Hunter app — policy detail", () => {
       expect(screen.getByText("비수도권 숙박 예약자")).toBeInTheDocument();
       expect(screen.getByText("예산 소진 시 조기 종료")).toBeInTheDocument();
       expect(screen.getByRole("link", { name: /공식 상세/ })).toHaveAttribute("href", "https://example.com/structured");
-      expect(screen.queryByText("기존 조건 fallback")).not.toBeInTheDocument();
       expect(screen.getByText("기존 서류 fallback")).toBeInTheDocument();
     } finally {
       getPolicySpy.mockRestore();
@@ -195,6 +194,100 @@ describe("Travel Hunter app — policy detail", () => {
       expect(screen.getByText("기존 조건 fallback")).toBeInTheDocument();
       expect(screen.getByText("기존 서류 fallback")).toBeInTheDocument();
       expect(screen.queryByRole("link", { name: /위험 링크/ })).not.toBeInTheDocument();
+    } finally {
+      getPolicySpy.mockRestore();
+    }
+  });
+
+  it("falls back legacy notice requirements when structured conditions are present", async () => {
+    const mixedRequirementsPolicy: Policy = {
+      id: "mixed-requirement-fallback",
+      slug: "mixed-requirement-fallback",
+      label: "MX",
+      tag: "구조화",
+      title: "조건 구조화와 확인사항 fallback 정책",
+      org: "Travel Hunter",
+      region: "전남",
+      deadline: "2026-12-31",
+      amount: "확인 필요",
+      summary: "기존 요약 fallback",
+      match: 90,
+      category: "지역할인",
+      requirements: ["공식 공지사항 필독", "모바일 지역화폐 결제"],
+      documents: ["기존 서류 fallback"],
+      structuredDetail: {
+        benefits: [{ title: "혜택", description: "구조화 혜택" }],
+        conditions: [{ title: "혜택 적용 조건", description: "구조화 결제 조건" }],
+        periods: [],
+        links: [],
+        documents: [],
+        notices: [],
+      },
+      officialUrl: "https://example.com/official",
+      applyUrl: null,
+    };
+    const getPolicySpy = vi
+      .spyOn(appDataApi, "getPolicy")
+      .mockResolvedValue(mixedRequirementsPolicy);
+
+    try {
+      await login();
+      cleanup();
+      renderAppRoute("/policies/mixed-requirement-fallback");
+
+      expect(await screen.findByRole("heading", { name: "조건 구조화와 확인사항 fallback 정책" })).toBeInTheDocument();
+      const conditionCard = screen.getByRole("heading", { name: /혜택 적용 조건/ }).closest(".policy-requirement-group");
+      expect(conditionCard).not.toBeNull();
+      expect(within(conditionCard as HTMLElement).getByText("구조화 결제 조건")).toBeInTheDocument();
+      expect(within(conditionCard as HTMLElement).queryByText("모바일 지역화폐 결제")).not.toBeInTheDocument();
+      const noticeCard = screen.getByRole("heading", { name: /확인 필요 사항/ }).closest(".policy-requirement-group");
+      expect(noticeCard).not.toBeNull();
+      expect(within(noticeCard as HTMLElement).getByText("공식 공지사항 필독")).toBeInTheDocument();
+    } finally {
+      getPolicySpy.mockRestore();
+    }
+  });
+
+  it("does not invent digital residency eligibility from visit-only fallback requirements", async () => {
+    const gangjinRequirement =
+      "강진군 관광지 2개소 이상 방문, 모바일 강진사랑상품권(Chak)으로 결제한 거래내역(영수증) *홈페이지 공지사항(고시공고) 필독";
+    const legacyGangjinPolicy: Policy = {
+      id: "travelmonth-23",
+      slug: "travelmonth-23",
+      label: "강진",
+      tag: "지역할인",
+      title: "[강진] 대한민국 반값여행 지원",
+      org: "강진군",
+      region: "전남",
+      deadline: "2026-06-30",
+      amount: "확인 필요",
+      summary: "강진군 여행 지원 혜택",
+      match: 80,
+      category: "지역할인",
+      requirements: [gangjinRequirement],
+      documents: [],
+      officialUrl: "https://www.gangjin.go.kr/",
+      applyUrl: null,
+      sourceType: "external",
+    };
+    const getPolicySpy = vi
+      .spyOn(appDataApi, "getPolicy")
+      .mockResolvedValue(legacyGangjinPolicy);
+
+    try {
+      await login();
+      cleanup();
+      renderAppRoute("/policies/travelmonth-23");
+
+      expect(
+        await screen.findByRole("heading", { name: "[강진] 대한민국 반값여행 지원" }),
+      ).toBeInTheDocument();
+      expect(document.body).not.toHaveTextContent("디지털관광주민증");
+      expect(screen.queryByRole("heading", { name: /신청 대상/ })).not.toBeInTheDocument();
+      const noticeCard = screen.getByRole("heading", { name: /확인 필요 사항/ }).closest(".policy-requirement-group");
+      expect(noticeCard).not.toBeNull();
+      expect(within(noticeCard as HTMLElement).getByText(gangjinRequirement)).toBeInTheDocument();
+      expect(noticeCard).not.toHaveTextContent("디지털관광주민증");
     } finally {
       getPolicySpy.mockRestore();
     }

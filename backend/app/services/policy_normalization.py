@@ -25,6 +25,8 @@ CONTACT_NUMBER_PATTERN = re.compile(r"(?:\+?\d[\d\s().-]{5,}\d)")
 CONDITION_HINT_PATTERN = re.compile(
     r"특이사항|조건|인증|방문|결제|가맹점|지역화폐|제로페이|상품|예약|쿠폰|할인|환급|지원|사용|이용|대상|숙박|식사|체험"
 )
+DOCUMENT_HINT_PATTERN = re.compile(r"영수증|거래내역|결제내역|인증사진|캡처|캡쳐|증빙|서류")
+NOTICE_HINT_PATTERN = re.compile(r"공지|고시공고|필독|문의|유의|주의|확인")
 LOCAL_HALF_TRIP_CONDITION_FIELDS = ("특이사항", "지역화폐", "신청조건", "사용조건", "이용조건")
 RAW_DETAIL_FIELD_LABELS = (
     "문의전화",
@@ -37,12 +39,36 @@ RAW_DETAIL_FIELD_LABELS = (
     "사용조건",
     "이용조건",
 )
-RAW_DETAIL_FIELD_LABEL_PATTERN = "|".join(re.escape(label) for label in RAW_DETAIL_FIELD_LABELS)
 
 
 @dataclass(frozen=True)
 class PolicyPromotionResult:
     promoted_count: int
+
+
+@dataclass(frozen=True)
+class LocalHalfTripStructuredRules:
+    """Source-specific field map for building screen-ready local_half_trip sections."""
+
+    condition_fields: tuple[str, ...]
+    raw_detail_field_labels: tuple[str, ...]
+    semantic_payload_key: str
+    currency_payload_key: str
+    application_period_payload_key: str
+    trip_period_payload_key: str
+
+
+LOCAL_HALF_TRIP_STRUCTURED_RULES = LocalHalfTripStructuredRules(
+    condition_fields=LOCAL_HALF_TRIP_CONDITION_FIELDS,
+    raw_detail_field_labels=RAW_DETAIL_FIELD_LABELS,
+    semantic_payload_key="notes",
+    currency_payload_key="localCurrency",
+    application_period_payload_key="applicationPeriod",
+    trip_period_payload_key="tripPeriod",
+)
+RAW_DETAIL_FIELD_LABEL_PATTERN = "|".join(
+    re.escape(label) for label in LOCAL_HALF_TRIP_STRUCTURED_RULES.raw_detail_field_labels
+)
 
 
 def _normalized_text(value: object) -> str:
@@ -106,11 +132,11 @@ def _local_half_trip_target_condition(record: ExternalSourceRecord) -> str:
     candidates = [
         *(
             _raw_field_value(record, field_name)
-            for field_name in LOCAL_HALF_TRIP_CONDITION_FIELDS
+            for field_name in LOCAL_HALF_TRIP_STRUCTURED_RULES.condition_fields
         ),
         *(
             _raw_detail_field_value(record, field_name)
-            for field_name in LOCAL_HALF_TRIP_CONDITION_FIELDS
+            for field_name in LOCAL_HALF_TRIP_STRUCTURED_RULES.condition_fields
         ),
         _safe_unlabeled_raw_detail_condition(record),
     ]
@@ -127,6 +153,163 @@ def _target_condition_for_record(record: ExternalSourceRecord) -> str:
     if contact_text and not _is_contact_only_text(contact_text):
         return contact_text
     return DEFAULT_TARGET_CONDITION
+
+
+def _append_structured_item(
+    target: list[dict[str, str]],
+    *,
+    title: str,
+    description: str,
+) -> None:
+    text = _normalized_text(description)
+    if not text:
+        return
+    if any(item.get("description") == text for item in target):
+        return
+    target.append({"title": title, "description": text})
+
+
+def _split_local_half_trip_condition_text(value: str) -> list[str]:
+    items: list[str] = []
+    for item in re.split(r"\s*(?:,|\*|ㆍ|·|\n|/)\s*", value):
+        text = _normalized_text(item)
+        if text:
+            items.append(text)
+    return items
+
+
+def _append_local_half_trip_semantic_part(
+    detail: dict[str, list[dict[str, str]]],
+    value: str,
+) -> None:
+    item = _normalized_text(value)
+    if not item:
+        return
+
+    if item == DEFAULT_TARGET_CONDITION:
+        _append_structured_item(detail["conditions"], title="조건", description=item)
+        return
+
+    payment_document_match = re.match(r"(.+?결제)한?\s+(.+)$", item)
+    if payment_document_match and DOCUMENT_HINT_PATTERN.search(payment_document_match.group(2)):
+        _append_structured_item(
+            detail["conditions"],
+            title="혜택 적용 조건",
+            description=payment_document_match.group(1),
+        )
+        _append_structured_item(
+            detail["documents"],
+            title="필요 서류",
+            description=payment_document_match.group(2),
+        )
+        return
+
+    if NOTICE_HINT_PATTERN.search(item):
+        _append_structured_item(detail["notices"], title="확인 필요 사항", description=item)
+        return
+
+    if DOCUMENT_HINT_PATTERN.search(item) and not re.search(r"방문|결제|이용|사용|가맹점", item):
+        _append_structured_item(detail["documents"], title="필요 서류", description=item)
+        return
+
+    _append_structured_item(detail["conditions"], title="혜택 적용 조건", description=item)
+
+
+def _raw_payload_text(record: ExternalSourceRecord, key: str) -> str:
+    raw_payload = record.raw_payload if isinstance(record.raw_payload, dict) else {}
+    return _normalized_text(raw_payload.get(key))
+
+
+def _local_half_trip_semantic_source_texts(record: ExternalSourceRecord, policy: Policy) -> list[str]:
+    candidates = [
+        _raw_payload_text(record, LOCAL_HALF_TRIP_STRUCTURED_RULES.semantic_payload_key),
+        _raw_field_value(record, "특이사항"),
+        _raw_detail_field_value(record, "특이사항"),
+        policy.target_condition,
+    ]
+    texts: list[str] = []
+    for candidate in candidates:
+        for item in _split_local_half_trip_condition_text(candidate or ""):
+            if item and item not in texts:
+                texts.append(item)
+    return texts
+
+
+def _local_half_trip_currency_texts(record: ExternalSourceRecord) -> list[str]:
+    candidates = [
+        _raw_payload_text(record, LOCAL_HALF_TRIP_STRUCTURED_RULES.currency_payload_key),
+        _raw_field_value(record, "지역화폐"),
+        _raw_detail_field_value(record, "지역화폐"),
+    ]
+    texts: list[str] = []
+    for candidate in candidates:
+        text = _normalized_text(candidate)
+        if text and text not in texts:
+            texts.append(text)
+    return texts
+
+
+def _append_local_half_trip_periods(
+    detail: dict[str, list[dict[str, object]]],
+    record: ExternalSourceRecord,
+) -> None:
+    period_items: list[dict[str, str]] = []
+    application_period = _raw_payload_text(
+        record,
+        LOCAL_HALF_TRIP_STRUCTURED_RULES.application_period_payload_key,
+    )
+    if application_period:
+        _append_structured_item(
+            period_items,
+            title="신청 기간",
+            description=f"신청 기간: {application_period}",
+        )
+    trip_period = _raw_payload_text(
+        record,
+        LOCAL_HALF_TRIP_STRUCTURED_RULES.trip_period_payload_key,
+    )
+    if trip_period:
+        _append_structured_item(
+            period_items,
+            title="여행 기간",
+            description=f"여행 기간: {trip_period}",
+        )
+    if period_items:
+        detail["periods"] = period_items
+
+
+def _build_local_half_trip_structured_detail(
+    policy: Policy,
+    record: ExternalSourceRecord,
+) -> dict[str, list[dict[str, object]]]:
+    detail = build_structured_detail_from_policy(policy)
+    parsed_detail: dict[str, list[dict[str, str]]] = {
+        "conditions": [],
+        "documents": [],
+        "notices": [],
+    }
+    for item in _local_half_trip_semantic_source_texts(record, policy):
+        _append_local_half_trip_semantic_part(parsed_detail, item)
+    for item in _local_half_trip_currency_texts(record):
+        _append_structured_item(
+            parsed_detail["conditions"],
+            title="혜택 적용 조건",
+            description=f"{item} 사용",
+        )
+
+    for section in ("conditions", "documents", "notices"):
+        detail[section] = parsed_detail[section]
+    _append_local_half_trip_periods(detail, record)
+    return detail
+
+
+def _build_structured_detail_for_record(
+    policy: Policy,
+    record: ExternalSourceRecord,
+) -> dict[str, list[dict[str, object]]]:
+    if record.source_category == LOCAL_HALF_TRIP_SOURCE_CATEGORY:
+        return _build_local_half_trip_structured_detail(policy, record)
+    return build_structured_detail_from_policy(policy)
 
 
 def _policy_slug_for_external_record(record: ExternalSourceRecord) -> str:
@@ -189,7 +372,7 @@ def _assign_policy_from_external_record(
     policy.normalized_at = record.last_fetched_at
     policy.last_verified_at = record.last_verified_at
     policy.verification_status = record.freshness_status
-    policy.structured_detail = build_structured_detail_from_policy(policy)
+    policy.structured_detail = _build_structured_detail_for_record(policy, record)
     return policy
 
 

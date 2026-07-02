@@ -100,6 +100,7 @@ def test_promotes_active_fresh_external_record_to_policy(db: Session) -> None:
     )
 
     from app.services.policy_normalization import promote_external_benefits_to_policies
+    from app.services.policies import policy_to_api
 
     result = promote_external_benefits_to_policies(db)
 
@@ -116,8 +117,6 @@ def test_promotes_active_fresh_external_record_to_policy(db: Session) -> None:
     assert policy.structured_detail["benefits"][0]["description"] == "Up to 50,000 KRW"
     assert policy.structured_detail["conditions"][0]["description"] == "공식 혜택 안내에서 조건을 확인하세요."
     assert policy.structured_detail["links"][0]["url"] == "https://example.com/detail"
-
-    from app.services.policies import policy_to_api
 
     assert policy_to_api(policy)["sourceType"] == "external"
 
@@ -196,6 +195,125 @@ def test_local_half_trip_uses_usage_condition_instead_of_contact_phone(db: Sessi
     policy = get_policy_by_slug(db, f"travelmonth-{rows[0].id}")
     assert policy is not None
     assert policy.target_condition == "지정관광지 2개소 방문 인증사진 및 제로페이 가맹점 2개소 결제내역"
+
+
+def test_local_half_trip_builds_semantic_structured_detail_for_gangjin(
+    db: Session,
+) -> None:
+    combined_detail = (
+        "강진군 관광지 2개소 이상 방문, 모바일 강진사랑상품권(Chak)으로 결제한 "
+        "거래내역(영수증) *홈페이지 공지사항(고시공고) 필독"
+    )
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                title="[강진] 대한민국 반값여행 지원",
+                region="전남",
+                city="강진",
+                canonical_key="gangjin-half-trip",
+                external_id="gangjin-half-trip",
+                benefit_text="대한민국 반값여행 지원",
+                benefit_value_text="여행비 50% 환급",
+                contact_text="061-000-0000",
+                raw_detail_text=f"문의전화 : 061-000-0000 특이사항 : {combined_detail}",
+                raw_payload={
+                    "field_values": {
+                        "문의전화": "061-000-0000",
+                        "특이사항": combined_detail,
+                    },
+                },
+            )
+        ],
+    )
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+    from app.services.policies import policy_to_api
+
+    promote_external_benefits_to_policies(db)
+
+    policy = get_policy_by_slug(db, f"travelmonth-{rows[0].id}")
+    assert policy is not None
+    assert policy.target_condition == combined_detail
+    assert policy.structured_detail is not None
+    assert [item["description"] for item in policy.structured_detail["conditions"]] == [
+        "강진군 관광지 2개소 이상 방문",
+        "모바일 강진사랑상품권(Chak)으로 결제",
+    ]
+    assert [item["description"] for item in policy.structured_detail["documents"]] == [
+        "거래내역(영수증)",
+    ]
+    assert [item["description"] for item in policy.structured_detail["notices"]] == [
+        "홈페이지 공지사항(고시공고) 필독",
+    ]
+    api_policy = policy_to_api(policy)
+    assert api_policy["structuredDetail"]["conditions"] == [
+        {"title": "혜택 적용 조건", "description": "강진군 관광지 2개소 이상 방문"},
+        {"title": "혜택 적용 조건", "description": "모바일 강진사랑상품권(Chak)으로 결제"},
+    ]
+    assert api_policy["structuredDetail"]["documents"] == [
+        {"title": "필요 서류", "description": "거래내역(영수증)"}
+    ]
+    assert api_policy["structuredDetail"]["notices"] == [
+        {"title": "확인 필요 사항", "description": "홈페이지 공지사항(고시공고) 필독"}
+    ]
+
+
+def test_local_half_trip_structured_detail_uses_source_record_fields_without_duplicates(
+    db: Session,
+) -> None:
+    notes = "강진군 관광지 2개소 이상 방문"
+    local_currency = "chak 앱(모바일 강진사랑상품권)"
+    rows = upsert_external_source_records(
+        db,
+        [
+            make_source(
+                title="[강진] 대한민국 반값여행 지원",
+                region="전남",
+                city="강진",
+                canonical_key="gangjin-half-trip-fields",
+                external_id="gangjin-half-trip-fields",
+                benefit_text="대한민국 반값여행 지원",
+                benefit_value_text="여행비 50% 환급",
+                contact_text="061-000-0000",
+                raw_detail_text=(
+                    "문의전화 : 061-000-0000 특이사항 : 강진군 관광지 2개소 이상 방문 "
+                    "지역화폐 : chak 앱(모바일 강진사랑상품권)"
+                ),
+                raw_payload={
+                    "applicationPeriod": "2026.06.10-2026.08.31",
+                    "tripPeriod": "6.10~8.31",
+                    "localCurrency": local_currency,
+                    "notes": notes,
+                    "field_values": {
+                        "문의전화": "061-000-0000",
+                        "특이사항": notes,
+                        "지역화폐": local_currency,
+                    },
+                },
+            )
+        ],
+    )
+
+    from app.services.policy_normalization import promote_external_benefits_to_policies
+    from app.services.policies import policy_to_api
+
+    promote_external_benefits_to_policies(db)
+
+    policy = get_policy_by_slug(db, f"travelmonth-{rows[0].id}")
+    assert policy is not None
+    api_policy = policy_to_api(policy)
+    structured_detail = api_policy["structuredDetail"]
+    assert [item["description"] for item in structured_detail["conditions"]] == [
+        notes,
+        "chak 앱(모바일 강진사랑상품권) 사용",
+    ]
+    assert [item["description"] for item in structured_detail["periods"]] == [
+        "신청 기간: 2026.06.10-2026.08.31",
+        "여행 기간: 6.10~8.31",
+    ]
+    assert structured_detail["documents"] == []
+    assert structured_detail["notices"] == []
 
 
 def test_local_half_trip_replaces_existing_phone_target_condition_on_backfill(db: Session) -> None:
