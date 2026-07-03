@@ -3,16 +3,16 @@
 ## Current Status
 
 - Active task: Policy collection cleanup dev deployment verification via `$ultragoal` is in final evidence/quality-gate stage.
-- Local branch: `develop@5364eee`, fast-forwarded from merged PRs #93 and #94.
-- Remote: `origin/develop@5364eee`; cleanup commits `3fa274e`, `2b1c93c`, `7c97c66`, and CI repair commit `3596a82` are ancestors of `origin/develop`.
-- Development server: `deploy@192.168.32.15:/home/deploy/travelhunterapp` on clean `develop@5364eee` after `git pull --ff-only origin develop`.
+- Local branch: `develop`, fast-forwarded from the merged policy cleanup deployment, CI repair, and checklist-finalization PRs.
+- Remote: `origin/develop`; cleanup commits `3fa274e`, `2b1c93c`, `7c97c66`, and CI repair commit `3596a82` are ancestors of `origin/develop`.
+- Development server: `deploy@192.168.32.15:/home/deploy/travelhunterapp` on clean `develop` after `git pull --ff-only origin develop`.
 - Runtime: `compose.tunnel.yaml` stack rebuilt and running; `db` and `backend` healthy, `frontend`, `caddy`, and `cloudflared` running.
 - Scope boundary: no production-domain mutation, destructive DB reset/downgrade, secret/env value printing, object-storage implementation, or raw/source-record deletion was performed.
 
 ## Latest Validation Evidence
 
-- PR path: direct `git push origin develop` was rejected by GitHub GH013 PR-only repository rule; PR #93 merged the policy cleanup deployment commits and PR #94 merged the seed-invite CI repair into `develop`.
-- Server update: dev server was clean on `develop@a6140e2`, fetched `origin/develop@6e00928`, fast-forwarded to `6e00928`, then fast-forwarded again to `5364eee` after PR #94.
+- PR path: direct `git push origin develop` was rejected by GitHub GH013 PR-only repository rule; PR #93 merged the policy cleanup deployment commits, PR #94 merged the seed-invite CI repair, and later checklist-only PRs kept the final evidence current.
+- Server update: dev server was clean on `develop@a6140e2`, fetched `origin/develop`, fast-forwarded through the policy cleanup and CI repair commits, and was later fast-forwarded through checklist-only finalization commits.
 - Compose validation: `docker compose --env-file deploy/.env.prod -f compose.tunnel.yaml config --quiet` PASS without printing env values.
 - Build/start: backend and frontend images built; frontend build ran `npm run typecheck && vite build`; `docker compose ... up -d` recreated `db`, `backend`, and `frontend` while `caddy` and `cloudflared` stayed running.
 - Migration: non-destructive `alembic upgrade head` PASS, including `0022_signup_terms_agreements -> 0023_policy_structured_detail`.
