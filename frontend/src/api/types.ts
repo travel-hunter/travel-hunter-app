@@ -54,6 +54,26 @@ export type ContactVerificationRequestResponse = {
 
 export type PolicyCategory = "교통" | "숙박" | "여행상품" | "지역할인" | "이벤트" | "기타";
 
+export type PolicyStructuredDetailItem = {
+  title?: string;
+  label?: string;
+  description?: string;
+  amount?: string;
+  value?: string;
+  url?: string;
+  startDate?: string;
+  endDate?: string;
+};
+
+export type PolicyStructuredDetail = {
+  benefits: PolicyStructuredDetailItem[];
+  conditions: PolicyStructuredDetailItem[];
+  periods: PolicyStructuredDetailItem[];
+  links: PolicyStructuredDetailItem[];
+  documents: PolicyStructuredDetailItem[];
+  notices: PolicyStructuredDetailItem[];
+};
+
 export type Policy = {
   id: string;
   slug: string;
@@ -69,6 +89,7 @@ export type Policy = {
   category: PolicyCategory;
   requirements: string[];
   documents: string[];
+  structuredDetail?: PolicyStructuredDetail | null;
   officialUrl: string | null;
   applyUrl: string | null;
   sourceType?: "internal" | "external";
@@ -165,6 +186,7 @@ export type AdminPolicyDetail = AdminPolicyListItem & {
   description: string | null;
   requirements: string[];
   documents: string[];
+  structuredDetail?: PolicyStructuredDetail | null;
   officialUrl: string | null;
   applyUrl: string | null;
   policyComment: string | null;

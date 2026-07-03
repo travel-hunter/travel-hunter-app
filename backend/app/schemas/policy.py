@@ -1,11 +1,20 @@
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 PolicyCategory = Literal["교통", "숙박", "여행상품", "지역할인", "이벤트", "기타"]
 PolicySourceType = Literal["internal", "external"]
 PolicyActionStatus = Literal["infoOnly"]
+
+
+class PolicyStructuredDetail(BaseModel):
+    benefits: list[dict[str, Any]] = Field(default_factory=list)
+    conditions: list[dict[str, Any]] = Field(default_factory=list)
+    periods: list[dict[str, Any]] = Field(default_factory=list)
+    links: list[dict[str, Any]] = Field(default_factory=list)
+    documents: list[dict[str, Any]] = Field(default_factory=list)
+    notices: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class Policy(BaseModel):
@@ -23,6 +32,7 @@ class Policy(BaseModel):
     category: PolicyCategory
     requirements: list[str]
     documents: list[str]
+    structuredDetail: PolicyStructuredDetail | None = None
     officialUrl: str | None = None
     applyUrl: str | None = None
     sourceType: PolicySourceType = "internal"
