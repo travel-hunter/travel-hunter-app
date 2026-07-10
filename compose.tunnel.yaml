@@ -3,6 +3,8 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
+      TZ: 'Asia/Seoul'
+      PGTZ: 'Asia/Seoul'
       POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
