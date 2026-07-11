@@ -87,8 +87,6 @@ def _user_list_item(user: User) -> dict[str, object]:
 def _user_detail(user: User) -> dict[str, object]:
     return {
         **_user_list_item(user),
-        "region": user.region,
-        "residenceArea": user.residence_area,
         "preferredRegions": user.preferred_regions,
         "travelStyle": user.travel_style,
         "travelBudget": user.travel_budget,
@@ -290,10 +288,6 @@ def update_user(
         if existing is not None and existing.id != user.id:
             raise AdminServiceError(409, "Nickname already used")
         user.nickname = nickname
-    if "region" in values:
-        user.region = values["region"]
-    if "residenceArea" in values:
-        user.residence_area = values["residenceArea"]
     if "preferredRegions" in values:
         user.preferred_regions = _normalize_admin_preferred_regions(values["preferredRegions"])
     if "travelStyle" in values:

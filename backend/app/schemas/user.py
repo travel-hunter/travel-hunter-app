@@ -12,11 +12,6 @@ class User(BaseModel):
     nickname: str
     email: str
     role: str = "user"
-    birthDate: str | None = None
-    gender: str | None = None
-    region: str | None = None
-    homeRegion: str
-    residenceArea: str | None = None
     preferredRegions: list[str] | None = None
     persona: str
     savedAmount: int
@@ -28,17 +23,17 @@ class User(BaseModel):
 
 
 class Profile(BaseModel):
-    region: str | None = None
     preferredRegions: list[str] | None = None
     style: str | None = None
     budget: str | None = None
 
 
 class ProfileUpdate(BaseModel):
-    region: str | None = None
     preferredRegions: list[str] | None = None
     style: str | None = None
     budget: str | None = None
+
+    model_config = {"extra": "forbid"}
 
 
 class ProfileOptions(BaseModel):
@@ -50,38 +45,6 @@ class ProfileOptions(BaseModel):
 class ProfileSkipResponse(BaseModel):
     skipped: bool
     onboardingCompleted: bool
-
-
-class NotificationSettings(BaseModel):
-    deadlineEnabled: bool
-    deadlineLeadDays: list[int]
-
-
-class NotificationSettingsUpdate(BaseModel):
-    deadlineEnabled: bool
-
-
-class ContactInfo(BaseModel):
-    phoneNumber: str | None = None
-    phoneVerified: bool
-
-
-class ContactUpdate(BaseModel):
-    phoneNumber: str | None = Field(default=None, max_length=30, pattern=r"^(\s*$|[0-9\-+() ]{7,})$")
-
-
-class ContactVerificationRequest(BaseModel):
-    phoneNumber: str | None = Field(default=None, max_length=30, pattern=r"^(\s*$|[0-9\-+() ]{7,})$")
-
-
-class ContactVerificationRequestResponse(BaseModel):
-    requested: bool
-    expiresAt: str
-    resendAvailableAt: str
-
-
-class ContactVerificationConfirm(BaseModel):
-    code: str = Field(min_length=4, max_length=8, pattern=r"^[0-9]+$")
 
 
 class LoginRequest(BaseModel):

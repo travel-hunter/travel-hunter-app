@@ -343,12 +343,7 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
         nickname: "소셜유저",
         email: "social@example.com",
         role: "user",
-        birthDate: null,
-        gender: null,
-        region: null,
-        homeRegion: "서울",
-        residenceArea: null,
-        preferredRegions: null,
+                        preferredRegions: null,
         persona: "소셜유저님",
         savedAmount: 0,
         onboardingCompleted: true,
@@ -359,7 +354,6 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
       },
     });
     const getProfileSpy = vi.spyOn(appDataApi, "getProfile").mockResolvedValue({
-      region: "서울",
       preferredRegions: ["서울"],
       style: "휴식",
       budget: "1인 40만원 이하",
@@ -681,12 +675,7 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
         nickname: "초대테스트",
         email,
         role: "user",
-        birthDate: null,
-        gender: null,
-        region: null,
-        homeRegion: "제주",
-        residenceArea: null,
-        preferredRegions: null,
+                            preferredRegions: null,
         persona: "초대테스트님",
         savedAmount: 0,
         onboardingCompleted: true,
@@ -697,7 +686,6 @@ describe("Travel Hunter app — profile, invites, OAuth & sharing", () => {
       },
     });
     const getProfileSpy = vi.spyOn(appDataApi, "getProfile").mockResolvedValue({
-      region: "제주",
       preferredRegions: ["제주"],
       style: "휴식",
       budget: "1인 40만원 이하",

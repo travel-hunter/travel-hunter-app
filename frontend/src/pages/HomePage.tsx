@@ -95,12 +95,8 @@ export function HomePage() {
             preferredRegions: preferredAiRegions,
             limit: 3,
           })
-        : appDataApi.listRegionRecommendations({
-            style: profile.style,
-            ...(profile.region ? { region: profile.region } : {}),
-            limit: 1,
-          }),
-    [preferredAiRegions.join(","), profile.region, profile.style],
+        : Promise.resolve([]),
+    [preferredAiRegions.join(","), profile.style],
   );
   const aiRegionCards = useMemo(
     () =>
@@ -111,17 +107,10 @@ export function HomePage() {
       ),
     [preferredAiRegions, profile.style, aiRegionRecommendations],
   );
-  const fallbackAiRecommendation =
-    preferredAiRegions.length === 0 ? aiRegionRecommendations?.[0] : undefined;
   const avatarLabel = name.trim().slice(0, 1).toUpperCase() || "T";
-  const fallbackAiRegion =
-    fallbackAiRecommendation?.region ?? profile.region ?? "추천 지역";
   const fallbackAiStyle = profile.style ?? "맞춤";
-  const aiCardTo =
-    fallbackAiRecommendation || profile.region
-      ? `/trips/new?region=${encodeURIComponent(fallbackAiRegion)}`
-      : "/trips/new";
-  const aiCardTitle = `${fallbackAiRegion} ${fallbackAiStyle} 코스 만들기`;
+  const aiCardTo = "/trips/new";
+  const aiCardTitle = `${fallbackAiStyle} 코스 만들기`;
   const shouldShowProfilePrompt = Boolean(
     currentUser && !isProfileComplete(profile) && !isProfilePromptDismissed,
   );
@@ -131,7 +120,7 @@ export function HomePage() {
   };
   const aiCardVisual: AiRecommendationCardVisual = {
     avatar: "🤖",
-    headline: `${fallbackAiRegion} 코스 만들까요?`,
+    headline: "새 일정 만들까요?",
     subline: "혜택까지 반영해서 추천해요",
     chips: [
       { emoji: "🏨", label: "숙소 포함" },
@@ -206,12 +195,8 @@ export function HomePage() {
         <AiRecommendationCard
           to={aiCardTo}
           title={aiCardTitle}
-          saving={
-            fallbackAiRecommendation
-              ? getRecommendationSaving(fallbackAiRecommendation)
-              : "정책과 일정을 함께 추천"
-          }
-          detail="추천 지역으로 새 일정 만들기"
+          saving="정책과 일정을 함께 추천"
+          detail="새 일정 만들기"
           visual={aiCardVisual}
         />
       )}

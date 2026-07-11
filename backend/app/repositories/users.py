@@ -126,13 +126,10 @@ def update_user_profile(
     db: Session,
     user: User,
     *,
-    region: str | None | object = UNSET,
     preferred_regions: str | None | object = UNSET,
     style: str | None | object = UNSET,
     budget: str | None | object = UNSET,
 ) -> User:
-    if region is not UNSET:
-        user.region = region
     if preferred_regions is not UNSET:
         user.preferred_regions = preferred_regions
     if style is not UNSET:
@@ -158,21 +155,6 @@ def mark_nickname_setup_completed(db: Session, user: User) -> User:
 def mark_profile_setup_skipped(db: Session, user: User) -> User:
     user.onboarding_completed = True
     user.profile_setup_skipped = True
-    user.updated_at = security.utc_now_naive()
-    db.add(user)
-    db.flush()
-    return user
-
-
-def update_user_contact(
-    db: Session,
-    user: User,
-    *,
-    phone_number: str | None,
-) -> User:
-    if user.phone_number != phone_number:
-        user.phone_verified_at = None
-    user.phone_number = phone_number
     user.updated_at = security.utc_now_naive()
     db.add(user)
     db.flush()

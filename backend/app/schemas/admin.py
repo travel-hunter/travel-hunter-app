@@ -21,8 +21,6 @@ class AdminUserListItem(BaseModel):
 
 
 class AdminUserDetail(AdminUserListItem):
-    region: str | None = None
-    residenceArea: str | None = None
     preferredRegions: str | None = None
     travelStyle: str | None = None
     travelBudget: str | None = None
@@ -30,8 +28,6 @@ class AdminUserDetail(AdminUserListItem):
 
 class AdminUserUpdateRequest(BaseModel):
     nickname: str | None = Field(default=None, min_length=2, max_length=20)
-    region: str | None = Field(default=None, max_length=50)
-    residenceArea: str | None = Field(default=None, max_length=50)
     preferredRegions: str | None = Field(default=None, max_length=255)
     travelStyle: str | None = Field(default=None, max_length=50)
     travelBudget: str | None = Field(default=None, max_length=50)

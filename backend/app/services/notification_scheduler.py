@@ -157,15 +157,9 @@ def build_notification_scheduler(
 def start_notification_scheduler(
     settings_obj: Settings = settings,
 ) -> asyncio.Task[None] | None:
-    if not settings_obj.notification_scheduler_enabled:
-        return None
-
-    validate_notification_scheduler_settings(settings_obj)
-    scheduler = build_notification_scheduler(settings_obj)
-    return asyncio.create_task(
-        scheduler.run_forever(),
-        name="travel-hunter-notification-scheduler",
-    )
+    """Deadline notification scheduler is intentionally hard-disabled."""
+    _ = settings_obj
+    return None
 
 
 async def stop_notification_scheduler(task: asyncio.Task[None] | None) -> None:

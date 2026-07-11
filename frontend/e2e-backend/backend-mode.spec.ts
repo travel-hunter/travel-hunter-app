@@ -129,46 +129,50 @@ test("backend data source drives policy, trip, recommendation, invite, and logou
   await page.goto(`/trips/${tripId}`);
 
   await page.goto(`/friend-invite?tripId=${tripId}`);
-  await expect(page.locator(".invite-link")).toBeVisible();
-  await expect(page.locator(".invite-link span")).toContainText(`/invites/`);
-  await expect(page.locator(".invite-link span")).toContainText(`/accept`);
-  await expect(page.getByRole("button", { name: "링크 복사" })).toBeVisible();
-  await page.getByRole("button", { name: /초대 링크/ }).click();
-  await expect(page.getByRole("button", { name: "초대 링크 준비 완료" })).toBeVisible();
+  const ownerInviteLink = page.locator(".invite-link").first();
+  await expect(ownerInviteLink).toBeVisible();
+  await expect(ownerInviteLink.locator("span")).toContainText(`/invites/`);
+  await expect(ownerInviteLink.locator("span")).toContainText(`/accept`);
+  const copyInviteLinkButton = page.getByRole("button", { name: /링크 복사/ }).first();
+  await expect(copyInviteLinkButton).toBeVisible();
+  await copyInviteLinkButton.click();
+  await expect(page.getByRole("button", { name: "보기만 가능 링크 준비 완료" })).toBeVisible();
 
   await page.goto("/mypage");
   await page.getByRole("button", { name: "로그아웃" }).click();
   await expect(page).toHaveURL(/\/login$/);
 });
 
-test("policy category tabs stay on one horizontal scroll row on mobile", async ({ page }) => {
+test("policy filter toolbar stays usable within the mobile list screen", async ({ page }) => {
   await seedStoredAuth(page);
 
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/policies");
-  const categoryTabs = page.locator(".prototype-policy-list-screen .prototype-category-tabs");
-  const categoryScroller = page.locator(".prototype-policy-list-screen .prototype-policy-titlebar");
-  await expect(categoryTabs).toBeVisible();
-  await expect(categoryScroller).toBeVisible();
-  await expect(page.getByRole("button", { name: "기타" })).toBeVisible();
+  const listScreen = page.locator(".prototype-policy-list-screen");
+  const toolbar = listScreen.locator(".prototype-policy-toolbar");
+  const searchRow = listScreen.locator(".prototype-policy-search-row");
+  const resultRow = listScreen.locator(".prototype-policy-result-row");
 
-  const layout = await categoryScroller.evaluate((element) => {
+  await expect(toolbar).toBeVisible();
+  await expect(page.getByRole("searchbox", { name: "정책 검색" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "필터 열기" })).toBeVisible();
+  await expect(resultRow).toBeVisible();
+
+  const layout = await searchRow.evaluate((element) => {
+    const screen = element.closest(".prototype-policy-list-screen");
     const style = window.getComputedStyle(element);
-    const buttons = Array.from(element.querySelectorAll(".prototype-category-tab"));
-    const tabs = element.querySelector(".prototype-category-tabs");
-    const tabsStyle = tabs ? window.getComputedStyle(tabs) : null;
     return {
-      display: tabsStyle?.display,
-      overflowX: style.overflowX,
-      clientWidth: element.clientWidth,
-      scrollWidth: element.scrollWidth,
-      topValues: buttons.map((button) => Math.round(button.getBoundingClientRect().top)),
+      display: style.display,
+      screenClientWidth: screen?.clientWidth ?? 0,
+      screenScrollWidth: screen?.scrollWidth ?? 0,
+      searchRowClientWidth: element.clientWidth,
+      searchRowScrollWidth: element.scrollWidth,
     };
   });
 
-  expect(layout.display).toBe("flex");
-  expect(layout.overflowX).toBe("auto");
-  expect(layout.scrollWidth).toBeGreaterThan(layout.clientWidth);
-  expect(new Set(layout.topValues).size).toBe(1);
+  expect(layout.display).toBe("grid");
+  expect(layout.screenScrollWidth - layout.screenClientWidth).toBeLessThanOrEqual(1);
+  expect(layout.searchRowScrollWidth - layout.searchRowClientWidth).toBeLessThanOrEqual(1);
 });
 
 test("policy detail sticky CTA stays attached above bottom tabs while scrolling", async ({ page }) => {
@@ -353,17 +357,11 @@ test("home recommendation starts a new trip and reaches policy navigation", asyn
   await firstTravelArea.click();
   await page.getByRole("button", { name: "다음" }).click();
 
-  await expect(page.getByRole("heading", { name: "코스 취향 선택" })).toBeVisible();
-  await page.getByRole("button", { name: "다음" }).click();
-
-  await expect(page.getByRole("heading", { name: "여행 기간 선택" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "여행 정보를 한 번에 확인해요" })).toBeVisible();
+  await page.locator('input[name="trip-title"]').fill("홈 추천 smoke 여행");
   await page.locator('input[type="date"]').nth(0).fill("2026-07-12");
   await page.locator('input[type="date"]').nth(1).fill("2026-07-14");
-  await page.getByRole("button", { name: "다음" }).click();
-
-  await expect(page.getByRole("heading", { name: "일정 제목 입력" })).toBeVisible();
-  await page.locator('input[name="trip-title"]').fill("홈 추천 smoke 여행");
-  await page.getByRole("button", { name: "일정 만들기" }).click();
+  await page.getByRole("button", { name: "확인하고 만들기" }).click();
 
   await expect(page).toHaveURL(/\/trips\/[1-9][0-9]*$/);
   await expect(page.locator(".day-tab").first()).toBeVisible();
@@ -384,23 +382,25 @@ async function expectNoDocumentOverflow(page: Page) {
 test("backend data source creates a trip with selected profile values and policy slug", async ({ page }) => {
   await login(page);
 
-  await page.goto(`/trips/new?policySlug=${encodeURIComponent(examplePolicySlug)}`);
+  const travelAreaResponse = await page.request.get(
+    `${apiBaseUrl}/api/recommendations/travel-areas?sido=${encodeURIComponent("부산")}&limit=1`,
+  );
+  expect(travelAreaResponse.ok()).toBeTruthy();
+  const travelAreaItems = ((await travelAreaResponse.json()) as {
+    items: { travelAreaId: string }[];
+  }).items;
+  expect(travelAreaItems.length).toBeGreaterThan(0);
+  const travelAreaId = travelAreaItems[0].travelAreaId;
+
+  await page.goto(
+    `/trips/new?policySlug=${encodeURIComponent(examplePolicySlug)}&region=${encodeURIComponent("부산")}&travelAreaId=${encodeURIComponent(travelAreaId)}`,
+  );
   await expect(page.locator("#root")).not.toBeEmpty();
-  await expect(page.getByRole("heading", { name: "여행 지역 선택" })).toBeVisible();
-  await page.getByRole("button", { name: /부산/ }).click();
-  const firstTravelArea = page.locator(".prototype-travel-area-card").first();
-  await expect(firstTravelArea).toBeVisible();
-  await firstTravelArea.click();
-  await page.getByRole("button", { name: "다음" }).click();
-  await expect(page.getByRole("heading", { name: "코스 취향 선택" })).toBeVisible();
-  await page.getByRole("button", { name: "다음" }).click();
-  await expect(page.getByRole("heading", { name: "여행 기간 선택" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "여행 정보를 한 번에 확인해요" })).toBeVisible();
+  await page.locator('input[name="trip-title"]').fill("부산 e2e 여행");
   await page.locator('input[type="date"]').nth(0).fill("2026-07-12");
   await page.locator('input[type="date"]').nth(1).fill("2026-07-15");
-  await page.getByRole("button", { name: "다음" }).click();
-  await expect(page.getByRole("heading", { name: "일정 제목 입력" })).toBeVisible();
-  await page.locator('input[name="trip-title"]').fill("부산 e2e 여행");
-  await page.getByRole("button", { name: "일정 만들기" }).click();
+  await page.getByRole("button", { name: "확인하고 만들기" }).click();
   await expect(page).toHaveURL(/\/trips\/[1-9][0-9]*$/);
   const createdTripId = page.url().split("/").pop() ?? "";
   expect(createdTripId).toMatch(numericTripId);
@@ -415,7 +415,7 @@ test("backend data source creates a trip with selected profile values and policy
   await expect(page.locator(".prototype-trip-action-ai")).toBeVisible();
 
   await page.goto(`/friend-invite?tripId=${createdTripId}`);
-  await expect(page.locator(".invite-link")).toBeVisible();
+  await expect(page.locator(".invite-link").first()).toBeVisible();
 });
 
 test("normalized policy save, unsave, trip link, and unlink stay consistent on my page", async ({ page }) => {

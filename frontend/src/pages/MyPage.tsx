@@ -1,7 +1,7 @@
-﻿import { useEffect, useState } from "react";
-import { Bell, CircleHelp, Dice5, FileText, LogOut, ShieldCheck } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CircleHelp, Dice5, FileText, LogOut, ShieldCheck } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { appDataApi, type ContactInfo, type NotificationSettings, type Policy, type Profile, type Trip } from "../api";
+import { appDataApi, type Policy, type Profile, type Trip } from "../api";
 import { useSession } from "../app/session";
 import { ProfilePreferencePreview } from "../components/ProfilePreferencePreview";
 import { PreferredRegionSelector } from "../components/PreferredRegionSelector";
@@ -47,20 +47,6 @@ export function MyPage() {
   const [isSuggestingNickname, setIsSuggestingNickname] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileEditError, setProfileEditError] = useState("");
-  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings | null>(null);
-  const [isLoadingNotifications, setIsLoadingNotifications] = useState(true);
-  const [isSavingNotifications, setIsSavingNotifications] = useState(false);
-  const [notificationError, setNotificationError] = useState("");
-  const [contact, setContact] = useState<ContactInfo | null>(null);
-  const [contactDraft, setContactDraft] = useState("");
-  const [isLoadingContact, setIsLoadingContact] = useState(true);
-  const [isSavingContact, setIsSavingContact] = useState(false);
-  const [contactError, setContactError] = useState("");
-  const [verificationCode, setVerificationCode] = useState("");
-  const [verificationMessage, setVerificationMessage] = useState("");
-  const [isRequestingVerification, setIsRequestingVerification] = useState(false);
-  const [isConfirmingVerification, setIsConfirmingVerification] = useState(false);
-  const [isNotificationSheetOpen, setIsNotificationSheetOpen] = useState(false);
   const [infoSheetType, setInfoSheetType] = useState<InfoSheetType | null>(null);
 
   useEffect(() => {
@@ -70,18 +56,12 @@ export function MyPage() {
     setIsLoadingTrips(true);
     setTripError("");
     setIsLoadingAppliedPolicies(true);
-    setIsLoadingNotifications(true);
-    setNotificationError("");
-    setIsLoadingContact(true);
-    setContactError("");
 
     Promise.allSettled([
       appDataApi.listSavedPolicies(),
       appDataApi.listTrips(),
       appDataApi.listAppliedPolicies(),
-      appDataApi.getNotificationSettings(),
-      appDataApi.getContact(),
-    ]).then(([savedResult, tripsResult, appliedResult, notifResult, contactResult]) => {
+    ]).then(([savedResult, tripsResult, appliedResult]) => {
       if (!isCurrent) return;
 
       if (savedResult.status === "fulfilled") setSavedPolicies(uniquePoliciesBySlug(savedResult.value));
@@ -95,18 +75,6 @@ export function MyPage() {
       if (appliedResult.status === "fulfilled") setAppliedPolicyCount(appliedResult.value.length);
       else setAppliedPolicyCount(0);
       setIsLoadingAppliedPolicies(false);
-
-      if (notifResult.status === "fulfilled") setNotificationSettings(notifResult.value);
-      else setNotificationError("알림 설정을 불러오지 못했어요.");
-      setIsLoadingNotifications(false);
-
-      if (contactResult.status === "fulfilled") {
-        setContact(contactResult.value);
-        setContactDraft(contactResult.value.phoneNumber ?? "");
-      } else {
-        setContactError("알림 연락처를 불러오지 못했어요.");
-      }
-      setIsLoadingContact(false);
     });
 
     return () => {
@@ -186,80 +154,10 @@ export function MyPage() {
     }
   };
 
-  const toggleDeadlineNotifications = async () => {
-    if (isSavingNotifications) return;
-    const previousSettings = notificationSettings ?? { deadlineEnabled: true, deadlineLeadDays: [7, 1] };
-    const nextSettings = {
-      ...previousSettings,
-      deadlineEnabled: !previousSettings.deadlineEnabled,
-    };
-    setNotificationSettings(nextSettings);
-    setIsSavingNotifications(true);
-    setNotificationError("");
-    try {
-      const savedSettings = await appDataApi.updateNotificationSettings({ deadlineEnabled: nextSettings.deadlineEnabled });
-      setNotificationSettings(savedSettings);
-    } catch {
-      setNotificationSettings(previousSettings);
-      setNotificationError("알림 설정을 저장하지 못했어요.");
-    } finally {
-      setIsSavingNotifications(false);
-    }
-  };
-
-  const saveContact = async () => {
-    setIsSavingContact(true);
-    setContactError("");
-    setVerificationMessage("");
-    try {
-      const savedContact = await appDataApi.updateContact({ phoneNumber: contactDraft.trim() ? contactDraft : null });
-      setContact(savedContact);
-      setContactDraft(savedContact.phoneNumber ?? "");
-      setVerificationCode("");
-    } catch {
-      setContactError("연락처를 저장하지 못했어요.");
-    } finally {
-      setIsSavingContact(false);
-    }
-  };
-
-  const requestContactVerification = async () => {
-    setIsRequestingVerification(true);
-    setContactError("");
-    setVerificationMessage("");
-    try {
-      await appDataApi.requestContactVerification({ phoneNumber: contactDraft.trim() ? contactDraft : null });
-      setVerificationMessage("인증번호를 보냈어요.");
-    } catch {
-      setContactError("인증번호를 보내지 못했어요. 연락처를 확인해 주세요.");
-    } finally {
-      setIsRequestingVerification(false);
-    }
-  };
-
-  const confirmContactVerification = async () => {
-    setIsConfirmingVerification(true);
-    setContactError("");
-    try {
-      const verifiedContact = await appDataApi.confirmContactVerification({ code: verificationCode });
-      setContact(verifiedContact);
-      setContactDraft(verifiedContact.phoneNumber ?? "");
-      setVerificationCode("");
-      setVerificationMessage("연락처 인증이 완료되었어요.");
-    } catch {
-      setContactError("인증번호를 확인하지 못했어요.");
-    } finally {
-      setIsConfirmingVerification(false);
-    }
-  };
-
   const visibleSavedPolicies = uniquePoliciesBySlug(savedPolicies);
   const savedPolicyCount = Math.max(visibleSavedPolicies.length, savedSlugs.size);
   const appliedPolicySummaryCount = Math.max(appliedPolicyCount, addedPolicySlugs.size);
   const tripCount = tripError ? 0 : trips.length;
-  const deadlineEnabled = notificationSettings?.deadlineEnabled ?? true;
-  const deadlineLeadDays = notificationSettings?.deadlineLeadDays ?? [7, 1];
-  const deadlineLabel = deadlineEnabled ? `정책 ${deadlineLeadDays.map((day) => `D-${day}`).join(", ")} 알림` : "마감 알림을 받지 않음";
   return (
     <section className="screen with-tabs prototype-mypage-screen">
       <div className="content stack padded prototype-mypage-content">
@@ -272,7 +170,7 @@ export function MyPage() {
               <h2 className="profile-name">{name}</h2>
               <p className="prototype-profile-email">{currentUser?.email ?? "이메일 정보 없음"}</p>
               <div className="prototype-profile-chips" aria-label="프로필 취향">
-                <span>{formatPreferredRegions(profile.preferredRegions, profile.region)}</span>
+                <span>{formatPreferredRegions(profile.preferredRegions)}</span>
                 <span>{profileValueLabel(profile.style)}</span>
                 <span>{profileValueLabel(profile.budget)}</span>
               </div>
@@ -333,15 +231,6 @@ export function MyPage() {
         </section>
 
         <section className="prototype-settings-menu ds-settings-menu" aria-label="설정 메뉴">
-          <button className="prototype-menu-row" onClick={() => setIsNotificationSheetOpen(true)} type="button">
-            <span className="prototype-menu-icon" aria-hidden="true">
-              <Bell size={18} />
-            </span>
-            <strong>알림 설정</strong>
-            <span className="prototype-menu-chevron" aria-hidden="true">
-              ›
-            </span>
-          </button>
           <button className="prototype-menu-row" onClick={() => setInfoSheetType("faq")} type="button">
             <span className="prototype-menu-icon" aria-hidden="true">
               <CircleHelp size={18} />
@@ -399,31 +288,6 @@ export function MyPage() {
           />
         )}
 
-        {isNotificationSheetOpen && (
-          <NotificationSettingsSheet
-            contact={contact}
-            contactDraft={contactDraft}
-            contactError={contactError}
-            deadlineEnabled={deadlineEnabled}
-            deadlineLabel={deadlineLabel}
-            isConfirmingVerification={isConfirmingVerification}
-            isLoadingContact={isLoadingContact}
-            isLoadingNotifications={isLoadingNotifications}
-            isRequestingVerification={isRequestingVerification}
-            isSavingContact={isSavingContact}
-            isSavingNotifications={isSavingNotifications}
-            notificationError={notificationError}
-            verificationCode={verificationCode}
-            verificationMessage={verificationMessage}
-            onClose={() => setIsNotificationSheetOpen(false)}
-            onContactChange={setContactDraft}
-            onConfirmVerification={confirmContactVerification}
-            onRequestVerification={requestContactVerification}
-            onSaveContact={saveContact}
-            onToggleDeadline={toggleDeadlineNotifications}
-            onVerificationCodeChange={setVerificationCode}
-          />
-        )}
 
         {infoSheetType && <InfoSheet type={infoSheetType} onClose={() => setInfoSheetType(null)} />}
       </div>
@@ -504,11 +368,11 @@ const infoSheetContent: Record<InfoSheetType, { title: string; intro: string; se
     sections: [
       {
         heading: "수집 항목",
-        body: "이메일, 닉네임, 프로필 선호 정보, 저장한 정책, 여행 일정, 초대 참여 정보, 알림 연락처를 기능 제공 범위에서 처리합니다.",
+        body: "이메일, 닉네임, 프로필 선호 정보, 저장한 정책, 여행 일정, 초대 참여 정보를 기능 제공 범위에서 처리합니다.",
       },
       {
         heading: "이용 목적",
-        body: "로그인, 회원 식별, 맞춤 정책 표시, 일정 관리, 즐겨찾기 동기화, 마감 알림 설정 기능 제공에 사용합니다.",
+        body: "로그인, 회원 식별, 맞춤 정책 표시, 일정 관리, 즐겨찾기 동기화 기능 제공에 사용합니다.",
       },
       {
         heading: "보호 조치",
@@ -547,145 +411,6 @@ function InfoSheet({ onClose, type }: { onClose: () => void; type: InfoSheetType
               <p>{section.body}</p>
             </article>
           ))}
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function NotificationSettingsSheet({
-  contact,
-  contactDraft,
-  contactError,
-  deadlineEnabled,
-  deadlineLabel,
-  isConfirmingVerification,
-  isLoadingContact,
-  isLoadingNotifications,
-  isRequestingVerification,
-  isSavingContact,
-  isSavingNotifications,
-  notificationError,
-  verificationCode,
-  verificationMessage,
-  onClose,
-  onContactChange,
-  onConfirmVerification,
-  onRequestVerification,
-  onSaveContact,
-  onToggleDeadline,
-  onVerificationCodeChange,
-}: {
-  contact: ContactInfo | null;
-  contactDraft: string;
-  contactError: string;
-  deadlineEnabled: boolean;
-  deadlineLabel: string;
-  isConfirmingVerification: boolean;
-  isLoadingContact: boolean;
-  isLoadingNotifications: boolean;
-  isRequestingVerification: boolean;
-  isSavingContact: boolean;
-  isSavingNotifications: boolean;
-  notificationError: string;
-  verificationCode: string;
-  verificationMessage: string;
-  onClose: () => void;
-  onContactChange: (phoneNumber: string) => void;
-  onConfirmVerification: () => void;
-  onRequestVerification: () => void;
-  onSaveContact: () => void;
-  onToggleDeadline: () => void;
-  onVerificationCodeChange: (code: string) => void;
-}) {
-  const contactStatus = isLoadingContact
-    ? "연락처를 불러오는 중입니다"
-    : contact?.phoneNumber
-      ? contact.phoneVerified
-        ? "검증된 연락처입니다"
-        : "검증 전 연락처입니다"
-      : "마감 알림을 받을 전화번호를 입력해 주세요.";
-
-  return (
-    <div className="sheet-backdrop" role="presentation" onMouseDown={onClose}>
-      <section
-        className="trip-select-sheet prototype-notification-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="notification-settings-title"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <div className="sheet-head">
-          <div>
-            <h2 id="notification-settings-title">알림 설정</h2>
-            <p className="meta">카카오 알림톡 연락처와 마감 알림 수신 여부를 관리해요.</p>
-          </div>
-          <button className="btn sm ghost" type="button" onClick={onClose}>
-            닫기
-          </button>
-        </div>
-
-        <div className="prototype-notification-panel">
-          <div className="prototype-notification-block">
-            <strong>카카오 알림톡 연락처</strong>
-            <div className="meta">{contactStatus}</div>
-            <label className="field contact-field">
-              전화번호
-              <input
-                disabled={isLoadingContact || isSavingContact}
-                inputMode="tel"
-                name="notification-phone"
-                onChange={(event) => onContactChange(event.target.value)}
-                placeholder="01012345678"
-                type="tel"
-                value={contactDraft}
-              />
-            </label>
-            <Button disabled={isLoadingContact || isSavingContact} onClick={onSaveContact} variant="line">
-              {isSavingContact ? "저장 중" : "연락처 저장"}
-            </Button>
-            <Button disabled={isLoadingContact || isSavingContact || isRequestingVerification || !contactDraft.trim()} onClick={onRequestVerification} variant="line">
-              {isRequestingVerification ? "요청 중" : "인증번호 받기"}
-            </Button>
-            <label className="field contact-field">
-              인증번호
-              <input
-                disabled={isLoadingContact || isConfirmingVerification}
-                inputMode="numeric"
-                name="notification-phone-verification-code"
-                onChange={(event) => onVerificationCodeChange(event.target.value)}
-                placeholder="123456"
-                type="text"
-                value={verificationCode}
-              />
-            </label>
-            <Button disabled={isLoadingContact || isConfirmingVerification || !verificationCode.trim()} onClick={onConfirmVerification} variant="line">
-              {isConfirmingVerification ? "확인 중" : "인증 확인"}
-            </Button>
-            {verificationMessage && <div className="form-success">{verificationMessage}</div>}
-            {contactError && <div className="warning-text">{contactError}</div>}
-          </div>
-
-          <div className="prototype-notification-block">
-            <div className="setting-row">
-              <div>
-                <strong>마감 알림</strong>
-                <div className="meta">{isLoadingNotifications ? "알림 설정을 불러오는 중입니다" : deadlineLabel}</div>
-              </div>
-              <button
-                aria-checked={deadlineEnabled}
-                className={`notification-toggle ${deadlineEnabled ? "active" : ""}`}
-                disabled={isLoadingNotifications || isSavingNotifications}
-                onClick={onToggleDeadline}
-                role="switch"
-                type="button"
-              >
-                <span className="toggle-knob" />
-                <span>{isSavingNotifications ? "저장 중" : deadlineEnabled ? "켜짐" : "꺼짐"}</span>
-              </button>
-            </div>
-            {notificationError && <div className="warning-text">{notificationError}</div>}
-          </div>
         </div>
       </section>
     </div>

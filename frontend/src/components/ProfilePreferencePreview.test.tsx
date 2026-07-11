@@ -7,7 +7,6 @@ describe("ProfilePreferencePreview", () => {
     render(
       <ProfilePreferencePreview
         profile={{
-          region: "서울",
           preferredRegions: ["부산", "강원"],
           style: "사진",
           budget: "상관없음",
@@ -21,11 +20,10 @@ describe("ProfilePreferencePreview", () => {
     expect(within(preview).getByText("상관없음")).toBeInTheDocument();
   });
 
-  it("falls back to legacy region only when preferred regions are absent", () => {
+  it("shows an unset region label when preferred regions are absent", () => {
     render(
       <ProfilePreferencePreview
         profile={{
-          region: "제주",
           preferredRegions: null,
           style: null,
           budget: null,
@@ -34,7 +32,7 @@ describe("ProfilePreferencePreview", () => {
     );
 
     const preview = screen.getByLabelText("현재 추천 기준");
-    expect(within(preview).getByText("제주")).toBeInTheDocument();
+    expect(within(preview).getByText("관심지역 미정")).toBeInTheDocument();
     expect(within(preview).getByText("스타일 미정")).toBeInTheDocument();
     expect(within(preview).getByText("예산 미정")).toBeInTheDocument();
   });
@@ -44,7 +42,6 @@ describe("ProfilePreferencePreview", () => {
       <ProfilePreferencePreview
         cta="저장하면 홈 추천과 맞춤 일정에 바로 반영됩니다."
         profile={{
-          region: null,
           preferredRegions: ["제주"],
           style: "휴식",
           budget: "1인 40만원 이하",

@@ -1,14 +1,14 @@
 # Travel Hunter DB 컬럼 설명 보고서
 
-- 작성일: 2026-07-02
+- 작성일: 2026-07-11
 - 기준 schema: `docs/db-schema-current.sql`
 - 보조 기준: `docs/db-schema-current.md`, `docs/db-erd.md`, `backend/app/models/tables.py`
-- 기준 Alembic head: `0023_policy_structured_detail`
-- 범위: 현재 PostgreSQL schema의 22개 테이블과 모든 컬럼
+- 기준 Alembic head: `0025_prune_contact_notify`
+- 범위: 현재 PostgreSQL schema의 20개 테이블과 모든 컬럼
 
 ## 1. 요약 판단
 
-현재 schema는 **22개 테이블, 232개 컬럼**으로 구성되어 있다. 테이블 수 22개 자체는 MVP가 인증, 정책 수집, 여행 일정, 알림, 운영 감사까지 포함한다는 점을 고려하면 과도하다고 단정하기 어렵다. 다만 컬럼 수가 큰 테이블에는 서로 다른 책임이 섞여 있어 장기적으로는 정리 여지가 있다.
+현재 schema는 **20개 테이블, 213개 컬럼**으로 구성되어 있다. 테이블 수 20개 자체는 MVP가 인증, 정책 수집, 여행 일정, 알림 이력, 운영 감사까지 포함한다는 점을 고려하면 과도하다고 단정하기 어렵다. 다만 컬럼 수가 큰 테이블에는 서로 다른 책임이 섞여 있어 장기적으로는 정리 여지가 있다.
 
 컬럼 수 상위 테이블은 다음과 같다.
 
@@ -16,13 +16,13 @@
 |---:|---|---:|---|
 | 1 | `external_source_records` | 37 | 원문 보존과 추출 후보가 함께 있어 큼. 분리/보관 정책 검토 가치가 가장 높음. |
 | 2 | `policies` | 30 | 서비스 노출 정책 정보와 출처/운영 메타데이터가 함께 있어 큼. 현재는 핵심 테이블로 수용 가능. |
-| 3 | `users` | 25 | 인증, 프로필, 온보딩, 약관 동의가 한 테이블에 있음. 불필요 프로필 컬럼은 사용처 기준 재평가 가능. |
+| 3 | `users` | 19 | 인증, 프로필, 온보딩, 약관 동의가 한 테이블에 있음. |
 | 4 | `notification_deliveries` | 15 | 도메인 기능상 현재 규모는 수용 가능. |
 | 5 | `trip_places` | 14 | 도메인 기능상 현재 규모는 수용 가능. |
 
 ### 전체 테이블 수에 대한 평가
 
-- **테이블 수 22개는 구조적으로는 납득 가능**하다. 사용자 인증, 임시 가입, 정책, 수집 원문, 여행 일정, 초대, 알림, 감사 로그가 각각 다른 생명주기를 가지기 때문이다.
+- **테이블 수 20개는 구조적으로는 납득 가능**하다. 사용자 인증, 임시 가입, 정책, 수집 원문, 여행 일정, 초대, 알림 이력, 감사 로그가 각각 다른 생명주기를 가지기 때문이다.
 - **정리 우선순위는 테이블 삭제가 아니라 큰 테이블의 책임 분리와 보관 정책**이다. 특히 `external_source_records`는 원문·추출값·품질정보가 함께 있어 가장 먼저 정리 기준을 세울 만하다.
 - `alembic_version`은 업무 테이블이 아니라 migration 메타데이터다. 사람이 보는 “서비스 테이블” 수를 셀 때는 별도 표기하는 것이 좋다.
 
@@ -36,8 +36,6 @@
 - `password_reset_tokens`: 비밀번호 재설정 링크/코드의 토큰 해시와 사용 여부를 추적한다.
 - `pending_signups`: 이메일 회원가입 과정에서 아직 최종 사용자로 확정되지 않은 가입 요청과 약관 동의 정보를 임시 보관한다.
 - `pending_social_signups`: 소셜 로그인 후 추가 가입 절차가 필요한 사용자의 provider 정보와 임시 토큰을 보관한다.
-- `phone_verification_codes`: 휴대폰 번호 검증용 인증 코드의 해시, 만료, 시도 횟수, 검증 완료 시각을 보관한다.
-- `user_notification_settings`: 사용자별 정책 마감 알림 수신 설정을 보관한다.
 - `admin_audit_logs`: 관리자성 변경 작업의 대상, 요약, 변경 전후 JSON을 남기는 감사 로그 테이블이다.
 
 ### 정책/수집
@@ -59,7 +57,7 @@
 
 ### 알림/운영 메타데이터
 
-- `notification_deliveries`: 정책 마감 알림 발송 예약, 시도, 성공/실패 결과를 사용자·정책 단위로 기록한다.
+- `notification_deliveries`: 과거 정책 마감 알림 발송 이력을 사용자·정책 단위로 보존한다. 현재 runtime은 제거되어 inert history로만 사용한다.
 - `alembic_version`: Alembic이 현재 DB에 적용된 migration revision을 추적하는 메타데이터 테이블이다.
 
 ## 3. 테이블별 컬럼 상세
@@ -67,9 +65,9 @@
 ### 3.1. `users`
 
 - **존재 목적:** 서비스 사용자의 로그인 식별자, 기본 프로필, 온보딩 상태, 약관 동의 이력, 권한을 보관하는 중심 테이블이다.
-- **주요 관계:** 다수의 인증 토큰, 소셜 계정, 저장 정책, 여행 소유/멤버십, 알림 설정, 추천, 알림 발송과 연결된다.
-- **컬럼 수:** 25개
-- **정리 판단:** 핵심 테이블이다. 다만 `gender`, `preferred_regions`, `travel_budget`처럼 현재 추천/자격 판정에 직접 쓰이지 않는 프로필성 컬럼은 실제 사용처 기준으로 유지 여부를 재평가할 수 있다.
+- **주요 관계:** 다수의 인증 토큰, 소셜 계정, 저장 정책, 여행 소유/멤버십, 추천, 알림 이력과 연결된다.
+- **컬럼 수:** 19개
+- **정리 판단:** 핵심 테이블이다. 개인정보 최소수집 pass 이후 관심 지역은 `preferred_regions`만 유지한다.
 
 | 컬럼 | 타입 | 필수 여부 | 기본값 | 상세 설명 |
 |---|---|---|---|---|
@@ -77,18 +75,12 @@
 | `email` | `character varying(255)` | 필수 | `-` | 로그인 식별자이자 연락 가능한 이메일이다. 중복 가입 방지 기준이 된다. |
 | `password_hash` | `character varying(255)` | 선택 | `-` | 비밀번호 로그인 사용자의 해시값이다. 소셜 전용 계정은 비어 있을 수 있다. |
 | `nickname` | `character varying(50)` | 필수 | `-` | 서비스 화면에 표시할 사용자 이름이다. |
-| `birth_date` | `date` | 선택 | `-` | 연령대/생년월일 기반 정책 자격 또는 추천에 사용할 수 있는 프로필 값이다. |
-| `gender` | `character varying(10)` | 선택 | `-` | 성별 기반 정책 자격이나 통계/추천에 사용할 수 있는 선택 프로필 값이다. 현재 직접 사용처가 약하면 정리 후보가 될 수 있다. |
-| `region` | `character varying(50)` | 선택 | `-` | 사용자의 기본 지역 또는 주요 거주/관심 지역을 단순 문자열로 저장한다. |
 | `preferred_regions` | `character varying(255)` | 선택 | `-` | 복수 선호 여행 지역을 문자열로 저장한다. 배열/별도 테이블이 아니므로 검색·정렬에는 한계가 있다. |
-| `residence_area` | `character varying(50)` | 선택 | `-` | 거주지 상세 지역을 저장한다. 지역 기반 지원정책 자격 판단에 쓰일 수 있다. |
 | `onboarding_completed` | `boolean` | 필수 | `false` | 초기 온보딩 절차 완료 여부다. 첫 진입 UX 분기에 사용된다. |
 | `created_at` | `timestamp without time zone` | 필수 | `now()` | 사용자 row 생성 시각이다. |
 | `updated_at` | `timestamp without time zone` | 필수 | `now()` | 사용자 프로필 또는 상태가 마지막으로 변경된 시각이다. |
 | `travel_style` | `character varying(50)` | 선택 | `-` | 선호 여행 방식이다. 추천 또는 개인화 필터에 사용할 수 있다. |
 | `travel_budget` | `character varying(50)` | 선택 | `-` | 선호 예산대다. 추천/필터에 사용할 수 있지만 현재 활용도가 낮으면 정리 후보가 될 수 있다. |
-| `phone_number` | `character varying(30)` | 선택 | `-` | 전화번호 인증 또는 알림 발송용 연락처다. |
-| `phone_verified_at` | `timestamp without time zone` | 선택 | `-` | 전화번호가 검증된 시각이다. NULL이면 미검증으로 볼 수 있다. |
 | `role` | `character varying(20)` | 필수 | `'user'::character varying` | 사용자 권한이다. 일반 사용자와 관리자 기능 분기에 사용된다. |
 | `nickname_setup_completed` | `boolean` | 필수 | `true` | 닉네임 설정 플로우 완료 여부다. 소셜 가입 후 추가 설정 여부를 판단한다. |
 | `profile_setup_skipped` | `boolean` | 필수 | `false` | 프로필 설정을 사용자가 건너뛰었는지 나타낸다. 온보딩 재노출 판단에 사용된다. |
@@ -99,7 +91,7 @@
 | `privacy_accepted_at` | `timestamp without time zone` | 선택 | `-` | 개인정보 처리방침 동의 시각이다. |
 | `privacy_version` | `character varying(32)` | 선택 | `-` | 동의한 개인정보 처리방침 버전이다. |
 
-**읽는 방법:** `users`에는 로그인 식별자, 프로필, 온보딩, 약관 동의가 함께 있다. 개인정보 최소수집 원칙 관점에서는 `gender`, `birth_date`, `phone_number`처럼 민감도가 있는 컬럼은 실제 기능 필요성과 보관 목적을 주기적으로 점검해야 한다.
+**읽는 방법:** `users`에는 로그인 식별자, 선호 지역/여행 프로필, 온보딩, 약관 동의가 함께 있다. 개인정보 최소수집 pass 이후 단일 사용자 지역과 연락처/실명성 프로필 컬럼은 제거됐고, 복수 관심 지역은 `preferred_regions`로만 보관한다.
 
 ### 3.2. `auth_refresh_tokens`
 
@@ -189,39 +181,6 @@
 | `redirect_path` | `character varying(500)` | 필수 | `'/home'::character varying` | 가입 완료 후 이동할 내부 경로다. |
 | `created_at` | `timestamp without time zone` | 필수 | `now()` | 소셜 가입 대기 생성 시각이다. |
 | `expires_at` | `timestamp without time zone` | 필수 | `-` | 소셜 가입 대기 토큰 만료 시각이다. |
-
-### 3.7. `phone_verification_codes`
-
-- **존재 목적:** 휴대폰 번호 검증용 인증 코드의 해시, 만료, 시도 횟수, 검증 완료 시각을 보관한다.
-- **주요 관계:** `user_id`로 `users.id`에 속한다.
-- **컬럼 수:** 8개
-- **정리 판단:** 전화번호 검증 기능을 유지하면 필요하다. 재시도 제한과 만료 청소 정책이 중요하다.
-
-| 컬럼 | 타입 | 필수 여부 | 기본값 | 상세 설명 |
-|---|---|---|---|---|
-| `id` | `bigint` | 필수 | `-` | 전화 인증 코드 row 기본키다. |
-| `user_id` | `bigint` | 필수 | `-` | 전화 인증을 요청한 사용자 id다. |
-| `phone_number` | `character varying(30)` | 필수 | `-` | 검증 대상 전화번호다. |
-| `code_hash` | `character varying(255)` | 필수 | `-` | 인증 코드 원문 대신 저장하는 해시값이다. |
-| `expires_at` | `timestamp without time zone` | 필수 | `-` | 인증 코드 만료 시각이다. |
-| `attempt_count` | `integer` | 필수 | `0` | 코드 확인 시도 횟수다. brute force 방지에 사용된다. |
-| `verified_at` | `timestamp without time zone` | 선택 | `-` | 검증이 성공한 시각이다. |
-| `created_at` | `timestamp without time zone` | 필수 | `now()` | 인증 코드 생성 시각이다. |
-
-### 3.8. `user_notification_settings`
-
-- **존재 목적:** 사용자별 정책 마감 알림 수신 설정을 보관한다.
-- **주요 관계:** `user_id`로 `users.id`에 1:1에 가깝게 연결된다.
-- **컬럼 수:** 5개
-- **정리 판단:** 알림 설정이 사용자 단위로 확장될 가능성이 있어 분리 자체는 적절하다. 현재 컬럼은 적어서 단순하다.
-
-| 컬럼 | 타입 | 필수 여부 | 기본값 | 상세 설명 |
-|---|---|---|---|---|
-| `id` | `bigint` | 필수 | `-` | 알림 설정 row 기본키다. |
-| `user_id` | `bigint` | 필수 | `-` | 설정 소유 사용자 id다. |
-| `deadline_enabled` | `boolean` | 필수 | `true` | 정책 마감 알림 수신 여부다. |
-| `created_at` | `timestamp without time zone` | 필수 | `now()` | 설정 row 생성 시각이다. |
-| `updated_at` | `timestamp without time zone` | 필수 | `now()` | 설정 마지막 변경 시각이다. |
 
 ### 3.9. `admin_audit_logs`
 
@@ -488,17 +447,17 @@
 
 ### 3.21. `notification_deliveries`
 
-- **존재 목적:** 정책 마감 알림 발송 예약, 시도, 성공/실패 결과를 사용자·정책 단위로 기록한다.
+- **존재 목적:** 과거 정책 마감 알림 발송 예약, 시도, 성공/실패 결과를 사용자·정책 단위로 기록한다.
 - **주요 관계:** `user_id`, `policy_id`로 발송 대상 사용자와 정책을 연결한다.
 - **컬럼 수:** 15개
-- **정리 판단:** 알림 발송 이력을 신뢰성 있게 추적하기 위해 필요하다. 실패 재시도와 중복 발송 방지의 기준 테이블이다.
+- **정리 판단:** 현재 알림 runtime은 제거됐으므로 새 row를 생성하지 않는 inert history로만 유지한다. 향후 알림 기능을 재설계할 때 보관 기간과 삭제 여부를 별도 결정한다.
 
 | 컬럼 | 타입 | 필수 여부 | 기본값 | 상세 설명 |
 |---|---|---|---|---|
-| `id` | `bigint` | 필수 | `-` | 알림 발송 row 기본키다. |
-| `user_id` | `bigint` | 필수 | `-` | 알림 대상 사용자 id다. |
-| `policy_id` | `bigint` | 필수 | `-` | 알림 대상 정책 id다. |
-| `channel` | `character varying(30)` | 필수 | `-` | 발송 채널이다. 예: email, sms 등. |
+| `id` | `bigint` | 필수 | `-` | 알림 이력 row 기본키다. |
+| `user_id` | `bigint` | 필수 | `-` | 이력 대상 사용자 id다. |
+| `policy_id` | `bigint` | 필수 | `-` | 이력 대상 정책 id다. |
+| `channel` | `character varying(30)` | 필수 | `-` | 과거 발송 채널이다. |
 | `lead_day` | `integer` | 필수 | `-` | 마감일 며칠 전에 알릴지 나타내는 값이다. |
 | `target_deadline_date` | `date` | 필수 | `-` | 알림 기준이 되는 정책 마감일이다. |
 | `status` | `character varying(20)` | 필수 | `'pending'::character varying` | 발송 상태다. 기본 pending이다. |
@@ -508,8 +467,8 @@
 | `scheduled_at` | `timestamp without time zone` | 선택 | `-` | 발송 예약 시각이다. |
 | `sent_at` | `timestamp without time zone` | 선택 | `-` | 발송 성공 시각이다. |
 | `failed_at` | `timestamp without time zone` | 선택 | `-` | 최종 실패 시각이다. |
-| `created_at` | `timestamp without time zone` | 필수 | `now()` | 알림 발송 row 생성 시각이다. |
-| `updated_at` | `timestamp without time zone` | 필수 | `now()` | 알림 발송 row 마지막 변경 시각이다. |
+| `created_at` | `timestamp without time zone` | 필수 | `now()` | 알림 이력 row 생성 시각이다. |
+| `updated_at` | `timestamp without time zone` | 필수 | `now()` | 알림 이력 row 마지막 변경 시각이다. |
 
 ### 3.22. `alembic_version`
 
@@ -525,14 +484,14 @@
 ## 4. 정리 우선순위 제안
 
 1. **`external_source_records` 정리 기준 수립**: 삭제보다 먼저 보관 기간, 원문 압축/아카이브, 재처리에 필요한 최소 필드를 정해야 한다. 원문 근거가 사라지면 정책 품질 검증과 재수집 디버깅이 어려워진다.
-2. **`users` 프로필 컬럼 사용처 점검**: `gender`, `travel_budget`, `preferred_regions`가 현재 추천/정책 자격/화면에서 실제로 쓰이는지 확인하고, 미사용이면 수집 중단 또는 별도 선택 프로필로 격리할 수 있다.
+2. **`users` 프로필 컬럼 사용처 점검**: `travel_budget`, `preferred_regions`가 현재 추천/정책 자격/화면에서 실제로 쓰이는지 확인하고, 미사용이면 수집 중단 또는 별도 선택 프로필로 격리할 수 있다.
 3. **`policies` 책임 분리 후보 검토**: 지금은 MVP상 단일 테이블 유지가 단순하지만, 운영 메타데이터와 상세 JSON이 계속 커지면 `policy_source_metadata`, `policy_structured_details` 같은 분리를 검토할 수 있다.
-4. **만료성 테이블 청소 정책**: `pending_signups`, `pending_social_signups`, `password_reset_tokens`, `phone_verification_codes`, `trip_invites`는 만료 후 정리 배치 또는 운영 절차가 필요하다.
+4. **만료성 테이블 청소 정책**: `pending_signups`, `pending_social_signups`, `password_reset_tokens`, `trip_invites`는 만료 후 정리 배치 또는 운영 절차가 필요하다.
 5. **로그/이력 테이블 보관 정책**: `admin_audit_logs`, `notification_deliveries`, `recommendations`는 운영 추적에 유용하지만 장기적으로 보관 기간과 개인정보 마스킹 기준이 필요하다.
 
 ## 5. 결론
 
-현재 22개 테이블은 기능 단위로 나뉘어 있어 “테이블 수가 많아서 문제”라고 보기보다는, **큰 테이블의 책임과 보관 목적을 명확히 해야 하는 상태**에 가깝다. 정리의 1순위는 `external_source_records`, 2순위는 실제 사용처가 약한 `users` 프로필 컬럼, 3순위는 `policies`의 운영/출처/상세 정보 분리 가능성이다.
+현재 20개 테이블은 기능 단위로 나뉘어 있어 “테이블 수가 많아서 문제”라고 보기보다는, **큰 테이블의 책임과 보관 목적을 명확히 해야 하는 상태**에 가깝다. 정리의 1순위는 `external_source_records`, 2순위는 남은 선택 프로필 컬럼, 3순위는 `policies`의 운영/출처/상세 정보 분리 가능성이다.
 
 ---
 
@@ -548,7 +507,6 @@
 | `password_reset_tokens` | 6 |
 | `pending_signups` | 11 |
 | `pending_social_signups` | 10 |
-| `phone_verification_codes` | 8 |
 | `policies` | 30 |
 | `policy_documents` | 5 |
 | `recommendations` | 6 |
@@ -559,6 +517,5 @@
 | `trip_places` | 14 |
 | `trip_policies` | 4 |
 | `trips` | 13 |
-| `user_notification_settings` | 5 |
 | `user_saved_policies` | 4 |
-| `users` | 25 |
+| `users` | 19 |

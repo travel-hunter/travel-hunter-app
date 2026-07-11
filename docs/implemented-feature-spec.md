@@ -29,8 +29,6 @@
 | 프로필 편집 | `/mypage`의 편집 sheet에서 profile 값을 수정한다. | `PATCH /api/me/profile` |
 | 저장 정책 | `/mypage`에서 저장한 정책을 확인하고 삭제한다. | `GET/DELETE /api/me/saved-policies` |
 | 신청 정책 통계 | `/mypage`에서 내 일정에 연결된 정책 수를 확인한다. | `GET /api/me/applied-policies`, `trip_policies` |
-| 알림 연락처 | 카카오 알림톡 연락처를 저장하거나 삭제하고, env-gated dev/SOLAPI SMS provider boundary를 통해 OTP 인증번호 요청/확인을 수행한다. 미인증 OTP 발급 후 60초 이내 재요청은 서버에서 429로 차단한다. | `GET/PATCH /api/me/contact`, `POST /api/me/contact/verification/request`, `POST /api/me/contact/verification/confirm`, `PHONE_VERIFICATION_PROVIDER`, `users.phone_number`, `users.phone_verified_at`, `phone_verification_codes` |
-| 마감 알림 설정 | D-7/D-1 정책 알림을 켜거나 끈다. | `GET/PATCH /api/me/notification-settings` |
 
 ## 정책
 
@@ -38,7 +36,7 @@
 |---|---|---|
 | 정책 목록/상세 | `/policies`에서 DB 정책과 대한민국 반값여행 신청접수중/준비중 및 active/fresh 숙박세일 페스타 혜택을 함께 보고 `/policies/:slug`에서 상세를 확인한다. `local_half_trip` 수집 혜택은 `sourceType="external"`과 `travelmonth-{externalSourceRecordId}` slug로 노출하고 제목은 `[합천] 대한민국 반값여행 지원`처럼 지자체명을 대괄호 접두어로 표시한다. 기존 `dgtour-{city}-{n}` seed는 공식 디지털 관광주민증 지역 혜택으로 분리해 `[지역명] 디지털 관광주민증 혜택` 형식으로 유지한다. 이 seed는 `docs/디지털관광주민증.xlsx`의 지원내용/신청기간/확인 필요 사항/필요 서류를 정책 본문으로 쓰고, KTO 공식 운영 지자체 목록에 없는 지역이나 혜택 안내가 비어 있는 기존 dgtour 정책은 행을 삭제하지 않고 `hidden`으로 내려 public 목록/상세에서 제외한다. 반값여행 레거시 URL만 같은 지자체의 최신 `travelmonth-*` 정책으로 리다이렉트해 구버전 반값여행 상세 화면 재노출을 막는다. 숙박세일 페스타는 canonical 정책 1건을 내부 저장/중복 방지 기준으로 두고 목록/검색/추천에는 비수도권 인구감소지역 85개 지자체별 `stay-discount-{sidoSlug}-{citySlug}` alias로 노출하되 제목은 `[고성] ...`처럼 시/군 접두어를 붙이고 목록 메타 `region`은 광역자치단체만 표시한다. 상세 표시용 `summary`/`requirements`는 원문 반복 대신 결제 금액별 2만/3만/5만/7만원 할인 조건과 발급·입실 기간으로 정리한다. alias 상세/저장/삭제/일정 연결 응답은 요청 alias를 echo하지만 DB 저장과 연결은 canonical `policies.id`로 처리한다. 사용자 화면에는 구현 구분 라벨을 표시하지 않고 공식 혜택으로 표현한다. raw 수집 레코드는 normalization 전까지 저장/일정 연결 action을 neutral 안내와 함께 임시 제한한다. | `GET /api/policies`, `GET /api/policies/{policySlug}` |
 | 검색/필터 | 검색어, 지역, 카테고리를 client-side AND 조건으로 적용한다. 카테고리는 `교통`, `숙박`, `여행상품`, `지역할인`, `이벤트`, `기타` 혜택 유형이며 `travelStyles`와 분리한다. | frontend filtering |
-| 정책 탐색 바로가기 | `/policies` 상단에서 매칭 높은 정책, 마감 임박 정책, 유형별 모아보기를 먼저 보여주고 `/home`에서도 마감 임박/추천 혜택 영역을 분리해 보여준다. 홈 `이번 주 인기 정책`은 정리된 카드 톤으로 보여주며, 홈 `이번 주 혜택`은 가로 스크롤 없이 추천도 높은 정책을 우선 배치하고 남은 슬롯은 마감 임박순으로 채운 상위 3개를 세로 카드 목록으로 표시한다. 카드에는 아이콘/카테고리, 정책명, 요약 1줄, 신청 마감/D-day, 신청 조건 칩 1개, 금액/마감 핵심 1줄을 보여준다. 공식/신청 버튼과 상세 조건 전체 문장은 카드 안에 표시하지 않는다. 홈 인기 국내 여행지 rail은 제거되어 해당 섹션 전용 지역 추천 API 호출/계산을 하지 않는다. AI 추천 맞춤 일정 카드는 `GET /api/recommendations/regions`를 `AppDataApi` 경유로 호출하되 관심 지역 또는 fallback 지역 기반 일정 CTA에만 사용하고, 기존 일정 목록의 첫 일정을 노출하지 않고 `/trips/new?region=...` 새 일정 생성 CTA로 연결한다. | `GET /api/recommendations/regions`, frontend grouping |
+| 정책 탐색 바로가기 | `/policies` 상단에서 매칭 높은 정책, 마감 임박 정책, 유형별 모아보기를 먼저 보여주고 `/home`에서도 마감 임박/추천 혜택 영역을 분리해 보여준다. 홈 `이번 주 인기 정책`은 정리된 카드 톤으로 보여주며, 홈 `이번 주 혜택`은 가로 스크롤 없이 추천도 높은 정책을 우선 배치하고 남은 슬롯은 마감 임박순으로 채운 상위 3개를 세로 카드 목록으로 표시한다. 카드에는 아이콘/카테고리, 정책명, 요약 1줄, 신청 마감/D-day, 신청 조건 칩 1개, 금액/마감 핵심 1줄을 보여준다. 공식/신청 버튼과 상세 조건 전체 문장은 카드 안에 표시하지 않는다. 홈 인기 국내 여행지 rail은 제거되어 해당 섹션 전용 지역 추천 API 호출/계산을 하지 않는다. AI 추천 맞춤 일정 카드는 관심 지역(`preferredRegions`)이 있을 때만 `GET /api/recommendations/regions`를 `AppDataApi` 경유로 호출해 지역 기반 새 일정 CTA(`/trips/new?region=...`)를 보여주고, 관심 지역이 없으면 기존 일정 목록의 첫 일정을 노출하지 않는 일반 새 일정 CTA(`/trips/new`)로 연결한다. | `GET /api/recommendations/regions`, frontend grouping |
 | 조건 확인 요약/FAQ | 정책 상세에서 내 관심 지역과 정책 지역, 핵심 신청 조건, 필요 서류를 요약하고 정적 FAQ accordion을 제공한다. 확정 자격 판정은 하지 않는다. | `Policy.requirements`, `Policy.documents`, `Policy.region` |
 | 저장/삭제 | 내부 `policies` 레코드는 정책 상세에서 저장하고 마이페이지에서 삭제한다. raw 수집 레코드는 normalization 전까지 저장 action을 임시 제한한다. | `user_saved_policies` |
 | 공식/신청 URL | `applyUrl`은 `신청하러 가기`, `officialUrl`은 `혜택 안내 보기`, 둘 다 없으면 `신청 링크 준비 중`으로 구분한다. | `policies.apply_url`, `policies.official_url` |
@@ -79,12 +77,7 @@
 
 ## 알림
 
-| 기능 | 사용자 동작/운영 동작 | 연결 |
-|---|---|---|
-| 알림 설정 | 사용자가 마감 알림 전체 켜기/끄기를 저장한다. | `user_notification_settings` |
-| 대상 계산 | 저장 정책 중 D-7/D-1 마감 대상 후보를 만든다. | `notification_deliveries` |
-| scheduler | env가 켜진 경우 FastAPI lifespan scheduler가 하루 1회 계산/발송을 시도한다. | `NOTIFICATION_SCHEDULER_ENABLED` |
-| SOLAPI dispatch/retry/webhook | provider env가 있을 때 카카오 알림톡을 접수하고 실패 retry와 webhook 상태 갱신을 처리한다. | SOLAPI env 필요 |
+마감 알림 연락처, 사용자별 알림 설정, OTP 인증, scheduler/dispatch/retry/webhook runtime은 현재 구현 범위에서 제거됐다. `notification_deliveries`는 과거 발송 이력/운영 기록을 확인하기 위한 inert history로만 유지하며, 새 알림 발송 row를 생성하지 않는다.
 
 ## 플랫폼과 배포
 
@@ -102,7 +95,6 @@
 
 - SMTP env와 public base URL이 있어야 password reset email smoke를 완료할 수 있다.
 - dev 도메인 `dev.travel-hunter.co.kr`에서는 Kakao/Google provider secret과 public redirect URI 기반 브라우저 OAuth smoke가 완료됐다. 운영 도메인 `travel-hunter.co.kr`에서는 별도 provider redirect URI, runtime env, public smoke 증거가 필요하다.
-- SOLAPI key, Kakao channel, 승인 템플릿이 있어야 실제 알림톡 발송을 확인할 수 있다.
 - 정책 수집/정규화/노출의 local code path와 release-gate test는 존재하지만, Public v1/RC 판정에는 public domain/runtime smoke 증거가 추가로 필요하다.
-- 전화번호 OTP 실제 발송 smoke, 실제 AI 엔진, SMTP readiness 이후 친구 초대 email 발송, email 외 SMS/Kakao 초대 발송, 운영 관리자 화면, 정책 수집 source 확대와 full automation은 후속 범위다.
+- 실제 AI 엔진, SMTP readiness 이후 친구 초대 email 발송, 운영 관리자 화면, 정책 수집 source 확대와 full automation은 후속 범위다.
 - 지도/장소 검색의 로컬 기본 UX는 일정 상세 지도, 장소 상세 dialog, 장소 추가 sheet 후보 검색, Kakao Local 후보, catalog fallback 기준으로 구현되어 있다. Public map-domain 검증과 추천 품질 고도화는 별도 개선 범위다.

@@ -36,13 +36,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     password_hash: Mapped[str | None] = mapped_column(String(255))
     nickname: Mapped[str] = mapped_column(String(50), nullable=False)
-    birth_date: Mapped[date | None] = mapped_column(Date)
-    gender: Mapped[str | None] = mapped_column(String(10))
-    region: Mapped[str | None] = mapped_column(String(50))
     preferred_regions: Mapped[str | None] = mapped_column(String(255))
-    residence_area: Mapped[str | None] = mapped_column(String(50))
-    phone_number: Mapped[str | None] = mapped_column(String(30))
-    phone_verified_at: Mapped[datetime | None] = mapped_column(DateTime)
     travel_style: Mapped[str | None] = mapped_column(String(50))
     travel_budget: Mapped[str | None] = mapped_column(String(50))
     role: Mapped[str] = mapped_column(String(20), nullable=False, server_default="user")
@@ -78,9 +72,6 @@ class User(Base):
     password_reset_tokens: Mapped[list[PasswordResetToken]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
-    phone_verification_codes: Mapped[list[PhoneVerificationCode]] = relationship(
-        back_populates="user", cascade="all, delete-orphan"
-    )
     social_accounts: Mapped[list[SocialAccount]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
@@ -90,9 +81,6 @@ class User(Base):
     recommendations: Mapped[list[Recommendation]] = relationship(back_populates="user")
     saved_policies: Mapped[list[UserSavedPolicy]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
-    )
-    notification_settings: Mapped[UserNotificationSetting | None] = relationship(
-        back_populates="user", cascade="all, delete-orphan", uselist=False
     )
     notification_deliveries: Mapped[list[NotificationDelivery]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
@@ -174,25 +162,6 @@ class PendingSocialSignup(Base):
         DateTime, nullable=False, server_default=func.now()
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-
-
-class PhoneVerificationCode(Base):
-    __tablename__ = "phone_verification_codes"
-
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    phone_number: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
-    code_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
-    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
-    verified_at: Mapped[datetime | None] = mapped_column(DateTime)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, server_default=func.now()
-    )
-
-    user: Mapped[User] = relationship(back_populates="phone_verification_codes")
 
 
 class SocialAccount(Base):
@@ -487,27 +456,6 @@ class UserSavedPolicy(Base):
 
     user: Mapped[User] = relationship(back_populates="saved_policies")
     policy: Mapped[Policy] = relationship(back_populates="user_saves")
-
-
-class UserNotificationSetting(Base):
-    __tablename__ = "user_notification_settings"
-    __table_args__ = (UniqueConstraint("user_id"),)
-
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
-    deadline_enabled: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default="true"
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
-    )
-
-    user: Mapped[User] = relationship(back_populates="notification_settings")
 
 
 class NotificationDelivery(Base):

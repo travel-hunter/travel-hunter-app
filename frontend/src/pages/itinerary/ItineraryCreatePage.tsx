@@ -114,7 +114,7 @@ export function ItineraryCreatePage() {
     defaultTripStartDate,
     defaultTripEndDate,
   );
-  const initialRegion = requestedRegion || profile.region || "제주";
+  const initialRegion = requestedRegion || profile.preferredRegions?.[0] || "제주";
   const isPolicyLinkedRegionEntry = Boolean(
     linkablePolicySlug && (requestedTravelAreaId || requestedRegion),
   );
@@ -224,7 +224,6 @@ export function ItineraryCreatePage() {
     setTravelAreaChoiceSido(area.sido);
     setTravelAreaChoiceQuery(null);
     setSelectedRegionDraft(area.travelAreaName);
-    updateProfile("region", area.travelAreaName);
     setTitleDraft((current) =>
       current.trim() === "" || current === previousAutoTitle
         ? generatedTripTitle(area.travelAreaName, dayCount)
@@ -253,7 +252,6 @@ export function ItineraryCreatePage() {
     if (!requestedTravelAreaId && requestedRegion) {
       const previousAutoTitle = generatedTripTitle(selectedRegion, dayCount);
       setSelectedRegionDraft(requestedRegion);
-      updateProfile("region", requestedRegion);
       setSelectedTravelArea(null);
       if (isBroadTravelAreaRegion(requestedRegion)) {
         setTravelAreaChoiceSido(requestedRegion);
@@ -425,7 +423,6 @@ export function ItineraryCreatePage() {
     setTravelAreaChoiceSido(isBroadTravelAreaRegion(region) ? region : null);
     setTravelAreaChoiceQuery(null);
     syncTravelAreaSearchParams({ region, travelAreaId: null });
-    updateProfile("region", region);
     setTitleDraft((current) =>
       current.trim() === "" || current === previousAutoTitle
         ? generatedTripTitle(region, dayCount)

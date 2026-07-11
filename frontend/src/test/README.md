@@ -34,8 +34,7 @@ the feature under test:
 - `policy-detail.test.tsx` — `/policies/:policySlug`, official/apply links,
   section formatting, info-only states.
 - `home.test.tsx` — home rails and region-recommendation fallbacks.
-- `mypage.test.tsx` — `/mypage`, saved/applied policies, profile, contact
-  verification, notifications.
+- `mypage.test.tsx` — `/mypage`, saved/applied policies, profile, and settings menu.
 - `invite-oauth.test.tsx` — profile setup, invites, password reset, OAuth
   callback/start, sharing.
 

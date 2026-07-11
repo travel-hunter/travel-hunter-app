@@ -16,7 +16,6 @@ ProfileServiceError = ProfilePreferenceError
 
 def profile_to_api(user: User) -> dict[str, object]:
     return {
-        "region": user.region,
         "preferredRegions": parse_preferred_regions(user.preferred_regions),
         "style": user.travel_style,
         "budget": user.travel_budget,
@@ -32,7 +31,6 @@ def update_profile(db: Session, user: User, request: ProfileUpdate) -> dict[str,
     updated = user_repository.update_user_profile(
         db,
         user,
-        region=request.region if "region" in fields else user_repository.UNSET,
         preferred_regions=serialize_preferred_regions(request.preferredRegions) if "preferredRegions" in fields else user_repository.UNSET,
         style=request.style if "style" in fields else user_repository.UNSET,
         budget=request.budget if "budget" in fields else user_repository.UNSET,

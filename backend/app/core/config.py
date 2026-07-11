@@ -79,22 +79,6 @@ class Settings:
     external_collection_min_parsed_count: int = int(
         os.getenv("EXTERNAL_COLLECTION_MIN_PARSED_COUNT", "1")
     )
-    kakao_alimtalk_enabled: bool = os.getenv(
-        "KAKAO_ALIMTALK_ENABLED", "false"
-    ).strip().lower() in {"1", "true", "yes", "on"}
-    solapi_base_url: str = os.getenv("SOLAPI_BASE_URL", "https://api.solapi.com")
-    solapi_api_key: str = os.getenv("SOLAPI_API_KEY", "")
-    solapi_api_secret: str = os.getenv("SOLAPI_API_SECRET", "")
-    solapi_pf_id: str = os.getenv("SOLAPI_PF_ID", "")
-    solapi_template_id_d7: str = os.getenv("SOLAPI_TEMPLATE_ID_D7", "")
-    solapi_template_id_d1: str = os.getenv("SOLAPI_TEMPLATE_ID_D1", "")
-    solapi_from_number: str = os.getenv("SOLAPI_FROM_NUMBER", "")
-    solapi_disable_sms: bool = os.getenv(
-        "SOLAPI_DISABLE_SMS", "true"
-    ).strip().lower() in {"1", "true", "yes", "on"}
-    solapi_timeout_seconds: float = float(os.getenv("SOLAPI_TIMEOUT_SECONDS", "5"))
-    solapi_webhook_secret: str = os.getenv("SOLAPI_WEBHOOK_SECRET", "")
-    phone_verification_provider: str = os.getenv("PHONE_VERIFICATION_PROVIDER", "dev")
     travel_hunter_public_base_url: str = os.getenv(
         "TRAVEL_HUNTER_PUBLIC_BASE_URL", ""
     )

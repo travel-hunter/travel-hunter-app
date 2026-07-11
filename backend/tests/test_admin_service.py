@@ -73,7 +73,6 @@ def test_admin_user_update_changes_allowed_fields_and_records_audit(db: Session)
         "2",
         AdminUserUpdateRequest(
             nickname="updated-user",
-            residenceArea="Busan",
             preferredRegions=" 부산,강원, 부산 ",
             travelStyle="Food",
             travelBudget="under 400000 KRW",
@@ -84,7 +83,6 @@ def test_admin_user_update_changes_allowed_fields_and_records_audit(db: Session)
 
     assert result["nickname"] == "updated-user"
     assert result["role"] == "admin"
-    assert user.residence_area == "Busan"
     assert user.preferred_regions == "부산,강원"
     assert result["preferredRegions"] == "부산,강원"
     assert user.travel_style == "Food"

@@ -103,11 +103,6 @@
           "id": "string",
           "nickname": "string",
           "email": "string",
-          "birthDate": "string|null",
-          "gender": "string|null",
-          "region": "string|null",
-          "homeRegion": "string",
-          "residenceArea": "string|null",
           "preferredRegions": "array|null",
           "persona": "string",
           "savedAmount": "number",
@@ -309,11 +304,11 @@
         "id": "string",
         "nickname": "string",
         "email": "string",
-        "homeRegion": "string",
         "onboardingCompleted": "boolean",
         "nicknameSetupCompleted": "boolean",
         "socialAccounts": "array",
-        "role": "string enum(user|admin)"
+        "role": "string enum(user|admin)",
+        "preferredRegions": "array|null"
       }
     },
     {
@@ -389,13 +384,12 @@
       "path": "/api/me/profile",
       "status": 200,
       "requiredFields": {
-        "region": "string|null",
+        "preferredRegions": "array|null",
         "style": "string|null",
-        "budget": "string|null",
-        "preferredRegions": "array|null"
+        "budget": "string|null"
       },
       "dbFields": {
-        "region": "users.region",
+        "preferredRegions": "users.preferred_regions",
         "style": "users.travel_style",
         "budget": "users.travel_budget"
       }
@@ -405,18 +399,16 @@
       "path": "/api/me/profile",
       "status": 200,
       "optionalRequestFields": {
-        "region": "string|null",
+        "preferredRegions": "array|null",
         "style": "string|null",
-        "budget": "string|null",
-        "preferredRegions": "array|null"
+        "budget": "string|null"
       },
       "requiredFields": {
-        "region": "string|null",
+        "preferredRegions": "array|null",
         "style": "string|null",
-        "budget": "string|null",
-        "preferredRegions": "array|null"
+        "budget": "string|null"
       },
-      "dbModeBehavior": "Updates users.region, users.preferred_regions, users.travel_style, users.travel_budget and marks onboarding_completed true. Explicit null or an empty preferredRegions array clears the corresponding unset preference."
+      "dbModeBehavior": "Updates users.preferred_regions, users.travel_style, and users.travel_budget, then marks onboarding_completed true. Explicit null or an empty preferredRegions array clears the corresponding unset preference. Unknown extra request fields are rejected with 422."
     },
     {
       "method": "POST",
@@ -427,109 +419,6 @@
         "onboardingCompleted": "boolean"
       },
       "dbModeBehavior": "Marks onboarding complete without persisting profile field selections and records that the profile step was explicitly skipped."
-    },
-    {
-      "method": "GET",
-      "path": "/api/me/contact",
-      "status": 200,
-      "requiredFields": {
-        "phoneNumber": "string|null",
-        "phoneVerified": "boolean"
-      },
-      "dbFields": {
-        "phoneNumber": "users.phone_number",
-        "phoneVerified": "users.phone_verified_at != null"
-      },
-      "dbModeBehavior": "Requires bearer auth and returns null/false when no phone number is stored."
-    },
-    {
-      "method": "PATCH",
-      "path": "/api/me/contact",
-      "status": 200,
-      "request": {
-        "phoneNumber": "010 1234 5678"
-      },
-      "requiredFields": {
-        "phoneNumber": "string|null",
-        "phoneVerified": "boolean"
-      },
-      "dbModeBehavior": "Requires bearer auth, strips whitespace, stores users.phone_number, clears users.phone_verified_at when the phone number changes, and treats blank/null as no phone number."
-    },
-    {
-      "method": "POST",
-      "path": "/api/me/contact/verification/request",
-      "status": 200,
-      "request": {
-        "phoneNumber": "010 1234 5678"
-      },
-      "requiredFields": {
-        "requested": "boolean",
-        "expiresAt": "string",
-        "resendAvailableAt": "string"
-      },
-      "dbModeBehavior": "Requires bearer auth, normalizes and stores the requested phone number when supplied, clears users.phone_verified_at when the phone number changes, stores a hashed OTP in phone_verification_codes, rejects resend attempts within 60 seconds with 429, and sends through the configured phone verification provider boundary. PHONE_VERIFICATION_PROVIDER defaults to dev and can be set to solapi for SMS delivery."
-    },
-    {
-      "method": "POST",
-      "path": "/api/me/contact/verification/confirm",
-      "status": 200,
-      "request": {
-        "code": "123456"
-      },
-      "requiredFields": {
-        "phoneNumber": "string|null",
-        "phoneVerified": "boolean"
-      },
-      "dbModeBehavior": "Requires bearer auth, verifies the latest unexpired pending OTP for users.phone_number, limits failed attempts, sets phone_verification_codes.verified_at and users.phone_verified_at on success, and returns ContactInfo."
-    },
-    {
-      "method": "GET",
-      "path": "/api/me/notification-settings",
-      "status": 200,
-      "requiredFields": {
-        "deadlineEnabled": "boolean",
-        "deadlineLeadDays": "array"
-      },
-      "dbFields": {
-        "deadlineEnabled": "user_notification_settings.deadline_enabled"
-      },
-      "dbModeBehavior": "Requires bearer auth and returns true with [7, 1] lead days when no row exists."
-    },
-    {
-      "method": "PATCH",
-      "path": "/api/me/notification-settings",
-      "status": 200,
-      "request": {
-        "deadlineEnabled": false
-      },
-      "requiredFields": {
-        "deadlineEnabled": "boolean",
-        "deadlineLeadDays": "array"
-      },
-      "dbModeBehavior": "Requires bearer auth and upserts one user_notification_settings row per user."
-    },
-    {
-      "method": "POST",
-      "path": "/api/webhooks/solapi",
-      "status": 200,
-      "request": [
-        {
-          "messageId": "M4V202605071200000001",
-          "statusCode": "4000",
-          "statusMessage": "Delivered",
-          "dateReported": "2026-05-07T12:03:00+09:00"
-        }
-      ],
-      "headers": {
-        "X-Solapi-Secret": "sha1(SOLAPI_WEBHOOK_SECRET) when configured"
-      },
-      "requiredFields": {
-        "received": "number",
-        "updated": "number",
-        "ignored": "number",
-        "failed": "number"
-      },
-      "dbModeBehavior": "Provider-facing webhook; matches messageId to notification_deliveries.provider_message_id, maps statusCode 4000 to sent, ignores 2000/3000, and maps failure status codes to failed."
     },
     {
       "method": "GET",
@@ -1049,15 +938,13 @@
       "adminRequired": true,
       "optionalRequestFields": {
         "nickname": "string",
-        "region": "string|null",
-        "residenceArea": "string|null",
         "preferredRegions": "string|null",
         "travelStyle": "string|null",
         "travelBudget": "string|null",
         "onboardingCompleted": "boolean",
         "role": "string enum(user|admin)"
       },
-      "dbModeBehavior": "Updates editable admin user fields only. preferredRegions remains the legacy admin comma-separated string shape, but is normalized against the same 17-sido max-3 rule as the public profile API; blank clears to null and invalid/4+ regions return 422. homeRegion, persona, email, password, phone verification, and social accounts are not editable. Self-demotion and final-admin removal return 409."
+      "dbModeBehavior": "Updates editable admin user fields only. preferredRegions remains the legacy admin comma-separated string shape, but is normalized against the same 17-sido max-3 rule as the public profile API; blank clears to null and invalid/4+ regions return 422. Email, password, removed profile/contact fields, and social accounts are not editable. Self-demotion and final-admin removal return 409."
     },
     {
       "method": "GET",

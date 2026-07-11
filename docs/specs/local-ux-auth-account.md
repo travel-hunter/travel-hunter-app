@@ -2,7 +2,7 @@
 
 ## Goal
 
-Complete the local user experience for account access: sign up, log in, recover access, use OAuth entry points, and verify an alert contact without relying on undeclared production deployment work.
+Complete the local user experience for account access: sign up, log in, recover access, and use OAuth entry points without relying on undeclared production deployment work.
 
 Domain-dependent public-provider smoke is deferred, but local OAuth smoke is supported once the user creates provider apps and supplies localhost credentials. The immediate implementation priority is local behavior that can be completed without `travel-hunter.co.kr`, public DNS, sender-domain authentication, or staging infrastructure.
 
@@ -15,7 +15,7 @@ This spec covers flows a local user can directly attempt from the app:
 - Password reset request and reset token UX
 - Kakao OAuth button, missing-env UX, and local credential smoke command
 - Google OAuth button, missing-env UX, and local credential smoke command
-- Phone contact save and OTP verification smoke
+- Removed contact/OTP/notification settings surface stays absent from local UX.
 
 Deployment, public HTTPS, Cloudflare Tunnel, real SMTP sender-domain smoke, and CI/CD are not part of the immediate implementation scope.
 
@@ -29,19 +29,18 @@ Implemented or partially implemented:
 - OAuth account linking requires verified provider email for same-email auto-link.
 - Google requires `email_verified=true`; Kakao can create a `kakao_{providerId}@oauth.local` account when email is absent or unverified.
 - OAuth callback failures redirect to `/oauth/callback?error={code}&redirect={safePath}` with closed error codes.
-- MyPage contact and OTP request/confirm UI exists.
-- OTP has dev/test and SOLAPI provider boundaries.
+- MyPage contact and OTP request/confirm UI has been removed from the active product surface.
 
 Domain-dependent blockers deferred to later:
 
 - Password reset email smoke requires SMTP env and public base URL.
 - Kakao OAuth live browser smoke requires a Kakao provider app, client id, secret, and localhost redirect URI.
 - Google OAuth live browser smoke requires a Google OAuth client id, secret, and localhost redirect URI.
-- Real phone OTP smoke requires an SMS provider configuration.
+- Real phone OTP smoke is not a deferred requirement because the contact/OTP surface has been removed from the active product contract.
 
 ## Immediate Missing UX To Complete Locally
 
-No immediate local UX gap is currently tracked for this spec. The latest implementation/status inventory records domain-independent auth/account recovery UX, OAuth missing-env/callback failure messaging, and dev/provider-boundary contact verification UX as implemented locally.
+No immediate local UX gap is currently tracked for this spec. The latest implementation/status inventory records domain-independent auth/account recovery UX and OAuth missing-env/callback failure messaging as implemented locally.
 
 Keep future updates focused on local UX regressions or newly discovered local gaps; do not pull domain-dependent provider smoke into this immediate section.
 
@@ -50,22 +49,21 @@ Keep future updates focused on local UX regressions or newly discovered local ga
 1. Password reset email should complete from request to inbox/link to successful password change in a local or local-like environment.
 2. Kakao OAuth should complete a full start/callback/login smoke with configured localhost redirect values after the user supplies provider credentials.
 3. Google OAuth should complete a full start/callback/login smoke with configured localhost redirect values after the user supplies provider credentials.
-4. Phone OTP should complete a real send/confirm smoke with configured provider credentials.
-5. Brevo sender-domain authentication and `no-reply@travel-hunter.co.kr` password reset delivery should be verified after DNS setup is ready.
+4. Brevo sender-domain authentication and `no-reply@travel-hunter.co.kr` password reset delivery should be verified after DNS setup is ready.
 
 ## Immediate Local Completion Criteria
 
 - Local password reset request/reset-token screens handle configured and unconfigured local states without depending on real email delivery. Completed locally per `docs/implemented-feature-spec.md`.
 - Kakao and Google login entry/callback failures show user-safe missing-provider or email-policy messages instead of blank or stuck screens. Completed locally per `docs/implemented-feature-spec.md`.
 - `scripts/oauth_local_smoke.py {kakao|google}` validates configured start-route readiness without printing secrets when localhost provider credentials are supplied.
-- Contact verification can request and confirm an OTP through dev provider mode, or clearly explains that real provider mode is not configured. Completed locally per `docs/implemented-feature-spec.md`.
+- Removed contact/OTP/notification settings controls and APIs do not appear in the local account UX.
 
 ## Deferred Completion Criteria
 
 - `POST /api/auth/password-reset/request` succeeds for an existing email with configured Brevo SMTP and produces a usable reset link.
 - Kakao login button reaches provider authorization and returns to `/oauth/callback` with registered localhost redirect values.
 - Google login button reaches provider authorization and returns to `/oauth/callback` with registered localhost redirect values.
-- Contact verification can request and confirm an OTP through the selected real provider mode.
+- No deferred phone contact/OTP criterion remains; reintroducing notifications would require a new product/API contract.
 
 ## Local OAuth Setup And Smoke
 
@@ -118,7 +116,6 @@ Backend:
 - `backend/app/services/oauth.py`
 - `backend/app/services/email.py`
 - `backend/app/api/routes/me.py`
-- `backend/app/services/phone_verification.py`
 
 Contracts and references:
 
