@@ -20,6 +20,7 @@
 - Encoding/reference checks: UTF-8/U+FFFD scan over changed files passed; runtime source/current docs/eval removed-reference scan passed.
 - Review gates: code review found no HIGH/MEDIUM blockers and 2 LOW doc drifts were corrected; architecture review is WATCH only for the intentional inert notification history shim.
 - Local Docker smoke: `docker compose -f compose.yaml config`, `docker compose -f compose.yaml build`, `docker compose -f compose.yaml up -d db backend frontend`, `docker compose -f compose.yaml run --rm backend alembic upgrade head`, backend `/api/health`, frontend `/`, `alembic_version=0025_prune_contact_notify`, `users.preferred_regions` present, removed `users` columns absent, and removed tables `phone_verification_codes`/`user_notification_settings` absent all passed.
+- CI repair: after PR #99 first CI run, `Frontend DB-backed fast lane` failed once in `trip-create.test.tsx` because the direct policy-region create test could click before the async preselected travel area finished enabling submit; the test now waits for the create button to be enabled. `cd frontend && npm test -- src/app/__tests__/trip-create.test.tsx` and `cd frontend && npm test` both passed after the fix.
 
 ## Remaining Risks
 

@@ -337,7 +337,11 @@ describe("Travel Hunter app — trip creation", () => {
       const titleInput = screen.getByRole("textbox", { name: "일정 제목" });
       await user.clear(titleInput);
       await user.type(titleInput, "영광 반값여행");
-      await user.click(screen.getByRole("button", { name: "확인하고 만들기" }));
+      const createButton = screen.getByRole("button", {
+        name: "확인하고 만들기",
+      });
+      await waitFor(() => expect(createButton).toBeEnabled());
+      await user.click(createButton);
 
       await waitFor(() =>
         expect(createTripSpy).toHaveBeenCalledWith(
