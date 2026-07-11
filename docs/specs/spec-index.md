@@ -17,6 +17,7 @@ Local functional completion specs are listed here. Work that requires a purchase
 | [local-ux-place-discovery.md](local-ux-place-discovery.md) | active | Local place detail, map/search, recommendation candidate, and fallback quality UX completion spec. |
 | [invite-trip-edit-workflow.md](invite-trip-edit-workflow.md) | active | Concrete friend-invite, invite acceptance, trip-detail edit permission, and future email-invite workflow spec. |
 | [policy-collection-local-expansion-review.md](policy-collection-local-expansion-review.md) | active | Review handoff and verification matrix for the policy collection local expansion implementation. |
+| [policy-source-artifact-externalization.md](policy-source-artifact-externalization.md) | active | Policy collection raw artifact externalization design starter and phased migration plan. |
 | [../requirements.md](../requirements.md) | active | Product requirements and acceptance baseline. |
 | [../implemented-feature-spec.md](../implemented-feature-spec.md) | active | Implemented feature and conditional-scope inventory. |
 | [../next-work-plan.md](../next-work-plan.md) | active | Current next-work execution queue. |
