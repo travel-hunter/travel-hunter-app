@@ -6,15 +6,8 @@ from app.db.session import get_optional_db
 from app.data import seed
 from app.models import User as UserModel
 from app.schemas.user import (
-    ContactInfo,
-    ContactUpdate,
-    ContactVerificationConfirm,
-    ContactVerificationRequest,
-    ContactVerificationRequestResponse,
     NicknameSuggestion,
     NicknameUpdate,
-    NotificationSettings,
-    NotificationSettingsUpdate,
     Profile,
     ProfileOptions,
     ProfileSkipResponse,
@@ -22,10 +15,7 @@ from app.schemas.user import (
     User,
 )
 from app.services import auth as auth_service
-from app.services import contact as contact_service
 from app.services import nicknames as nickname_service
-from app.services import notifications as notification_service
-from app.services.phone_verification import PhoneVerificationError
 from app.services import profile as profile_service
 
 router = APIRouter(tags=["profile"])
@@ -104,92 +94,6 @@ def update_nickname(
     except nickname_service.NicknameServiceError as error:
         raise HTTPException(status_code=error.status_code, detail=error.detail) from error
     return User(**auth_service.user_to_api(user))
-
-
-@router.get("/me/contact", response_model=ContactInfo)
-def get_contact(current_user: UserModel | None = Depends(get_current_user)) -> ContactInfo:
-    return ContactInfo(**contact_service.get_contact(_require_user(current_user)))
-
-
-@router.patch("/me/contact", response_model=ContactInfo)
-def update_contact(
-    contact: ContactUpdate,
-    db: Session | None = Depends(get_optional_db),
-    current_user: UserModel | None = Depends(get_current_user),
-) -> ContactInfo:
-    return ContactInfo(
-        **contact_service.update_contact(
-            _require_db(db),
-            _require_user(current_user),
-            contact,
-        )
-    )
-
-
-@router.post("/me/contact/verification/request", response_model=ContactVerificationRequestResponse)
-def request_contact_verification(
-    verification_request: ContactVerificationRequest,
-    db: Session | None = Depends(get_optional_db),
-    current_user: UserModel | None = Depends(get_current_user),
-) -> ContactVerificationRequestResponse:
-    try:
-        return ContactVerificationRequestResponse(
-            **contact_service.request_contact_verification(
-                _require_db(db),
-                _require_user(current_user),
-                verification_request,
-            )
-        )
-    except PhoneVerificationError as error:
-        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
-
-
-@router.post("/me/contact/verification/confirm", response_model=ContactInfo)
-def confirm_contact_verification(
-    verification_confirm: ContactVerificationConfirm,
-    db: Session | None = Depends(get_optional_db),
-    current_user: UserModel | None = Depends(get_current_user),
-) -> ContactInfo:
-    try:
-        return ContactInfo(
-            **contact_service.confirm_contact_verification(
-                _require_db(db),
-                _require_user(current_user),
-                verification_confirm,
-            )
-        )
-    except PhoneVerificationError as error:
-        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
-
-
-@router.get("/me/notification-settings", response_model=NotificationSettings)
-def get_notification_settings(
-    db: Session | None = Depends(get_optional_db),
-    current_user: UserModel | None = Depends(get_current_user),
-) -> NotificationSettings:
-    user = _require_user(current_user)
-    return NotificationSettings(
-        **notification_service.get_notification_settings(
-            _require_db(db),
-            user,
-        )
-    )
-
-
-@router.patch("/me/notification-settings", response_model=NotificationSettings)
-def update_notification_settings(
-    settings: NotificationSettingsUpdate,
-    db: Session | None = Depends(get_optional_db),
-    current_user: UserModel | None = Depends(get_current_user),
-) -> NotificationSettings:
-    user = _require_user(current_user)
-    return NotificationSettings(
-        **notification_service.update_notification_settings(
-            _require_db(db),
-            user,
-            settings,
-        )
-    )
 
 
 @router.get("/profile-options", response_model=ProfileOptions)

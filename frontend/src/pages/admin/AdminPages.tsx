@@ -274,8 +274,6 @@ export function AdminUserDetailPage() {
     try {
       const saved = await appDataApi.updateAdminUser(user.id, {
         nickname: user.nickname,
-        region: user.region,
-        residenceArea: user.residenceArea,
         preferredRegions: user.preferredRegions,
         travelStyle: user.travelStyle,
         travelBudget: user.travelBudget,
@@ -309,10 +307,6 @@ export function AdminUserDetailPage() {
           <option value="user">user</option>
           <option value="admin">admin</option>
         </select>
-        <label htmlFor={fieldId("region")}>지역</label>
-        <input id={fieldId("region")} value={user.region ?? ""} onChange={(event) => setUser({ ...user, region: event.target.value })} />
-        <label htmlFor={fieldId("residence")}>거주 지역</label>
-        <input id={fieldId("residence")} value={user.residenceArea ?? ""} onChange={(event) => setUser({ ...user, residenceArea: event.target.value })} />
         <label htmlFor={fieldId("preferred")}>선호 지역</label>
         <input id={fieldId("preferred")} value={user.preferredRegions ?? ""} onChange={(event) => setUser({ ...user, preferredRegions: event.target.value })} />
         <label htmlFor={fieldId("style")}>여행 스타일</label>

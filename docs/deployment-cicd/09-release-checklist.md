@@ -153,7 +153,6 @@ Release candidate handoff는 아래 기준을 모두 설명할 수 있을 때만
 - [ ] Kakao OAuth: Kakao Login ON, `account_email` 동의항목, redirect URI, callback, session 복구, 기존 `kakao_{providerId}@oauth.local` email의 verified Kakao email 자동 교체 확인.
 - [ ] Kakao Maps: JavaScript SDK domain 등록 후 public 화면에서 지도 rendering 확인.
 - [ ] Kakao Local REST: runtime key가 backend에 전달되고 대표 추천 후보 smoke가 통과하는지 확인.
-- [ ] SOLAPI: D-7/D-1 승인 템플릿 기준 AlimTalk test 발송과 webhook 상태 반영.
 - [ ] Cloudflare: public HTTPS domain에서 `/api/health`, `/login`, `/policies`, `/trips`, `/mypage` 확인.
 
 ## Rollback

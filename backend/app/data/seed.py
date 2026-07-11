@@ -8,11 +8,6 @@ USER = {
     "name": "테스트 사용자",
     "nickname": "테스트 사용자",
     "email": "test.user@example.com",
-    "birthDate": "1997-04-12",
-    "gender": None,
-    "region": "제주",
-    "homeRegion": "서울 마포",
-    "residenceArea": "서울 마포",
     "preferredRegions": "제주,부산,강원",
     "travelStyle": "휴식",
     "travelBudget": "1인 40만원 이하",
@@ -25,7 +20,6 @@ USER = {
 }
 
 PROFILE = {
-    "region": None,
     "style": None,
     "budget": None,
 }

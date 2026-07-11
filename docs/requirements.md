@@ -12,12 +12,12 @@
 
 ## 1. 시스템 개요
 
-Travel Hunter는 국내 여행자가 여행 혜택 정책을 찾고, 여행 일정을 만들고, 친구와 협업하며, 저장한 정책의 마감 알림을 받을 수 있게 하는 모바일 우선 웹 애플리케이션이다.
+Travel Hunter는 국내 여행자가 여행 혜택 정책을 찾고, 여행 일정을 만들고, 친구와 협업할 수 있게 하는 모바일 우선 웹 애플리케이션이다.
 
 | 구분 | 요구사항 |
 |---|---|
 | 주요 사용자 | 국내 여행을 계획하는 개인 사용자 |
-| 핵심 가치 | 정책 탐색, 일정 생성/편집, 정책 저장, 초대 협업, 마감 알림 |
+| 핵심 가치 | 정책 탐색, 일정 생성/편집, 정책 저장, 초대 협업 |
 | 플랫폼 | React/Vite SPA + FastAPI/PostgreSQL backend |
 | 데이터 모드 | 모든 사용자-facing 데이터는 backend/PostgreSQL 기준으로 동작 |
 | 인증 방식 | 이메일/비밀번호, Kakao OAuth, Google OAuth |
@@ -27,7 +27,7 @@ Travel Hunter는 국내 여행자가 여행 혜택 정책을 찾고, 여행 일�
 | 역할 | 설명 | 주요 권한 |
 |---|---|---|
 | Guest | 로그인 전 사용자 | 로그인, 회원가입, 비밀번호 재설정, 초대 링크 진입 후 로그인 유도 |
-| Member | 인증된 사용자 | 정책 탐색/저장, 일정 생성/편집, 초대 생성/수락, 프로필/알림 설정 |
+| Member | 인증된 사용자 | 정책 탐색/저장, 일정 생성/편집, 초대 생성/수락, 프로필 설정 |
 | Trip Owner | 일정을 생성한 사용자 | 일정 삭제, 장소 편집, 초대 권한 설정 |
 | Trip Editor | editor 권한으로 초대 수락한 멤버 | 일정 장소 편집 |
 | Trip Viewer | viewer 권한으로 초대 수락한 멤버 | 일정 열람 |
@@ -53,8 +53,6 @@ Travel Hunter는 국내 여행자가 여행 혜택 정책을 찾고, 여행 일�
 |---|---|---|
 | FR-USER-001 | 신규 사용자는 관심 지역, 여행 스타일, 예산을 설정할 수 있다. | `/profile-setup` 완료 시 profile 값이 backend에 저장되고 이후 화면에서 반영된다. |
 | FR-USER-002 | 사용자는 마이페이지에서 프로필을 편집할 수 있다. | 편집 sheet에서 지역/스타일/예산을 저장하고 성공 후 요약 카드가 갱신된다. |
-| FR-USER-003 | 사용자는 알림 연락처를 저장하고 OTP로 인증할 수 있다. | 전화번호는 사용자별로 저장/삭제 가능하고, 인증번호 요청/확인 성공 시 `phoneVerified`가 true로 표시된다. `PHONE_VERIFICATION_PROVIDER=dev|solapi`로 dev/test 또는 SOLAPI SMS 발송 provider를 선택한다. |
-| FR-USER-004 | 사용자는 정책 마감 알림을 켜거나 끌 수 있다. | 설정은 사용자별로 저장되고 기본 lead day는 D-7, D-1이다. |
 
 ### 3.3 정책 탐색과 저장
 
@@ -98,12 +96,7 @@ Travel Hunter는 국내 여행자가 여행 혜택 정책을 찾고, 여행 일�
 
 ### 3.7 마감 알림
 
-| ID | 요구사항 | Acceptance |
-|---|---|---|
-| FR-NOTI-001 | 앱은 저장 정책 기준으로 D-7/D-1 마감 알림 대상을 계산할 수 있다. | 저장 정책, 마감일, 사용자 알림 설정, 연락처 상태를 기준으로 `notification_deliveries` 후보를 만든다. |
-| FR-NOTI-002 | 앱은 FastAPI 내부 scheduler로 알림 대상 계산을 실행할 수 있다. | scheduler는 env로 활성화되며 기본값은 비활성화다. |
-| FR-NOTI-003 | 앱은 SOLAPI Kakao AlimTalk 발송 adapter를 제공한다. | provider env가 있으면 pending 후보를 SOLAPI로 접수하고 sent/failed/skipped 상태를 저장한다. |
-| FR-NOTI-004 | 앱은 실패 알림 retry와 webhook 상태 추적을 지원한다. | retry는 다음 scheduler 실행에서 처리하며 SOLAPI webhook은 provider message id로 delivery 상태를 보정한다. |
+마감 알림 연락처, 사용자별 알림 설정, OTP 인증, 발송 scheduler/dispatch/webhook runtime은 현재 제품 범위에서 제거됐다. `notification_deliveries`는 과거 발송 이력/운영 기록을 확인하기 위한 inert history로만 유지하며, 새 알림 발송 row를 생성하지 않는다.
 
 ## 4. 비기능 요구사항
 
@@ -127,7 +120,7 @@ Travel Hunter는 국내 여행자가 여행 혜택 정책을 찾고, 여행 일�
 | 정책 | `policies`, `policy_documents`, `user_saved_policies` |
 | 일정 | `trips`, `trip_days`, `trip_places`, `trip_members`, `trip_policies`, `trip_invites` |
 | 추천 | `recommendations` |
-| 알림 | `user_notification_settings`, `notification_deliveries` |
+| 알림 이력 | `notification_deliveries` (inert history only) |
 
 자세한 API/DB 매핑은 `docs/mvp-api-contract.md`, `docs/db-schema-current.md`, `docs/db-schema-current.sql`을 기준으로 한다.
 
@@ -140,7 +133,6 @@ Travel Hunter는 국내 여행자가 여행 혜택 정책을 찾고, 여행 일�
 | Password reset email | SMTP host/account/from address와 public base URL 필요 |
 | Kakao OAuth | Kakao REST API key/client secret/redirect URI, Kakao Login ON, `account_email` 동의항목, public redirect URI 필요 |
 | Google OAuth | Google OAuth client id/secret/redirect URI 필요 |
-| SOLAPI AlimTalk | SOLAPI key/secret, Kakao channel `pfId`, D-7/D-1 승인 템플릿 필요 |
 | Cloudflare Tunnel staging | domain, tunnel token, 실제 runtime env 필요 |
 
 ## 7. Weekend Public v1 release addendum
@@ -165,7 +157,7 @@ Travel Hunter는 국내 여행자가 여행 혜택 정책을 찾고, 여행 일�
 
 - 실제 AI 추천 엔진.
 - 지도/장소 검색 API와 이동 시간 계산.
-- 전화번호 OTP 실제 발송 staging smoke.
+- 전화번호 OTP/연락처 알림 재도입은 현재 후속 범위가 아니며, 필요하면 새 제품/API 계약부터 작성한다.
 - SMTP readiness 이후 친구 초대 email 발송, 그리고 email 외 SMS/Kakao 외부 발송.
 - 운영 관리자 화면.
 - 정책 수집 source 확대, full automation, 운영 관리자 수동 제어.

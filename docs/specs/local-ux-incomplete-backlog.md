@@ -22,7 +22,7 @@ Included here:
 
 Excluded from the active local UX backlog:
 
-- Cloudflare Tunnel staging, public HTTPS smoke, Brevo sender-domain authentication, real SMTP password reset delivery, public OAuth redirect smoke, SOLAPI/Kakao AlimTalk real-provider smoke, and Jenkins/CI/CD automation.
+- Cloudflare Tunnel staging, public HTTPS smoke, Brevo sender-domain authentication, real SMTP password reset delivery, public OAuth redirect smoke, and Jenkins/CI/CD automation.
 - Source code, API, DB schema, dependency, or runtime changes unless a later execution plan explicitly expands scope.
 
 ## Mirrored Current Queue Item
@@ -46,7 +46,7 @@ These are not active local UX backlog items for the current pass:
 - Real AI engine behavior beyond the current local recommendation/fallback logic.
 - Password reset inbox delivery through real SMTP and sender-domain authentication.
 - Kakao/Google full public-provider browser smoke using production/public redirect URIs.
-- Real phone OTP provider smoke.
+- Phone contact/OTP smoke is not deferred; the contact/OTP surface has been removed and would require a new product/API contract to reintroduce.
 - Cloudflare, public HTTPS, deployment, and CI/CD smoke.
 
 ## Reference Mismatches

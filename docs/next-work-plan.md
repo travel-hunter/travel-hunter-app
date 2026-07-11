@@ -51,10 +51,9 @@ Immediate sequence for tomorrow:
 
 The following work remains lower priority than release blockers:
 
-- SOLAPI SMS or Kakao AlimTalk real-provider smoke.
 - Jenkins or other CI/CD automation.
 - Policy list server search/pagination until local policy volume outgrows client filtering.
-- 친구 초대 email 발송은 로컬 구현/계약/테스트가 완료됐고, 다음 확인은 SMTP credential이 주입된 개발서버에서 실제 inbox 수신 smoke다. email 외 SMS/Kakao 초대 발송은 후속 범위다.
+- 친구 초대 email 발송은 로컬 구현/계약/테스트가 완료됐고, 다음 확인은 SMTP credential이 주입된 개발서버에서 실제 inbox 수신 smoke다. SMS/Kakao 초대 발송은 현재 제품 범위에서 제외됐다.
 - 일정 상세 장소 add/update/move/delete 저장 충돌은 로컬에서 `Trip.revision`/`expectedRevision` optimistic conflict 처리까지 구현됐다. 정책 연결/상태 변경 conflict 처리는 후속 범위다.
 
 ## Guardrails

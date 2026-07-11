@@ -1,9 +1,7 @@
 from datetime import datetime
 
 from app.models import User
-from app.schemas.user import ContactUpdate
 from app.schemas.user import ProfileUpdate
-from app.services import contact as contact_service
 from app.services import profile as profile_service
 
 
@@ -28,7 +26,6 @@ def make_user() -> User:
         id=1,
         email="test.user@example.com",
         nickname="테스트 사용자",
-        region="제주",
         preferred_regions="제주,부산",
         travel_style="휴식",
         travel_budget="1인 40만원 이하",
@@ -42,13 +39,11 @@ def make_user() -> User:
 
 def test_profile_to_api_returns_nulls_for_missing_values() -> None:
     user = make_user()
-    user.region = None
     user.preferred_regions = None
     user.travel_style = None
     user.travel_budget = None
 
     assert profile_service.profile_to_api(user) == {
-        "region": None,
         "preferredRegions": None,
         "style": None,
         "budget": None,
@@ -68,33 +63,17 @@ def test_update_profile_persists_partial_values_and_marks_onboarding_complete() 
     result = profile_service.update_profile(
         db,  # type: ignore[arg-type]
         user,
-        ProfileUpdate(region="부산"),
+        ProfileUpdate(style="맛집"),
     )
 
-    assert result == {"region": "부산", "preferredRegions": ["제주", "부산"], "style": "휴식", "budget": "1인 40만원 이하"}
-    assert user.region == "부산"
-    assert user.travel_style == "휴식"
+    assert result == {"preferredRegions": ["제주", "부산"], "style": "맛집", "budget": "1인 40만원 이하"}
+    assert user.travel_style == "맛집"
     assert user.travel_budget == "1인 40만원 이하"
     assert user.onboarding_completed is True
     assert user.updated_at != datetime(2026, 5, 4, 0, 0, 0)
     assert db.added == [user]
     assert db.flushed is True
     assert db.committed is True
-
-
-def test_update_profile_prefers_explicit_style_and_budget() -> None:
-    db = FakeDb()
-    user = make_user()
-
-    result = profile_service.update_profile(
-        db,  # type: ignore[arg-type]
-        user,
-        ProfileUpdate(style="맛집", budget="1인 30만원 이하"),
-    )
-
-    assert result == {"region": "제주", "preferredRegions": ["제주", "부산"], "style": "맛집", "budget": "1인 30만원 이하"}
-    assert user.travel_style == "맛집"
-    assert user.travel_budget == "1인 30만원 이하"
 
 
 def test_update_profile_persists_preferred_regions_as_comma_string() -> None:
@@ -146,7 +125,7 @@ def test_update_profile_rejects_invalid_or_too_many_preferred_regions() -> None:
     except profile_service.ProfileServiceError as error:
         assert error.status_code == 422
     else:
-        raise AssertionError("invalid region should be rejected")
+        raise AssertionError("invalid preferred region should be rejected")
 
     try:
         profile_service.update_profile(
@@ -157,7 +136,7 @@ def test_update_profile_rejects_invalid_or_too_many_preferred_regions() -> None:
     except profile_service.ProfileServiceError as error:
         assert error.status_code == 422
     else:
-        raise AssertionError("more than three regions should be rejected")
+        raise AssertionError("more than three preferred regions should be rejected")
 
 
 def test_skip_profile_setup_marks_skip_and_onboarding_complete() -> None:
@@ -177,48 +156,3 @@ def test_skip_profile_setup_marks_skip_and_onboarding_complete() -> None:
     assert db.added == [user]
     assert db.flushed is True
     assert db.committed is True
-
-
-def test_get_contact_returns_phone_and_verified_state() -> None:
-    user = make_user()
-    user.phone_number = "01012345678"
-    user.phone_verified_at = datetime(2026, 5, 7, 0, 0, 0)
-
-    assert contact_service.get_contact(user) == {
-        "phoneNumber": "01012345678",
-        "phoneVerified": True,
-    }
-
-
-def test_update_contact_normalizes_whitespace_and_resets_verification() -> None:
-    db = FakeDb()
-    user = make_user()
-    user.phone_verified_at = datetime(2026, 5, 7, 0, 0, 0)
-
-    result = contact_service.update_contact(
-        db,  # type: ignore[arg-type]
-        user,
-        ContactUpdate(phoneNumber="010 1234 5678"),
-    )
-
-    assert result == {"phoneNumber": "01012345678", "phoneVerified": False}
-    assert user.phone_number == "01012345678"
-    assert user.phone_verified_at is None
-    assert db.added == [user]
-    assert db.flushed is True
-    assert db.committed is True
-
-
-def test_update_contact_clears_empty_phone_number() -> None:
-    db = FakeDb()
-    user = make_user()
-    user.phone_number = "01012345678"
-
-    result = contact_service.update_contact(
-        db,  # type: ignore[arg-type]
-        user,
-        ContactUpdate(phoneNumber="   "),
-    )
-
-    assert result == {"phoneNumber": None, "phoneVerified": False}
-    assert user.phone_number is None

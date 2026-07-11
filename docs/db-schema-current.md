@@ -2,14 +2,14 @@
 
 ## 기준
 
-- 기준일: 2026-06-30
-- 기준 Alembic head: `0023_policy_structured_detail`
+- 기준일: 2026-07-11
+- 기준 Alembic head: `0025_prune_contact_notify`
 - PostgreSQL: 16.14 (`postgres:16-alpine` fresh container)
 - SQL snapshot: `docs/db-schema-current.sql`
 - ERD/관계 시각화: `docs/db-erd.md`
-- 생성 방식: fresh PostgreSQL DB에 `alembic upgrade head`를 적용한 뒤 `pg_dump --schema-only --no-owner --no-privileges`로 `docs/db-schema-current.sql`을 추출했다. Schema 변경은 Alembic 기준으로 추적하고, 관계/핵심 컬럼 요약은 `docs/db-erd.md`가 제공한다.
+- 생성 방식: 이전 schema-only snapshot에 Alembic head `0025_prune_contact_notify`의 offline SQL diff를 반영했다. Fresh DB pg_dump 재생성은 별도 검증으로 다시 수행할 수 있다. Schema 변경은 Alembic 기준으로 추적하고, 관계/핵심 컬럼 요약은 `docs/db-erd.md`가 제공한다.
 
-이 문서는 현재 앱이 사용하는 PostgreSQL schema의 기준 문서다. 초기 SQL 기준본 이후 Alembic migration `0002`~`0023`이 적용된 현재 구조를 설명한다. 테이블 관계, 핵심 컬럼, 제약/index, 문서 drift는 `docs/db-erd.md`를 함께 본다.
+이 문서는 현재 앱이 사용하는 PostgreSQL schema의 기준 문서다. 초기 SQL 기준본 이후 Alembic migration `0002`~`0025`가 적용된 현재 구조를 설명한다. 테이블 관계, 핵심 컬럼, 제약/index, 문서 drift는 `docs/db-erd.md`를 함께 본다.
 
 ## 테이블 그룹
 
@@ -21,8 +21,6 @@ Auth/User:
 - `password_reset_tokens`
 - `pending_signups`
 - `pending_social_signups`
-- `phone_verification_codes`
-- `user_notification_settings`
 
 `social_accounts.provider_id`는 Google OIDC `sub` 등 긴 provider subject를 보관할 수 있도록 `varchar(255)`로 유지한다.
 
@@ -59,12 +57,10 @@ Migration metadata:
 추가 테이블:
 
 - `user_saved_policies`
-- `user_notification_settings`
 - `notification_deliveries`
 - `password_reset_tokens`
 - `pending_signups`
 - `pending_social_signups`
-- `phone_verification_codes`
 - `admin_audit_logs`
 - `external_source_records`
 - `alembic_version`
@@ -73,8 +69,6 @@ Migration metadata:
 
 - `users.travel_style`
 - `users.travel_budget`
-- `users.phone_number`
-- `users.phone_verified_at`
 - `users.nickname_setup_completed`
 - `users.profile_setup_skipped`
 - `users.terms_accepted` / `users.terms_accepted_at` / `users.terms_version`
@@ -91,17 +85,23 @@ Migration metadata:
 
 ## 2026-06-30 ERD/current-code 기준
 
-`docs/db-erd.md`는 SQLAlchemy metadata(`backend/app/models/tables.py`)와 Alembic head `0023_policy_structured_detail`를 기준으로 만든 현재 코드 기준 ERD다. 이 ERD는 테이블 관계, 핵심 컬럼, PK/FK/unique/index 요약, `docs/db-schema-current.sql`과의 drift를 함께 기록한다.
+`docs/db-erd.md`는 SQLAlchemy metadata(`backend/app/models/tables.py`)와 Alembic head `0025_prune_contact_notify`를 기준으로 만든 현재 코드 기준 ERD다. 이 ERD는 테이블 관계, 핵심 컬럼, PK/FK/unique/index 요약, `docs/db-schema-current.sql`과의 drift를 함께 기록한다.
 
 이전에 확인됐고 이번 SQL snapshot 재생성으로 해소된 주요 drift:
 
-- 기존 `docs/db-schema-current.sql`은 문서상 `0019_email_first_signup` 기준으로 남아 있었으나, fresh PostgreSQL DB에 Alembic head `0023_policy_structured_detail`까지 적용한 뒤 재생성했다.
+- 기존 `docs/db-schema-current.sql`은 문서상 `0019_email_first_signup` 기준으로 남아 있었으나, 2026-06-30에 Alembic head `0023_policy_structured_detail` 기준으로 재생성했고 2026-07-11에 `0025_prune_contact_notify` diff를 반영했다.
 - `0020_oauth_onboarding_state_flags`: `users.nickname_setup_completed`, `users.profile_setup_skipped` 추가.
 - `0021_legacy_social_nickname`: social 계정 onboarding 상태 backfill이며 schema object 추가는 없다.
 - `0022_signup_terms_agreements`: `users`와 `pending_signups`의 terms/privacy 동의 컬럼 추가, `pending_social_signups` 테이블 추가.
 - `0023_policy_structured_detail`: `policies.structured_detail` JSONB 컬럼 추가. 기존 정책 row는 현재 정책 필드에서 느슨한 사용자 상세 섹션 JSON으로 backfill하되, 조건 섹션은 코드의 조건 정제 규칙과 drift가 생기지 않도록 비워 두고 화면에서 기존 조건 fallback을 사용한다.
+- `0024_local_kst_time_shift`: guarded local KST timestamp data shift migration.
+- `0025_prune_contact_notify`: contact/OTP/notification settings surface를 제거하면서 `users`의 personal/contact columns와 관련 설정/OTP 테이블을 drop했다. `users.preferred_regions`는 유지한다.
 
-현재 `docs/db-schema-current.sql`은 위 절차로 재생성된 최신 schema-only snapshot이다. 향후 migration이 추가되면 같은 절차로 다시 생성한다.
+현재 `docs/db-schema-current.sql`은 기존 schema-only snapshot에서 Alembic `0025_prune_contact_notify` drop diff를 반영한 schema reference다. 향후 migration이 추가되면 같은 절차로 다시 생성한다.
+
+## `notification_deliveries`
+
+`notification_deliveries`는 현재 과거 발송 이력/운영 기록을 보존하기 위한 inert history 테이블로만 남는다. 사용자 연락처, OTP 인증, 사용자별 알림 설정, scheduler/dispatch/webhook runtime은 제거됐으며 이 pass 이후 새 발송 row를 생성하지 않는다.
 
 ## `pending_signups`
 
@@ -114,21 +114,6 @@ Migration metadata:
 - `token_hash`
 - `created_at`
 - `expires_at`
-
-## `phone_verification_codes`
-
-`phone_verification_codes`는 알림 연락처 OTP 실인증을 위한 단기 인증 코드 저장 테이블이다. 원문 인증번호는 저장하지 않고 `code_hash`만 보관하며, dev/test provider boundary가 발송을 담당한다.
-
-주요 컬럼:
-
-- `id`
-- `user_id`
-- `phone_number`
-- `code_hash`
-- `expires_at`
-- `attempt_count`
-- `verified_at`
-- `created_at`
 
 ## `external_source_records`
 

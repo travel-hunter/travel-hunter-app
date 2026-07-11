@@ -40,12 +40,9 @@ export function getPreferenceIcon(value: string) {
   return preferenceIcons[value] ?? "✨";
 }
 
-export function formatPreferredRegions(
-  regions: Profile["preferredRegions"],
-  legacyRegion?: Profile["region"],
-) {
+export function formatPreferredRegions(regions: Profile["preferredRegions"]) {
   if (regions && regions.length > 0) return regions.join(" · ");
-  return legacyRegion?.trim() ? legacyRegion : "관심지역 미정";
+  return "관심지역 미정";
 }
 
 export function formatProfilePreference(value: string | null | undefined, fallback: string) {

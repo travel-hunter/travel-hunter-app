@@ -84,7 +84,6 @@ async function readRemoteProfile(): Promise<Profile> {
 }
 
 const emptyProfile: Profile = {
-  region: null,
   preferredRegions: null,
   style: null,
   budget: null,

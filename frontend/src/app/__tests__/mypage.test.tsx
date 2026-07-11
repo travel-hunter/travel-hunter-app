@@ -10,8 +10,6 @@ import { Link, MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import {
   appDataApi,
-  type ContactInfo,
-  type NotificationSettings,
   type Policy,
   type Trip,
 } from "../../api";
@@ -154,8 +152,8 @@ describe("Travel Hunter app — my page", () => {
     expect(screen.getByText("신청 정책")).toBeInTheDocument();
     expect(screen.getByText(/즐겨찾기 정책/)).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /알림 설정/ }),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: /알림 설정/ }),
+    ).not.toBeInTheDocument();
     expect(document.querySelector(".ds-profile-panel")).toBeTruthy();
     expect(
       document.querySelector(".prototype-profile-badge"),
@@ -187,7 +185,7 @@ describe("Travel Hunter app — my page", () => {
     const menuIcons = [
       ...document.querySelectorAll(".prototype-menu-icon"),
     ].map((icon) => icon.textContent?.trim() ?? "");
-    expect(menuIcons).toEqual(["", "", "", "", ""]);
+    expect(menuIcons).toEqual(["", "", "", ""]);
 
     await userEvent.setup().click(
       within(favoriteCard as HTMLElement).getByRole("button", {
@@ -428,30 +426,22 @@ describe("Travel Hunter app — my page", () => {
     }
   });
 
-  it("keeps notification controls inside the settings sheet on my page", async () => {
+  it("does not render removed notification/contact controls on my page", async () => {
     await login();
     cleanup();
     renderAppRoute("/mypage");
-    const user = userEvent.setup();
 
     await waitFor(() =>
       expect(screen.getAllByText("마이").length).toBeGreaterThan(0),
     );
     expect(
+      screen.queryByRole("button", { name: /알림 설정/ }),
+    ).not.toBeInTheDocument();
+    expect(
       screen.queryByRole("textbox", { name: "전화번호" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("switch")).not.toBeInTheDocument();
     expect(document.body).not.toHaveTextContent("카카오 알림톡 연락처");
-
-    await user.click(screen.getByRole("button", { name: /알림 설정/ }));
-    const dialog = await screen.findByRole("dialog", { name: "알림 설정" });
-    expect(
-      within(dialog).getByText("카카오 알림톡 연락처"),
-    ).toBeInTheDocument();
-    expect(
-      within(dialog).getByRole("textbox", { name: "전화번호" }),
-    ).toBeInTheDocument();
-    expect(within(dialog).getByRole("switch")).toBeInTheDocument();
   });
 
   it("opens FAQ, terms, and privacy content from my page settings", async () => {
@@ -492,7 +482,6 @@ describe("Travel Hunter app — my page", () => {
   it("edits profile preferences from my page", async () => {
     const targetRegion = "강원";
     const nextProfile = {
-      region: null,
       preferredRegions: [targetRegion],
       style: "사진",
       budget: "상관없음",
@@ -636,166 +625,6 @@ describe("Travel Hunter app — my page", () => {
       ).toBeInTheDocument();
     } finally {
       suggestionSpy.mockRestore();
-    }
-  });
-
-  it("toggles deadline notifications from my page", async () => {
-    const enabledSettings: NotificationSettings = {
-      deadlineEnabled: true,
-      deadlineLeadDays: [7, 1],
-    };
-    const disabledSettings: NotificationSettings = {
-      deadlineEnabled: false,
-      deadlineLeadDays: [7, 1],
-    };
-    const getSettingsSpy = vi
-      .spyOn(appDataApi, "getNotificationSettings")
-      .mockResolvedValue(enabledSettings);
-    const updateSettingsSpy = vi
-      .spyOn(appDataApi, "updateNotificationSettings")
-      .mockResolvedValue(disabledSettings);
-
-    try {
-      await login();
-      cleanup();
-      renderAppRoute("/mypage");
-      const user = userEvent.setup();
-
-      await user.click(
-        await screen.findByRole("button", { name: /알림 설정/ }),
-      );
-      const dialog = await screen.findByRole("dialog", { name: "알림 설정" });
-      await waitFor(() =>
-        expect(dialog).toHaveTextContent("정책 D-7, D-1 알림"),
-      );
-      await user.click(within(dialog).getByRole("switch"));
-
-      await waitFor(() =>
-        expect(updateSettingsSpy).toHaveBeenCalledWith({
-          deadlineEnabled: false,
-        }),
-      );
-      await waitFor(() =>
-        expect(dialog).toHaveTextContent("마감 알림을 받지 않음"),
-      );
-    } finally {
-      getSettingsSpy.mockRestore();
-      updateSettingsSpy.mockRestore();
-    }
-  });
-
-  it("saves a notification contact phone number from my page", async () => {
-    const emptyContact: ContactInfo = {
-      phoneNumber: null,
-      phoneVerified: false,
-    };
-    const savedContact: ContactInfo = {
-      phoneNumber: "01012345678",
-      phoneVerified: false,
-    };
-    const getContactSpy = vi
-      .spyOn(appDataApi, "getContact")
-      .mockResolvedValue(emptyContact);
-    const updateContactSpy = vi
-      .spyOn(appDataApi, "updateContact")
-      .mockResolvedValue(savedContact);
-
-    try {
-      await login();
-      cleanup();
-      renderAppRoute("/mypage");
-      const user = userEvent.setup();
-
-      await user.click(
-        await screen.findByRole("button", { name: /알림 설정/ }),
-      );
-      const dialog = await screen.findByRole("dialog", { name: "알림 설정" });
-      const phoneInput = within(dialog).getByRole("textbox", {
-        name: "전화번호",
-      });
-      await waitFor(() => expect(phoneInput).not.toBeDisabled());
-      await user.type(phoneInput, "010 1234 5678");
-      await user.click(
-        within(dialog).getByRole("button", { name: "연락처 저장" }),
-      );
-
-      await waitFor(() =>
-        expect(updateContactSpy).toHaveBeenCalledWith({
-          phoneNumber: "010 1234 5678",
-        }),
-      );
-      await waitFor(() => expect(phoneInput).toHaveValue("01012345678"));
-      expect(dialog).toHaveTextContent("검증 전 연락처입니다");
-    } finally {
-      getContactSpy.mockRestore();
-      updateContactSpy.mockRestore();
-    }
-  });
-
-  it("requests and confirms a notification contact verification code from my page", async () => {
-    const savedContact: ContactInfo = {
-      phoneNumber: "01012345678",
-      phoneVerified: false,
-    };
-    const verifiedContact: ContactInfo = {
-      phoneNumber: "01012345678",
-      phoneVerified: true,
-    };
-    const getContactSpy = vi
-      .spyOn(appDataApi, "getContact")
-      .mockResolvedValue(savedContact);
-    const requestVerificationSpy = vi
-      .spyOn(appDataApi, "requestContactVerification")
-      .mockResolvedValue({
-        requested: true,
-        expiresAt: "2026-05-21T10:05:00",
-        resendAvailableAt: "2026-05-21T10:01:00",
-      });
-    const confirmVerificationSpy = vi
-      .spyOn(appDataApi, "confirmContactVerification")
-      .mockResolvedValue(verifiedContact);
-
-    try {
-      await login();
-      cleanup();
-      renderAppRoute("/mypage");
-      const user = userEvent.setup();
-
-      await user.click(
-        await screen.findByRole("button", { name: /알림 설정/ }),
-      );
-      const dialog = await screen.findByRole("dialog", { name: "알림 설정" });
-      await waitFor(() =>
-        expect(dialog).toHaveTextContent("검증 전 연락처입니다"),
-      );
-      await user.click(
-        within(dialog).getByRole("button", { name: "인증번호 받기" }),
-      );
-
-      await waitFor(() =>
-        expect(requestVerificationSpy).toHaveBeenCalledWith({
-          phoneNumber: "01012345678",
-        }),
-      );
-      expect(dialog).toHaveTextContent("인증번호를 보냈어요.");
-      const codeInput = within(dialog).getByRole("textbox", {
-        name: "인증번호",
-      });
-      await user.type(codeInput, "123456");
-      await user.click(
-        within(dialog).getByRole("button", { name: "인증 확인" }),
-      );
-
-      await waitFor(() =>
-        expect(confirmVerificationSpy).toHaveBeenCalledWith({ code: "123456" }),
-      );
-      await waitFor(() =>
-        expect(dialog).toHaveTextContent("검증된 연락처입니다"),
-      );
-    } finally {
-      getContactSpy.mockRestore();
-      requestVerificationSpy.mockRestore();
-      confirmVerificationSpy.mockRestore();
     }
   });
 
@@ -960,88 +789,4 @@ describe("Travel Hunter app — my page", () => {
     }
   });
 
-  it("keeps the notification contact form open when saving fails", async () => {
-    const contact: ContactInfo = {
-      phoneNumber: "01012345678",
-      phoneVerified: false,
-    };
-    const getContactSpy = vi
-      .spyOn(appDataApi, "getContact")
-      .mockResolvedValue(contact);
-    const updateContactSpy = vi
-      .spyOn(appDataApi, "updateContact")
-      .mockRejectedValue(new Error("save failed"));
-
-    try {
-      await login();
-      cleanup();
-      renderAppRoute("/mypage");
-      const user = userEvent.setup();
-
-      await user.click(
-        await screen.findByRole("button", { name: /알림 설정/ }),
-      );
-      const dialog = await screen.findByRole("dialog", { name: "알림 설정" });
-      const phoneInput = within(dialog).getByRole("textbox", {
-        name: "전화번호",
-      });
-      await waitFor(() => expect(phoneInput).not.toBeDisabled());
-      await user.clear(phoneInput);
-      await user.click(
-        within(dialog).getByRole("button", { name: "연락처 저장" }),
-      );
-
-      await waitFor(() =>
-        expect(updateContactSpy).toHaveBeenCalledWith({ phoneNumber: null }),
-      );
-      await waitFor(() =>
-        expect(dialog).toHaveTextContent("연락처를 저장하지 못했어요."),
-      );
-    } finally {
-      getContactSpy.mockRestore();
-      updateContactSpy.mockRestore();
-    }
-  });
-
-  it("restores deadline notification state when saving fails", async () => {
-    const enabledSettings: NotificationSettings = {
-      deadlineEnabled: true,
-      deadlineLeadDays: [7, 1],
-    };
-    const getSettingsSpy = vi
-      .spyOn(appDataApi, "getNotificationSettings")
-      .mockResolvedValue(enabledSettings);
-    const updateSettingsSpy = vi
-      .spyOn(appDataApi, "updateNotificationSettings")
-      .mockRejectedValue(new Error("save failed"));
-
-    try {
-      await login();
-      cleanup();
-      renderAppRoute("/mypage");
-      const user = userEvent.setup();
-
-      await user.click(
-        await screen.findByRole("button", { name: /알림 설정/ }),
-      );
-      const dialog = await screen.findByRole("dialog", { name: "알림 설정" });
-      await waitFor(() =>
-        expect(dialog).toHaveTextContent("정책 D-7, D-1 알림"),
-      );
-      await user.click(within(dialog).getByRole("switch"));
-
-      await waitFor(() =>
-        expect(updateSettingsSpy).toHaveBeenCalledWith({
-          deadlineEnabled: false,
-        }),
-      );
-      await waitFor(() =>
-        expect(dialog).toHaveTextContent("알림 설정을 저장하지 못했어요."),
-      );
-      expect(dialog).toHaveTextContent("정책 D-7, D-1 알림");
-    } finally {
-      getSettingsSpy.mockRestore();
-      updateSettingsSpy.mockRestore();
-    }
-  });
 });

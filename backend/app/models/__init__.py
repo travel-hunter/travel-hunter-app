@@ -6,7 +6,6 @@ from app.models.tables import (
     PasswordResetToken,
     PendingSocialSignup,
     PendingSignup,
-    PhoneVerificationCode,
     Policy,
     PolicyDocument,
     Recommendation,
@@ -18,7 +17,6 @@ from app.models.tables import (
     TripPlace,
     TripPolicy,
     User,
-    UserNotificationSetting,
     UserSavedPolicy,
 )
 
@@ -30,7 +28,6 @@ __all__ = [
     "PasswordResetToken",
     "PendingSocialSignup",
     "PendingSignup",
-    "PhoneVerificationCode",
     "Policy",
     "PolicyDocument",
     "Recommendation",
@@ -42,6 +39,5 @@ __all__ = [
     "TripPlace",
     "TripPolicy",
     "User",
-    "UserNotificationSetting",
     "UserSavedPolicy",
 ]

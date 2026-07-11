@@ -13,7 +13,6 @@ def test_current_schema_tables_are_registered() -> None:
         "policies",
         "policy_documents",
         "external_source_records",
-        "phone_verification_codes",
         "trips",
         "trip_days",
         "trip_places",
@@ -21,7 +20,6 @@ def test_current_schema_tables_are_registered() -> None:
         "trip_policies",
         "trip_invites",
         "user_saved_policies",
-        "user_notification_settings",
         "notification_deliveries",
         "recommendations",
     }
@@ -34,19 +32,23 @@ def test_current_schema_decision_columns_are_registered() -> None:
     policies = Base.metadata.tables["policies"]
     trips = Base.metadata.tables["trips"]
     trip_invites = Base.metadata.tables["trip_invites"]
-    user_notification_settings = Base.metadata.tables["user_notification_settings"]
     notification_deliveries = Base.metadata.tables["notification_deliveries"]
     password_reset_tokens = Base.metadata.tables["password_reset_tokens"]
     pending_signups = Base.metadata.tables["pending_signups"]
     pending_social_signups = Base.metadata.tables["pending_social_signups"]
-    phone_verification_codes = Base.metadata.tables["phone_verification_codes"]
     external_source_records = Base.metadata.tables["external_source_records"]
     social_accounts = Base.metadata.tables["social_accounts"]
 
     assert "preferred_regions" in users.c
-    assert "gender" in users.c
-    assert "phone_number" in users.c
-    assert "phone_verified_at" in users.c
+    removed_user_columns = {
+        "birth_date",
+        "gender",
+        "region",
+        "residence_area",
+        "phone_number",
+        "phone_verified_at",
+    }
+    assert removed_user_columns.isdisjoint(set(users.c.keys()))
     assert "travel_style" in users.c
     assert "travel_budget" in users.c
     assert "terms_accepted" in users.c
@@ -78,7 +80,6 @@ def test_current_schema_decision_columns_are_registered() -> None:
     assert "external_source_records" in policy_external_source_fks
     assert "invite_token" in trip_invites.c
     assert "role" in trip_invites.c
-    assert "deadline_enabled" in user_notification_settings.c
     assert "token_hash" in password_reset_tokens.c
     assert "expires_at" in password_reset_tokens.c
     assert "used_at" in password_reset_tokens.c
@@ -98,12 +99,10 @@ def test_current_schema_decision_columns_are_registered() -> None:
     assert "expires_at" in pending_social_signups.c
     assert social_accounts.c["provider_id"].type.length == 255
     assert "revision" in trips.c
-    assert "user_id" in phone_verification_codes.c
-    assert "phone_number" in phone_verification_codes.c
-    assert "code_hash" in phone_verification_codes.c
-    assert "expires_at" in phone_verification_codes.c
-    assert "attempt_count" in phone_verification_codes.c
-    assert "verified_at" in phone_verification_codes.c
+    assert "phone_verification_codes" not in Base.metadata.tables
+    assert "user_notification_settings" not in Base.metadata.tables
+    assert "region" in policies.c
+    assert "region" in trips.c
     expected_external_source_columns = {
         "source_name",
         "source_type",

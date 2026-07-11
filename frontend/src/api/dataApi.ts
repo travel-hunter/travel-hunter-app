@@ -6,15 +6,12 @@ import {
   AdminUserDetail,
   AdminUserListResponse,
   AppliedPolicyLink,
-  ContactInfo,
-  ContactVerificationRequestResponse,
   ExternalCollectionOpsHealth,
   ExternalCollectionRunResponse,
   InviteEmailResult,
   InviteLinksState,
   InviteRole,
   InviteState,
-  NotificationSettings,
   PlaceSearchCandidate,
   Policy,
   Profile,
@@ -198,18 +195,6 @@ export type SendInviteEmailRequest = {
   role?: InviteRole;
 };
 
-export type ContactUpdateRequest = {
-  phoneNumber: string | null;
-};
-
-export type ContactVerificationRequest = {
-  phoneNumber?: string | null;
-};
-
-export type ContactVerificationConfirmRequest = {
-  code: string;
-};
-
 export type AppDataApi = {
   getProfileOptions: () => Promise<ProfileOptions>;
   login: (request?: LoginRequest) => Promise<AuthResponse>;
@@ -231,12 +216,6 @@ export type AppDataApi = {
   getProfile: () => Promise<Profile>;
   updateProfile: (profile: Partial<Profile>) => Promise<Profile>;
   skipProfileSetup: () => Promise<ProfileSkipResponse>;
-  getContact: () => Promise<ContactInfo>;
-  updateContact: (contact: ContactUpdateRequest) => Promise<ContactInfo>;
-  requestContactVerification: (request: ContactVerificationRequest) => Promise<ContactVerificationRequestResponse>;
-  confirmContactVerification: (request: ContactVerificationConfirmRequest) => Promise<ContactInfo>;
-  getNotificationSettings: () => Promise<NotificationSettings>;
-  updateNotificationSettings: (settings: Pick<NotificationSettings, "deadlineEnabled">) => Promise<NotificationSettings>;
   listPolicies: () => Promise<Policy[]>;
   listRegionRecommendations: (options?: { style?: string | null; region?: string | null; preferredRegions?: string[] | null; limit?: number }) => Promise<RegionRecommendation[]>;
   listTravelAreaRecommendations: (options?: TravelAreaRecommendationOptions) => Promise<TravelAreaRecommendationResponse>;

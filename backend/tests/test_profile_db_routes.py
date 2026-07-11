@@ -34,7 +34,6 @@ def make_user() -> User:
         id=1,
         email="test.user@example.com",
         nickname="Test User",
-        region="제주",
         preferred_regions="제주,부산",
         travel_style="휴식",
         travel_budget="1인 40만원 이하",
@@ -49,6 +48,30 @@ def make_user() -> User:
 def clear_overrides() -> None:
     app.dependency_overrides.pop(profile_routes.get_current_user, None)
     app.dependency_overrides.pop(profile_routes.get_optional_db, None)
+
+
+def test_db_me_returns_user_without_removed_personal_fields() -> None:
+    user = make_user()
+    app.dependency_overrides[profile_routes.get_current_user] = lambda: user
+
+    try:
+        response = client.get("/api/me", headers={"Authorization": "Bearer access-token"})
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["preferredRegions"] == ["제주", "부산"]
+    assert payload["nickname"] == "Test User"
+    assert {
+        "region",
+        "birthDate",
+        "gender",
+        "residenceArea",
+        "homeRegion",
+        "phoneNumber",
+        "phoneVerified",
+    }.isdisjoint(payload)
 
 
 def test_db_profile_requires_bearer_token() -> None:
@@ -70,7 +93,6 @@ def test_db_get_profile_returns_current_user_profile() -> None:
 
     assert response.status_code == 200
     assert response.json() == {
-        "region": "제주",
         "preferredRegions": ["제주", "부산"],
         "style": "휴식",
         "budget": "1인 40만원 이하",
@@ -79,7 +101,6 @@ def test_db_get_profile_returns_current_user_profile() -> None:
 
 def test_db_get_profile_returns_nulls_for_unset_values() -> None:
     user = make_user()
-    user.region = None
     user.preferred_regions = None
     user.travel_style = None
     user.travel_budget = None
@@ -93,7 +114,6 @@ def test_db_get_profile_returns_nulls_for_unset_values() -> None:
 
     assert response.status_code == 200
     assert response.json() == {
-        "region": None,
         "preferredRegions": None,
         "style": None,
         "budget": None,
@@ -110,7 +130,7 @@ def test_db_patch_profile_persists_current_user_profile() -> None:
     try:
         response = client.patch(
             "/api/me/profile",
-            json={"region": "부산", "preferredRegions": ["부산", "강원"], "style": "맛집", "budget": "1인 30만원 이하"},
+            json={"preferredRegions": ["부산", "강원"], "style": "맛집", "budget": "1인 30만원 이하"},
             headers={"Authorization": "Bearer access-token"},
         )
     finally:
@@ -118,18 +138,69 @@ def test_db_patch_profile_persists_current_user_profile() -> None:
 
     assert response.status_code == 200
     assert response.json() == {
-        "region": "부산",
         "preferredRegions": ["부산", "강원"],
         "style": "맛집",
         "budget": "1인 30만원 이하",
     }
-    assert user.region == "부산"
     assert user.preferred_regions == "부산,강원"
     assert user.travel_style == "맛집"
     assert user.travel_budget == "1인 30만원 이하"
     assert user.onboarding_completed is True
     assert fake_db.flushed is True
     assert fake_db.committed is True
+
+
+def test_db_patch_profile_rejects_removed_fields_with_422() -> None:
+    user = make_user()
+    fake_db = FakeDb()
+    removed_payloads = [
+        {"region": "부산"},
+        {"birthDate": "2000-01-01"},
+        {"gender": "female"},
+        {"residenceArea": "서울"},
+        {"phoneNumber": "01012345678"},
+        {"phoneVerified": True},
+    ]
+
+    app.dependency_overrides[profile_routes.get_current_user] = lambda: user
+    app.dependency_overrides[profile_routes.get_optional_db] = lambda: fake_db
+
+    try:
+        responses = [
+            client.patch(
+                "/api/me/profile",
+                json=payload,
+                headers={"Authorization": "Bearer access-token"},
+            )
+            for payload in removed_payloads
+        ]
+    finally:
+        clear_overrides()
+
+    assert [response.status_code for response in responses] == [422] * len(removed_payloads)
+    assert fake_db.committed is False
+
+
+def test_removed_contact_and_notification_routes_are_absent() -> None:
+    user = make_user()
+    fake_db = FakeDb()
+    app.dependency_overrides[profile_routes.get_current_user] = lambda: user
+    app.dependency_overrides[profile_routes.get_optional_db] = lambda: fake_db
+
+    try:
+        responses = [
+            client.get("/api/me/contact", headers={"Authorization": "Bearer access-token"}),
+            client.patch("/api/me/contact", json={}, headers={"Authorization": "Bearer access-token"}),
+            client.post("/api/me/contact/verification/request", json={}, headers={"Authorization": "Bearer access-token"}),
+            client.post("/api/me/contact/verification/confirm", json={"code": "123456"}, headers={"Authorization": "Bearer access-token"}),
+            client.get("/api/me/notification-settings", headers={"Authorization": "Bearer access-token"}),
+            client.patch("/api/me/notification-settings", json={"deadlineEnabled": False}, headers={"Authorization": "Bearer access-token"}),
+            client.post("/api/webhooks/solapi", json=[]),
+        ]
+    finally:
+        clear_overrides()
+
+    assert [response.status_code for response in responses] == [404] * len(responses)
 
 
 def test_db_patch_profile_clears_and_rejects_preferred_regions() -> None:
@@ -239,131 +310,3 @@ def test_db_patch_nickname_accepts_internal_spaces() -> None:
     assert user.nickname_setup_completed is True
     assert fake_db.committed is True
     assert fake_db.refreshed is user
-
-
-def test_db_contact_requires_bearer_token() -> None:
-    response = client.get("/api/me/contact")
-
-    assert response.status_code == 401
-    assert response.json() == {"detail": "Not authenticated"}
-
-
-def test_db_get_contact_returns_current_user_contact() -> None:
-    user = make_user()
-    user.phone_number = "01012345678"
-
-    app.dependency_overrides[profile_routes.get_current_user] = lambda: user
-
-    try:
-        response = client.get("/api/me/contact", headers={"Authorization": "Bearer access-token"})
-    finally:
-        clear_overrides()
-
-    assert response.status_code == 200
-    assert response.json() == {"phoneNumber": "01012345678", "phoneVerified": False}
-
-
-def test_db_patch_contact_persists_normalized_phone_number() -> None:
-    user = make_user()
-    fake_db = FakeDb()
-
-    app.dependency_overrides[profile_routes.get_current_user] = lambda: user
-    app.dependency_overrides[profile_routes.get_optional_db] = lambda: fake_db
-
-    try:
-        response = client.patch(
-            "/api/me/contact",
-            json={"phoneNumber": "010 1234 5678"},
-            headers={"Authorization": "Bearer access-token"},
-        )
-    finally:
-        clear_overrides()
-
-    assert response.status_code == 200
-    assert response.json() == {"phoneNumber": "01012345678", "phoneVerified": False}
-    assert user.phone_number == "01012345678"
-    assert user.phone_verified_at is None
-    assert fake_db.flushed is True
-    assert fake_db.committed is True
-
-
-def test_db_patch_contact_clears_empty_phone_number() -> None:
-    user = make_user()
-    user.phone_number = "01012345678"
-    fake_db = FakeDb()
-
-    app.dependency_overrides[profile_routes.get_current_user] = lambda: user
-    app.dependency_overrides[profile_routes.get_optional_db] = lambda: fake_db
-
-    try:
-        response = client.patch(
-            "/api/me/contact",
-            json={"phoneNumber": ""},
-            headers={"Authorization": "Bearer access-token"},
-        )
-    finally:
-        clear_overrides()
-
-    assert response.status_code == 200
-    assert response.json() == {"phoneNumber": None, "phoneVerified": False}
-    assert user.phone_number is None
-
-
-def test_db_post_contact_verification_request_returns_expiry(monkeypatch) -> None:
-    user = make_user()
-    fake_db = FakeDb()
-
-    def request_verification(_db, current_user, request):
-        assert current_user is user
-        assert request.phoneNumber == "010 1234 5678"
-        return {
-            "requested": True,
-            "expiresAt": "2026-05-21T10:05:00",
-            "resendAvailableAt": "2026-05-21T10:01:00",
-        }
-
-    monkeypatch.setattr(profile_routes.contact_service, "request_contact_verification", request_verification)
-    app.dependency_overrides[profile_routes.get_current_user] = lambda: user
-    app.dependency_overrides[profile_routes.get_optional_db] = lambda: fake_db
-
-    try:
-        response = client.post(
-            "/api/me/contact/verification/request",
-            json={"phoneNumber": "010 1234 5678"},
-            headers={"Authorization": "Bearer access-token"},
-        )
-    finally:
-        clear_overrides()
-
-    assert response.status_code == 200
-    assert response.json() == {
-        "requested": True,
-        "expiresAt": "2026-05-21T10:05:00",
-        "resendAvailableAt": "2026-05-21T10:01:00",
-    }
-
-
-def test_db_post_contact_verification_confirm_returns_contact(monkeypatch) -> None:
-    user = make_user()
-    fake_db = FakeDb()
-
-    def confirm_verification(_db, current_user, request):
-        assert current_user is user
-        assert request.code == "123456"
-        return {"phoneNumber": "01012345678", "phoneVerified": True}
-
-    monkeypatch.setattr(profile_routes.contact_service, "confirm_contact_verification", confirm_verification)
-    app.dependency_overrides[profile_routes.get_current_user] = lambda: user
-    app.dependency_overrides[profile_routes.get_optional_db] = lambda: fake_db
-
-    try:
-        response = client.post(
-            "/api/me/contact/verification/confirm",
-            json={"code": "123456"},
-            headers={"Authorization": "Bearer access-token"},
-        )
-    finally:
-        clear_overrides()
-
-    assert response.status_code == 200
-    assert response.json() == {"phoneNumber": "01012345678", "phoneVerified": True}

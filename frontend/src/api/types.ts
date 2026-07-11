@@ -1,13 +1,8 @@
-﻿export type User = {
+export type User = {
   id: string;
   nickname: string;
   email: string;
   role: "user" | "admin";
-  birthDate: string | null;
-  gender: string | null;
-  region: string | null;
-  homeRegion: string;
-  residenceArea: string | null;
   preferredRegions: string[] | null;
   persona: string;
   savedAmount: number;
@@ -25,7 +20,6 @@ export type SocialAccount = {
 };
 
 export type Profile = {
-  region: string | null;
   preferredRegions: string[] | null;
   style: string | null;
   budget: string | null;
@@ -34,22 +28,6 @@ export type Profile = {
 export type ProfileSkipResponse = {
   skipped: boolean;
   onboardingCompleted: boolean;
-};
-
-export type NotificationSettings = {
-  deadlineEnabled: boolean;
-  deadlineLeadDays: number[];
-};
-
-export type ContactInfo = {
-  phoneNumber: string | null;
-  phoneVerified: boolean;
-};
-
-export type ContactVerificationRequestResponse = {
-  requested: boolean;
-  expiresAt: string;
-  resendAvailableAt: string;
 };
 
 export type PolicyCategory = "교통" | "숙박" | "여행상품" | "지역할인" | "이벤트" | "기타";
@@ -148,8 +126,6 @@ export type AdminUserListItem = {
 };
 
 export type AdminUserDetail = AdminUserListItem & {
-  region: string | null;
-  residenceArea: string | null;
   preferredRegions: string | null;
   travelStyle: string | null;
   travelBudget: string | null;

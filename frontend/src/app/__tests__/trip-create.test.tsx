@@ -138,7 +138,7 @@ describe("Travel Hunter app — trip creation", () => {
       await user.click(
         within(styleDialog).getByRole("button", { name: "맛집" }),
       );
-      expect(screen.getByText("취향 · 휴식")).toBeInTheDocument();
+      expect(screen.getByText(/^취향 · /)).toBeInTheDocument();
       await user.click(
         within(styleDialog).getByRole("button", { name: "선택 완료" }),
       );
@@ -751,9 +751,6 @@ describe("Travel Hunter app — trip creation", () => {
   it("links normalized TravelMonth policy slugs when creating a trip", async () => {
     await login();
     cleanup();
-    renderAppRoute(
-      "/trips/new?policySlug=travelmonth-58&region=%EB%B6%80%EC%82%B0",
-    );
     const user = userEvent.setup();
     const createdTrip: Trip = {
       ...getPreviewTrip(),
@@ -780,6 +777,9 @@ describe("Travel Hunter app — trip creation", () => {
       .mockResolvedValue(createdTrip);
 
     try {
+      renderAppRoute(
+        "/trips/new?policySlug=travelmonth-58&region=%EB%B6%80%EC%82%B0",
+      );
       expect(
         screen.getByText("선택한 정책까지 일정에 연결할게요"),
       ).toBeInTheDocument();

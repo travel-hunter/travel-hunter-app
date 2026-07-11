@@ -259,7 +259,6 @@ describe("Travel Hunter app — home", () => {
 
   it("uses preferred-region recommendations only for the home AI trip cards", async () => {
     const getProfileSpy = vi.spyOn(appDataApi, "getProfile").mockResolvedValue({
-      region: "부산",
       preferredRegions: ["부산", "강원"],
       style: "맛집",
       budget: "40만원 이하",
@@ -318,9 +317,8 @@ describe("Travel Hunter app — home", () => {
     }
   });
 
-  it("uses the legacy region only for the fallback home AI trip card when preferred regions are unset", async () => {
+  it("uses a non-region fallback home AI trip card when preferred regions are unset", async () => {
     const getProfileSpy = vi.spyOn(appDataApi, "getProfile").mockResolvedValue({
-      region: "부산",
       preferredRegions: null,
       style: "맛집",
       budget: "40만원 이하",
@@ -334,14 +332,21 @@ describe("Travel Hunter app — home", () => {
       cleanup();
       renderAppRoute("/home");
 
-      await waitFor(() =>
-        expect(listRegionRecommendationsSpy).toHaveBeenCalledWith({
-          style: "맛집",
-          region: "부산",
-          limit: 1,
-        }),
-      );
       expect(screen.queryByLabelText("인기 국내 여행지 목록")).toBeNull();
+      await waitFor(() =>
+        expect(document.querySelector(".prototype-home-ai-card")).toBeTruthy(),
+      );
+      expect(listRegionRecommendationsSpy).not.toHaveBeenCalled();
+      expect(document.querySelector(".prototype-home-ai-card")).toHaveAttribute(
+        "href",
+        "/trips/new",
+      );
+      expect(document.querySelector(".prototype-home-ai-card")).toHaveTextContent(
+        "코스 만들기",
+      );
+      expect(document.querySelector(".prototype-home-ai-card")).not.toHaveTextContent(
+        "부산",
+      );
     } finally {
       getProfileSpy.mockRestore();
       listRegionRecommendationsSpy.mockRestore();
@@ -350,7 +355,6 @@ describe("Travel Hunter app — home", () => {
 
   it("prompts once per session when required profile preferences are unset", async () => {
     const getProfileSpy = vi.spyOn(appDataApi, "getProfile").mockResolvedValue({
-      region: null,
       preferredRegions: null,
       style: null,
       budget: null,
@@ -411,7 +415,6 @@ describe("Travel Hunter app — home", () => {
 
   it("dismisses the profile prompt modal with close and backdrop for the current session", async () => {
     const getProfileSpy = vi.spyOn(appDataApi, "getProfile").mockResolvedValue({
-      region: null,
       preferredRegions: null,
       style: null,
       budget: null,
@@ -462,7 +465,7 @@ describe("Travel Hunter app — home", () => {
     }
   });
 
-  it("uses a region recommendation CTA for the home AI trip card instead of an existing trip", async () => {
+  it("uses the generic fallback AI trip card instead of an existing trip when no preferred region is loaded", async () => {
     const existingTrip: Trip = {
       ...getPreviewTrip(),
       id: "300",
@@ -502,11 +505,8 @@ describe("Travel Hunter app — home", () => {
         ".prototype-home-ai-card",
       ) as HTMLAnchorElement | null;
       expect(aiCard).toBeTruthy();
-      expect(aiCard).toHaveAttribute(
-        "href",
-        "/trips/new?region=%EB%B6%80%EC%82%B0",
-      );
-      expect(aiCard).toHaveTextContent("부산");
+      expect(aiCard).toHaveAttribute("href", "/trips/new");
+      expect(aiCard).not.toHaveTextContent("부산");
       expect(aiCard).not.toHaveTextContent("경주 야호");
       expect(aiCard).not.toHaveTextContent("2026.05.18 - 05.20");
       expect(aiCard).not.toHaveTextContent("예상 절약 30만원");
@@ -518,7 +518,6 @@ describe("Travel Hunter app — home", () => {
 
   it("shows only the single preferred region in the home AI trip card even when recommendations rank another region first", async () => {
     const getProfileSpy = vi.spyOn(appDataApi, "getProfile").mockResolvedValue({
-      region: "부산",
       preferredRegions: ["부산"],
       style: "맛집",
       budget: "40만원 이하",
@@ -563,7 +562,6 @@ describe("Travel Hunter app — home", () => {
 
   it("renders preferred regions as a looping snap carousel in the home AI trip area", async () => {
     const getProfileSpy = vi.spyOn(appDataApi, "getProfile").mockResolvedValue({
-      region: "부산",
       preferredRegions: ["부산", "강원", "제주"],
       style: "자연",
       budget: "40만원 이하",

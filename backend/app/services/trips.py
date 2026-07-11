@@ -13,6 +13,8 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core import security
 from app.data import seed
+
+DEFAULT_TRIP_REGION = "제주"
 from app.models import ExternalSourceRecord, Policy, Trip, TripDay, TripInvite, TripPlace, User
 from app.repositories import external_sources as external_source_repository
 from app.repositories import policies as policy_repository
@@ -909,7 +911,7 @@ def create_trip(
     travel_area = get_travel_area(travel_area_id)
     if travel_area_id and travel_area is None:
         raise TripServiceError(400, "Travel area not found")
-    region = str(travel_area.name if travel_area else payload.get("region") or seed.PROFILE["region"])
+    region = str(travel_area.name if travel_area else payload.get("region") or DEFAULT_TRIP_REGION)
     start_date_value = payload.get("startDate")
     end_date_value = payload.get("endDate")
     if isinstance(start_date_value, date) and isinstance(end_date_value, date):

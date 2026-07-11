@@ -439,11 +439,6 @@ Account linking policy:
   "nickname": "여행자123",
   "email": "user@example.com",
   "role": "user",
-  "birthDate": null,
-  "gender": null,
-  "region": "서울",
-  "homeRegion": "서울",
-  "residenceArea": null,
   "preferredRegions": ["부산", "강원"],
   "persona": "탐험가",
   "savedAmount": 0,
@@ -464,15 +459,14 @@ Account linking policy:
 **Response 200**
 ```json
 {
-  "region": null,
   "preferredRegions": ["부산", "강원"],
   "style": "휴식",
   "budget": "1인 40만원 이하"
 }
 ```
 
-- `region`은 기존 호환용 대표 지역 필드이며, `preferredRegions`의 첫 번째 값으로 자동 파생하지 않는다.
 - `preferredRegions`는 17개 광역시도 중 최대 3개를 담는다. 미설정 상태는 `null`이며 UI의 `미정` 표시는 저장/전송하지 않는다.
+- 요청 body에 정의되지 않은 프로필 필드를 보내면 422를 반환한다.
 
 ---
 
@@ -541,110 +535,11 @@ Account linking policy:
 
 ---
 
-### GET /me/contact
+### Removed contact and notification settings API
 
-연락처(전화번호) 조회.
+사용자 연락처 저장, OTP 인증, 사용자별 마감 알림 설정 API는 이번 pass에서 제거됐다. 해당 route는 더 이상 API contract에 포함되지 않으며 legacy client 요청은 등록된 route 부재로 실패한다.
 
-**Response 200**
-```json
-{
-  "phoneNumber": "010-1234-5678",
-  "phoneVerified": false
-}
-```
-
----
-
-### PATCH /me/contact
-
-전화번호 저장.
-
-**Request**
-```json
-{ "phoneNumber": "010-1234-5678" }
-```
-
-- `phoneNumber`: optional, 최대 30자, `[0-9\-+() ]{7,}` 형식
-
-**Response 200** → `ContactInfo`
-
----
-
-### POST /me/contact/verification/request
-
-알림 연락처 전화번호 인증번호를 요청한다. provider boundary는 `PHONE_VERIFICATION_PROVIDER=dev`를 기본으로 사용하며, `solapi`로 설정하면 SOLAPI SMS provider가 같은 요청 경로에서 인증번호를 발송한다.
-
-**Request**
-```json
-{ "phoneNumber": "010-1234-5678" }
-```
-
-- `phoneNumber`: optional. 값이 있으면 공백 제거 후 `users.phone_number`에 저장하고 번호 변경 시 `users.phone_verified_at`을 초기화한다.
-- 값이 없으면 기존 저장 연락처로 인증번호를 발급한다.
-
-**Response 200**
-```json
-{
-  "requested": true,
-  "expiresAt": "2026-05-21T10:05:00",
-  "resendAvailableAt": "2026-05-21T10:01:00"
-}
-```
-
-**Errors**
-- 400: 저장 또는 요청된 전화번호 없음
-- 429: 기존 미인증 OTP 발급 후 60초 이내 재요청
-
----
-
-### POST /me/contact/verification/confirm
-
-알림 연락처 인증번호를 확인하고 성공 시 `users.phone_verified_at`을 갱신한다.
-
-**Request**
-```json
-{ "code": "123456" }
-```
-
-- `code`: 숫자 4~8자
-
-**Response 200** ??`ContactInfo`
-```json
-{
-  "phoneNumber": "01012345678",
-  "phoneVerified": true
-}
-```
-
-**Errors**
-- 400: 인증번호 없음, 만료, 불일치, 시도 횟수 초과
-
----
-
-### GET /me/notification-settings
-
-마감 알림 설정 조회.
-
-**Response 200**
-```json
-{
-  "deadlineEnabled": false,
-  "deadlineLeadDays": [7, 1]
-}
-```
-
----
-
-### PATCH /me/notification-settings
-
-마감 알림 설정 변경.
-
-**Request**
-```json
-{ "deadlineEnabled": true }
-```
-
-**Response 200** → `NotificationSettings`
+`notification_deliveries` 테이블은 과거 발송 이력/운영 기록을 보존하기 위한 inert history로만 남는다. 알림 scheduler, dispatch, retry, webhook runtime은 비활성화/제거됐고 이 pass 이후 새 발송 row를 생성하지 않는다.
 
 ---
 
@@ -738,7 +633,7 @@ Account linking policy:
 | 이름 | 타입 | 설명 |
 |------|------|------|
 | style | string, optional | `휴식`, `맛집`, `체험`, `자연`, `사진` 같은 장소 취향. 점수 보정에만 사용하며 정책 점수 우선순위를 뒤집지 않는다. |
-| region | string, optional | 기존 호환용 단일 관심 지역. `preferredRegions`가 없을 때만 마지막 tie-breaker로 사용한다. |
+| region | string, optional | 요청자가 명시한 단일 목적지/관심 지역 tie-breaker. `preferredRegions`가 있으면 그 값이 우선한다. |
 | preferredRegions | string[], optional | 반복 query param(`?preferredRegions=부산&preferredRegions=강원`)으로 전달하는 관심 지역 최대 3개. 제공되면 legacy `region`보다 우선하며 선택 지역별 추천 다양성을 보장한다. |
 | limit | number, optional | 반환 개수. 기본 3, 1~10. |
 
@@ -1325,35 +1220,9 @@ AI 추천 장소 목록 조회.
 
 ---
 
-## 알림 웹훅 (`/api/webhooks`)
+## 알림 runtime removed
 
-### POST /webhooks/solapi
-
-SOLAPI 발송 결과 webhook 수신. `X-Solapi-Secret` 헤더로 검증.
-
-**Request**: SOLAPI webhook event 배열
-```json
-[
-  {
-    "messageId": "...",
-    "statusCode": "2000",
-    "statusMessage": "success"
-  }
-]
-```
-
-**Response 200**
-```json
-{
-  "received": 1,
-  "updated": 1,
-  "ignored": 0,
-  "failed": 0
-}
-```
-
-**Errors**
-- 401: webhook secret 불일치
+알림 발송 runtime과 SOLAPI webhook route는 이번 pass에서 제거됐다. `notification_deliveries`는 과거 이력 확인용 inert history로만 유지하며, public/user API에는 연락처·OTP·알림 설정 route가 없다.
 
 ---
 
@@ -1366,11 +1235,7 @@ SOLAPI 발송 결과 webhook 수신. `X-Solapi-Secret` 헤더로 검증.
 | id | string (UUID) | 사용자 ID |
 | nickname | string | 닉네임 |
 | email | string | 이메일 |
-| birthDate | string \| null | 생년월일 |
-| gender | string \| null | 성별 |
-| region | string \| null | 주요 여행 지역 |
-| homeRegion | string | 거주 지역 |
-| residenceArea | string \| null | 세부 거주 지역 |
+| role | string | 사용자 권한 (`user` 또는 `admin`) |
 | preferredRegions | string[] \| null | 관심 지역 최대 3개. 미설정은 `null` |
 | persona | string | 여행 유형 |
 | savedAmount | number | 예상 절약 금액 |

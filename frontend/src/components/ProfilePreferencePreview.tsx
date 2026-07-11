@@ -8,9 +8,9 @@ export function ProfilePreferencePreview({
 }: {
   className?: string;
   cta?: string;
-  profile: Pick<Profile, "region" | "preferredRegions" | "style" | "budget">;
+  profile: Pick<Profile, "preferredRegions" | "style" | "budget">;
 }) {
-  const regions = formatPreferredRegions(profile.preferredRegions, profile.region);
+  const regions = formatPreferredRegions(profile.preferredRegions);
   const style = formatProfilePreference(profile.style, "스타일 미정");
   const budget = formatProfilePreference(profile.budget, "예산 미정");
 

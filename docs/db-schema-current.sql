@@ -112,7 +112,6 @@ CREATE TABLE public.external_source_records (
     title character varying(300) NOT NULL,
     organizer_text character varying(300) NOT NULL,
     organizers jsonb NOT NULL,
-    region character varying(50),
     city character varying(80),
     is_nationwide boolean DEFAULT false NOT NULL,
     status_text character varying(50),
@@ -307,42 +306,6 @@ CREATE SEQUENCE public.pending_social_signups_id_seq
 --
 
 ALTER SEQUENCE public.pending_social_signups_id_seq OWNED BY public.pending_social_signups.id;
-
-
---
--- Name: phone_verification_codes; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.phone_verification_codes (
-    id bigint NOT NULL,
-    user_id bigint NOT NULL,
-    phone_number character varying(30) NOT NULL,
-    code_hash character varying(255) NOT NULL,
-    expires_at timestamp without time zone NOT NULL,
-    attempt_count integer DEFAULT 0 NOT NULL,
-    verified_at timestamp without time zone,
-    created_at timestamp without time zone DEFAULT now() NOT NULL
-);
-
-
---
--- Name: phone_verification_codes_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.phone_verification_codes_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: phone_verification_codes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.phone_verification_codes_id_seq OWNED BY public.phone_verification_codes.id;
-
 
 --
 -- Name: policies; Type: TABLE; Schema: public; Owner: -
@@ -709,39 +672,6 @@ CREATE SEQUENCE public.trips_id_seq
 
 ALTER SEQUENCE public.trips_id_seq OWNED BY public.trips.id;
 
-
---
--- Name: user_notification_settings; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.user_notification_settings (
-    id bigint NOT NULL,
-    user_id bigint NOT NULL,
-    deadline_enabled boolean DEFAULT true NOT NULL,
-    created_at timestamp without time zone DEFAULT now() NOT NULL,
-    updated_at timestamp without time zone DEFAULT now() NOT NULL
-);
-
-
---
--- Name: user_notification_settings_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.user_notification_settings_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: user_notification_settings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.user_notification_settings_id_seq OWNED BY public.user_notification_settings.id;
-
-
 --
 -- Name: user_saved_policies; Type: TABLE; Schema: public; Owner: -
 --
@@ -782,18 +712,12 @@ CREATE TABLE public.users (
     email character varying(255) NOT NULL,
     password_hash character varying(255),
     nickname character varying(50) NOT NULL,
-    birth_date date,
-    gender character varying(10),
-    region character varying(50),
     preferred_regions character varying(255),
-    residence_area character varying(50),
     onboarding_completed boolean DEFAULT false NOT NULL,
     created_at timestamp without time zone DEFAULT now() NOT NULL,
     updated_at timestamp without time zone DEFAULT now() NOT NULL,
     travel_style character varying(50),
     travel_budget character varying(50),
-    phone_number character varying(30),
-    phone_verified_at timestamp without time zone,
     role character varying(20) DEFAULT 'user'::character varying NOT NULL,
     nickname_setup_completed boolean DEFAULT true NOT NULL,
     profile_setup_skipped boolean DEFAULT false NOT NULL,
@@ -867,14 +791,6 @@ ALTER TABLE ONLY public.pending_signups ALTER COLUMN id SET DEFAULT nextval('pub
 
 ALTER TABLE ONLY public.pending_social_signups ALTER COLUMN id SET DEFAULT nextval('public.pending_social_signups_id_seq'::regclass);
 
-
---
--- Name: phone_verification_codes id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.phone_verification_codes ALTER COLUMN id SET DEFAULT nextval('public.phone_verification_codes_id_seq'::regclass);
-
-
 --
 -- Name: policies id; Type: DEFAULT; Schema: public; Owner: -
 --
@@ -943,14 +859,6 @@ ALTER TABLE ONLY public.trip_policies ALTER COLUMN id SET DEFAULT nextval('publi
 --
 
 ALTER TABLE ONLY public.trips ALTER COLUMN id SET DEFAULT nextval('public.trips_id_seq'::regclass);
-
-
---
--- Name: user_notification_settings id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_notification_settings ALTER COLUMN id SET DEFAULT nextval('public.user_notification_settings_id_seq'::regclass);
-
 
 --
 -- Name: user_saved_policies id; Type: DEFAULT; Schema: public; Owner: -
@@ -1084,15 +992,6 @@ ALTER TABLE ONLY public.pending_social_signups
 
 ALTER TABLE ONLY public.pending_social_signups
     ADD CONSTRAINT pending_social_signups_token_hash_key UNIQUE (token_hash);
-
-
---
--- Name: phone_verification_codes phone_verification_codes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.phone_verification_codes
-    ADD CONSTRAINT phone_verification_codes_pkey PRIMARY KEY (id);
-
 
 --
 -- Name: policies policies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
@@ -1228,23 +1127,6 @@ ALTER TABLE ONLY public.trip_policies
 
 ALTER TABLE ONLY public.trips
     ADD CONSTRAINT trips_pkey PRIMARY KEY (id);
-
-
---
--- Name: user_notification_settings user_notification_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_notification_settings
-    ADD CONSTRAINT user_notification_settings_pkey PRIMARY KEY (id);
-
-
---
--- Name: user_notification_settings user_notification_settings_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_notification_settings
-    ADD CONSTRAINT user_notification_settings_user_id_key UNIQUE (user_id);
-
 
 --
 -- Name: user_saved_policies user_saved_policies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
@@ -1431,28 +1313,6 @@ CREATE INDEX ix_pending_signups_token_hash ON public.pending_signups USING btree
 
 CREATE INDEX ix_pending_social_signups_token_hash ON public.pending_social_signups USING btree (token_hash);
 
-
---
--- Name: ix_phone_verification_codes_expires_at; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX ix_phone_verification_codes_expires_at ON public.phone_verification_codes USING btree (expires_at);
-
-
---
--- Name: ix_phone_verification_codes_phone_number; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX ix_phone_verification_codes_phone_number ON public.phone_verification_codes USING btree (phone_number);
-
-
---
--- Name: ix_phone_verification_codes_user_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX ix_phone_verification_codes_user_id ON public.phone_verification_codes USING btree (user_id);
-
-
 --
 -- Name: ix_policies_external_source_record_id; Type: INDEX; Schema: public; Owner: -
 --
@@ -1563,15 +1423,6 @@ ALTER TABLE ONLY public.notification_deliveries
 ALTER TABLE ONLY public.password_reset_tokens
     ADD CONSTRAINT password_reset_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
-
---
--- Name: phone_verification_codes phone_verification_codes_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.phone_verification_codes
-    ADD CONSTRAINT phone_verification_codes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
 --
 -- Name: policy_documents policy_documents_policy_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
@@ -1674,15 +1525,6 @@ ALTER TABLE ONLY public.trip_policies
 
 ALTER TABLE ONLY public.trips
     ADD CONSTRAINT trips_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES public.users(id);
-
-
---
--- Name: user_notification_settings user_notification_settings_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.user_notification_settings
-    ADD CONSTRAINT user_notification_settings_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
 
 --
 -- Name: user_saved_policies user_saved_policies_policy_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -

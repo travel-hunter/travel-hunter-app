@@ -12,7 +12,7 @@ Local functional completion specs are listed here. Work that requires a purchase
 
 | Document | Status | Role |
 | --- | --- | --- |
-| [local-ux-auth-account.md](local-ux-auth-account.md) | active | Local auth, account recovery, OAuth, and contact verification UX completion spec. |
+| [local-ux-auth-account.md](local-ux-auth-account.md) | active | Local auth, account recovery, and OAuth UX completion spec. |
 | [local-ux-policy-trip-linking.md](local-ux-policy-trip-linking.md) | active | Local policy discovery, saved policy, official link, and trip linking UX completion spec. |
 | [local-ux-place-discovery.md](local-ux-place-discovery.md) | active | Local place detail, map/search, recommendation candidate, and fallback quality UX completion spec. |
 | [invite-trip-edit-workflow.md](invite-trip-edit-workflow.md) | active | Concrete friend-invite, invite acceptance, trip-detail edit permission, and future email-invite workflow spec. |
