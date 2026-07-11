@@ -2,9 +2,9 @@
 
 ## Current Status
 
-- Active task: user contact/OTP/notification settings pruning is implemented across backend, frontend, schema references, docs, evals, and tests.
-- Git state: local implementation commit `8d0c831` was pushed through PR branch `chore/prune-contact-notification-surfaces`; direct `develop` push is blocked by repository rules, so PR #99 targets `develop`.
-- Deployment prep: development-server handoff checklist was added at `docs/deployment-cicd/user-contact-notification-prune-dev-deploy-checklist.md`.
+- Active task: PR #99 user contact/OTP/notification settings pruning has been merged to `develop` and reflected on the development server.
+- Git state: local `develop` and `origin/develop` are at merge commit `da425d5` (`Merge pull request #99 from travel-hunter/chore/prune-contact-notification-surfaces`).
+- Development server: `/home/deploy/travelhunterapp` is on `develop` at `da425d5`; Docker images were rebuilt and the stack was restarted after Alembic migration.
 - Next design prep: policy collection raw artifact externalization starter spec was added at `docs/specs/policy-source-artifact-externalization.md`.
 - Removed surface: contact storage, phone verification, notification settings UI/API, SOLAPI webhook/runtime, and obsolete user profile/contact fields are removed from active runtime paths.
 - Preserved surface: `preferredRegions` remains the canonical user regional preference; policy/trip/external-source `region` fields remain valid.
@@ -21,13 +21,17 @@
 - Review gates: code review found no HIGH/MEDIUM blockers and 2 LOW doc drifts were corrected; architecture review is WATCH only for the intentional inert notification history shim.
 - Local Docker smoke: `docker compose -f compose.yaml config`, `docker compose -f compose.yaml build`, `docker compose -f compose.yaml up -d db backend frontend`, `docker compose -f compose.yaml run --rm backend alembic upgrade head`, backend `/api/health`, frontend `/`, `alembic_version=0025_prune_contact_notify`, `users.preferred_regions` present, removed `users` columns absent, and removed tables `phone_verification_codes`/`user_notification_settings` absent all passed.
 - CI repair: after PR #99 first CI run, `Frontend DB-backed fast lane` failed once in `trip-create.test.tsx` because the direct policy-region create test could click before the async preselected travel area finished enabling submit; the test now waits for the create button to be enabled. `cd frontend && npm test -- src/app/__tests__/trip-create.test.tsx` and `cd frontend && npm test` both passed after the fix.
+- PR #99 GitHub gate: checks were green (`Frontend DB-backed fast lane`, `Backend fast lane`, CodeRabbit), review state had no requested changes, and PR #99 was merged with remote branch deletion.
+- Development-server deploy: before destructive migration, DB backup was written on the server to `/home/deploy/travelhunter-db-backups/pre-pr99-contact-notification-prune-20260711T153508Z.dump`; server fast-forwarded to `da425d5`; `docker compose --env-file deploy/.env.prod -f compose.tunnel.yaml config` and `build` passed without printing secrets.
+- Development-server migration/stack: `alembic upgrade head` applied `0024_local_kst_time_shift` then `0025_prune_contact_notify`; `docker compose --env-file deploy/.env.prod -f compose.tunnel.yaml up -d` left backend/db healthy and frontend running.
+- Development-server smoke: `alembic_version=0025_prune_contact_notify`; `users.preferred_regions` present; removed `users` columns absent; `phone_verification_codes` and `user_notification_settings` absent; `/api/health` returned database connected; `/login`, `/policies`, `/policies/travelmonth-23`, `/trips`, and `/mypage` returned HTTP 200; backend log tail showed startup and health 200 only.
 
 ## Remaining Risks
 
 - Downgrade is structural only and cannot restore dropped user/contact data after migration.
 - Historical Alembic migrations, OMX logs/plans, and test fixtures still mention removed identifiers by design; active runtime source/current docs/eval references were checked separately.
 - `notification_deliveries` table remains for inert history; future notification work must introduce a new explicit contract before re-enabling runtime delivery.
-- Development-server application still requires PR #99 merge, protected-branch CI/review gates, and destructive-migration backup/smoke execution.
+- Development-server auth-only browser smoke remains manual unless an approved test account is used; public route/API and DB structure smoke passed.
 - Policy collection raw artifact externalization is design-only; no runtime artifact store has been introduced yet.
 
 ## Cleanup Policy
