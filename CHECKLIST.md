@@ -25,13 +25,14 @@
 - Development-server deploy: before destructive migration, DB backup was written on the server to `/home/deploy/travelhunter-db-backups/pre-pr99-contact-notification-prune-20260711T153508Z.dump`; server fast-forwarded to `da425d5`; `docker compose --env-file deploy/.env.prod -f compose.tunnel.yaml config` and `build` passed without printing secrets.
 - Development-server migration/stack: `alembic upgrade head` applied `0024_local_kst_time_shift` then `0025_prune_contact_notify`; `docker compose --env-file deploy/.env.prod -f compose.tunnel.yaml up -d` left backend/db healthy and frontend running.
 - Development-server smoke: `alembic_version=0025_prune_contact_notify`; `users.preferred_regions` present; removed `users` columns absent; `phone_verification_codes` and `user_notification_settings` absent; `/api/health` returned database connected; `/login`, `/policies`, `/policies/travelmonth-23`, `/trips`, and `/mypage` returned HTTP 200; backend log tail showed startup and health 200 only.
+- Authenticated development-server browser smoke: Playwright Chromium login with the seeded dev account passed; `/api/me` worked in the browser session; `/mypage` hid removed phone/OTP/notification UI; profile save sent only canonical profile keys (`budget`, `preferredRegions`, `style`) and was restored; `/policies`, Gangjin policy detail separated condition/document/notice cards, policy save toggle restore, `/trips`, trip detail, friend invite viewer link preparation, and `/mypage` refresh all passed. Browser page errors were zero; only SPA/navigation and third-party aborted requests were ignored.
 
 ## Remaining Risks
 
 - Downgrade is structural only and cannot restore dropped user/contact data after migration.
 - Historical Alembic migrations, OMX logs/plans, and test fixtures still mention removed identifiers by design; active runtime source/current docs/eval references were checked separately.
 - `notification_deliveries` table remains for inert history; future notification work must introduce a new explicit contract before re-enabling runtime delivery.
-- Development-server auth-only browser smoke remains manual unless an approved test account is used; public route/API and DB structure smoke passed.
+- Authenticated development-server browser smoke passed with the seeded dev account; OAuth provider smoke and real email delivery smoke remain outside this PR #99 contact/notification prune check.
 - Policy collection raw artifact externalization is design-only; no runtime artifact store has been introduced yet.
 
 ## Cleanup Policy
