@@ -8,8 +8,20 @@ from sqlalchemy import BigInteger, Integer, create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.db.base import Base
-from app.models import ExternalSourceRecord, Policy, Recommendation, Trip, TripDay, TripInvite, TripMember, TripPlace, TripPolicy
+from app.models import (
+    ExternalSourceRecord,
+    Policy,
+    Recommendation,
+    Trip,
+    TripDay,
+    TripInvite,
+    TripMember,
+    TripPlace,
+    TripPolicy,
+    UserSavedPolicy,
+)
 from app.models import User as UserModel
+from app.repositories import policies as policy_repository
 from app.schemas.trip import (
     CreateTripPlaceRequest,
     CreateTripRequest,
@@ -637,6 +649,107 @@ def sqlite_db_session():
             column.type = original_type
 
 
+def add_visibility_policy_rows(sqlite_db_session):
+    user = make_user(60, "Visibility User")
+    active_policy = Policy(
+        id=610,
+        slug="active-policy",
+        title="Active policy",
+        benefit_detail="1만원 할인",
+        region="전국",
+        status="active",
+    )
+    hidden_policy = Policy(
+        id=611,
+        slug="hidden-policy",
+        title="Hidden policy",
+        benefit_detail="2만원 할인",
+        region="전국",
+        status="hidden",
+    )
+    trip = Trip(
+        id=612,
+        owner_id=user.id,
+        title="Visibility trip",
+        start_date=date(2026, 7, 1),
+        end_date=date(2026, 7, 2),
+        region="전국",
+        status="draft",
+    )
+    sqlite_db_session.add_all(
+        [
+            user,
+            active_policy,
+            hidden_policy,
+            trip,
+            UserSavedPolicy(user_id=user.id, policy_id=active_policy.id),
+            UserSavedPolicy(user_id=user.id, policy_id=hidden_policy.id),
+            TripPolicy(trip_id=trip.id, policy_id=active_policy.id),
+            TripPolicy(trip_id=trip.id, policy_id=hidden_policy.id),
+        ]
+    )
+    sqlite_db_session.commit()
+    return user
+
+
+def test_policy_repository_list_excludes_hidden_rows(sqlite_db_session) -> None:
+    add_visibility_policy_rows(sqlite_db_session)
+
+    assert [policy.slug for policy in policy_repository.list_policies(sqlite_db_session)] == ["active-policy"]
+    assert policy_repository.get_policy_by_slug(sqlite_db_session, "hidden-policy") is None
+    assert policy_repository.get_policy_by_slug_any_status(sqlite_db_session, "hidden-policy").slug == "hidden-policy"
+
+
+def test_policy_repository_saved_list_excludes_hidden_rows(sqlite_db_session) -> None:
+    user = add_visibility_policy_rows(sqlite_db_session)
+
+    assert [policy.slug for policy in policy_repository.list_saved_policies(sqlite_db_session, user_id=user.id)] == [
+        "active-policy"
+    ]
+
+
+def test_policy_repository_applied_lists_exclude_hidden_rows(sqlite_db_session) -> None:
+    user = add_visibility_policy_rows(sqlite_db_session)
+
+    assert [policy.slug for policy in policy_repository.list_applied_policies(sqlite_db_session, user_id=user.id)] == [
+        "active-policy"
+    ]
+    assert [
+        link.policy.slug
+        for link in policy_repository.list_applied_policy_links(sqlite_db_session, user_id=user.id)
+    ] == ["active-policy"]
+
+
+def test_add_policy_to_trip_rejects_hidden_policy_slug_in_db_path(sqlite_db_session) -> None:
+    user = make_user(70, "Hidden Slug User")
+    hidden_policy = Policy(
+        id=710,
+        slug="hidden-policy",
+        title="Hidden policy",
+        benefit_detail="2만원 할인",
+        region="전국",
+        status="hidden",
+    )
+    trip = Trip(
+        id=711,
+        owner_id=user.id,
+        title="Hidden slug trip",
+        start_date=date(2026, 7, 1),
+        end_date=date(2026, 7, 2),
+        region="전국",
+        status="draft",
+    )
+    sqlite_db_session.add_all([user, hidden_policy, trip])
+    sqlite_db_session.commit()
+
+    with pytest.raises(trip_service.TripServiceError) as error:
+        trip_service.add_policy_to_trip(sqlite_db_session, user, str(trip.id), "hidden-policy")
+
+    assert error.value.status_code == 404
+    assert error.value.detail == "Policy not found"
+    assert sqlite_db_session.query(TripPolicy).count() == 0
+
+
 def test_delete_trip_deletes_owned_numeric_trip_and_detaches_recommendations(monkeypatch) -> None:
     fake_db = FakeDb()
     user = make_user()
@@ -856,6 +969,42 @@ def test_add_policy_to_trip_resolves_stay_discount_alias_to_canonical(monkeypatc
     assert result == {"tripId": "7", "policyId": "stay-discount-gangwon-goseong", "added": True}
     assert added_links == [{"trip_id": 7, "policy_id": 88}]
     assert fake_db.commits == 1
+
+
+def test_add_policy_to_trip_rejects_hidden_stay_discount_alias(monkeypatch) -> None:
+    fake_db = FakeDb()
+    user = make_user()
+    trip = make_trip()
+    hidden_stay_policy = make_stay_policy()
+    hidden_stay_policy.status = "hidden"
+    stay_record = make_stay_record()
+    added_links: list[dict[str, int]] = []
+
+    monkeypatch.setattr(trip_service.trip_repository, "get_accessible_trip_by_id", lambda *_args, **_kwargs: trip)
+    monkeypatch.setattr(
+        trip_service.policy_repository,
+        "list_policies",
+        lambda db: [hidden_stay_policy] if db is fake_db else [],
+    )
+    monkeypatch.setattr(
+        trip_service.external_source_repository,
+        "get_external_source_record_by_id",
+        lambda db, record_id: stay_record if db is fake_db and record_id == 88 else None,
+    )
+    monkeypatch.setattr(trip_service.policy_repository, "get_policy_by_slug", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        trip_service.trip_repository,
+        "add_trip_policy",
+        lambda _db, **kwargs: added_links.append(kwargs),
+    )
+
+    with pytest.raises(trip_service.TripServiceError) as error:
+        trip_service.add_policy_to_trip(fake_db, user, "7", "stay-discount-gangwon-goseong")
+
+    assert error.value.status_code == 404
+    assert error.value.detail == "Policy not found"
+    assert added_links == []
+    assert fake_db.commits == 0
 
 
 def test_remove_policy_from_trip_resolves_stay_discount_alias_to_canonical(monkeypatch) -> None:

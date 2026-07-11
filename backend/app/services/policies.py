@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from typing import Literal
 from sqlalchemy.orm import Session
 
 from app.data.policy_display import DISPLAY_OVERRIDES, SUPPORTED_CATEGORIES
@@ -12,7 +11,16 @@ from app.repositories import policies as policy_repository
 from app.services.policy_category_classifier import classify_external_policy_category
 from app.services import stay_discount_aliases
 from app.services import local_half_trip_display
-from app.services.policy_requirements import split_requirement_lines, sanitize_requirement_items
+from app.services.policy_semantics import (
+    api_policy_source_type,
+    api_policy_source_type_for_policy,
+    benefit_display_amount_for_policy,
+    format_benefit_amount,
+    is_public_policy,
+    policy_url_fields,
+    policy_url_fields_for_policy,
+    requirement_items_for_policy,
+)
 from app.services.policy_structured_detail import structured_detail_for_api
 
 
@@ -21,18 +29,6 @@ LEGACY_CATEGORY_MAP = {
     "환급": "지역할인",
     "캐시백": "지역할인",
 }
-
-
-API_POLICY_SOURCE_TYPES = {"internal", "external"}
-
-
-def _normalize_policy_source_type(policy: PolicyModel) -> Literal["internal", "external"]:
-    if policy.external_source_record_id is not None:
-        return "external"
-    source_type = (policy.source_type or "internal").lower()
-    if source_type in API_POLICY_SOURCE_TYPES:
-        return source_type
-    return "external"
 
 
 def _normalize_policy_category(policy_type: str | None) -> str:
@@ -45,21 +41,13 @@ def _external_policy_category(record: ExternalSourceRecord) -> str:
     return classify_external_policy_category(record).category
 
 
-def _format_benefit_amount(value: int | None) -> str | None:
-    if value is None:
-        return None
-    if value >= 10000 and value % 10000 == 0:
-        return f"최대 {value // 10000}만원"
-    return f"최대 {value:,}원"
-
-
 def policy_to_api(policy: PolicyModel) -> dict[str, object]:
     slug = policy.slug or str(policy.id)
     display = DISPLAY_OVERRIDES.get(slug, {})
-    benefit_prefix = _format_benefit_amount(policy.benefit_amount)
-    amount = policy.benefit_detail or benefit_prefix or ""
+    benefit_prefix = format_benefit_amount(policy.benefit_amount)
+    amount = benefit_display_amount_for_policy(policy)
     category = _normalize_policy_category(policy.policy_type)
-    source_type = _normalize_policy_source_type(policy)
+    source_type = api_policy_source_type_for_policy(policy)
 
     title = local_half_trip_display.policy_title(
         policy.title,
@@ -79,11 +67,10 @@ def policy_to_api(policy: PolicyModel) -> dict[str, object]:
         "summary": policy.policy_comment or policy.description or "",
         "match": int(display.get("match", 90)),
         "category": category,
-        "requirements": sanitize_requirement_items(split_requirement_lines(policy.target_condition)),
+        "requirements": requirement_items_for_policy(policy),
         "documents": [document.document_name for document in policy.documents],
         "structuredDetail": structured_detail_for_api(policy),
-        "officialUrl": policy.official_url,
-        "applyUrl": policy.apply_url,
+        **policy_url_fields_for_policy(policy),
         "sourceType": source_type,
     }
     if stay_discount_aliases.is_stay_discount_canonical_policy(policy):
@@ -172,9 +159,14 @@ def external_source_record_to_policy_api(
         "category": category,
         "requirements": ["공식 안내에서 신청 조건을 확인하세요."],
         "documents": ["혜택 안내 확인"],
-        "officialUrl": record.detail_url or record.collected_page_url,
-        "applyUrl": None,
-        "sourceType": "external",
+        **policy_url_fields(
+            apply_url=None,
+            official_url=record.detail_url or record.collected_page_url,
+        ),
+        "sourceType": api_policy_source_type(
+            source_type="external",
+            external_source_record_id=record.id,
+        ),
         "actionStatus": "infoOnly",
     }
     if record.source_category == stay_discount_aliases.SOURCE_CATEGORY:
@@ -206,29 +198,25 @@ def get_policy(policy_slug: str, db: Session | None = None) -> dict[str, object]
     alias_resolution = stay_discount_aliases.resolve_stay_discount_alias_slug(db, policy_slug)
     if alias_resolution is not None:
         policy = alias_resolution.canonical_policy
-        if (getattr(policy, "status", "active") or "active") != "active":
+        if not is_public_policy(policy):
             return None
         if alias_resolution.alias_area is None:
             return policy_to_api(policy)
         return _policy_detail_with_alias(policy, alias_resolution.alias_area)
 
-    try:
-        policy = policy_repository.get_policy_by_slug_any_status(db, policy_slug)
-    except AttributeError:
-        policy = policy_repository.get_policy_by_slug(db, policy_slug)
+    policy = policy_repository.get_policy_by_slug_any_status(db, policy_slug)
     if policy is not None:
-        if (getattr(policy, "status", "active") or "active") != "active":
+        if not is_public_policy(policy):
             return None
         return policy_to_api(policy)
 
-    if policy is None:
-        external_record = external_source_repository.get_external_source_record_by_policy_slug(
-            db,
-            policy_slug,
-        )
-        if external_record is None:
-            return None
-        return external_source_record_to_policy_api(external_record)
+    external_record = external_source_repository.get_external_source_record_by_policy_slug(
+        db,
+        policy_slug,
+    )
+    if external_record is None:
+        return None
+    return external_source_record_to_policy_api(external_record)
 
 
 def save_policy(

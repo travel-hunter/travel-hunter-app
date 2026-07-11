@@ -139,6 +139,8 @@ Migration metadata:
 
 `policies`는 사용자에게 노출되는 공식 혜택의 정규화 테이블이다. TravelMonth 등 외부 공식 수집 레코드는 원문 근거를 `external_source_records`에 보존한 뒤 active/fresh 항목을 `policies`로 승격한다. 승격된 정책은 저장, 일정 연결, 추천 카드, 상세 페이지에서 일반 정책과 같은 경로를 사용한다.
 
+2026-07 first-pass cleanup은 schema 변경이 아니다. `benefit_amount`/`benefit_detail`, `target_condition`, `apply_url`/`official_url`, `source_type`, `source_canonical_key`, `status`의 의미를 helper와 문서로 정리했지만, `policies` 컬럼 drop/rename과 public `Policy` DTO 변경은 하지 않았다.
+
 정책 상세 화면용 구조화 컬럼:
 
 - `structured_detail`: `benefits`, `conditions`, `periods`, `links`, `documents`, `notices` 섹션을 담는 JSONB 정리본이다. raw 수집 JSON이 아니라 사용자 화면에서 바로 섹션 렌더링하기 위한 보조/장기 기준 데이터이며, 섹션이 없거나 비어 있으면 해당 섹션만 기존 `summary`/`requirements` fallback을 사용한다. public 링크는 `http://`/`https://`만 노출한다.
@@ -156,6 +158,17 @@ Migration metadata:
 - `verification_status`
 
 `external_source_record_id`는 `external_source_records.id`를 참조하며, 원문 레코드 삭제 시 정책 row는 유지하고 참조만 `NULL`로 만든다.
+
+API `sourceType`은 `source_type` 원문값을 그대로 노출하지 않고 `internal` 또는 `external`로 정규화한다. `external_source_record_id`가 있으면 `external`, source 정보가 비어 있으면 `internal`, 지원하지 않는 비어 있지 않은 source type은 `external`로 본다. `source_name`, `source_category`, `source_canonical_key`는 중복 판단과 운영 진단 metadata로 유지한다.
+
+정책 semantics 집계 진단은 아래 DB-backed read-only command를 사용한다.
+
+```bash
+cd backend
+.venv/bin/python scripts/audit_policy_semantics.py --json
+```
+
+기존 `backend/scripts/audit_policy_sources.py --json path/to/policies.json`는 파일 입력 기반 URL/source auditor로 남긴다.
 
 ## 운영 기준
 
@@ -194,5 +207,7 @@ Migration metadata:
 - `status`: `active` 또는 `hidden`, 기본값은 `active`
 - `admin_override_enabled`: external normalized policy를 관리자가 수동 보정했는지 나타내며, 기본값은 `false`
 - `updated_at`: 정책 수정 시각 추적용 timestamp
+
+현재 `status`는 계속 `active|hidden` string enum이다. public 목록/상세/저장/일정 연결 경로는 active-only 규칙을 공유한다. boolean/visibility 컬럼 전환은 phase-2 schema cleanup 선택지이며, 이 schema snapshot에는 반영하지 않는다.
 
 `admin_audit_logs`는 관리자 변경 이력을 남긴다. `before_json`과 `after_json`에는 sanitized JSON만 저장해야 하며 password hash, token, OTP, OAuth identifier 같은 secret/internal 값은 포함하지 않는다.

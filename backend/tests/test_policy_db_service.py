@@ -36,6 +36,26 @@ def make_policy() -> PolicyModel:
 def test_policy_to_api_preserves_contract_shape() -> None:
     payload = policy_service.policy_to_api(make_policy())
 
+    assert set(payload) == {
+        "id",
+        "slug",
+        "label",
+        "tag",
+        "title",
+        "org",
+        "region",
+        "deadline",
+        "amount",
+        "summary",
+        "match",
+        "category",
+        "requirements",
+        "documents",
+        "structuredDetail",
+        "officialUrl",
+        "applyUrl",
+        "sourceType",
+    }
     assert payload["id"] == "fixture-policy"
     assert payload["slug"] == "fixture-policy"
     assert payload["label"] == "FI"
@@ -48,8 +68,10 @@ def test_policy_to_api_preserves_contract_shape() -> None:
         "Receipt required",
     ]
     assert payload["documents"] == ["ID card", "Accommodation receipt"]
+    assert payload["structuredDetail"] is None
     assert payload["officialUrl"] == "https://www.mcst.go.kr/site/s_notice/press/pressView.jsp?pMenuCD=0302000000&pSeq=22267"
     assert payload["applyUrl"] is None
+    assert payload["sourceType"] == "internal"
     assert payload["category"] == "지역할인"
 
 
@@ -111,6 +133,78 @@ def test_policy_to_api_omits_empty_structured_detail_for_fallback() -> None:
     assert payload["structuredDetail"] is None
 
 
+def test_policy_to_api_uses_benefit_amount_fallback_when_detail_missing() -> None:
+    policy = make_policy()
+    policy.benefit_detail = None
+    policy.benefit_amount = 300000
+
+    payload = policy_service.policy_to_api(policy)
+
+    assert payload["amount"] == "최대 30만원"
+    assert payload["tag"] == "최대 30만원"
+
+
+def test_policy_to_api_returns_empty_amount_when_benefit_fields_missing() -> None:
+    policy = make_policy()
+    policy.benefit_detail = None
+    policy.benefit_amount = None
+
+    payload = policy_service.policy_to_api(policy)
+
+    assert payload["amount"] == ""
+
+
+def test_policy_to_api_preserves_apply_and_official_urls_separately() -> None:
+    policy = make_policy()
+    policy.apply_url = "https://apply.example/policy"
+    policy.official_url = "https://official.example/policy"
+
+    payload = policy_service.policy_to_api(policy)
+
+    assert payload["applyUrl"] == "https://apply.example/policy"
+    assert payload["officialUrl"] == "https://official.example/policy"
+
+
+def test_policy_to_api_omits_unsafe_top_level_urls() -> None:
+    policy = make_policy()
+    policy.apply_url = "javascript:alert(1)"
+    policy.official_url = "https:///missing-host"
+
+    payload = policy_service.policy_to_api(policy)
+
+    assert payload["applyUrl"] is None
+    assert payload["officialUrl"] is None
+
+
+def test_policy_to_api_requirement_fallback_splits_and_sanitizes_target_condition() -> None:
+    policy = make_policy()
+    policy.target_condition = "국내 거주자\n숙박 영수증 제출\n문의전화 1660-3067\n모바일 앱 신청"
+
+    payload = policy_service.policy_to_api(policy)
+
+    assert payload["requirements"] == ["국내 거주자", "숙박 영수증 제출", "모바일 앱 신청"]
+
+
+def test_built_structured_detail_matches_policy_api_fallback_fields() -> None:
+    policy = make_policy()
+    policy.benefit_detail = "숙박비 5만원 지원"
+    policy.target_condition = "국내 거주자\n숙박 영수증 제출"
+    policy.apply_url = "https://apply.example/policy"
+    policy.official_url = "https://official.example/policy"
+
+    payload = policy_service.policy_to_api(policy)
+    detail = build_structured_detail_from_policy(policy)
+
+    assert [item["description"] for item in detail["conditions"]] == payload["requirements"]
+    assert detail["benefits"] == [
+        {"title": "혜택", "description": "숙박비 5만원 지원", "amount": "숙박비 5만원 지원"}
+    ]
+    assert detail["links"] == [
+        {"label": "신청하기", "url": "https://apply.example/policy"},
+        {"label": "공식 안내", "url": "https://official.example/policy"},
+    ]
+
+
 def test_build_structured_detail_filters_unsafe_policy_links() -> None:
     policy = make_policy()
     policy.apply_url = "javascript:alert(1)"
@@ -154,7 +248,7 @@ def test_db_policy_service_uses_repository_boundary(monkeypatch) -> None:
     )
     monkeypatch.setattr(
         policy_service.policy_repository,
-        "get_policy_by_slug",
+        "get_policy_by_slug_any_status",
         lambda db, slug: policy if db is fake_db and slug == "fixture-policy" else None,
     )
     monkeypatch.setattr(
@@ -249,7 +343,7 @@ def test_db_policy_detail_resolves_collected_external_benefit_slug(monkeypatch) 
     fake_db = object()
     external_record = make_external_record()
 
-    monkeypatch.setattr(policy_service.policy_repository, "get_policy_by_slug", lambda *_args: None)
+    monkeypatch.setattr(policy_service.policy_repository, "get_policy_by_slug_any_status", lambda *_args: None)
     monkeypatch.setattr(
         policy_service.external_source_repository,
         "get_external_source_record_by_policy_slug",
@@ -293,6 +387,17 @@ def test_external_policy_category_uses_official_source_not_travel_styles() -> No
     payload = policy_service.external_source_record_to_policy_api(record)
 
     assert payload["category"] == "교통"
+
+
+def test_external_policy_to_api_omits_unsafe_top_level_official_url() -> None:
+    record = make_external_record()
+    record.detail_url = "ftp://travel.example/policy"
+    record.collected_page_url = "javascript:alert(1)"
+
+    payload = policy_service.external_source_record_to_policy_api(record)
+
+    assert payload["officialUrl"] is None
+    assert payload["applyUrl"] is None
 
 
 def test_external_policy_category_scores_text_before_regional_default() -> None:
@@ -482,8 +587,14 @@ def test_policy_to_api_source_type_normalized_to_internal_external() -> None:
     policy_with_internal_source = make_policy()
     policy_with_internal_source.id = 92
     policy_with_internal_source.slug = "internal-source-policy"
-    policy_with_internal_source.source_type = "internal"
+    policy_with_internal_source.source_type = "INTERNAL"
     policy_with_internal_source.external_source_record_id = None
+
+    policy_with_empty_source = make_policy()
+    policy_with_empty_source.id = 94
+    policy_with_empty_source.slug = "empty-source-policy"
+    policy_with_empty_source.source_type = ""
+    policy_with_empty_source.external_source_record_id = None
 
     policy_with_external_record = make_policy()
     policy_with_external_record.id = 93
@@ -494,6 +605,7 @@ def test_policy_to_api_source_type_normalized_to_internal_external() -> None:
     assert policy_service.policy_to_api(policy_with_official_source)["sourceType"] == "external"
     assert policy_service.policy_to_api(policy_with_unknown_source)["sourceType"] == "external"
     assert policy_service.policy_to_api(policy_with_internal_source)["sourceType"] == "internal"
+    assert policy_service.policy_to_api(policy_with_empty_source)["sourceType"] == "internal"
     assert policy_service.policy_to_api(policy_with_external_record)["sourceType"] == "external"
 
 
@@ -638,6 +750,51 @@ def test_stay_discount_alias_detail_echoes_alias_slug(monkeypatch) -> None:
     assert "7만원 미만* 국내 숙박상품 예약 시 2만원 할인" not in str(detail["summary"])
     assert detail["officialUrl"] == "https://ktostay.visitkorea.or.kr/"
     assert detail.get("actionStatus") is None
+
+
+def test_hidden_policy_detail_returns_none_for_direct_slug(monkeypatch) -> None:
+    fake_db = object()
+    hidden_policy = make_policy()
+    hidden_policy.status = "hidden"
+
+    monkeypatch.setattr(
+        policy_service.policy_repository,
+        "get_policy_by_slug_any_status",
+        lambda db, slug: hidden_policy if db is fake_db and slug == "fixture-policy" else None,
+    )
+    monkeypatch.setattr(
+        policy_service.external_source_repository,
+        "get_external_source_record_by_policy_slug",
+        lambda *_args: None,
+    )
+
+    assert policy_service.get_policy("fixture-policy", fake_db) is None
+
+
+def test_hidden_policy_detail_returns_none_for_stay_alias(monkeypatch) -> None:
+    fake_db = object()
+    hidden_stay_policy = make_stay_policy()
+    hidden_stay_policy.status = "hidden"
+    record = make_stay_record()
+
+    monkeypatch.setattr(
+        policy_service.policy_repository,
+        "list_policies",
+        lambda db: [hidden_stay_policy] if db is fake_db else [],
+    )
+    monkeypatch.setattr(
+        policy_service.external_source_repository,
+        "get_external_source_record_by_id",
+        lambda db, record_id: record if db is fake_db and record_id == 88 else None,
+    )
+    monkeypatch.setattr(policy_service.policy_repository, "get_policy_by_slug_any_status", lambda *_args: None)
+    monkeypatch.setattr(
+        policy_service.external_source_repository,
+        "get_external_source_record_by_policy_slug",
+        lambda *_args: None,
+    )
+
+    assert policy_service.get_policy("stay-discount-gangwon-goseong", fake_db) is None
 
 
 def test_stay_discount_raw_fallback_detail_uses_clean_display_copy(monkeypatch) -> None:

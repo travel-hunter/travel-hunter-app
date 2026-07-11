@@ -1,14 +1,19 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.models.policy_status import POLICY_STATUS_ACTIVE
 from app.models import Policy, Trip, TripMember, TripPolicy, UserSavedPolicy
+
+
+def _active_policy_clause():
+    return Policy.status == POLICY_STATUS_ACTIVE
 
 
 def list_policies(db: Session) -> list[Policy]:
     statement = (
         select(Policy)
         .options(selectinload(Policy.documents))
-        .where(Policy.status == "active")
+        .where(_active_policy_clause())
         .order_by(Policy.id)
     )
     return list(db.scalars(statement).all())
@@ -18,7 +23,7 @@ def get_policy_by_slug(db: Session, policy_slug: str) -> Policy | None:
     statement = (
         select(Policy)
         .options(selectinload(Policy.documents))
-        .where(Policy.slug == policy_slug, Policy.status == "active")
+        .where(Policy.slug == policy_slug, _active_policy_clause())
     )
     return db.scalar(statement)
 
@@ -63,7 +68,7 @@ def list_saved_policies(db: Session, *, user_id: int) -> list[Policy]:
         .join(UserSavedPolicy.policy)
         .options(selectinload(UserSavedPolicy.policy).selectinload(Policy.documents))
         .where(UserSavedPolicy.user_id == user_id)
-        .where(Policy.status == "active")
+        .where(_active_policy_clause())
         .order_by(UserSavedPolicy.saved_at.desc(), UserSavedPolicy.id.desc())
     )
     saved_rows = list(db.scalars(statement).all())
@@ -80,7 +85,7 @@ def list_applied_policies(db: Session, *, user_id: int) -> list[Policy]:
             (Trip.owner_id == user_id)
             | (Trip.members.any(TripMember.user_id == user_id))
         )
-        .where(Policy.status == "active")
+        .where(_active_policy_clause())
         .distinct()
         .order_by(Policy.id)
     )
@@ -100,7 +105,7 @@ def list_applied_policy_links(db: Session, *, user_id: int) -> list[TripPolicy]:
             (Trip.owner_id == user_id)
             | (Trip.members.any(TripMember.user_id == user_id))
         )
-        .where(Policy.status == "active")
+        .where(_active_policy_clause())
         .order_by(Policy.id, Trip.start_date, Trip.id)
     )
     return list(db.scalars(statement).all())
