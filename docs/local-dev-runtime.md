@@ -92,6 +92,27 @@ The latest generated URL is also saved to `.omx/tmp/dev-auth-helper/latest-url.t
 - `8000`: FastAPI backend.
 - `55432`: PostgreSQL exposed from Docker.
 
+## Local Timezone Behavior
+
+This pass changed only the local `compose.yaml` runtime to use KST for database and backend checks:
+
+- PostgreSQL starts with `timezone=Asia/Seoul` and `log_timezone=Asia/Seoul`.
+- The `db` and `backend` services set `TZ=Asia/Seoul`.
+- Tunnel, VPS, and deploy entrypoint files were not changed in this pass.
+- `deploy/container/entrypoint.sh` already has separate deploy-time timezone behavior; it is out of scope for this local runtime note.
+
+This does not change the API contract or the timestamp column types. Timestamp data changes must still go through Alembic.
+
+## Guarded Local Timestamp Data Shift
+
+Alembic revision `0024_local_kst_time_shift` is a guarded local data-adjustment draft for the approved KST migration pass.
+
+- Offline SQL review remains available with the standard backend Alembic SQL command.
+- Normal online `alembic upgrade head` is safe/no-op by default for this revision.
+- Set `TRAVEL_HUNTER_ALLOW_LOCAL_TIMEZONE_DATA_SHIFT=1` only for an intentional local data shift; that opt-in enforces local/dev/test `APP_ENV` and a local PostgreSQL URL host before running the seven-column update.
+- Do not enable the opt-in for staging or production.
+- Take a local DB backup and review the migration's before/after queries before running the guarded shift online.
+
 ## Classroom Sharing Policy
 
 Do not enable LAN/classroom sharing during normal UI development.

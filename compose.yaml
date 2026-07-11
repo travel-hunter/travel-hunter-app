@@ -1,10 +1,12 @@
 services:
   db:
     image: postgres:16-alpine
+    command: ["postgres", "-c", "timezone=Asia/Seoul", "-c", "log_timezone=Asia/Seoul"]
     environment:
       POSTGRES_DB: travelhunter
       POSTGRES_USER: travelhunter
       POSTGRES_PASSWORD: travelhunter
+      TZ: Asia/Seoul
     ports:
       - "55432:5432"
     healthcheck:
@@ -20,6 +22,7 @@ services:
       context: ./backend
     environment:
       APP_ENV: docker
+      TZ: Asia/Seoul
       DATABASE_URL: postgresql+psycopg://travelhunter:travelhunter@db:5432/travelhunter
       AUTH_SECRET_KEY: dev-only-change-me-secret-key-32-bytes
       ACCESS_TOKEN_EXPIRE_MINUTES: "30"
