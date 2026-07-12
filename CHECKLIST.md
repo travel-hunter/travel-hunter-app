@@ -2,20 +2,23 @@
 
 ## Current Status
 
-- Active task/status: Ultragoal G007 final auth lifecycle review blockers resolved.
-- Scope guard: Changes were limited to the requested withdrawal UI disclosure and explicit-null withdrawal payload rejection.
+- Active task/status: PR #102 was merged to `develop` and deployed to the development server.
+- Development server SHA: `7b8be51` (`Merge pull request #102 from travel-hunter/agent/policies-table-cleanup-hardening`).
+- Scope guard: The deployment used clean `develop` on `/home/deploy/travelhunterapp`; secrets were not printed.
 
 ## Latest Validation Evidence
 
-- Backend targeted tests: `cd backend && .venv/bin/python -m pytest tests/test_auth_db_service.py tests/test_auth_edge_cases.py` passed: 55 passed.
-- Frontend targeted tests: `cd frontend && npx vitest run src/app/__tests__/mypage.test.tsx` passed: 1 file passed, 20 tests passed.
-- Diff/encoding checks for the G007 touched files passed: `git diff --check -- ...` and strict UTF-8/U+FFFD scan.
+- GitHub PR #102 CI passed before merge: Backend fast lane, Frontend DB-backed fast lane, and CodeRabbit.
+- Local final gate before merge passed: backend full pytest 528 passed, Alembic SQL generation, frontend typecheck/test/build, compose config, diff/UTF-8 checks, independent code-reviewer APPROVE, and architect CLEAR.
+- Development server deploy passed: `docker compose --env-file deploy/.env.prod -f compose.tunnel.yaml config`, build, `up -d db`, `alembic upgrade head`, and `up -d`.
+- Development server Alembic version is `0026_user_withdrawal_fields`; `users.withdrawn_at` and `users.withdrawn_email_hash` exist.
+- Development server smoke passed: `/api/health`, `/login`, `/api/policies?limit=1`, and unauthenticated account lifecycle endpoint guards returning 401.
 
 ## Remaining Risks
 
-- Full frontend suite/E2E and full backend suite were not rerun after the G007 review-blocker fixes.
 - Fresh PostgreSQL `pg_dump` regeneration was not performed; `docs/db-schema-current.sql` remains a schema reference updated from Alembic 0026 SQL evidence.
-- Worktree still contains implementation changes from other agents; they were not reverted or edited.
+- Authenticated browser smoke on the development server remains manual because it requires runtime login credentials.
+- Jenkins build status was not checked from this environment.
 
 ## Cleanup Policy
 
