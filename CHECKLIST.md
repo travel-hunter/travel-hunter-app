@@ -2,20 +2,20 @@
 
 ## Current Status
 
-- Active task/status: Post-fix ai-slop cleanup recheck for policy URL safety and policy detail repository fallback removal.
-- Scope guard: Backend-only semantic/service/test rework; no DB schema or API DTO key change.
+- Active task/status: Ultragoal G007 final auth lifecycle review blockers resolved.
+- Scope guard: Changes were limited to the requested withdrawal UI disclosure and explicit-null withdrawal payload rejection.
 
 ## Latest Validation Evidence
 
-- Post-fix focused backend tests: `cd backend && .venv/bin/python -m pytest tests/test_policy_semantics.py tests/test_policy_db_service.py tests/test_policy_error_paths.py tests/test_trip_db_service.py` passed: 146 passed, 1 warning.
-- Python compile check over changed backend policy/trip/audit modules and focused tests passed.
-- Fallback scan: focused policy service/structured-detail/semantic/test files have no `AttributeError` or `except AttributeError` matches.
-- Diff/encoding checks: `git diff --check` passed; `git diff --check -- CHECKLIST.md` passed; UTF-8 strict read plus U+FFFD scan over 19 changed files passed.
+- Backend targeted tests: `cd backend && .venv/bin/python -m pytest tests/test_auth_db_service.py tests/test_auth_edge_cases.py` passed: 55 passed.
+- Frontend targeted tests: `cd frontend && npx vitest run src/app/__tests__/mypage.test.tsx` passed: 1 file passed, 20 tests passed.
+- Diff/encoding checks for the G007 touched files passed: `git diff --check -- ...` and strict UTF-8/U+FFFD scan.
 
 ## Remaining Risks
 
-- Phase-2 schema cleanup remains separate: benefit amount/detail consolidation, `target_condition` rename, and link/canonical-key/status model decisions still need their own planning and validation.
-- Full backend suite, frontend checks, Alembic SQL, audit JSON, compose config, and broad diff/UTF-8 gates were reported as passed after the rework and were not rerun in this narrow post-fix cleanup recheck. E2E remains a separate running gate.
+- Full frontend suite/E2E and full backend suite were not rerun after the G007 review-blocker fixes.
+- Fresh PostgreSQL `pg_dump` regeneration was not performed; `docs/db-schema-current.sql` remains a schema reference updated from Alembic 0026 SQL evidence.
+- Worktree still contains implementation changes from other agents; they were not reverted or edited.
 
 ## Cleanup Policy
 

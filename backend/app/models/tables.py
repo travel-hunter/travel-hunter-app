@@ -59,6 +59,8 @@ class User(Base):
     )
     privacy_accepted_at: Mapped[datetime | None] = mapped_column(DateTime)
     privacy_version: Mapped[str | None] = mapped_column(String(32))
+    withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime)
+    withdrawn_email_hash: Mapped[str | None] = mapped_column(String(64), index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
     )

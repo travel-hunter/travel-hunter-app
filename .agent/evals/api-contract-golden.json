@@ -111,6 +111,7 @@
           "socialAccounts": "array",
           "createdAt": "string",
           "updatedAt": "string",
+          "hasPassword": "boolean",
           "role": "string enum(user|admin)"
         }
       }
@@ -164,6 +165,7 @@
           "onboardingCompleted": "boolean",
           "nicknameSetupCompleted": "boolean",
           "socialAccounts": "array",
+          "hasPassword": "boolean",
           "role": "string enum(user|admin)"
         }
       },
@@ -179,7 +181,7 @@
       "requiredFields": {
         "available": "boolean"
       },
-      "dbModeBehavior": "Returns available=false when a user with the same email already exists."
+      "dbModeBehavior": "Returns available=false when an active user with the same email exists. Withdrawn users are ignored because withdrawal anonymizes users.email to withdrawn-{id}-{timestamp}@withdrawn.local; the original email can sign up again."
     },
     {
       "method": "POST",
@@ -192,9 +194,11 @@
           "email": "string",
           "nicknameSetupCompleted": "boolean",
           "socialAccounts": "array",
+          "hasPassword": "boolean",
           "role": "string enum(user|admin)"
         }
-      }
+      },
+      "dbModeBehavior": "Rotates a valid refresh cookie into a new AuthResponse. If the token's user is withdrawn or otherwise inactive, revokes that refresh token and returns 401 without issuing a new token."
     },
     {
       "method": "POST",
@@ -209,6 +213,38 @@
     },
     {
       "method": "POST",
+      "path": "/api/auth/password/change",
+      "status": 200,
+      "authRequired": true,
+      "request": {
+        "currentPassword": "old-password123",
+        "newPassword": "new-password123"
+      },
+      "requiredFields": {
+        "changed": "boolean"
+      },
+      "dbModeBehavior": "Requires an active authenticated user with password_hash. Verifies currentPassword, updates users.password_hash, revokes the user's existing refresh tokens, forbids extra request fields, returns 400 for passwordless accounts, and returns 401 for missing auth, withdrawn users, or wrong current password."
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/withdraw",
+      "status": 200,
+      "authRequired": true,
+      "requestVariants": [
+        {
+          "password": "password123"
+        },
+        {
+          "confirmationPhrase": "탈퇴합니다"
+        }
+      ],
+      "requiredFields": {
+        "withdrawn": "boolean"
+      },
+      "dbModeBehavior": "Requires an active authenticated user. Password users must send only password; OAuth-only/passwordless users must send only confirmationPhrase='탈퇴합니다'. Soft-withdraws the user by setting users.withdrawn_at and HMAC users.withdrawn_email_hash, anonymizing email to withdrawn-{id}-{timestamp}@withdrawn.local, changing nickname to 탈퇴한 사용자 #{id}, clearing password_hash/profile preferences/social_accounts, revoking refresh tokens, clearing the refresh cookie, preserving related rows and password_reset_tokens, rejecting extra fields, and allowing the original email to re-sign up because active lookups ignore withdrawn users."
+    },
+    {
+      "method": "POST",
       "path": "/api/auth/password-reset/request",
       "status": 200,
       "request": {
@@ -217,7 +253,7 @@
       "requiredFields": {
         "requested": "boolean"
       },
-      "dbModeBehavior": "Always returns requested=true for valid email shape, stores only a SHA-256 reset token hash for existing users, and sends a reset link by SMTP when configured."
+      "dbModeBehavior": "Always returns requested=true for valid email shape. Stores only a SHA-256 reset token hash and sends SMTP only for active users with password_hash; nonexistent, passwordless/OAuth-only, and withdrawn users get the same response without token creation."
     },
     {
       "method": "POST",
@@ -230,7 +266,7 @@
       "requiredFields": {
         "reset": "boolean"
       },
-      "dbModeBehavior": "Validates the hashed token, rejects expired/used/unknown tokens, updates users.password_hash, marks the token used, and revokes existing refresh tokens."
+      "dbModeBehavior": "Validates the hashed token, rejects expired/used/unknown tokens, rejects tokens whose user is withdrawn or passwordless, updates users.password_hash, marks the token used, and revokes existing refresh tokens. Existing password_reset_tokens rows remain stored across soft withdrawal but fail closed at confirm time."
     },
     {
       "method": "GET",
@@ -254,7 +290,7 @@
       "method": "GET",
       "path": "/api/auth/oauth/{provider}/callback",
       "status": 302,
-      "requiredBehavior": "On existing social user or verified same-email link success, validates code/state, links social_accounts as needed, sets the refresh cookie, clears the OAuth state cookie, and redirects to frontend /oauth/callback?redirect={safePath}. For a new social account, does not create a user or set refresh cookie; creates pending_social_signups and redirects to frontend /signup/social-agreement?token={token}&redirect={safePath}. Same-email auto-link requires verified provider email; Google requires email_verified=true, while Kakao without usable verified email may use kakao_{providerId}@oauth.local in the pending signup. On terminal failure, does not set a refresh cookie, clears the OAuth state cookie where possible, and redirects to frontend /oauth/callback?error={access_denied|invalid_state|provider_unavailable|profile_unavailable|email_policy}&redirect={safePath} without exposing provider error_description."
+      "requiredBehavior": "On existing active social user or verified same-email active user link success, validates code/state, links social_accounts as needed, sets the refresh cookie, clears the OAuth state cookie, and redirects to frontend /oauth/callback?redirect={safePath}. Withdrawn users are fail-closed because social account and same-email lookups use active-user paths only. For a new social account, does not create a user or set refresh cookie; creates pending_social_signups and redirects to frontend /signup/social-agreement?token={token}&redirect={safePath}. Same-email auto-link requires verified provider email; Google requires email_verified=true, while Kakao without usable verified email may use kakao_{providerId}@oauth.local in the pending signup. On terminal failure, does not set a refresh cookie, clears the OAuth state cookie where possible, and redirects to frontend /oauth/callback?error={access_denied|invalid_state|provider_unavailable|profile_unavailable|email_policy}&redirect={safePath} without exposing provider error_description."
     },
     {
       "method": "GET",
@@ -291,6 +327,7 @@
           "id": "string",
           "email": "string",
           "socialAccounts": "array",
+          "hasPassword": "boolean",
           "role": "string enum(user|admin)"
         }
       },
@@ -307,9 +344,11 @@
         "onboardingCompleted": "boolean",
         "nicknameSetupCompleted": "boolean",
         "socialAccounts": "array",
+        "hasPassword": "boolean",
         "role": "string enum(user|admin)",
         "preferredRegions": "array|null"
-      }
+      },
+      "dbModeBehavior": "Requires bearer auth for an active user. Withdrawn users are rejected by get_current_user before this DTO is returned."
     },
     {
       "method": "GET",

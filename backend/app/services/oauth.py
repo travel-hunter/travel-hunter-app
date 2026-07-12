@@ -272,7 +272,7 @@ def _maybe_upgrade_kakao_placeholder_email(
     if target_email == current_email:
         return user
 
-    existing_user = user_repository.get_user_by_email(db, target_email)
+    existing_user = user_repository.get_active_user_by_email(db, target_email)
     if existing_user is not None and existing_user.id != user.id:
         return user
 
@@ -296,7 +296,7 @@ def _find_existing_oauth_user(
     provider: str,
     profile: OAuthProfile,
 ) -> UserModel | None:
-    social_account = user_repository.get_social_account(
+    social_account = user_repository.get_active_social_account(
         db,
         provider=provider,
         provider_id=profile.provider_id,
@@ -308,7 +308,7 @@ def _find_existing_oauth_user(
         return user
 
     if profile.email and profile.email_verified:
-        user = user_repository.get_user_by_email(
+        user = user_repository.get_active_user_by_email(
             db,
             auth_service.normalize_email(profile.email),
         )
@@ -423,7 +423,7 @@ def complete_pending_social_signup(
     pending = _get_active_pending_social_signup(db, request.token)
     accepted_at = auth_service.validate_required_agreements(request.agreements)
 
-    social_account = user_repository.get_social_account(
+    social_account = user_repository.get_active_social_account(
         db,
         provider=pending.provider,
         provider_id=pending.provider_id,
@@ -434,7 +434,7 @@ def complete_pending_social_signup(
         db.commit()
         return result
 
-    existing_user = user_repository.get_user_by_email(db, pending.email)
+    existing_user = user_repository.get_active_user_by_email(db, pending.email)
     if existing_user is None:
         user = user_repository.create_user(
             db,

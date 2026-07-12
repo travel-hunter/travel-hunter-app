@@ -312,6 +312,7 @@ export function getPreviewUser(): User {
     nickname: "여행러",
     email: "preview.user@example.com",
     role: "user",
+    hasPassword: true,
     preferredRegions: null,
     persona: "family",
     savedAmount: 0,

@@ -12,6 +12,7 @@ import {
   appDataApi,
   type Policy,
   type Trip,
+  type User,
 } from "../../api";
 import { App } from "../App";
 import { AppProviders } from "../AppRoot";
@@ -25,6 +26,24 @@ import {
   testEmail,
 } from "../../test/fixtures";
 import { getLink, login, renderAppRoute } from "../../test/renderAppRoute";
+
+function installStoredUser(user: User) {
+  window.localStorage.setItem(
+    "travel-hunter-production-auth",
+    JSON.stringify({ accessToken: "test-token", user }),
+  );
+}
+
+function mockMyPageAccountLoad(user: User) {
+  return [
+    vi.spyOn(appDataApi, "getCurrentUser").mockResolvedValue(user),
+    vi.spyOn(appDataApi, "getProfile").mockResolvedValue({ preferredRegions: null, style: null, budget: null }),
+    vi.spyOn(appDataApi, "getProfileOptions").mockResolvedValue({ regions: [], travelStyles: [], budgets: [] }),
+    vi.spyOn(appDataApi, "listSavedPolicies").mockResolvedValue([]),
+    vi.spyOn(appDataApi, "listTrips").mockResolvedValue([]),
+    vi.spyOn(appDataApi, "listAppliedPolicies").mockResolvedValue([]),
+  ];
+}
 
 describe("Travel Hunter app — my page", () => {
   it("saves a policy from the policy detail header action", async () => {
@@ -786,6 +805,146 @@ describe("Travel Hunter app — my page", () => {
       );
     } finally {
       listTripsSpy.mockRestore();
+    }
+  });
+
+
+  it("lets password users change password, clears auth, and redirects to login", async () => {
+    const accountUser = { ...getPreviewUser(), hasPassword: true };
+    installStoredUser(accountUser);
+    const loadSpies = mockMyPageAccountLoad(accountUser);
+    const changePasswordSpy = vi
+      .spyOn(appDataApi, "changePassword")
+      .mockResolvedValue({ changed: true });
+    const logoutSpy = vi
+      .spyOn(appDataApi, "logout")
+      .mockResolvedValue({ loggedOut: true });
+
+    try {
+      renderAppRoute("/mypage");
+      const user = userEvent.setup();
+      const passwordSection = await screen.findByRole("region", {
+        name: "비밀번호 관리",
+      });
+
+      await user.click(within(passwordSection).getByRole("button", { name: "비밀번호 변경" }));
+      expect(await within(passwordSection).findByRole("alert")).toHaveTextContent(
+        "현재 비밀번호를 입력해 주세요.",
+      );
+
+      await user.type(within(passwordSection).getByLabelText("현재 비밀번호"), "old-password123");
+      await user.type(within(passwordSection).getByLabelText("새 비밀번호"), "new-password123");
+      await user.click(within(passwordSection).getByRole("button", { name: "비밀번호 변경" }));
+
+      await waitFor(() =>
+        expect(changePasswordSpy).toHaveBeenCalledWith({
+          currentPassword: "old-password123",
+          newPassword: "new-password123",
+        }),
+      );
+      await waitFor(() => expect(logoutSpy).toHaveBeenCalled());
+      await waitFor(() =>
+        expect(window.localStorage.getItem("travel-hunter-production-auth")).toBeNull(),
+      );
+      expect(await screen.findByRole("heading", { name: "트래블헌터" })).toBeInTheDocument();
+    } finally {
+      changePasswordSpy.mockRestore();
+      logoutSpy.mockRestore();
+      loadSpies.forEach((spy) => spy.mockRestore());
+    }
+  });
+
+  it("uses hasPassword for OAuth-only account guidance and confirmation withdrawal", async () => {
+    const oauthOnlyUser = {
+      ...getPreviewUser(),
+      hasPassword: false,
+      socialAccounts: [
+        { provider: "google", providerNickname: "소셜유저", connectedAt: "2026-06-26T00:00:00Z" },
+      ],
+    };
+    installStoredUser(oauthOnlyUser);
+    const loadSpies = mockMyPageAccountLoad(oauthOnlyUser);
+    const withdrawSpy = vi
+      .spyOn(appDataApi, "withdraw")
+      .mockResolvedValue({ withdrawn: true });
+    const logoutSpy = vi
+      .spyOn(appDataApi, "logout")
+      .mockResolvedValue({ loggedOut: true });
+
+    try {
+      renderAppRoute("/mypage");
+      const user = userEvent.setup();
+      const passwordSection = await screen.findByRole("region", {
+        name: "비밀번호 관리",
+      });
+      expect(within(passwordSection).getByText("소셜 로그인 계정입니다")).toBeInTheDocument();
+      expect(within(passwordSection).queryByRole("button", { name: "비밀번호 변경" })).not.toBeInTheDocument();
+
+      const withdrawalSection = screen.getByRole("region", { name: "회원 탈퇴" });
+      expect(within(withdrawalSection).getByText("탈퇴 후 계정은 복구할 수 없습니다.")).toBeInTheDocument();
+      expect(within(withdrawalSection).getByText("같은 이메일로 다시 가입할 수 있습니다.")).toBeInTheDocument();
+      expect(within(withdrawalSection).getByText("새로 가입해도 이전 데이터는 복원되지 않습니다.")).toBeInTheDocument();
+      expect(within(withdrawalSection).getByLabelText("확인 문구")).toBeInTheDocument();
+      expect(within(withdrawalSection).queryByLabelText("현재 비밀번호")).not.toBeInTheDocument();
+
+      await user.type(within(withdrawalSection).getByLabelText("확인 문구"), "탈퇴할게요");
+      await user.click(within(withdrawalSection).getByRole("button", { name: "회원 탈퇴" }));
+      expect(await within(withdrawalSection).findByRole("alert")).toHaveTextContent(
+        "탈퇴하려면 확인 문구 탈퇴합니다를 정확히 입력해 주세요.",
+      );
+      expect(withdrawSpy).not.toHaveBeenCalled();
+
+      await user.clear(within(withdrawalSection).getByLabelText("확인 문구"));
+      await user.type(within(withdrawalSection).getByLabelText("확인 문구"), "탈퇴합니다");
+      await user.click(within(withdrawalSection).getByRole("button", { name: "회원 탈퇴" }));
+
+      await waitFor(() =>
+        expect(withdrawSpy).toHaveBeenCalledWith({ confirmationPhrase: "탈퇴합니다" }),
+      );
+      await waitFor(() => expect(logoutSpy).toHaveBeenCalled());
+      expect(await screen.findByRole("heading", { name: "트래블헌터" })).toBeInTheDocument();
+    } finally {
+      withdrawSpy.mockRestore();
+      logoutSpy.mockRestore();
+      loadSpies.forEach((spy) => spy.mockRestore());
+    }
+  });
+
+  it("requires password confirmation for password user withdrawal", async () => {
+    const accountUser = { ...getPreviewUser(), hasPassword: true };
+    installStoredUser(accountUser);
+    const loadSpies = mockMyPageAccountLoad(accountUser);
+    const withdrawSpy = vi
+      .spyOn(appDataApi, "withdraw")
+      .mockResolvedValue({ withdrawn: true });
+    const logoutSpy = vi
+      .spyOn(appDataApi, "logout")
+      .mockResolvedValue({ loggedOut: true });
+
+    try {
+      renderAppRoute("/mypage");
+      const user = userEvent.setup();
+      const withdrawalSection = await screen.findByRole("region", { name: "회원 탈퇴" });
+      expect(within(withdrawalSection).getByText("탈퇴 후 계정은 복구할 수 없습니다.")).toBeInTheDocument();
+      expect(within(withdrawalSection).getByText("같은 이메일로 다시 가입할 수 있습니다.")).toBeInTheDocument();
+      expect(within(withdrawalSection).getByText("새로 가입해도 이전 데이터는 복원되지 않습니다.")).toBeInTheDocument();
+      expect(within(withdrawalSection).getByLabelText("현재 비밀번호")).toBeInTheDocument();
+      expect(within(withdrawalSection).queryByLabelText("확인 문구")).not.toBeInTheDocument();
+
+      await user.click(within(withdrawalSection).getByRole("button", { name: "회원 탈퇴" }));
+      expect(await within(withdrawalSection).findByRole("alert")).toHaveTextContent(
+        "탈퇴하려면 현재 비밀번호를 입력해 주세요.",
+      );
+      expect(withdrawSpy).not.toHaveBeenCalled();
+
+      await user.type(within(withdrawalSection).getByLabelText("현재 비밀번호"), "password123");
+      await user.click(within(withdrawalSection).getByRole("button", { name: "회원 탈퇴" }));
+      await waitFor(() => expect(withdrawSpy).toHaveBeenCalledWith({ password: "password123" }));
+      await waitFor(() => expect(logoutSpy).toHaveBeenCalled());
+    } finally {
+      withdrawSpy.mockRestore();
+      logoutSpy.mockRestore();
+      loadSpies.forEach((spy) => spy.mockRestore());
     }
   });
 

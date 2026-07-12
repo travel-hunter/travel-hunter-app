@@ -4,13 +4,17 @@ from sqlalchemy.orm import Session
 
 from app.core import security
 from app.core.config import settings
+from app.api.dependencies import get_current_user
 from app.db.session import get_optional_db
+from app.models import User as UserModel
 from app.schemas.user import (
     AuthResponse,
     EmailAvailabilityRequest,
     EmailAvailabilityResponse,
     LoginRequest,
     LogoutResponse,
+    PasswordChangeRequest,
+    PasswordChangeResponse,
     PasswordResetConfirm,
     PasswordResetConfirmResponse,
     PasswordResetRequest,
@@ -22,6 +26,8 @@ from app.schemas.user import (
     SignupVerificationResponse,
     SignupVerifyRequest,
     SignupVerifyResponse,
+    WithdrawRequest,
+    WithdrawResponse,
 )
 from app.services import auth as auth_service
 from app.services import oauth as oauth_service
@@ -127,6 +133,38 @@ def logout(
     auth_service.logout(_require_db(db), request.cookies.get(settings.refresh_cookie_name))
     security.clear_refresh_cookie(response)
     return LogoutResponse(loggedOut=True)
+
+
+@router.post("/password/change", response_model=PasswordChangeResponse)
+def change_password(
+    request: PasswordChangeRequest,
+    db: Session | None = Depends(get_optional_db),
+    current_user: UserModel | None = Depends(get_current_user),
+) -> PasswordChangeResponse:
+    if current_user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        result = auth_service.change_password(_require_db(db), current_user, request)
+    except auth_service.AuthServiceError as error:
+        _raise_auth_error(error)
+    return PasswordChangeResponse(**result)
+
+
+@router.post("/withdraw", response_model=WithdrawResponse)
+def withdraw(
+    request: WithdrawRequest,
+    response: Response,
+    db: Session | None = Depends(get_optional_db),
+    current_user: UserModel | None = Depends(get_current_user),
+) -> WithdrawResponse:
+    if current_user is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        result = auth_service.withdraw(_require_db(db), current_user, request)
+    except auth_service.AuthServiceError as error:
+        _raise_auth_error(error)
+    security.clear_refresh_cookie(response)
+    return WithdrawResponse(**result)
 
 
 @router.post("/password-reset/request", response_model=PasswordResetResponse)

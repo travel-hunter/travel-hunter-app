@@ -241,8 +241,8 @@ def test_google_verified_email_links_existing_user(monkeypatch) -> None:
         nickname="Google User",
     )
 
-    monkeypatch.setattr(oauth_service.user_repository, "get_social_account", lambda *args, **kwargs: None)
-    monkeypatch.setattr(oauth_service.user_repository, "get_user_by_email", lambda _db, email: existing_user)
+    monkeypatch.setattr(oauth_service.user_repository, "get_active_social_account", lambda *args, **kwargs: None)
+    monkeypatch.setattr(oauth_service.user_repository, "get_active_user_by_email", lambda _db, email: existing_user)
     monkeypatch.setattr(
         oauth_service.user_repository,
         "create_social_account",
@@ -277,11 +277,11 @@ def test_kakao_unverified_email_creates_pending_placeholder_without_linking_exis
         lambda *_args, **kwargs: calls.update({"pending": kwargs}),
     )
 
-    def get_user_by_email(_db, email):
+    def get_active_user_by_email(_db, email):
         calls["lookups"].append(email)
         return existing_user if email == "owner@example.com" else None
 
-    monkeypatch.setattr(oauth_service.user_repository, "get_user_by_email", get_user_by_email)
+    monkeypatch.setattr(oauth_service.user_repository, "get_active_user_by_email", get_active_user_by_email)
 
     token = oauth_service._create_pending_social_signup(
         FakeDb(),
@@ -307,10 +307,10 @@ def test_existing_kakao_placeholder_email_upgrades_to_verified_email(monkeypatch
 
     monkeypatch.setattr(
         oauth_service.user_repository,
-        "get_social_account",
+        "get_active_social_account",
         lambda *args, **kwargs: social_account,
     )
-    monkeypatch.setattr(oauth_service.user_repository, "get_user_by_email", lambda _db, email: None)
+    monkeypatch.setattr(oauth_service.user_repository, "get_active_user_by_email", lambda _db, email: None)
 
     def update_user_email(_db, user, *, email):
         calls["email"] = email
@@ -339,10 +339,10 @@ def test_existing_kakao_placeholder_email_does_not_upgrade_when_email_belongs_to
 
     monkeypatch.setattr(
         oauth_service.user_repository,
-        "get_social_account",
+        "get_active_social_account",
         lambda *args, **kwargs: social_account,
     )
-    monkeypatch.setattr(oauth_service.user_repository, "get_user_by_email", lambda _db, email: other_user)
+    monkeypatch.setattr(oauth_service.user_repository, "get_active_user_by_email", lambda _db, email: other_user)
 
     def fail_update(*args, **kwargs):
         raise AssertionError("conflicting email must not be updated automatically")
@@ -367,7 +367,7 @@ def test_existing_social_account_wins_even_when_email_unverified(monkeypatch) ->
 
     monkeypatch.setattr(
         oauth_service.user_repository,
-        "get_social_account",
+        "get_active_social_account",
         lambda *args, **kwargs: social_account,
     )
 
@@ -465,3 +465,64 @@ def test_unknown_oauth_provider_raises_404() -> None:
 
     assert exc_info.value.status_code == 404
     assert "not found" in exc_info.value.detail.lower()
+
+
+def test_oauth_lookup_uses_active_user_paths_for_withdrawn_fail_closed(monkeypatch) -> None:
+    profile = oauth_service.OAuthProfile(
+        provider_id="google-user-1",
+        email="withdrawn@example.com",
+        email_verified=True,
+        nickname="Withdrawn User",
+    )
+    calls: dict[str, object] = {}
+
+    def get_active_social_account(_db, **kwargs):
+        calls["social"] = kwargs
+        return None
+
+    def get_active_user_by_email(_db, email):
+        calls["email"] = email
+        return None
+
+    monkeypatch.setattr(oauth_service.user_repository, "get_active_social_account", get_active_social_account)
+    monkeypatch.setattr(oauth_service.user_repository, "get_active_user_by_email", get_active_user_by_email)
+    monkeypatch.setattr(
+        oauth_service.user_repository,
+        "create_social_account",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("withdrawn user linked")),
+    )
+
+    assert oauth_service._find_existing_oauth_user(FakeDb(), provider="google", profile=profile) is None
+    assert calls["social"] == {"provider": "google", "provider_id": "google-user-1"}
+    assert calls["email"] == "withdrawn@example.com"
+
+
+def test_get_current_user_rejects_withdrawn_user(monkeypatch) -> None:
+    from fastapi import HTTPException
+    from fastapi.security import HTTPAuthorizationCredentials
+
+    from app.api import dependencies
+
+    monkeypatch.setattr(dependencies.security, "decode_access_token", lambda token: "1")
+    monkeypatch.setattr(dependencies.user_repository, "get_active_user_by_id", lambda _db, user_id: None)
+
+    with pytest.raises(HTTPException) as error:
+        dependencies.get_current_user(
+            credentials=HTTPAuthorizationCredentials(scheme="Bearer", credentials="access-token"),
+            db=FakeDb(),
+        )
+
+    assert error.value.status_code == 401
+    assert error.value.detail == "Not authenticated"
+
+
+def test_password_change_and_withdraw_requests_reject_extra_fields() -> None:
+    with pytest.raises(ValidationError):
+        auth_service.PasswordChangeRequest(
+            currentPassword="old-password",
+            newPassword="new-password123",
+            unexpected=True,
+        )
+
+    with pytest.raises(ValidationError):
+        auth_service.WithdrawRequest(password="password123", unexpected=True)

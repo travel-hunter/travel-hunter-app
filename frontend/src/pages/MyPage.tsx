@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { CircleHelp, Dice5, FileText, LogOut, ShieldCheck } from "lucide-react";
+import { CircleHelp, Dice5, FileText, KeyRound, LogOut, ShieldCheck, UserX } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { appDataApi, type Policy, type Profile, type Trip } from "../api";
+import { appDataApi, isApiError, type Policy, type Profile, type Trip } from "../api";
 import { useSession } from "../app/session";
 import { ProfilePreferencePreview } from "../components/ProfilePreferencePreview";
 import { PreferredRegionSelector } from "../components/PreferredRegionSelector";
@@ -11,6 +11,8 @@ import { Button, EmptyState, ErrorState, LoadingState } from "../components/ui";
 import { useAsyncResource } from "../api/useAsyncResource";
 
 type InfoSheetType = "faq" | "terms" | "privacy";
+
+const WITHDRAW_CONFIRMATION_PHRASE = "탈퇴합니다";
 
 function uniquePoliciesBySlug(policies: Policy[]) {
   const seen = new Set<string>();
@@ -23,6 +25,14 @@ function uniquePoliciesBySlug(policies: Policy[]) {
 
 function profileValueLabel(value: string | null | undefined) {
   return value?.trim() ? value : "미정";
+}
+
+function accountErrorMessage(error: unknown, fallback: string) {
+  if (isApiError(error)) {
+    if (error.status === 401) return "현재 비밀번호를 확인해 주세요.";
+    if (error.status === 400 && typeof error.detail === "string") return error.detail;
+  }
+  return fallback;
 }
 
 export function MyPage() {
@@ -48,6 +58,14 @@ export function MyPage() {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileEditError, setProfileEditError] = useState("");
   const [infoSheetType, setInfoSheetType] = useState<InfoSheetType | null>(null);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordChangeError, setPasswordChangeError] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [withdrawPassword, setWithdrawPassword] = useState("");
+  const [withdrawConfirmation, setWithdrawConfirmation] = useState("");
+  const [withdrawError, setWithdrawError] = useState("");
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
 
   useEffect(() => {
     let isCurrent = true;
@@ -85,6 +103,59 @@ export function MyPage() {
   const signOut = async () => {
     await logout();
     navigate("/login");
+  };
+
+  const clearSessionAndRedirect = async () => {
+    await logout();
+    navigate("/login", { replace: true });
+  };
+
+  const changePassword = async () => {
+    setPasswordChangeError("");
+    if (!currentPassword) {
+      setPasswordChangeError("현재 비밀번호를 입력해 주세요.");
+      return;
+    }
+    if (newPassword.length < 8) {
+      setPasswordChangeError("새 비밀번호는 8자 이상 입력해 주세요.");
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      await appDataApi.changePassword({
+        currentPassword,
+        newPassword,
+      });
+      await clearSessionAndRedirect();
+    } catch (error) {
+      setPasswordChangeError(accountErrorMessage(error, "비밀번호를 변경하지 못했어요. 잠시 후 다시 시도해 주세요."));
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const withdrawAccount = async () => {
+    setWithdrawError("");
+    const hasPassword = currentUser?.hasPassword === true;
+    if (hasPassword && !withdrawPassword) {
+      setWithdrawError("탈퇴하려면 현재 비밀번호를 입력해 주세요.");
+      return;
+    }
+    if (!hasPassword && withdrawConfirmation !== WITHDRAW_CONFIRMATION_PHRASE) {
+      setWithdrawError(`탈퇴하려면 확인 문구 ${WITHDRAW_CONFIRMATION_PHRASE}를 정확히 입력해 주세요.`);
+      return;
+    }
+
+    setIsWithdrawing(true);
+    try {
+      await appDataApi.withdraw(hasPassword ? { password: withdrawPassword } : { confirmationPhrase: withdrawConfirmation });
+      await clearSessionAndRedirect();
+    } catch (error) {
+      setWithdrawError(accountErrorMessage(error, "회원 탈퇴를 처리하지 못했어요. 잠시 후 다시 시도해 주세요."));
+    } finally {
+      setIsWithdrawing(false);
+    }
   };
 
   const removeSavedPolicy = async (policy: Policy) => {
@@ -230,6 +301,28 @@ export function MyPage() {
           )}
         </section>
 
+        <AccountSecuritySection
+          currentPassword={currentPassword}
+          error={passwordChangeError}
+          hasPassword={currentUser?.hasPassword === true}
+          isSubmitting={isChangingPassword}
+          newPassword={newPassword}
+          onChangeCurrentPassword={setCurrentPassword}
+          onChangeNewPassword={setNewPassword}
+          onSubmit={changePassword}
+        />
+
+        <AccountWithdrawalSection
+          confirmation={withdrawConfirmation}
+          error={withdrawError}
+          hasPassword={currentUser?.hasPassword === true}
+          isSubmitting={isWithdrawing}
+          password={withdrawPassword}
+          onChangeConfirmation={setWithdrawConfirmation}
+          onChangePassword={setWithdrawPassword}
+          onSubmit={withdrawAccount}
+        />
+
         <section className="prototype-settings-menu ds-settings-menu" aria-label="설정 메뉴">
           <button className="prototype-menu-row" onClick={() => setInfoSheetType("faq")} type="button">
             <span className="prototype-menu-icon" aria-hidden="true">
@@ -290,6 +383,159 @@ export function MyPage() {
 
 
         {infoSheetType && <InfoSheet type={infoSheetType} onClose={() => setInfoSheetType(null)} />}
+      </div>
+    </section>
+  );
+}
+
+function AccountSecuritySection({
+  currentPassword,
+  error,
+  hasPassword,
+  isSubmitting,
+  newPassword,
+  onChangeCurrentPassword,
+  onChangeNewPassword,
+  onSubmit,
+}: {
+  currentPassword: string;
+  error: string;
+  hasPassword: boolean;
+  isSubmitting: boolean;
+  newPassword: string;
+  onChangeCurrentPassword: (value: string) => void;
+  onChangeNewPassword: (value: string) => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <section className="ds-card prototype-account-section" aria-labelledby="account-password-title">
+      <div className="prototype-account-section-head">
+        <span className="prototype-account-icon" aria-hidden="true">
+          <KeyRound size={18} />
+        </span>
+        <div>
+          <h2 id="account-password-title">비밀번호 관리</h2>
+          <p className="meta">계정 보안을 위해 변경 후 다시 로그인해야 합니다.</p>
+        </div>
+      </div>
+      {hasPassword ? (
+        <div className="profile-edit-sections">
+          <label className="field">
+            <span>현재 비밀번호</span>
+            <input
+              autoComplete="current-password"
+              disabled={isSubmitting}
+              aria-label="현재 비밀번호"
+              name="currentPassword"
+              onChange={(event) => onChangeCurrentPassword(event.target.value)}
+              type="password"
+              value={currentPassword}
+            />
+          </label>
+          <label className="field">
+            <span>새 비밀번호</span>
+            <input
+              autoComplete="new-password"
+              disabled={isSubmitting}
+              aria-label="새 비밀번호"
+              name="newPassword"
+              onChange={(event) => onChangeNewPassword(event.target.value)}
+              type="password"
+              value={newPassword}
+            />
+          </label>
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
+          <Button disabled={isSubmitting} onClick={onSubmit}>
+            {isSubmitting ? "변경 중입니다" : "비밀번호 변경"}
+          </Button>
+        </div>
+      ) : (
+        <div className="prototype-info-block">
+          <strong>소셜 로그인 계정입니다</strong>
+          <p>이 계정은 앱 비밀번호가 없어 비밀번호 변경을 제공하지 않습니다. 비밀번호와 로그인 보안은 연결한 소셜 제공자에서 관리해 주세요.</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function AccountWithdrawalSection({
+  confirmation,
+  error,
+  hasPassword,
+  isSubmitting,
+  password,
+  onChangeConfirmation,
+  onChangePassword,
+  onSubmit,
+}: {
+  confirmation: string;
+  error: string;
+  hasPassword: boolean;
+  isSubmitting: boolean;
+  password: string;
+  onChangeConfirmation: (value: string) => void;
+  onChangePassword: (value: string) => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <section className="ds-card danger prototype-account-section" aria-labelledby="account-withdraw-title">
+      <div className="prototype-account-section-head">
+        <span className="prototype-account-icon" aria-hidden="true">
+          <UserX size={18} />
+        </span>
+        <div>
+          <h2 id="account-withdraw-title">회원 탈퇴</h2>
+          <p className="meta">탈퇴하면 계정이 비활성화되고 다시 로그인할 수 없습니다.</p>
+        </div>
+      </div>
+      <div className="profile-edit-sections">
+        <ul className="meta">
+          <li>탈퇴 후 계정은 복구할 수 없습니다.</li>
+          <li>같은 이메일로 다시 가입할 수 있습니다.</li>
+          <li>새로 가입해도 이전 데이터는 복원되지 않습니다.</li>
+        </ul>
+        {hasPassword ? (
+          <label className="field">
+            <span>현재 비밀번호</span>
+            <input
+              autoComplete="current-password"
+              disabled={isSubmitting}
+              aria-label="현재 비밀번호"
+              name="withdrawPassword"
+              onChange={(event) => onChangePassword(event.target.value)}
+              type="password"
+              value={password}
+            />
+          </label>
+        ) : (
+          <label className="field">
+            <span>확인 문구</span>
+            <input
+              autoComplete="off"
+              disabled={isSubmitting}
+              aria-label="확인 문구"
+              name="withdrawConfirmation"
+              onChange={(event) => onChangeConfirmation(event.target.value)}
+              placeholder={WITHDRAW_CONFIRMATION_PHRASE}
+              type="text"
+              value={confirmation}
+            />
+            <small className="meta">탈퇴하려면 {WITHDRAW_CONFIRMATION_PHRASE}를 정확히 입력해 주세요.</small>
+          </label>
+        )}
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
+        <Button disabled={isSubmitting} onClick={onSubmit} variant="danger">
+          {isSubmitting ? "탈퇴 처리 중입니다" : "회원 탈퇴"}
+        </Button>
       </div>
     </section>
   );

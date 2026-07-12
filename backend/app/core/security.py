@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -74,6 +75,17 @@ def hash_token(token: str) -> str:
 
 def hash_refresh_token(token: str) -> str:
     return hash_token(token)
+
+
+def hmac_sha256_hex(value: str, *, secret: str | None = None) -> str:
+    """Return a deterministic keyed SHA-256 digest for non-secret lookups.
+
+    This is for stable fingerprints such as withdrawn email lookup. It is
+    intentionally HMAC-based so the stored value is not a plain SHA/email hash.
+    """
+
+    key = (secret or settings.auth_secret_key).encode("utf-8")
+    return hmac.new(key, value.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 def refresh_token_expires_at() -> datetime:

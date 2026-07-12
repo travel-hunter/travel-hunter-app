@@ -58,7 +58,7 @@ def test_signup_creates_pending_signup_and_sends_verification_email(monkeypatch)
     db = FakeDb()
     captured: dict[str, object] = {}
 
-    monkeypatch.setattr(auth_service.user_repository, "get_user_by_email", lambda _db, email: None)
+    monkeypatch.setattr(auth_service.user_repository, "get_active_user_by_email", lambda _db, email: None)
     monkeypatch.setattr(auth_service.security, "create_urlsafe_token", lambda: "raw-signup-token")
     monkeypatch.setattr(
         auth_service,
@@ -99,7 +99,7 @@ def test_signup_send_failure_rolls_back_without_replacing_existing_pending(monke
     db = FakeDb()
     calls: list[str] = []
 
-    monkeypatch.setattr(auth_service.user_repository, "get_user_by_email", lambda _db, email: None)
+    monkeypatch.setattr(auth_service.user_repository, "get_active_user_by_email", lambda _db, email: None)
 
     def fail_send(**_kwargs):
         raise auth_service.EmailDeliveryError("boom")
@@ -148,7 +148,7 @@ def test_verify_signup_confirms_token_without_creating_user(monkeypatch) -> None
         "get_active_pending_signup_by_token",
         lambda _db, **kwargs: pending if kwargs["token_hash"] == pending.token_hash else None,
     )
-    monkeypatch.setattr(auth_service.user_repository, "get_user_by_email", lambda _db, email: None)
+    monkeypatch.setattr(auth_service.user_repository, "get_active_user_by_email", lambda _db, email: None)
 
     result = auth_service.verify_signup(db, SignupVerifyRequest(token="raw-signup-token"))
 
@@ -196,7 +196,7 @@ def test_complete_signup_creates_user_and_refresh_token(monkeypatch) -> None:
         "get_active_pending_signup_by_token",
         lambda _db, **kwargs: pending if kwargs["token_hash"] == pending.token_hash else None,
     )
-    monkeypatch.setattr(auth_service.user_repository, "get_user_by_email", lambda _db, email: None)
+    monkeypatch.setattr(auth_service.user_repository, "get_active_user_by_email", lambda _db, email: None)
     monkeypatch.setattr(auth_service.user_repository, "create_user", create_user)
     monkeypatch.setattr(auth_service.nicknames, "generate_random_nickname", lambda: "알뜰한여행자482")
     monkeypatch.setattr(
@@ -242,7 +242,7 @@ def test_verify_signup_rejects_invalid_or_expired_token(monkeypatch) -> None:
 def test_signup_rejects_duplicate_email(monkeypatch) -> None:
     monkeypatch.setattr(
         auth_service.user_repository,
-        "get_user_by_email",
+        "get_active_user_by_email",
         lambda _db, email: make_user(email=email),
     )
 
@@ -257,12 +257,12 @@ def test_signup_rejects_duplicate_email(monkeypatch) -> None:
 
 
 def test_email_availability_checks_duplicate_email(monkeypatch) -> None:
-    monkeypatch.setattr(auth_service.user_repository, "get_user_by_email", lambda _db, email: None)
+    monkeypatch.setattr(auth_service.user_repository, "get_active_user_by_email", lambda _db, email: None)
     assert auth_service.check_email_availability(FakeDb(), auth_service.EmailAvailabilityRequest(email="NEW@EXAMPLE.COM")) == {"available": True}
 
     monkeypatch.setattr(
         auth_service.user_repository,
-        "get_user_by_email",
+        "get_active_user_by_email",
         lambda _db, email: make_user(email=email),
     )
     assert auth_service.check_email_availability(FakeDb(), auth_service.EmailAvailabilityRequest(email="test.user@example.com")) == {"available": False}
@@ -275,7 +275,7 @@ def test_login_issues_tokens_for_valid_credentials(monkeypatch) -> None:
 
     monkeypatch.setattr(
         auth_service.user_repository,
-        "get_user_by_email",
+        "get_active_user_by_email",
         lambda _db, email: user if email == user.email else None,
     )
     monkeypatch.setattr(
@@ -299,7 +299,7 @@ def test_login_issues_tokens_for_valid_credentials(monkeypatch) -> None:
 def test_login_rejects_invalid_credentials(monkeypatch) -> None:
     monkeypatch.setattr(
         auth_service.user_repository,
-        "get_user_by_email",
+        "get_active_user_by_email",
         lambda _db, email: make_user(email=email),
     )
 
@@ -380,7 +380,7 @@ def test_logout_revokes_active_refresh_token(monkeypatch) -> None:
 def test_password_reset_request_does_not_expose_unknown_email(monkeypatch) -> None:
     monkeypatch.setattr(
         auth_service.user_repository,
-        "get_user_by_email",
+        "get_active_user_by_email",
         lambda _db, _email: None,
     )
 
@@ -399,7 +399,7 @@ def test_password_reset_request_stores_hash_and_sends_email(monkeypatch) -> None
 
     monkeypatch.setattr(
         auth_service.user_repository,
-        "get_user_by_email",
+        "get_active_user_by_email",
         lambda _db, email: user if email == user.email else None,
     )
     monkeypatch.setattr(auth_service.security, "create_urlsafe_token", lambda: "raw-reset-token")
@@ -465,3 +465,247 @@ def test_password_reset_confirm_changes_password_and_revokes_sessions(monkeypatc
     assert security.verify_password("new-password123", str(captured["password_hash"]))
     assert captured["used_at"] is not None
     assert captured["revoked"]["user_id"] == 1
+
+
+def test_user_to_api_exposes_has_password() -> None:
+    assert auth_service.user_to_api(make_user(password="password123"))["hasPassword"] is True
+    assert auth_service.user_to_api(make_user(password="password123", email="oauth@example.com"))[
+        "hasPassword"
+    ] is True
+    passwordless = make_user(email="oauth-only@example.com")
+    passwordless.password_hash = None
+    assert auth_service.user_to_api(passwordless)["hasPassword"] is False
+
+
+def test_change_password_updates_hash_and_revokes_refresh_tokens(monkeypatch) -> None:
+    db = FakeDb()
+    user = make_user(password="old-password123")
+    captured: dict[str, object] = {}
+
+    monkeypatch.setattr(
+        auth_service.user_repository,
+        "update_user_password",
+        lambda _db, _user, **kwargs: captured.update(kwargs),
+    )
+    monkeypatch.setattr(
+        auth_service.token_repository,
+        "revoke_user_refresh_tokens",
+        lambda _db, **kwargs: captured.update({"revoked": kwargs}),
+    )
+
+    result = auth_service.change_password(
+        db,
+        user,
+        auth_service.PasswordChangeRequest(
+            currentPassword="old-password123",
+            newPassword="new-password123",
+        ),
+    )
+
+    assert result == {"changed": True}
+    assert db.committed is True
+    assert captured["password_hash"] != "new-password123"
+    assert security.verify_password("new-password123", str(captured["password_hash"]))
+    assert captured["revoked"]["user_id"] == 1
+
+
+def test_change_password_rejects_wrong_password_and_passwordless(monkeypatch) -> None:
+    def fail_update(*_args, **_kwargs):
+        raise AssertionError("password should not be updated")
+
+    monkeypatch.setattr(auth_service.user_repository, "update_user_password", fail_update)
+    user = make_user(password="old-password123")
+
+    with pytest.raises(auth_service.AuthServiceError) as wrong_password:
+        auth_service.change_password(
+            FakeDb(),
+            user,
+            auth_service.PasswordChangeRequest(
+                currentPassword="wrong-password",
+                newPassword="new-password123",
+            ),
+        )
+    assert wrong_password.value.status_code == 401
+
+    passwordless = make_user()
+    passwordless.password_hash = None
+    with pytest.raises(auth_service.AuthServiceError) as passwordless_error:
+        auth_service.change_password(
+            FakeDb(),
+            passwordless,
+            auth_service.PasswordChangeRequest(
+                currentPassword="anything",
+                newPassword="new-password123",
+            ),
+        )
+    assert passwordless_error.value.status_code == 400
+
+
+def test_withdraw_password_user_requires_password_and_soft_withdraws(monkeypatch) -> None:
+    db = FakeDb()
+    user = make_user(password="password123")
+    captured: dict[str, object] = {}
+
+    def soft_withdraw(_db, current_user):
+        captured["user"] = current_user
+        return current_user
+
+    from app.services import account_withdrawal
+
+    monkeypatch.setattr(account_withdrawal, "soft_withdraw_user", soft_withdraw)
+
+    result = auth_service.withdraw(
+        db,
+        user,
+        auth_service.WithdrawRequest(password="password123"),
+    )
+
+    assert result == {"withdrawn": True}
+    assert captured["user"] is user
+    assert db.committed is True
+
+    with pytest.raises(auth_service.AuthServiceError) as missing:
+        auth_service.withdraw(FakeDb(), user, auth_service.WithdrawRequest())
+    assert missing.value.status_code == 400
+
+    with pytest.raises(auth_service.AuthServiceError) as extra:
+        auth_service.withdraw(
+            FakeDb(),
+            user,
+            auth_service.WithdrawRequest(password="password123", confirmationPhrase="탈퇴합니다"),
+        )
+    assert extra.value.status_code == 400
+
+    with pytest.raises(auth_service.AuthServiceError) as explicit_null_extra:
+        auth_service.withdraw(
+            FakeDb(),
+            user,
+            auth_service.WithdrawRequest(password="password123", confirmationPhrase=None),
+        )
+    assert explicit_null_extra.value.status_code == 400
+
+    with pytest.raises(auth_service.AuthServiceError) as wrong:
+        auth_service.withdraw(FakeDb(), user, auth_service.WithdrawRequest(password="wrong"))
+    assert wrong.value.status_code == 401
+
+
+def test_withdraw_passwordless_user_requires_confirmation_phrase(monkeypatch) -> None:
+    db = FakeDb()
+    user = make_user()
+    user.password_hash = None
+    captured: dict[str, object] = {}
+
+    from app.services import account_withdrawal
+
+    monkeypatch.setattr(
+        account_withdrawal,
+        "soft_withdraw_user",
+        lambda _db, current_user: captured.update({"user": current_user}),
+    )
+
+    result = auth_service.withdraw(
+        db,
+        user,
+        auth_service.WithdrawRequest(confirmationPhrase="탈퇴합니다"),
+    )
+
+    assert result == {"withdrawn": True}
+    assert captured["user"] is user
+    assert db.committed is True
+
+    for request in [
+        auth_service.WithdrawRequest(),
+        auth_service.WithdrawRequest(confirmationPhrase="wrong"),
+        auth_service.WithdrawRequest(password="password123", confirmationPhrase="탈퇴합니다"),
+        auth_service.WithdrawRequest(password=None, confirmationPhrase="탈퇴합니다"),
+    ]:
+        with pytest.raises(auth_service.AuthServiceError) as error:
+            auth_service.withdraw(FakeDb(), user, request)
+        assert error.value.status_code == 400
+
+
+def test_refresh_rejects_withdrawn_token_user(monkeypatch) -> None:
+    db = FakeDb()
+    user = make_user()
+    user.withdrawn_at = security.utc_now_naive()
+    token = AuthRefreshToken(
+        id=1,
+        user_id=1,
+        refresh_token_hash=security.hash_refresh_token("old-refresh-token"),
+        expires_at=security.utc_now_naive() + timedelta(days=1),
+    )
+    token.user = user
+
+    monkeypatch.setattr(
+        auth_service.token_repository,
+        "get_active_refresh_token_by_hash",
+        lambda _db, **kwargs: token,
+    )
+    monkeypatch.setattr(
+        auth_service.token_repository,
+        "create_refresh_token",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("new token issued")),
+    )
+
+    with pytest.raises(auth_service.AuthServiceError) as error:
+        auth_service.refresh(db, "old-refresh-token")
+
+    assert error.value.status_code == 401
+    assert token.revoked_at is not None
+    assert db.committed is True
+
+
+def test_password_reset_request_ignores_passwordless_user(monkeypatch) -> None:
+    passwordless = make_user()
+    passwordless.password_hash = None
+
+    monkeypatch.setattr(
+        auth_service.user_repository,
+        "get_active_user_by_email",
+        lambda _db, email: passwordless,
+    )
+    monkeypatch.setattr(
+        auth_service.password_reset_repository,
+        "create_password_reset_token",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("token created")),
+    )
+
+    result = auth_service.request_password_reset(
+        FakeDb(),
+        auth_service.PasswordResetRequest(email="oauth@example.com"),
+    )
+
+    assert result == {"requested": True}
+
+
+def test_password_reset_confirm_rejects_withdrawn_or_passwordless_user(monkeypatch) -> None:
+    user = make_user()
+    token = SimpleNamespace(user=user, user_id=user.id, used_at=None)
+
+    monkeypatch.setattr(
+        auth_service.password_reset_repository,
+        "get_active_password_reset_token",
+        lambda _db, **kwargs: token,
+    )
+    monkeypatch.setattr(
+        auth_service.user_repository,
+        "update_user_password",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("password updated")),
+    )
+
+    user.withdrawn_at = security.utc_now_naive()
+    with pytest.raises(auth_service.AuthServiceError) as withdrawn:
+        auth_service.confirm_password_reset(
+            FakeDb(),
+            auth_service.PasswordResetConfirm(token="raw-reset-token", newPassword="new-password123"),
+        )
+    assert withdrawn.value.status_code == 400
+
+    user.withdrawn_at = None
+    user.password_hash = None
+    with pytest.raises(auth_service.AuthServiceError) as passwordless:
+        auth_service.confirm_password_reset(
+            FakeDb(),
+            auth_service.PasswordResetConfirm(token="raw-reset-token", newPassword="new-password123"),
+        )
+    assert passwordless.value.status_code == 400

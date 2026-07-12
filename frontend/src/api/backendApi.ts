@@ -3,6 +3,8 @@ import type { ProfileSkipResponse } from "./types";
 import {
   AppDataApi,
   AuthResponse,
+  ChangePasswordRequest,
+  ChangePasswordResponse,
   CompleteSocialSignupRequest,
   CreateTripRequest,
   DeleteTripResponse,
@@ -32,6 +34,8 @@ import {
   TripPolicyResponse,
   TripStatusUpdateRequest,
   TravelAreaRecommendationOptions,
+  WithdrawRequest,
+  WithdrawResponse,
 } from "./dataApi";
 import {
   AdminAuditLogListResponse,
@@ -97,6 +101,8 @@ export const backendApi: AppDataApi = {
   updateNickname: (request: NicknameUpdateRequest): Promise<User> => apiClient.patch<User>("/api/me/nickname", request),
   refreshSession: (): Promise<AuthResponse> => apiClient.post<AuthResponse>("/api/auth/refresh"),
   logout: (): Promise<LogoutResponse> => apiClient.post<LogoutResponse>("/api/auth/logout"),
+  changePassword: (request: ChangePasswordRequest): Promise<ChangePasswordResponse> => apiClient.post<ChangePasswordResponse>("/api/auth/password/change", request),
+  withdraw: (request: WithdrawRequest): Promise<WithdrawResponse> => apiClient.post<WithdrawResponse>("/api/auth/withdraw", request),
   requestPasswordReset: (request: PasswordResetRequest): Promise<PasswordResetResponse> => apiClient.post<PasswordResetResponse>("/api/auth/password-reset/request", request),
   confirmPasswordReset: (request: PasswordResetConfirmRequest): Promise<PasswordResetConfirmResponse> => apiClient.post<PasswordResetConfirmResponse>("/api/auth/password-reset/confirm", request),
   getOAuthStartUrl: (provider: OAuthProvider, redirect?: string | null): string => {
