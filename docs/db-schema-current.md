@@ -2,14 +2,14 @@
 
 ## 기준
 
-- 기준일: 2026-07-11
-- 기준 Alembic head: `0025_prune_contact_notify`
+- 기준일: 2026-07-12
+- 기준 Alembic head: `0026_user_withdrawal_fields`
 - PostgreSQL: 16.14 (`postgres:16-alpine` fresh container)
 - SQL snapshot: `docs/db-schema-current.sql`
 - ERD/관계 시각화: `docs/db-erd.md`
-- 생성 방식: 이전 schema-only snapshot에 Alembic head `0025_prune_contact_notify`의 offline SQL diff를 반영했다. Fresh DB pg_dump 재생성은 별도 검증으로 다시 수행할 수 있다. Schema 변경은 Alembic 기준으로 추적하고, 관계/핵심 컬럼 요약은 `docs/db-erd.md`가 제공한다.
+- 생성 방식: 이전 schema-only snapshot에 Alembic head `0026_user_withdrawal_fields`의 offline SQL diff를 반영했다. Fresh DB pg_dump 재생성은 별도 검증으로 다시 수행할 수 있다. Schema 변경은 Alembic 기준으로 추적하고, 관계/핵심 컬럼 요약은 `docs/db-erd.md`가 제공한다.
 
-이 문서는 현재 앱이 사용하는 PostgreSQL schema의 기준 문서다. 초기 SQL 기준본 이후 Alembic migration `0002`~`0025`가 적용된 현재 구조를 설명한다. 테이블 관계, 핵심 컬럼, 제약/index, 문서 drift는 `docs/db-erd.md`를 함께 본다.
+이 문서는 현재 앱이 사용하는 PostgreSQL schema의 기준 문서다. 초기 SQL 기준본 이후 Alembic migration `0002`~`0026`이 적용된 현재 구조를 설명한다. 테이블 관계, 핵심 컬럼, 제약/index, 문서 drift는 `docs/db-erd.md`를 함께 본다.
 
 ## 테이블 그룹
 
@@ -73,6 +73,7 @@ Migration metadata:
 - `users.profile_setup_skipped`
 - `users.terms_accepted` / `users.terms_accepted_at` / `users.terms_version`
 - `users.privacy_accepted` / `users.privacy_accepted_at` / `users.privacy_version`
+- `users.withdrawn_at` / `users.withdrawn_email_hash`
 - `pending_signups.terms_accepted` / `pending_signups.privacy_accepted` 계열 약관 동의 컬럼
 - `policies.apply_url`
 - `policies.structured_detail`
@@ -85,7 +86,7 @@ Migration metadata:
 
 ## 2026-06-30 ERD/current-code 기준
 
-`docs/db-erd.md`는 SQLAlchemy metadata(`backend/app/models/tables.py`)와 Alembic head `0025_prune_contact_notify`를 기준으로 만든 현재 코드 기준 ERD다. 이 ERD는 테이블 관계, 핵심 컬럼, PK/FK/unique/index 요약, `docs/db-schema-current.sql`과의 drift를 함께 기록한다.
+`docs/db-erd.md`는 SQLAlchemy metadata(`backend/app/models/tables.py`)와 Alembic head `0026_user_withdrawal_fields`를 기준으로 맞춰야 하는 현재 코드 기준 ERD다. 이 ERD는 테이블 관계, 핵심 컬럼, PK/FK/unique/index 요약, `docs/db-schema-current.sql`과의 drift를 함께 기록한다.
 
 이전에 확인됐고 이번 SQL snapshot 재생성으로 해소된 주요 drift:
 
@@ -96,8 +97,9 @@ Migration metadata:
 - `0023_policy_structured_detail`: `policies.structured_detail` JSONB 컬럼 추가. 기존 정책 row는 현재 정책 필드에서 느슨한 사용자 상세 섹션 JSON으로 backfill하되, 조건 섹션은 코드의 조건 정제 규칙과 drift가 생기지 않도록 비워 두고 화면에서 기존 조건 fallback을 사용한다.
 - `0024_local_kst_time_shift`: guarded local KST timestamp data shift migration.
 - `0025_prune_contact_notify`: contact/OTP/notification settings surface를 제거하면서 `users`의 personal/contact columns와 관련 설정/OTP 테이블을 drop했다. `users.preferred_regions`는 유지한다.
+- `0026_user_withdrawal_fields`: soft withdrawal/anonymization 상태 추적을 위해 `users.withdrawn_at`과 HMAC/peppered fingerprint 저장용 `users.withdrawn_email_hash` 및 조회 index를 추가했다. `password_reset_tokens`는 유지한다.
 
-현재 `docs/db-schema-current.sql`은 기존 schema-only snapshot에서 Alembic `0025_prune_contact_notify` drop diff를 반영한 schema reference다. 향후 migration이 추가되면 같은 절차로 다시 생성한다.
+현재 `docs/db-schema-current.sql`은 기존 schema-only snapshot에서 Alembic `0026_user_withdrawal_fields` diff를 반영한 schema reference다. 향후 migration이 추가되면 같은 절차로 다시 생성한다.
 
 ## `notification_deliveries`
 
@@ -114,6 +116,41 @@ Migration metadata:
 - `token_hash`
 - `created_at`
 - `expires_at`
+
+## `users` withdrawal state
+
+`users`는 soft withdrawal 상태를 직접 보관한다. 탈퇴 row는 삭제하지 않으며, user FK가 있는 저장 정책/일정/초대/이력 row를 유지한다.
+
+탈퇴 관련 컬럼/index:
+
+- `withdrawn_at`: 탈퇴 처리 시각. `NULL`이면 active user로 본다.
+- `withdrawn_email_hash`: 원래 이메일을 `withdrawn-email:{normalizedEmail}` payload로 HMAC-SHA256 처리한 64자 fingerprint. 원문 이메일은 저장하지 않는다.
+- `ix_users_withdrawn_email_hash`: 운영/감사 조회용 btree index.
+
+탈퇴 처리 후 직접 식별자는 다음 값으로 바뀐다.
+
+- `email`: `withdrawn-{id}-{YYYYMMDDHHMMSS}@withdrawn.local`
+- `nickname`: `탈퇴한 사용자 #<id>`
+- `password_hash`: `NULL`
+- `preferred_regions`, `travel_style`, `travel_budget`: `NULL`
+- `onboarding_completed`, `profile_setup_skipped`: `false`
+
+`users.email` unique 제약은 유지한다. 탈퇴 시 이메일을 익명화하므로 원래 이메일은 새 active user 가입에 다시 사용할 수 있다. 서비스 조회는 `withdrawn_at IS NULL`과 동등한 active user repository path를 사용해야 한다.
+
+## `password_reset_tokens`
+
+`password_reset_tokens`는 비밀번호 재설정 token hash 이력을 저장한다. 원문 token은 저장하지 않고 `token_hash`만 unique/index로 보관한다.
+
+주요 컬럼:
+
+- `id`
+- `user_id`
+- `token_hash`
+- `created_at`
+- `expires_at`
+- `used_at`
+
+회원 탈퇴는 soft withdrawal이므로 `password_reset_tokens` row를 삭제하지 않는다. 단, 재설정 confirm은 연결된 user가 active이고 `password_hash`가 있는 경우에만 성공하므로 탈퇴 user 또는 passwordless/OAuth-only user의 기존 token은 fail-closed로 무효 처리된다.
 
 ## `external_source_records`
 
@@ -139,6 +176,8 @@ Migration metadata:
 
 `policies`는 사용자에게 노출되는 공식 혜택의 정규화 테이블이다. TravelMonth 등 외부 공식 수집 레코드는 원문 근거를 `external_source_records`에 보존한 뒤 active/fresh 항목을 `policies`로 승격한다. 승격된 정책은 저장, 일정 연결, 추천 카드, 상세 페이지에서 일반 정책과 같은 경로를 사용한다.
 
+2026-07 first-pass cleanup은 schema 변경이 아니다. `benefit_amount`/`benefit_detail`, `target_condition`, `apply_url`/`official_url`, `source_type`, `source_canonical_key`, `status`의 의미를 helper와 문서로 정리했지만, `policies` 컬럼 drop/rename과 public `Policy` DTO 변경은 하지 않았다.
+
 정책 상세 화면용 구조화 컬럼:
 
 - `structured_detail`: `benefits`, `conditions`, `periods`, `links`, `documents`, `notices` 섹션을 담는 JSONB 정리본이다. raw 수집 JSON이 아니라 사용자 화면에서 바로 섹션 렌더링하기 위한 보조/장기 기준 데이터이며, 섹션이 없거나 비어 있으면 해당 섹션만 기존 `summary`/`requirements` fallback을 사용한다. public 링크는 `http://`/`https://`만 노출한다.
@@ -156,6 +195,17 @@ Migration metadata:
 - `verification_status`
 
 `external_source_record_id`는 `external_source_records.id`를 참조하며, 원문 레코드 삭제 시 정책 row는 유지하고 참조만 `NULL`로 만든다.
+
+API `sourceType`은 `source_type` 원문값을 그대로 노출하지 않고 `internal` 또는 `external`로 정규화한다. `external_source_record_id`가 있으면 `external`, source 정보가 비어 있으면 `internal`, 지원하지 않는 비어 있지 않은 source type은 `external`로 본다. `source_name`, `source_category`, `source_canonical_key`는 중복 판단과 운영 진단 metadata로 유지한다.
+
+정책 semantics 집계 진단은 아래 DB-backed read-only command를 사용한다.
+
+```bash
+cd backend
+.venv/bin/python scripts/audit_policy_semantics.py --json
+```
+
+기존 `backend/scripts/audit_policy_sources.py --json path/to/policies.json`는 파일 입력 기반 URL/source auditor로 남긴다.
 
 ## 운영 기준
 
@@ -194,5 +244,7 @@ Migration metadata:
 - `status`: `active` 또는 `hidden`, 기본값은 `active`
 - `admin_override_enabled`: external normalized policy를 관리자가 수동 보정했는지 나타내며, 기본값은 `false`
 - `updated_at`: 정책 수정 시각 추적용 timestamp
+
+현재 `status`는 계속 `active|hidden` string enum이다. public 목록/상세/저장/일정 연결 경로는 active-only 규칙을 공유한다. boolean/visibility 컬럼 전환은 phase-2 schema cleanup 선택지이며, 이 schema snapshot에는 반영하지 않는다.
 
 `admin_audit_logs`는 관리자 변경 이력을 남긴다. `before_json`과 `after_json`에는 sanitized JSON만 저장해야 하며 password hash, token, OTP, OAuth identifier 같은 secret/internal 값은 포함하지 않는다.

@@ -2,10 +2,14 @@ from __future__ import annotations
 
 from datetime import date
 from typing import Any
-from urllib.parse import urlparse
 
 from app.models import Policy
-from app.services.policy_requirements import sanitize_requirement_items, split_requirement_lines
+from app.services.policy_semantics import (
+    benefit_display_amount_for_policy,
+    policy_url_fields_for_policy,
+    requirement_items_for_policy,
+    safe_policy_url,
+)
 
 
 STRUCTURED_DETAIL_SECTION_KEYS = (
@@ -26,7 +30,6 @@ STRUCTURED_DETAIL_ITEM_KEYS = {
     "startDate",
     "endDate",
 }
-SAFE_LINK_SCHEMES = {"http", "https"}
 
 
 def _clean_text(value: object) -> str:
@@ -42,13 +45,7 @@ def _has_text(value: str | None) -> bool:
 
 
 def _safe_url(value: object) -> str | None:
-    url = _clean_text(value)
-    if not url:
-        return None
-    parsed = urlparse(url)
-    if parsed.scheme.lower() not in SAFE_LINK_SCHEMES or not parsed.netloc:
-        return None
-    return url
+    return safe_policy_url(_clean_text(value))
 
 
 def empty_structured_detail() -> dict[str, list[dict[str, Any]]]:
@@ -113,13 +110,12 @@ def build_structured_detail_from_policy(policy: Policy) -> dict[str, list[dict[s
             "title": "혜택",
             "description": benefit_description,
         }
-        if policy.benefit_detail:
-            benefit_item["amount"] = _clean_text(policy.benefit_detail)
-        elif policy.benefit_amount is not None:
-            benefit_item["amount"] = f"최대 {policy.benefit_amount:,}원"
+        benefit_amount = benefit_display_amount_for_policy(policy)
+        if benefit_amount:
+            benefit_item["amount"] = _clean_text(benefit_amount)
         detail["benefits"].append(benefit_item)
 
-    requirements = sanitize_requirement_items(split_requirement_lines(policy.target_condition))
+    requirements = requirement_items_for_policy(policy)
     detail["conditions"].extend(
         {"title": "조건", "description": requirement}
         for requirement in requirements
@@ -140,8 +136,9 @@ def build_structured_detail_from_policy(policy: Policy) -> dict[str, list[dict[s
     if period_item:
         detail["periods"].append(period_item)
 
-    apply_url = _safe_url(policy.apply_url)
-    official_url = _safe_url(policy.official_url)
+    url_fields = policy_url_fields_for_policy(policy)
+    apply_url = url_fields["applyUrl"]
+    official_url = url_fields["officialUrl"]
     if apply_url is not None:
         detail["links"].append({"label": "신청하기", "url": apply_url})
     if official_url is not None and official_url != apply_url:

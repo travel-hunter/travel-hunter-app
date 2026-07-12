@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -5,6 +7,14 @@ from app.core import security
 from app.models import SocialAccount, User
 
 UNSET = object()
+
+
+def is_user_withdrawn(user: User) -> bool:
+    return getattr(user, "withdrawn_at", None) is not None
+
+
+def is_user_active(user: User) -> bool:
+    return not is_user_withdrawn(user)
 
 
 def get_user_by_email(db: Session, email: str) -> User | None:
@@ -16,6 +26,11 @@ def get_user_by_email(db: Session, email: str) -> User | None:
     return db.scalar(statement)
 
 
+def get_active_user_by_email(db: Session, email: str) -> User | None:
+    user = get_user_by_email(db, email)
+    return user if user is not None and is_user_active(user) else None
+
+
 def get_user_by_id(db: Session, user_id: int) -> User | None:
     statement = (
         select(User)
@@ -23,6 +38,11 @@ def get_user_by_id(db: Session, user_id: int) -> User | None:
         .where(User.id == user_id)
     )
     return db.scalar(statement)
+
+
+def get_active_user_by_id(db: Session, user_id: int) -> User | None:
+    user = get_user_by_id(db, user_id)
+    return user if user is not None and is_user_active(user) else None
 
 
 def create_user(
@@ -102,6 +122,18 @@ def get_social_account(
     return db.scalar(statement)
 
 
+def get_active_social_account(
+    db: Session,
+    *,
+    provider: str,
+    provider_id: str,
+) -> SocialAccount | None:
+    account = get_social_account(db, provider=provider, provider_id=provider_id)
+    if account is None or account.user is None:
+        return None
+    return account if is_user_active(account.user) else None
+
+
 def create_social_account(
     db: Session,
     *,
@@ -156,6 +188,50 @@ def mark_profile_setup_skipped(db: Session, user: User) -> User:
     user.onboarding_completed = True
     user.profile_setup_skipped = True
     user.updated_at = security.utc_now_naive()
+    db.add(user)
+    db.flush()
+    return user
+
+
+def clear_user_preferences(db: Session, user: User, *, updated_at: datetime) -> User:
+    user.preferred_regions = None
+    user.travel_style = None
+    user.travel_budget = None
+    user.onboarding_completed = False
+    user.profile_setup_skipped = False
+    user.updated_at = updated_at
+    db.add(user)
+    db.flush()
+    return user
+
+
+def disconnect_social_accounts(db: Session, user: User) -> None:
+    accounts = list(
+        db.scalars(select(SocialAccount).where(SocialAccount.user_id == int(user.id)))
+    )
+    for account in accounts:
+        db.delete(account)
+    if "social_accounts" in user.__dict__:
+        user.social_accounts = []
+    db.add(user)
+    db.flush()
+
+
+def mark_user_withdrawn(
+    db: Session,
+    user: User,
+    *,
+    withdrawn_at: datetime,
+    withdrawn_email_hash: str,
+    anonymized_email: str,
+    withdrawn_nickname: str,
+) -> User:
+    user.withdrawn_at = withdrawn_at
+    user.withdrawn_email_hash = withdrawn_email_hash
+    user.email = anonymized_email
+    user.nickname = withdrawn_nickname
+    user.password_hash = None
+    user.updated_at = withdrawn_at
     db.add(user)
     db.flush()
     return user

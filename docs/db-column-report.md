@@ -1,6 +1,7 @@
 # Travel Hunter DB 컬럼 설명 보고서
 
 - 작성일: 2026-07-11
+- 최근 갱신: 2026-07-12 (`policies` first-pass semantic hardening 반영)
 - 기준 schema: `docs/db-schema-current.sql`
 - 보조 기준: `docs/db-schema-current.md`, `docs/db-erd.md`, `backend/app/models/tables.py`
 - 기준 Alembic head: `0025_prune_contact_notify`
@@ -206,7 +207,7 @@
 - **존재 목적:** 사용자에게 노출되는 여행 지원 정책의 정규화된 본문, 신청/공식 링크, 수집 출처, 운영 상태를 저장하는 핵심 정책 테이블이다.
 - **주요 관계:** `external_source_record_id`로 수집 원문(`external_source_records.id`)과 연결될 수 있고, 저장/여행첨부/알림/서류 테이블의 중심이 된다.
 - **컬럼 수:** 30개
-- **정리 판단:** 서비스의 핵심 업무 테이블이다. 컬럼 수는 많지만 정책 상세·출처·운영상태가 섞인 결과이므로 단기적으로는 수용 가능하다. 장기적으로는 structured detail과 운영 메타데이터 분리를 검토할 수 있다.
+- **정리 판단:** 서비스의 핵심 업무 테이블이다. 컬럼 수는 많지만 정책 상세·출처·운영상태가 섞인 결과이므로 단기적으로는 수용 가능하다. 2026-07 first pass에서는 컬럼 drop/rename 없이 helper로 의미를 중앙화했다. 장기적으로는 structured detail, 운영 메타데이터, 링크 모델 분리를 검토할 수 있다.
 
 | 컬럼 | 타입 | 필수 여부 | 기본값 | 상세 설명 |
 |---|---|---|---|---|
@@ -216,32 +217,41 @@
 | `organization` | `character varying(100)` | 선택 | `-` | 정책 주관 기관명이다. |
 | `policy_type` | `character varying(30)` | 선택 | `-` | 정책 유형 분류다. 예: 숙박, 교통, 할인, 지원금 등. |
 | `description` | `text` | 선택 | `-` | 정책 개요 설명이다. |
-| `benefit_amount` | `integer` | 선택 | `-` | 금액형 혜택을 정수 원 단위로 정규화한 값이다. |
-| `benefit_detail` | `text` | 선택 | `-` | 혜택 조건·금액·방식의 상세 설명이다. |
-| `target_condition` | `text` | 선택 | `-` | 신청 대상 또는 자격 조건 설명이다. |
+| `benefit_amount` | `integer` | 선택 | `-` | 금액형 혜택을 정수 원 단위로 정규화한 값이다. 화면 표시에서는 `benefit_detail`이 먼저 쓰이고, 이 값은 detail이 없을 때의 표시 fallback이나 절약액 집계용 숫자로 남는다. |
+| `benefit_detail` | `text` | 선택 | `-` | 혜택 조건·금액·방식의 상세 설명이다. DTO `amount`의 주 표시값이며, `benefit_amount`보다 우선한다. |
+| `target_condition` | `text` | 선택 | `-` | 신청 대상 또는 자격 조건 설명이다. DB 필드명은 유지하며, DTO `requirements` fallback 배열은 helper에서 줄 분리/정제한다. |
 | `region` | `character varying(50)` | 필수 | `-` | 정책 적용 지역이다. |
 | `start_date` | `date` | 선택 | `-` | 신청 또는 사용 가능 시작일이다. |
 | `end_date` | `date` | 선택 | `-` | 신청 또는 사용 가능 종료일이다. |
-| `official_url` | `character varying(500)` | 선택 | `-` | 정책 공식 안내 페이지 URL이다. |
+| `official_url` | `character varying(500)` | 선택 | `-` | 정책 공식 안내 페이지 URL이다. DTO `officialUrl`로 내려가며 안내 CTA에 사용된다. |
 | `policy_comment` | `character varying(300)` | 선택 | `-` | 운영자가 사용자에게 보여줄 보충 코멘트다. |
 | `policy_period` | `character varying(100)` | 선택 | `-` | 원문에 표현된 기간 문구다. 날짜로 완전히 정규화하기 어려운 경우 보존한다. |
 | `created_at` | `timestamp without time zone` | 필수 | `now()` | 정책 row 생성 시각이다. |
-| `apply_url` | `character varying(500)` | 선택 | `-` | 신청 페이지 또는 신청 안내 URL이다. |
-| `source_type` | `character varying(50)` | 선택 | `-` | 정책 출처 유형이다. 예: manual, external 등. |
+| `apply_url` | `character varying(500)` | 선택 | `-` | 신청 페이지 또는 신청 안내 URL이다. DTO `applyUrl`로 내려가며, 값이 있으면 `officialUrl`보다 CTA 우선순위가 높다. |
+| `source_type` | `character varying(50)` | 선택 | `-` | 정책 출처 유형이다. API `sourceType`은 이 값을 그대로 노출하지 않고 `internal` 또는 `external`로 정규화한다. `external_source_record_id`가 있으면 `external`, 비어 있고 source type도 비어 있으면 `internal`, 지원하지 않는 비어 있지 않은 값은 `external`로 본다. |
 | `source_name` | `character varying(100)` | 선택 | `-` | 정책을 가져온 출처/provider 이름이다. |
 | `source_category` | `character varying(80)` | 선택 | `-` | 출처 내부 분류다. |
 | `external_source_record_id` | `bigint` | 선택 | `-` | 원본 수집 기록 `external_source_records.id` 참조값이다. |
 | `source_url` | `character varying(500)` | 선택 | `-` | 수집 또는 근거가 된 원문 URL이다. |
-| `source_canonical_key` | `character varying(160)` | 선택 | `-` | 외부 원천에서 중복 판별에 쓰는 canonical key다. |
+| `source_canonical_key` | `character varying(160)` | 선택 | `-` | 외부 원천에서 중복 판별에 쓰는 canonical key다. 현재는 legacy mixed format을 허용하고, DB aggregate audit에서 key family별 count를 진단한다. |
 | `normalized_at` | `timestamp without time zone` | 선택 | `-` | 수집 원문에서 정책 row로 정규화된 시각이다. |
 | `last_verified_at` | `timestamp without time zone` | 선택 | `-` | 정책 정보가 마지막으로 확인된 시각이다. |
 | `verification_status` | `character varying(30)` | 선택 | `-` | 정책 검증 상태다. 예: verified, needs_review 등. |
-| `status` | `character varying(20)` | 필수 | `'active'::character varying` | 서비스 내 노출/운영 상태다. 기본 active다. |
+| `status` | `character varying(20)` | 필수 | `'active'::character varying` | 서비스 내 노출/운영 상태다. 현재 허용 값은 `active`와 `hidden`이며, public 목록/상세/저장/일정 연결 경로는 active-only 기준을 쓴다. boolean/visibility 컬럼 전환은 phase-2 검토 옵션이다. |
 | `admin_override_enabled` | `boolean` | 필수 | `false` | 관리자 수동 수정이 수집 동기화보다 우선해야 하는지 여부다. |
 | `updated_at` | `timestamp without time zone` | 필수 | `now()` | 정책 row 마지막 변경 시각이다. |
 | `structured_detail` | `jsonb` | 선택 | `-` | 정책 상세 내용을 구조화해 저장한 JSON이다. 혜택·대상·절차 등 확장 정보를 담는다. |
 
-**읽는 방법:** `policies`는 서비스 노출 기준 테이블이다. `external_source_records`에서 온 내용이 정규화되어 들어오며, `admin_override_enabled`가 켜진 정책은 수집 동기화보다 관리자 판단을 우선해야 한다.
+**읽는 방법:** `policies`는 서비스 노출 기준 테이블이다. `external_source_records`에서 온 내용이 정규화되어 들어오며, `admin_override_enabled`가 켜진 정책은 수집 동기화보다 관리자 판단을 우선해야 한다. 2026-07 first pass는 DB schema/API DTO를 바꾸지 않고 `backend/app/services/policy_semantics.py`와 `backend/app/models/policy_status.py`로 혜택 표시, 조건 fallback, link DTO, sourceType 정규화, 공개 상태 의미를 중앙화했다. 현재 schema reference와 SQL snapshot은 그대로 유효하다.
+
+정책 semantics 집계 진단:
+
+```bash
+cd backend
+.venv/bin/python scripts/audit_policy_semantics.py --json
+```
+
+이 명령은 DB를 read-only aggregate 방식으로 읽어 `status`, `benefit_amount`, `apply_url`, source metadata 조합, `source_canonical_key` family를 집계한다. 기존 `backend/scripts/audit_policy_sources.py --json path/to/policies.json`은 별도 JSON 파일을 입력으로 받는 URL/source 품질 auditor이며, DB aggregate 진단과 역할이 다르다.
 
 ### 3.11. `policy_documents`
 
@@ -485,7 +495,7 @@
 
 1. **`external_source_records` 정리 기준 수립**: 삭제보다 먼저 보관 기간, 원문 압축/아카이브, 재처리에 필요한 최소 필드를 정해야 한다. 원문 근거가 사라지면 정책 품질 검증과 재수집 디버깅이 어려워진다.
 2. **`users` 프로필 컬럼 사용처 점검**: `travel_budget`, `preferred_regions`가 현재 추천/정책 자격/화면에서 실제로 쓰이는지 확인하고, 미사용이면 수집 중단 또는 별도 선택 프로필로 격리할 수 있다.
-3. **`policies` 책임 분리 후보 검토**: 지금은 MVP상 단일 테이블 유지가 단순하지만, 운영 메타데이터와 상세 JSON이 계속 커지면 `policy_source_metadata`, `policy_structured_details` 같은 분리를 검토할 수 있다.
+3. **`policies` 책임 분리 후보 검토**: 지금은 MVP상 단일 테이블 유지가 단순하지만, 운영 메타데이터와 상세 JSON이 계속 커지면 `policy_source_metadata`, `policy_structured_details` 같은 분리를 검토할 수 있다. 구체적인 phase-2 선택지는 `docs/specs/policies-table-cleanup-phase2.md`에 둔다.
 4. **만료성 테이블 청소 정책**: `pending_signups`, `pending_social_signups`, `password_reset_tokens`, `trip_invites`는 만료 후 정리 배치 또는 운영 절차가 필요하다.
 5. **로그/이력 테이블 보관 정책**: `admin_audit_logs`, `notification_deliveries`, `recommendations`는 운영 추적에 유용하지만 장기적으로 보관 기간과 개인정보 마스킹 기준이 필요하다.
 

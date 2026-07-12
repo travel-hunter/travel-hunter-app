@@ -727,6 +727,8 @@ CREATE TABLE public.users (
     privacy_accepted boolean DEFAULT false NOT NULL,
     privacy_accepted_at timestamp without time zone,
     privacy_version character varying(32),
+    withdrawn_at timestamp without time zone,
+    withdrawn_email_hash character varying(64),
     CONSTRAINT ck_users_role_user_admin CHECK (((role)::text = ANY ((ARRAY['user'::character varying, 'admin'::character varying])::text[])))
 );
 
@@ -1277,6 +1279,13 @@ CREATE INDEX ix_notification_deliveries_policy_id ON public.notification_deliver
 --
 
 CREATE INDEX ix_notification_deliveries_user_id ON public.notification_deliveries USING btree (user_id);
+
+
+--
+-- Name: ix_users_withdrawn_email_hash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_users_withdrawn_email_hash ON public.users USING btree (withdrawn_email_hash);
 
 
 --

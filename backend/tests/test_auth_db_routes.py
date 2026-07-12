@@ -29,6 +29,7 @@ def make_user() -> UserModel:
 def clear_overrides() -> None:
     app.dependency_overrides.pop(auth_routes.get_optional_db, None)
     app.dependency_overrides.pop(profile_routes.get_current_user, None)
+    app.dependency_overrides.pop(auth_routes.get_current_user, None)
 
 
 def test_db_login_route_sets_refresh_cookie(monkeypatch) -> None:
@@ -182,6 +183,7 @@ def test_db_me_returns_current_user(monkeypatch) -> None:
     assert response.json()["id"] == "1"
     assert response.json()["email"] == "test.user@example.com"
     assert response.json()["nicknameSetupCompleted"] is True
+    assert response.json()["hasPassword"] is False
     assert response.json()["socialAccounts"] == []
 
 
@@ -412,3 +414,83 @@ def test_agreement_versions_match_frontend_contract() -> None:
     assert privacy is not None
     assert terms.group(1) == auth_service.CURRENT_TERMS_VERSION
     assert privacy.group(1) == auth_service.CURRENT_PRIVACY_VERSION
+
+def test_db_login_response_includes_has_password(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    user.password_hash = "hash"
+    result = auth_service.AuthResult(
+        access_token="access-token",
+        refresh_token="refresh-token",
+        user=auth_service.user_to_api(user),
+    )
+
+    monkeypatch.setattr(auth_routes.auth_service, "login", lambda db, request: result)
+    app.dependency_overrides[auth_routes.get_optional_db] = lambda: fake_db
+
+    try:
+        response = client.post(
+            "/api/auth/login",
+            json={"email": "test.user@example.com", "password": "password123"},
+        )
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    assert response.json()["user"]["hasPassword"] is True
+
+
+def test_password_change_route_returns_changed(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    captured: dict[str, object] = {}
+
+    def change_password(db, current_user, request):
+        captured.update({"db": db, "user": current_user, "current": request.currentPassword})
+        return {"changed": True}
+
+    monkeypatch.setattr(auth_routes.auth_service, "change_password", change_password)
+    app.dependency_overrides[auth_routes.get_optional_db] = lambda: fake_db
+    app.dependency_overrides[auth_routes.get_current_user] = lambda: user
+
+    try:
+        response = client.post(
+            "/api/auth/password/change",
+            json={"currentPassword": "old-password", "newPassword": "new-password123"},
+        )
+    finally:
+        clear_overrides()
+
+    assert response.status_code == 200
+    assert response.json() == {"changed": True}
+    assert captured == {"db": fake_db, "user": user, "current": "old-password"}
+
+
+def test_withdraw_route_clears_refresh_cookie(monkeypatch) -> None:
+    fake_db = object()
+    user = make_user()
+    captured: dict[str, object] = {}
+
+    def withdraw(db, current_user, request):
+        captured.update({"db": db, "user": current_user, "password": request.password})
+        return {"withdrawn": True}
+
+    monkeypatch.setattr(auth_routes.auth_service, "withdraw", withdraw)
+    app.dependency_overrides[auth_routes.get_optional_db] = lambda: fake_db
+    app.dependency_overrides[auth_routes.get_current_user] = lambda: user
+
+    try:
+        client.cookies.set("travel_hunter_refresh", "refresh-token")
+        response = client.post(
+            "/api/auth/withdraw",
+            json={"password": "password123"},
+            headers={"Authorization": "Bearer access-token"},
+        )
+    finally:
+        client.cookies.clear()
+        clear_overrides()
+
+    assert response.status_code == 200
+    assert response.json() == {"withdrawn": True}
+    assert captured == {"db": fake_db, "user": user, "password": "password123"}
+    assert "travel_hunter_refresh=" in response.headers["set-cookie"]

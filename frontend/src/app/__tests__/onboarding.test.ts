@@ -8,6 +8,7 @@ function makeUser(overrides: Partial<User> = {}): User {
     nickname: "여행러",
     email: "user@example.com",
     role: "user",
+    hasPassword: true,
     preferredRegions: null,
     persona: "Travel Hunter 사용자",
     savedAmount: 0,

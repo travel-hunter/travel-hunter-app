@@ -55,8 +55,8 @@ def test_new_oauth_callback_creates_pending_social_signup_without_auth(monkeypat
             "name": "신규 소셜",
         },
     )
-    monkeypatch.setattr(oauth_service.user_repository, "get_social_account", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(oauth_service.user_repository, "get_user_by_email", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(oauth_service.user_repository, "get_active_social_account", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(oauth_service.user_repository, "get_active_user_by_email", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(oauth_service.security, "create_urlsafe_token", lambda: "pending-social-token")
     monkeypatch.setattr(
         oauth_service.pending_social_signup_repository,
@@ -101,8 +101,8 @@ def test_complete_pending_social_signup_stores_required_agreement_metadata(monke
     captured: dict[str, object] = {}
 
     monkeypatch.setattr(oauth_service, "_get_active_pending_social_signup", lambda _db, token: pending)
-    monkeypatch.setattr(oauth_service.user_repository, "get_social_account", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(oauth_service.user_repository, "get_user_by_email", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(oauth_service.user_repository, "get_active_social_account", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(oauth_service.user_repository, "get_active_user_by_email", lambda *_args, **_kwargs: None)
 
     def create_user(_db, **kwargs):
         captured["created_user"] = kwargs

@@ -156,11 +156,13 @@ DB 연결 상태 포함 서버 헬스 확인. 인증 불필요.
 { "available": true }
 ```
 
+- `available`은 active user 기준이다. 탈퇴 완료 사용자는 `users.email`을 `withdrawn-{id}-{timestamp}@withdrawn.local`로 익명화하고 `withdrawn_at`으로 비활성 처리하므로, 원래 이메일은 재가입에 사용할 수 있다.
+
 ---
 
 ### POST /auth/signup
 
-이메일 인증 요청. 성공 시 계정은 아직 생성하지 않고 인증 메일을 발송한다. 같은 이메일의 미완료 pending signup은 새 요청으로 교체한다. 신규 계정 생성 시점의 필수 약관 2종 동의를 함께 검증·저장한다.
+이메일 인증 요청. 성공 시 계정은 아직 생성하지 않고 인증 메일을 발송한다. 같은 이메일의 미완료 pending signup은 새 요청으로 교체한다. 신규 계정 생성 시점의 필수 약관 2종 동의를 함께 검증·저장한다. 탈퇴 사용자는 active user 조회에서 제외되며 원래 이메일이 `withdrawn-...@withdrawn.local`로 바뀌므로, 같은 이메일로 신규 가입할 수 있다.
 
 **Request**
 ```json
@@ -320,7 +322,7 @@ Cookie의 refresh token으로 access token 갱신.
 **Response 200** → `AuthResponse`
 
 **Errors**
-- 401: refresh token 없음, 만료, 또는 revoke됨
+- 401: refresh token 없음, 만료, revoke됨, 또는 token의 사용자가 탈퇴 처리됨. 탈퇴 사용자의 refresh token은 fail-closed로 revoke 후 거절한다.
 
 ---
 
@@ -334,6 +336,65 @@ Cookie의 refresh token으로 access token 갱신.
 ```json
 { "loggedOut": true }
 ```
+
+---
+
+### POST /auth/password/change
+
+현재 로그인한 비밀번호 계정의 앱 비밀번호를 변경하고 해당 사용자의 기존 refresh token을 모두 revoke한다. OAuth-only/passwordless 계정은 이번 phase에서 앱 비밀번호를 새로 설정할 수 없으므로 안전하게 거절한다. 탈퇴 사용자는 bearer auth 단계에서 active user가 아니므로 401로 거절된다.
+
+**Request**
+```json
+{
+  "currentPassword": "old-password123",
+  "newPassword": "new-password123"
+}
+```
+
+- `currentPassword`: 최소 1자
+- `newPassword`: 최소 8자
+- 추가 필드는 허용하지 않는다.
+
+**Response 200**
+```json
+{ "changed": true }
+```
+
+**Errors**
+- 400: passwordless 계정이거나 요청 조합이 잘못됨
+- 401: 인증 없음 또는 현재 비밀번호 불일치
+
+---
+
+### POST /auth/withdraw
+
+현재 로그인한 계정을 탈퇴 처리한다. 서버는 사용자를 soft-disable/anonymize하고, 소셜 연결과 refresh token을 정리하며, route 응답에서 refresh cookie를 삭제한다. `password_reset_tokens` 이력은 보존하지만, 탈퇴 사용자는 active user가 아니므로 기존 재설정 token confirm은 fail-closed로 거절된다.
+
+**Password user request**
+```json
+{ "password": "password123" }
+```
+
+**OAuth-only/passwordless request**
+```json
+{ "confirmationPhrase": "탈퇴합니다" }
+```
+
+- 비밀번호 계정은 `password`만 허용한다.
+- OAuth-only/passwordless 계정은 `confirmationPhrase`만 허용하며 값은 정확히 `"탈퇴합니다"`여야 한다.
+- 누락/초과/잘못된 조합과 추가 필드는 거절한다.
+- 탈퇴 처리 시 `users.withdrawn_at`을 저장하고, 원래 이메일은 HMAC/peppered `users.withdrawn_email_hash`로만 보관한다. 공개 `email`은 `withdrawn-{id}-{YYYYMMDDHHMMSS}@withdrawn.local`, `nickname`은 `탈퇴한 사용자 #<id>`로 바뀐다.
+- `password_hash`, `social_accounts`, profile preference, onboarding/profile skip 상태는 제거·초기화한다. 저장 정책, 일정, 초대 등 user FK가 있는 관계 row는 보존한다.
+- 탈퇴 후 bearer/refresh/OAuth 동일 provider-id 또는 동일 이메일 연결은 active user lookup만 사용해 실패한다. 같은 원래 이메일은 새 계정으로 재가입할 수 있으며, `withdrawn_email_hash`는 재가입 차단 키로 쓰지 않는다.
+
+**Response 200**
+```json
+{ "withdrawn": true }
+```
+
+**Errors**
+- 400: 계정 유형별 필수 확인값 누락, 초과, 또는 문구 불일치
+- 401: 인증 없음 또는 비밀번호 불일치
 
 ---
 
@@ -352,6 +413,7 @@ Cookie의 refresh token으로 access token 갱신.
 ```
 
 > 이메일이 존재하지 않아도 동일한 응답을 반환한다 (열거 방지).
+> Passwordless/OAuth-only 계정, 탈퇴 계정, 존재하지 않는 이메일은 모두 token 생성 없이 `{ "requested": true }`를 반환한다.
 
 ---
 
@@ -375,7 +437,7 @@ Cookie의 refresh token으로 access token 갱신.
 ```
 
 **Errors**
-- 400: 토큰 만료 또는 무효
+- 400: 토큰 만료 또는 무효. token의 user가 탈퇴했거나 passwordless 상태이면 기존 token도 무효로 취급한다.
 
 ---
 
@@ -414,6 +476,7 @@ Closed failure codes:
 Account linking policy:
 
 - 기존 `social_accounts(provider, provider_id)` 연결이 있으면 provider email 변경 여부와 무관하게 해당 사용자를 우선 사용한다.
+- 모든 기존 계정 조회는 active user 기준이다. `withdrawn_at`이 있는 탈퇴 사용자의 social account/provider id 또는 원래 email은 자동 연결 대상이 아니며, callback은 새 pending social signup 또는 닫힌 실패로 처리된다.
 - 동일 이메일 자동 연결은 provider가 검증 이메일을 제공한 경우에만 허용한다.
 - Google은 `email_verified=true`인 email이 필수다.
 - Kakao는 `account_email` scope만 요청하고, `kakao_account.is_email_verified=true`이며 `is_email_valid`가 false가 아닌 email만 동일 이메일 연결과 서비스 이메일 표시/연락처 기준에 사용한다.
@@ -439,6 +502,7 @@ Account linking policy:
   "nickname": "여행자123",
   "email": "user@example.com",
   "role": "user",
+  "hasPassword": true,
   "preferredRegions": ["부산", "강원"],
   "persona": "탐험가",
   "savedAmount": 0,
@@ -1236,6 +1300,7 @@ AI 추천 장소 목록 조회.
 | nickname | string | 닉네임 |
 | email | string | 이메일 |
 | role | string | 사용자 권한 (`user` 또는 `admin`) |
+| hasPassword | boolean | 앱 비밀번호 보유 여부. OAuth-only/passwordless 계정은 `false` |
 | preferredRegions | string[] \| null | 관심 지역 최대 3개. 미설정은 `null` |
 | persona | string | 여행 유형 |
 | savedAmount | number | 예상 절약 금액 |

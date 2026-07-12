@@ -33,6 +33,11 @@ from app.services import itinerary_recommendations
 from app.services import local_half_trip_display
 from app.services import stay_discount_aliases
 from app.services.kakao_local import KakaoLocalClient, build_kakao_local_client
+from app.services.policy_semantics import (
+    benefit_display_amount,
+    is_public_policy,
+    policy_status,
+)
 
 try:
     from app.data.travel_areas import get_travel_area, list_travel_areas
@@ -188,6 +193,14 @@ def _policy_saving(trip: Trip) -> int:
     return total
 
 
+def _trip_policy_amount(policy: Policy) -> str:
+    detail_amount = benefit_display_amount(
+        benefit_detail=policy.benefit_detail,
+        benefit_amount=None,
+    )
+    return detail_amount or _format_saving(policy.benefit_amount or 0)
+
+
 def _linked_policies(
     trip: Trip,
     alias_overrides: dict[str, stay_discount_aliases.StayDiscountAliasArea] | None = None,
@@ -206,14 +219,14 @@ def _linked_policies(
             slug = alias_area.slug
             region = alias_area.sido
             title = stay_discount_aliases.alias_title(policy.title, alias_area)
-        amount = policy.benefit_detail or _format_saving(policy.benefit_amount or 0)
+        amount = _trip_policy_amount(policy)
         linked.append(
             {
                 "slug": slug,
                 "title": title,
                 "amount": amount,
                 "region": region,
-                "status": getattr(policy, "status", "active") or "active",
+                "status": policy_status(policy),
             }
         )
     return linked
@@ -224,7 +237,7 @@ def _policy_to_trip_policy_candidate(
     external_record: ExternalSourceRecord | None = None,
 ) -> dict[str, object]:
     slug = policy.slug or str(policy.id)
-    amount = policy.benefit_detail or _format_saving(policy.benefit_amount or 0)
+    amount = _trip_policy_amount(policy)
     city = external_record.city if external_record is not None else None
     title = local_half_trip_display.policy_title(policy.title, policy.source_category, city)
     local_terms = _candidate_local_terms(
@@ -255,7 +268,7 @@ def _stay_alias_to_trip_policy_candidate(
     policy: Policy,
     alias_area: stay_discount_aliases.StayDiscountAliasArea,
 ) -> dict[str, object]:
-    amount = policy.benefit_detail or _format_saving(policy.benefit_amount or 0)
+    amount = _trip_policy_amount(policy)
     title = stay_discount_aliases.alias_title(policy.title, alias_area)
     local_terms = _candidate_local_terms(
         title=title,
@@ -709,7 +722,7 @@ def _resolve_policy_for_request_slug(
     alias_resolution = stay_discount_aliases.resolve_stay_discount_alias_slug(db, policy_slug)
     if alias_resolution is not None:
         policy = alias_resolution.canonical_policy
-        if (getattr(policy, "status", "active") or "active") != "active":
+        if not is_public_policy(policy):
             return None, None
         return policy, alias_resolution.alias_area
     return policy_repository.get_policy_by_slug(db, policy_slug), None

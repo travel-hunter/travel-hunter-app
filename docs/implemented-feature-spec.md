@@ -18,7 +18,9 @@
 | 닉네임 설정 | `/nickname-setup`에서 자동 생성된 임시 닉네임을 수정하거나 주사위 버튼으로 새 추천 닉네임을 받아 저장한다. 소셜 신규 사용자는 provider 기본 닉네임이 있어도 이 단계를 먼저 완료해야 `/profile-setup`으로 진행한다. | `GET /api/me/nickname-suggestion`, `PATCH /api/me/nickname`, `users.nickname`, `users.nickname_setup_completed` |
 | 로그인 | `/`와 `/login`에서 프로토타입과 같은 모바일 앱형 로그인 화면을 보여주고 email/password로 로그인한다. 실패 시 사용자용 오류를 표시한다. | `POST /api/auth/login`, `auth_refresh_tokens` |
 | 세션 유지/로그아웃 | refresh cookie로 access token을 갱신하고, 로그아웃 시 refresh token을 revoke한다. | `POST /api/auth/refresh`, `POST /api/auth/logout` |
-| 비밀번호 재설정 | `/forgot-password` 요청 후 email link로 `/reset-password?token=...`에서 새 비밀번호를 설정한다. | `password_reset_tokens`, SMTP 설정 필요 |
+| 비밀번호 변경 | `/mypage`의 계정 보안 영역에서 앱 비밀번호 보유 계정만 현재 비밀번호와 새 비밀번호를 입력해 변경한다. 성공 시 사용자의 기존 refresh token을 revoke한다. OAuth-only/passwordless 계정은 `User.hasPassword=false`로 내려와 비밀번호 변경 대신 안내 문구를 표시하며, 이번 phase에서는 앱 비밀번호 설정 flow를 제공하지 않는다. | `User.hasPassword`, `POST /api/auth/password/change`, `auth_refresh_tokens` |
+| 비밀번호 재설정 | `/forgot-password` 요청 후 email link로 `/reset-password?token=...`에서 새 비밀번호를 설정한다. 존재하지 않는 이메일, passwordless/OAuth-only 계정, 탈퇴 계정은 모두 열거 방지 응답만 반환하고 token을 만들지 않는다. 기존 `password_reset_tokens` row는 회원 탈퇴 시 삭제하지 않지만, 탈퇴 또는 passwordless user에 연결된 token confirm은 무효로 처리한다. | `password_reset_tokens`, SMTP 설정 필요 |
+| 회원 탈퇴/재가입 | `/mypage`의 회원 탈퇴 영역에서 비밀번호 계정은 현재 비밀번호, OAuth-only/passwordless 계정은 확인 문구 `탈퇴합니다`를 요구한다. 성공 시 계정을 soft withdrawal 상태로 전환해 `withdrawn_at`과 HMAC `withdrawn_email_hash`를 저장하고, 이메일은 `withdrawn-{id}-{timestamp}@withdrawn.local`, 닉네임은 `탈퇴한 사용자 #<id>`로 익명화한다. 비밀번호 hash, 소셜 연결, profile preference, refresh token은 제거·revoke하되 저장 정책/일정/초대 등 관계 row와 password reset 이력은 보존한다. 이후 bearer/refresh/OAuth 연결은 active user 조회로 fail-closed 처리되며, 원래 이메일은 신규 계정으로 재가입할 수 있다. | `POST /api/auth/withdraw`, `users.withdrawn_at`, `users.withdrawn_email_hash`, `social_accounts`, `auth_refresh_tokens` |
 | Kakao/Google OAuth | 로그인 버튼에서 provider authorization flow를 시작하고 callback에서 세션을 복구한다. 기존 소셜 계정 또는 검증된 동일 이메일 계정은 바로 로그인/연결된다. 신규 소셜 계정은 callback에서 즉시 user를 만들지 않고 `/signup/social-agreement` 대기 화면으로 이동해 확인된 provider/email 정보를 작게 보여준 뒤 필수 2종 약관 동의를 받아 계정을 생성한다. callback 실패는 닫힌 error code로 사용자용 메시지를 표시한다. Kakao는 `account_email`만 요청하며, 기존 `kakao_{providerId}@oauth.local` 내부 이메일 계정은 verified Kakao email을 받는 다음 로그인 때 충돌이 없으면 실제 email로 자동 교체한다. dev 도메인에서는 Google/Kakao 브라우저 로그인이 검증됐다. | `GET/POST /api/auth/oauth/pending-signup`, `pending_social_signups`, `social_accounts`, provider env 필요 |
 
 ## 사용자와 마이페이지
@@ -29,6 +31,7 @@
 | 프로필 편집 | `/mypage`의 편집 sheet에서 profile 값을 수정한다. | `PATCH /api/me/profile` |
 | 저장 정책 | `/mypage`에서 저장한 정책을 확인하고 삭제한다. | `GET/DELETE /api/me/saved-policies` |
 | 신청 정책 통계 | `/mypage`에서 내 일정에 연결된 정책 수를 확인한다. | `GET /api/me/applied-policies`, `trip_policies` |
+| 계정 보안 | `/mypage`에서 `User.hasPassword`에 따라 비밀번호 변경 form 또는 OAuth-only/passwordless 안내를 표시하고, 같은 API boundary에서 회원 탈퇴 요청을 보낸다. | `frontend/src/api/AppDataApi`, `POST /api/auth/password/change`, `POST /api/auth/withdraw` |
 
 ## 정책
 
@@ -95,6 +98,7 @@
 
 - SMTP env와 public base URL이 있어야 password reset email smoke를 완료할 수 있다.
 - dev 도메인 `dev.travel-hunter.co.kr`에서는 Kakao/Google provider secret과 public redirect URI 기반 브라우저 OAuth smoke가 완료됐다. 운영 도메인 `travel-hunter.co.kr`에서는 별도 provider redirect URI, runtime env, public smoke 증거가 필요하다.
+- 회원 탈퇴는 soft withdrawal과 동일 이메일 재가입까지 구현돼 있지만, 운영 privacy/legal 문구와 hard-delete retention 정책은 별도 제품/법무 결정이 필요하다.
 - 정책 수집/정규화/노출의 local code path와 release-gate test는 존재하지만, Public v1/RC 판정에는 public domain/runtime smoke 증거가 추가로 필요하다.
 - 실제 AI 엔진, SMTP readiness 이후 친구 초대 email 발송, 운영 관리자 화면, 정책 수집 source 확대와 full automation은 후속 범위다.
 - 지도/장소 검색의 로컬 기본 UX는 일정 상세 지도, 장소 상세 dialog, 장소 추가 sheet 후보 검색, Kakao Local 후보, catalog fallback 기준으로 구현되어 있다. Public map-domain 검증과 추천 품질 고도화는 별도 개선 범위다.

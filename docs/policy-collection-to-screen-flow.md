@@ -2,7 +2,7 @@
 
 ## 기준
 
-- 기준일: 2026-06-30
+- 기준일: 2026-07-12
 - 기준 코드:
   - `backend/app/api/routes/ops.py`
   - `backend/app/services/external_benefit_collection.py`
@@ -11,7 +11,13 @@
   - `backend/app/services/dgtourcard_parser.py`
   - `backend/app/repositories/external_sources.py`
   - `backend/app/services/policy_normalization.py`
+  - `backend/app/models/policy_status.py`
+  - `backend/app/services/policy_semantics.py`
   - `backend/app/services/policies.py`
+  - `backend/app/services/policy_structured_detail.py`
+  - `backend/app/services/trips.py`
+  - `backend/scripts/audit_policy_semantics.py`
+  - `backend/scripts/audit_policy_sources.py`
   - `backend/app/api/routes/policies.py`
   - `frontend/src/api/appDataApi.ts`
   - `frontend/src/api/backendApi.ts`
@@ -283,16 +289,45 @@ source_name + source_category + canonical_key
 | `organization` | `org` | 상세 meta의 주관 기관 |
 | `region` | `region` | 목록 필터, 상세 meta, 일정 생성 region context |
 | `end_date` | `deadline` | D-day와 신청 기간 표시 |
-| `benefit_detail` or 금액 fallback | `amount` | 상세의 큰 혜택 금액/요약 |
+| `benefit_detail` or 금액 fallback | `amount` | 상세의 큰 혜택 금액/요약. `benefit_detail` 표시값이 항상 이기고, 비어 있을 때만 `benefit_amount`를 사람이 읽는 원화 문구로 포맷한다. |
 | `policy_comment` or `description` | `summary` | 지원 내용 section을 쪼개는 주 입력 |
 | display override | `match` | 추천/정렬 보조 점수 |
 | `policy_type` | `category` | 교통/숙박/여행상품/지역할인/이벤트/기타 |
-| `target_condition` | `requirements` | `structuredDetail`이 없는 legacy/simple fallback 재료. 수집 정책 상세에서 비어 있지 않은 `structuredDetail` 섹션이 있으면 frontend가 이 값을 다시 같은 섹션으로 의미 추론하지 않는다. |
+| `target_condition` | `requirements` | DB 필드는 그대로 유지한다. API fallback 배열은 helper가 줄 분리/정제를 중앙화한다. `structuredDetail`이 없는 legacy/simple fallback 재료이며, 수집 정책 상세에서 비어 있지 않은 `structuredDetail` 섹션이 있으면 frontend가 이 값을 다시 같은 섹션으로 의미 추론하지 않는다. |
 | `policy.documents` | `documents` | 필요 서류 목록. `structuredDetail.documents`가 비어 있거나 없을 때 문서 섹션 fallback으로 사용한다. |
 | `structured_detail` | `structuredDetail` | 혜택/조건/기간/링크/필요 서류/주의사항을 화면 섹션으로 보여주는 사용자 화면용 primary JSON. raw 수집 JSON이 아니며, 외부 수집 정책 상세에서는 비어 있지 않은 섹션을 그대로 우선 렌더링한다. |
 | `official_url` | `officialUrl` | `혜택 안내 보기` CTA |
 | `apply_url` | `applyUrl` | `신청하러 가기` CTA. 있으면 officialUrl보다 우선 |
-| `external_source_record_id`/`source_type` | `sourceType` | internal/external 구분 |
+| `external_source_record_id`/`source_type` | `sourceType` | API는 `internal` 또는 `external`만 반환한다. `external_source_record_id`가 있으면 `external`, 비어 있고 `source_type`도 비어 있으면 `internal`, 지원하지 않는 비어 있지 않은 값은 `external`로 정규화한다. |
+
+### 정책 semantic helper 기준
+
+2026-07 first pass는 호환성 유지가 목표다. `policies` 컬럼 drop/rename은 하지 않았고, public `Policy` DTO shape도 바꾸지 않았다. 대신 오래된 컬럼 이름의 의미를 service helper에 모아 화면/일정/진단 흐름이 같은 규칙을 쓰게 했다.
+
+| 의미 | 현재 기준 | phase-2 전까지의 주의점 |
+| --- | --- | --- |
+| 혜택 표시 | `policy_semantics.benefit_display_amount_for_policy()`가 `benefit_detail`을 먼저 쓰고, 없을 때만 `benefit_amount`를 `최대 N만원/원` 문구로 만든다. | `benefit_amount`는 정렬/집계/절약액 계산용 숫자 fallback으로 남는다. 표시 문구와 숫자 의미를 혼합하지 않는다. |
+| 신청 조건 fallback | `target_condition`은 DB field로 유지한다. `policy_semantics.requirement_items_for_policy()`가 DTO `requirements` fallback을 정제한다. | 컬럼 이름 변경은 phase-2 선택지다. 현 단계에서 `target_condition`을 삭제하거나 다른 public field로 노출하지 않는다. |
+| 링크 | `applyUrl`과 `officialUrl`은 별도 DTO field다. frontend CTA 우선순위는 `applyUrl`이 있으면 `신청하러 가기`, 없고 `officialUrl`이 있으면 `혜택 안내 보기`다. | 외부 수집 승격은 현재 별도 신청 URL이 없으면 `apply_url = NULL`을 유지하고 `official_url` 중심으로 연결한다. |
+| 출처 유형 | API `sourceType`은 `internal|external`로만 정규화한다. 외부 수집 record가 연결된 정책은 항상 `external`이다. | DB `source_type`, `source_name`, `source_category`, `source_canonical_key`는 운영/중복/진단 metadata다. 사용자 문구로 직접 노출하지 않는다. |
+| 출처 canonical key | `source_canonical_key`는 legacy mixed format을 허용하고, DB aggregate audit에서 family별 count를 본다. | key format 정규화나 versioning은 phase-2 migration/운영 절차로 분리한다. |
+| 공개 상태 | `status`는 지금도 `active|hidden` enum이다. repository/service/trip 경로는 active-only 공개 규칙을 공유한다. | boolean/visibility 컬럼 전환은 phase-2 옵션일 뿐이며, 현재 pass에서는 구현하지 않는다. |
+
+관련 진단 명령은 두 개로 나뉜다.
+
+```bash
+cd backend
+.venv/bin/python scripts/audit_policy_semantics.py --json
+```
+
+위 명령은 configured DB를 읽는 aggregate-only 정책 semantics audit이다. 총 정책 수, `active`/`hidden`, `benefit_amount` nullability, `apply_url` nullability, source metadata 조합, `source_canonical_key` family를 집계한다. row title, URL, raw canonical key 같은 개별 값은 출력하지 않는다.
+
+```bash
+cd backend
+.venv/bin/python scripts/audit_policy_sources.py --json path/to/policies.json
+```
+
+기존 source auditor는 그대로 file-input URL/source 품질 점검 도구다. DB aggregate semantics audit으로 재사용하지 않는다.
 
 ### stay discount alias 특수 처리
 

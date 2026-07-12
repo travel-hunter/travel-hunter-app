@@ -12,9 +12,24 @@ from app.repositories import auth_tokens as token_repository
 from app.repositories import pending_signups as pending_signup_repository
 from app.repositories import password_resets as password_reset_repository
 from app.repositories import users as user_repository
-from app.schemas.user import EmailAvailabilityRequest, LoginRequest, PasswordResetConfirm, PasswordResetRequest, RequiredAgreement, SignupCompleteRequest, SignupRequest, SignupVerifyRequest
-from app.services.email import EmailDeliveryError, send_password_reset_email, send_signup_verification_email
+from app.schemas.user import (
+    EmailAvailabilityRequest,
+    LoginRequest,
+    PasswordChangeRequest,
+    PasswordResetConfirm,
+    PasswordResetRequest,
+    RequiredAgreement,
+    SignupCompleteRequest,
+    SignupRequest,
+    SignupVerifyRequest,
+    WithdrawRequest,
+)
 from app.services import nicknames
+from app.services.email import (
+    EmailDeliveryError,
+    send_password_reset_email,
+    send_signup_verification_email,
+)
 from app.services.profile_preferences import parse_preferred_regions
 
 
@@ -37,6 +52,7 @@ SIGNUP_VERIFICATION_EXPIRE_MINUTES = 30
 CURRENT_TERMS_VERSION = "2026-06-26"
 CURRENT_PRIVACY_VERSION = "2026-06-26"
 REQUIRED_AGREEMENT_ERROR = "Required agreements must be accepted"
+WITHDRAW_CONFIRMATION_PHRASE = "탈퇴합니다"
 
 
 def normalize_email(email: str) -> str:
@@ -74,6 +90,7 @@ def user_to_api(user: UserModel) -> dict[str, object]:
         "nickname": user.nickname,
         "email": user.email,
         "role": getattr(user, "role", "user") or "user",
+        "hasPassword": bool(user.password_hash),
         "preferredRegions": parse_preferred_regions(user.preferred_regions),
         "persona": "Travel Hunter 사용자",
         "savedAmount": 0,
@@ -104,7 +121,7 @@ def _issue_tokens(db: Session, user: UserModel) -> AuthResult:
 def signup(db: Session, request: SignupRequest) -> dict[str, object]:
     email = normalize_email(str(request.email))
     accepted_at = validate_required_agreements(request.agreements)
-    if user_repository.get_user_by_email(db, email) is not None:
+    if user_repository.get_active_user_by_email(db, email) is not None:
         raise AuthServiceError(409, "Email already registered")
 
     raw_token = security.create_urlsafe_token()
@@ -143,7 +160,7 @@ def _get_verified_pending_signup(db: Session, token: str):
     )
     if pending is None:
         raise AuthServiceError(400, "Invalid or expired signup verification token")
-    if user_repository.get_user_by_email(db, pending.email) is not None:
+    if user_repository.get_active_user_by_email(db, pending.email) is not None:
         pending_signup_repository.delete_pending_signup(db, pending)
         db.commit()
         raise AuthServiceError(409, "Email already registered")
@@ -187,12 +204,12 @@ def complete_signup(db: Session, request: SignupCompleteRequest) -> AuthResult:
 
 def check_email_availability(db: Session, request: EmailAvailabilityRequest) -> dict[str, bool]:
     email = normalize_email(str(request.email))
-    return {"available": user_repository.get_user_by_email(db, email) is None}
+    return {"available": user_repository.get_active_user_by_email(db, email) is None}
 
 
 def login(db: Session, request: LoginRequest) -> AuthResult:
     email = normalize_email(str(request.email))
-    user = user_repository.get_user_by_email(db, email)
+    user = user_repository.get_active_user_by_email(db, email)
     if user is None or not security.verify_password(request.password, user.password_hash):
         raise AuthServiceError(401, "Invalid email or password")
 
@@ -212,6 +229,11 @@ def refresh(db: Session, refresh_token: str | None) -> AuthResult:
         now=now,
     )
     if token is None:
+        raise AuthServiceError(401, "Invalid refresh token")
+
+    if not user_repository.is_user_active(token.user):
+        token_repository.revoke_refresh_token(db, token, revoked_at=now)
+        db.commit()
         raise AuthServiceError(401, "Invalid refresh token")
 
     token_repository.revoke_refresh_token(db, token, revoked_at=now)
@@ -236,14 +258,58 @@ def logout(db: Session, refresh_token: str | None) -> None:
     db.commit()
 
 
+def change_password(db: Session, user: UserModel, request: PasswordChangeRequest) -> dict[str, bool]:
+    if not user_repository.is_user_active(user):
+        raise AuthServiceError(401, "Not authenticated")
+    if not user.password_hash:
+        raise AuthServiceError(400, "Password change is not available for this account")
+    if not security.verify_password(request.currentPassword, user.password_hash):
+        raise AuthServiceError(401, "Invalid password")
+
+    now = security.utc_now_naive()
+    user_repository.update_user_password(
+        db,
+        user,
+        password_hash=security.hash_password(request.newPassword),
+    )
+    token_repository.revoke_user_refresh_tokens(db, user_id=int(user.id), revoked_at=now)
+    db.commit()
+    return {"changed": True}
+
+
+def withdraw(db: Session, user: UserModel, request: WithdrawRequest) -> dict[str, bool]:
+    if not user_repository.is_user_active(user):
+        raise AuthServiceError(401, "Not authenticated")
+
+    password = request.password
+    phrase = request.confirmationPhrase
+    provided_fields = request.model_fields_set
+    has_password = bool(user.password_hash)
+
+    if has_password:
+        if password is None or "confirmationPhrase" in provided_fields:
+            raise AuthServiceError(400, "Password is required for withdrawal")
+        if not security.verify_password(password, user.password_hash):
+            raise AuthServiceError(401, "Invalid password")
+    else:
+        if "password" in provided_fields or phrase != WITHDRAW_CONFIRMATION_PHRASE:
+            raise AuthServiceError(400, "Confirmation phrase is required for withdrawal")
+
+    from app.services import account_withdrawal
+
+    account_withdrawal.soft_withdraw_user(db, user)
+    db.commit()
+    return {"withdrawn": True}
+
+
 def _frontend_base_url() -> str:
     return settings.frontend_base_url()
 
 
 def request_password_reset(db: Session, request: PasswordResetRequest) -> dict[str, bool]:
     email = normalize_email(str(request.email))
-    user = user_repository.get_user_by_email(db, email)
-    if user is None:
+    user = user_repository.get_active_user_by_email(db, email)
+    if user is None or not user.password_hash:
         return {"requested": True}
 
     raw_token = security.create_urlsafe_token()
@@ -274,7 +340,7 @@ def confirm_password_reset(db: Session, request: PasswordResetConfirm) -> dict[s
         token_hash=security.hash_token(request.token),
         now=now,
     )
-    if token is None:
+    if token is None or not user_repository.is_user_active(token.user) or not token.user.password_hash:
         raise AuthServiceError(400, "Invalid or expired reset token")
 
     user_repository.update_user_password(

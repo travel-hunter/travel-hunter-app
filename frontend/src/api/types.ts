@@ -3,6 +3,7 @@ export type User = {
   nickname: string;
   email: string;
   role: "user" | "admin";
+  hasPassword: boolean;
   preferredRegions: string[] | null;
   persona: string;
   savedAmount: number;

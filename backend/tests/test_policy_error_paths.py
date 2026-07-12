@@ -56,7 +56,7 @@ def test_db_mode_unknown_policy_slug_returns_404(monkeypatch) -> None:
 
     monkeypatch.setattr(
         policy_service.policy_repository,
-        "get_policy_by_slug",
+        "get_policy_by_slug_any_status",
         lambda db, slug: None if db is fake_db and slug == "missing-policy" else None,
     )
     set_db_dependency_override(fake_db)
@@ -76,7 +76,7 @@ def test_db_mode_known_policy_slug_preserves_response_contract(monkeypatch) -> N
 
     monkeypatch.setattr(
         policy_service.policy_repository,
-        "get_policy_by_slug",
+        "get_policy_by_slug_any_status",
         lambda db, slug: policy if db is fake_db and slug == "fixture-policy" else None,
     )
     set_db_dependency_override(fake_db)
@@ -144,7 +144,7 @@ def test_db_policy_service_returns_none_when_repository_misses(monkeypatch) -> N
 
     monkeypatch.setattr(
         policy_service.policy_repository,
-        "get_policy_by_slug",
+        "get_policy_by_slug_any_status",
         lambda db, slug: None,
     )
 

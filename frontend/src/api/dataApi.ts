@@ -98,6 +98,23 @@ export type LogoutResponse = {
   loggedOut: boolean;
 };
 
+export type ChangePasswordRequest = {
+  currentPassword: string;
+  newPassword: string;
+};
+
+export type ChangePasswordResponse = {
+  changed: boolean;
+};
+
+export type WithdrawRequest =
+  | { password: string; confirmationPhrase?: never }
+  | { confirmationPhrase: string; password?: never };
+
+export type WithdrawResponse = {
+  withdrawn: boolean;
+};
+
 export type PasswordResetRequest = {
   email: string;
 };
@@ -209,6 +226,8 @@ export type AppDataApi = {
   updateNickname: (request: NicknameUpdateRequest) => Promise<User>;
   refreshSession: () => Promise<AuthResponse>;
   logout: () => Promise<LogoutResponse>;
+  changePassword: (request: ChangePasswordRequest) => Promise<ChangePasswordResponse>;
+  withdraw: (request: WithdrawRequest) => Promise<WithdrawResponse>;
   requestPasswordReset: (request: PasswordResetRequest) => Promise<PasswordResetResponse>;
   confirmPasswordReset: (request: PasswordResetConfirmRequest) => Promise<PasswordResetConfirmResponse>;
   getOAuthStartUrl: (provider: OAuthProvider, redirect?: string | null) => string;

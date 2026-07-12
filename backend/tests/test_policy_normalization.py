@@ -257,6 +257,12 @@ def test_local_half_trip_builds_semantic_structured_detail_for_gangjin(
     assert api_policy["structuredDetail"]["notices"] == [
         {"title": "확인 필요 사항", "description": "홈페이지 공지사항(고시공고) 필독"}
     ]
+    assert "거래내역(영수증)" not in [
+        item["description"] for item in api_policy["structuredDetail"]["conditions"]
+    ]
+    assert "홈페이지 공지사항(고시공고) 필독" not in [
+        item["description"] for item in api_policy["structuredDetail"]["documents"]
+    ]
 
 
 def test_local_half_trip_structured_detail_uses_source_record_fields_without_duplicates(

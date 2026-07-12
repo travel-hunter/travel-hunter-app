@@ -12,6 +12,7 @@ class User(BaseModel):
     nickname: str
     email: str
     role: str = "user"
+    hasPassword: bool
     preferredRegions: list[str] | None = None
     persona: str
     savedAmount: int
@@ -123,6 +124,28 @@ class LogoutResponse(BaseModel):
 
 class PasswordResetRequest(BaseModel):
     email: EmailStr
+
+
+class PasswordChangeRequest(BaseModel):
+    currentPassword: str = Field(min_length=1)
+    newPassword: str = Field(min_length=8)
+
+    model_config = {"extra": "forbid"}
+
+
+class PasswordChangeResponse(BaseModel):
+    changed: bool
+
+
+class WithdrawRequest(BaseModel):
+    password: str | None = None
+    confirmationPhrase: str | None = None
+
+    model_config = {"extra": "forbid"}
+
+
+class WithdrawResponse(BaseModel):
+    withdrawn: bool
 
 
 class PasswordResetConfirm(BaseModel):

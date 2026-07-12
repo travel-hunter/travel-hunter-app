@@ -36,7 +36,7 @@ def get_current_user(
             detail="Not authenticated",
         ) from None
 
-    user = user_repository.get_user_by_id(db, numeric_user_id)
+    user = user_repository.get_active_user_by_id(db, numeric_user_id)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

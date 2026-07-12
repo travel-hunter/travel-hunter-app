@@ -57,6 +57,9 @@ def test_current_schema_decision_columns_are_registered() -> None:
     assert "privacy_accepted" in users.c
     assert "privacy_accepted_at" in users.c
     assert "privacy_version" in users.c
+    assert "withdrawn_at" in users.c
+    assert "withdrawn_email_hash" in users.c
+    assert users.c["withdrawn_email_hash"].type.length == 64
     user_saved_policies = Base.metadata.tables["user_saved_policies"]
     assert "saved_at" in user_saved_policies.c
     assert "slug" in policies.c
